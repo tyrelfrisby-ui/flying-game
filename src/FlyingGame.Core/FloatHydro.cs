@@ -57,6 +57,10 @@ namespace FlyingGame.Core;
 ///     2π A/(2 + √(A² + 4)) at A = 2 × the immersed aspect ratio (the float bottom over its root is an end plate:
 ///     Whicker &amp; Fehlner 1958), plus crossflow C_Dc 1.2 sin²α (Hoerner): C_N = C_Lα sin α cos α + 1.2 sin²α, normal
 ///     to the blade. It is effective only while its blade is in the water — on the step it is not.
+///     A DRAWN, retractable blade (<see cref="FloatsConfig.WaterRudderChordM"/> &gt; 0: the J-3's) is modelled from where
+///     the blade really is instead, cell by cell against the water and the step's wake, swung up by the pilot's retract
+///     cable (<see cref="DrawnWaterRudder"/>). Each cell sees its own flow, slowed in the float's boundary layer shed off
+///     the heel (<see cref="HeelWake"/>); the lumped blade takes the same wake at its centre.
 /// Not modelled (stated, not fudged): added mass (it lowers the bob frequency), the two floats' wave interference,
 /// the deck awash, spray lift, moving decks. Forces are world-frame, moments about the CG.
 /// </summary>
@@ -71,6 +75,10 @@ public static class FloatHydro
     public const double HeaveDragCd = 1.2;                  // 2-D V-bottom / plate normal to the flow (Hoerner 1965)
     public const double PlateCrossflowCd = 1.2;             // water-rudder blade, flat plate normal to the flow (Hoerner 1965)
     public const double VentWetFT = 2.0, VentDryFT = 4.0;   // transom-draft Froude numbers: step wet / fully ventilated
+    /// <summary>Savitsky's planing (term 3) is a flow ALONG the keel. Past this sideslip of the water past the hull it is
+    /// not planing at all: the trim "along the flow" goes to 90° as the flow comes square across the keel, and tan τ with
+    /// it — a floatplane sat in a cross-current (WaterCurrent) is exactly that case. The crossflow terms (7) carry it.</summary>
+    public const double PlaningMaxSideslipRad = 60.0 * System.Math.PI / 180.0;
 
     /// <summary>
     /// Test hook: water everywhere at this height (m, up). Null = use the world terrain's water. Production never
@@ -262,10 +270,17 @@ public static class FloatHydro
 
     [ThreadStatic] private static (FloatsConfig f, double yF, int slot, bool rudder)[]? _set;
 
-    /// <summary>Total world-frame force and moment (about the CG) from all floats. Zero when clear of water.</summary>
+    /// <summary>Total world-frame force and moment (about the CG) from all floats. Zero when clear of water. The body's
+    /// velocity is taken relative to the water's own (<see cref="WaterCurrent"/>) float by float.</summary>
     public static (Vec3 Force, Vec3 Moment) Compute(AircraftConfig config, RigidBodyState s, double rudderCmd)
+        => Compute(config, s, rudderCmd, 0.0);
+
+    /// <param name="waterRudderUp01">How far the pilot has the water rudder raised: 0 = down (the spring's default,
+    /// and every water start), 1 = hung on the hook, fully up. Only read for a drawn, retractable blade.</param>
+    public static (Vec3 Force, Vec3 Moment) Compute(AircraftConfig config, RigidBodyState s, double rudderCmd, double waterRudderUp01)
     {
         FloatsConfig main = config.Floats!;
+        LastWaterRudder = default;
         Statics stx = RestStatics(config);
         _set ??= new (FloatsConfig, double, int, bool)[4];
         int nSet = FloatSet(main, _set);
@@ -274,7 +289,7 @@ public static class FloatHydro
         for (int k = 0; k < nSet; k++)
         {
             (FloatsConfig f, double yF, int slot, bool hasRudder) = _set[k];
-            FloatState fs = OneFloat(config, f, yF, hasRudder && f == main, slot >= 2 ? null : stx, s, rudderCmd, ref totalF, ref totalM);
+            FloatState fs = OneFloat(config, f, yF, hasRudder && f == main, slot >= 2 ? null : stx, s, rudderCmd, waterRudderUp01, ref totalF, ref totalM);
             Floats[slot] = fs;
             if (main.Count == 1 && slot == 0) Floats[1] = fs;   // a hull: both "float" slots read the same state
             buoyReport += fs.BuoyancyN; liftReport += fs.PlaningLiftN; dragReport += fs.DragN;
@@ -291,16 +306,16 @@ public static class FloatHydro
     }
 
     private static FloatState OneFloat(AircraftConfig config, FloatsConfig f, double yF, bool hasRudder, Statics? stx,
-        RigidBodyState s, double rudderCmd, ref Vec3 sumF, ref Vec3 sumM)
+        RigidBodyState s, double rudderCmd, double waterRudderUp01, ref Vec3 sumF, ref Vec3 sumM)
     {
-        (FloatState fs, Vec3 force, Vec3 moment) = OneFloatImpl(config, f, yF, hasRudder, stx, s, rudderCmd);
+        (FloatState fs, Vec3 force, Vec3 moment) = OneFloatImpl(config, f, yF, hasRudder, stx, s, rudderCmd, waterRudderUp01);
         fs.WaterUpN = -force.Z;
         sumF += force; sumM += moment;
         return fs;
     }
 
     private static (FloatState, Vec3, Vec3) OneFloatImpl(AircraftConfig config, FloatsConfig f, double yF, bool hasRudder, Statics? stx,
-        RigidBodyState s, double rudderCmd)
+        RigidBodyState s, double rudderCmd, double waterRudderUp01)
     {
         Vec3 totalF = Vec3.Zero, totalM = Vec3.Zero;
         FloatHull h = FloatHull.For(f);
@@ -320,6 +335,10 @@ public static class FloatHydro
         fs.StepWorld = pStep; fs.BowWorld = pBow; fs.SternWorld = pStern;
         if (wB is null && wS is null && wA is null) return (fs, totalF, totalM);
         double wb = wB ?? wS ?? wA!.Value, ws = wS ?? wb, wa = wA ?? ws;
+        // The water moves (WaterCurrent): every force below comes from the hull's velocity THROUGH THE WATER, not over the
+        // ground, the way the aero comes from the velocity through the air. One current per float, taken at its step half
+        // the step's draft down; the two floats of a pair each take their own, so a shear across the pair turns it.
+        s = WaterCurrent.Relative(s, WaterCurrent.At(pStep.X, pStep.Y, 0.5 * System.Math.Max(0.0, ws + pStep.Z)));
         // A float out of the water entirely (every keel point above the surface by more than its depth): nothing to do.
         double WaterAt(double x) => x >= h.StepX ? ws + (wb - ws) * (x - h.StepX) / System.Math.Max(h.BowX - h.StepX, 1e-6)
                                                  : ws + (wa - ws) * (h.StepX - x) / System.Math.Max(h.StepX - h.SternX, 1e-6);
@@ -373,6 +392,7 @@ public static class FloatHydro
 
         // ---- afterbody: in the forebody's wake once the step ventilates ----
         double cvB = vH / System.Math.Sqrt(g * b);
+        double heelH0 = double.NaN, heelHy = 0, heelHz = 0;     // the heel station's water plane (9: the hull's wake)
         for (int i = h.FirstAft; i < n; i++)
         {
             double water = WaterAt(h.X[i]);
@@ -386,6 +406,7 @@ public static class FloatHydro
                 h0 -= vent * System.Math.Max(0.0, water - wakeUp);
             }
             h.CutStation(i, h0, hy, hz, ref cuts[i], _sy!, _sz!);
+            if (i == n - 1) { heelH0 = h0; heelHy = hy; heelHz = hz; }
         }
 
         // ---- 1. buoyancy, station by station; and the per-station water velocities for 7/8 ----
@@ -457,7 +478,10 @@ public static class FloatHydro
         // meets the water along the chord from the step keel to where the keel crosses the surface, which is steeper.
         // Taking only the keel line there gave a float set down flat or a little nose-low at speed NO planing lift
         // (τ ≤ 0) however much bow was in the water, so it knifed under and drove the engine into the lake (Ty
-        // 2026-11-03, the J-3 on floats breaking up on landing; FloatLandingTests). The steeper of the two is used.
+        // 2026-11-03, the J-3 on floats breaking up on landing; FloatLandingTests). At any positive keel-line τ the
+        // prismatic τ is kept exactly (the low-trim porpoise and every validated number live there: HydroJ3Tests);
+        // below zero, where the prismatic surface gives nothing, τ moves to the chord over the first degree — from
+        // zero lift, so the lift is continuous through τ = 0.
         double planeSlope = h.ForeKeelSlope;
         if (lk > 1e-3)
         {
@@ -471,15 +495,27 @@ public static class FloatHydro
             }
             planeSlope = System.Math.Min(planeSlope, (zf - h.KeelZStep) / lk);   // body z is down: a rising bow is negative
         }
-        if (planeSlope < h.ForeKeelSlope)
+        const double chordRampDeg = 1.0;
+        if (planeSlope < h.ForeKeelSlope && tauDeg < 0)
         {
             Vec3 dkc = q.Rotate(new Vec3(1, 0, planeSlope).Normalized());
             double dkch = vH > 1e-6 ? (dkc.X * vStep.X + dkc.Y * vStep.Y) / vH : System.Math.Sqrt(dkc.X * dkc.X + dkc.Y * dkc.Y);
-            keelPitch = System.Math.Atan2(-dkc.Z, System.Math.Max(System.Math.Abs(dkch), 1e-9)) * (dkch >= 0 ? 1 : -1);
-            tauRad = keelPitch + sink; tauDeg = tauRad * 180 / System.Math.PI;
+            double chordPitch = System.Math.Atan2(-dkc.Z, System.Math.Max(System.Math.Abs(dkch), 1e-9)) * (dkch >= 0 ? 1 : -1);
+            double fBlend = System.Math.Clamp(-tauDeg / chordRampDeg, 0.0, 1.0);
+            double kp = keelPitch + (chordPitch - keelPitch) * fBlend;
+            if (kp > keelPitch)
+            {
+                planeSlope = h.ForeKeelSlope + (planeSlope - h.ForeKeelSlope) * fBlend;
+                keelPitch = kp;
+                tauRad = keelPitch + sink; tauDeg = tauRad * 180 / System.Math.PI;
+            }
+            else planeSlope = h.ForeKeelSlope;
         }
+        else planeSlope = h.ForeKeelSlope;
         double rdeg = 0, lambda = 0, bw = b, lift = 0, sForeSav = 0, v1 = vH;
-        if (lk > 1e-3 && dStep > 0 && vH > 0.3 && tauDeg > 0.1)
+        double dkLen = System.Math.Sqrt(dk.X * dk.X + dk.Y * dk.Y);
+        bool alongKeel = vH > 1e-6 && System.Math.Abs(dkh) >= System.Math.Cos(PlaningMaxSideslipRad) * dkLen;
+        if (lk > 1e-3 && dStep > 0 && vH > 0.3 && tauDeg > 0.1 && alongKeel)
         {
             double tanT = System.Math.Tan(tauRad);
             double lc = lk - b * tanB / (System.Math.PI * tanT);
@@ -630,7 +666,32 @@ public static class FloatHydro
         }
 
         // ---- 9. water rudder ----
-        if (hasRudder && f.WaterRudderAreaM2 > 0 && f.WaterRudderMaxRad > 0)
+        if (hasRudder && f.WaterRudderChordM > 0 && f.WaterRudderSpanM > 0 && f.WaterRudderMaxRad > 0)
+        {
+            // The drawn blade. It hangs aft of the step, in the forebody's wake: once the step ventilates the free surface
+            // over it is the wake's (Savitsky & Morabito, as the afterbody stations above), not the undisturbed water.
+            double up01 = f.WaterRudderRetractable ? System.Math.Clamp(waterRudderUp01, 0.0, 1.0) : 0.0;
+            double yP = config.Floats!.Count == 1 ? 0.0 : System.Math.Sign(yF) * f.WaterRudderPivotY;
+            double wakeDrop = 0;
+            if (vent > 0 && dStep > 0)
+            {
+                double xr = f.WaterRudderPivotX - f.WaterRudderBladeAftM;
+                double xa = h.StepX - xr;
+                if (xa > 0)
+                {
+                    Vec3 pk = Pt(xr, 0, h.KeelZStep - h.ForeKeelSlope * xa);
+                    double wakeUp = -pk.Z + b * WakeHeightBeams(xa / b, lk / b, tauDeg, cvB, betaDeg);
+                    wakeDrop = vent * System.Math.Max(0.0, WaterAt(xr) - wakeUp);
+                }
+            }
+            (Vec3 wf, Vec3 wm, WaterRudderReport rep) = DrawnWaterRudder(f, s, cg, new Vec3(f.WaterRudderPivotX, yP, f.WaterRudderPivotZ),
+                rudderCmd * f.WaterRudderMaxRad, up01 * f.WaterRudderRetractRad, wakeDrop, HeelWakeOf(h, cuts[n - 1], yF, heelH0, heelHy, heelHz, wetFrontX, s, cg));
+            rep.Retract01 = up01;
+            totalF += wf; totalM += wm;
+            fs.WaterRudderN = rep.SideForceBodyN;
+            LastWaterRudder = rep;
+        }
+        else if (hasRudder && f.WaterRudderAreaM2 > 0 && f.WaterRudderMaxRad > 0)
         {
             double span = f.WaterRudderSpanM > 0 ? f.WaterRudderSpanM : System.Math.Sqrt(2 * f.WaterRudderAreaM2);
             double xr = f.WaterRudderSpanM > 0 ? f.WaterRudderX : h.SternX;
@@ -645,7 +706,11 @@ public static class FloatHydro
                 double delta = rudderCmd * f.WaterRudderMaxRad;
                 Vec3 pc = new Vec3(xr, yF, tipZ - 0.5 * immersed);
                 Vec3 vb = s.Velocity + Vec3.Cross(s.Rates, pc - cg);
-                double wx = -vb.X, wy = -vb.Y, w2 = wx * wx + wy * wy;
+                double wx = -vb.X, wy = -vb.Y;
+                HeelWake hw = HeelWakeOf(h, cuts[n - 1], yF, heelH0, heelHy, heelHz, wetFrontX, s, cg);
+                double kw = hw.SpeedRatioAt(pc);                 // the hull's wake drags the water near the heel along
+                wx += (1 - kw) * hw.HeelVelX; wy += (1 - kw) * hw.HeelVelY;
+                double w2 = wx * wx + wy * wy;
                 if (w2 > 1e-6)
                 {
                     double wm = System.Math.Sqrt(w2);
@@ -728,7 +793,18 @@ public static class FloatHydro
     /// handing it back. The same rule <c>HydroBody.Correct</c> uses for the airframe, extended to the rotations.
     /// </summary>
     public static RigidBodyState CorrectForAddedMass(RigidBodyState before, RigidBodyState after, MassProperties mp, AddedMass old, AddedMass now, double dt)
+        => CorrectForAddedMass(before, after, mp, old, now, dt, Vec3.Zero);
+
+    /// <param name="waterWorld">The water's velocity (world) under the floats (<see cref="WaterCurrent"/>). The entrained
+    /// water's momentum is relative to the water it came from, so the correction is made in the water's frame: water newly
+    /// picked up starts at the current's speed, not at rest over the ground.</param>
+    public static RigidBodyState CorrectForAddedMass(RigidBodyState before, RigidBodyState after, MassProperties mp, AddedMass old, AddedMass now, double dt, Vec3 waterWorld)
     {
+        if (waterWorld.LengthSquared > 0)
+        {
+            RigidBodyState c = CorrectForAddedMass(WaterCurrent.Relative(before, waterWorld), WaterCurrent.Relative(after, waterWorld), mp, old, now, dt, Vec3.Zero);
+            return new RigidBodyState(c.Position, c.Attitude, c.Velocity + c.Attitude.Conjugate().Rotate(waterWorld), c.Rates);
+        }
         if (now.Linear.LengthSquared + now.Angular.LengthSquared + old.Linear.LengthSquared + old.Angular.LengthSquared < 1e-12) return after;
         static double Axis(double vOld, double vRk, double m, double maOld, double maNew)
         {
@@ -786,6 +862,10 @@ public static class FloatHydro
             Vec3 pStep = s.Position + q.Rotate(new Vec3(h.StepX, yF, h.KeelZStep) - cg);
             double? w = WaterSurfaceAt(pStep.X, pStep.Y, -pStep.Z);
             if (w is null) continue;
+            // The jet leaves at the incoming speed relative to the WATER (it is the water's own flow round the hull), and
+            // is then carried with the water: relative velocities below, the current added back to the jet at the end.
+            Vec3 vCur = WaterCurrent.SurfaceAt(pStep.X, pStep.Y);
+            Vec3 vRel = s.Velocity - q.Conjugate().Rotate(vCur);
             for (int i = 0; i < n; i++)
             {
                 Vec3 rw = q.Rotate(new Vec3(h.X[i], yF, 0) - cg);
@@ -826,7 +906,7 @@ public static class FloatHydro
                     nrm = nrm.Normalized();
                     if (nrm.Y * side < 0 && System.Math.Abs(nrm.Y) > 1e-6) nrm = nrm * -1.0;    // outward
                     else if (System.Math.Abs(nrm.Y) <= 1e-6 && nrm.Z < 0) nrm = nrm * -1.0;
-                    Vec3 vPt = s.Velocity + Vec3.Cross(s.Rates, pBody - cg);   // body
+                    Vec3 vPt = vRel + Vec3.Cross(s.Rates, pBody - cg);         // body, through the water
                     Vec3 u = vPt * -1.0;                                        // water relative to the hull
                     double un = u.Dot(nrm);
                     if (un >= 0) continue;                                     // the water is not running into this facet
@@ -837,7 +917,7 @@ public static class FloatHydro
                     if (tIn.LengthSquared < 1e-12) continue;
                     Vec3 t = tIn.Normalized();
                     Vec3 jetRel = t * (2 * up.Dot(t)) - up;                    // reflection about the root line
-                    Vec3 jetWorld = q.Rotate(vPt + jetRel);
+                    Vec3 jetWorld = q.Rotate(vPt + jetRel) + vCur;
                     if (jetWorld.Z >= 0) continue;   // water that does not leave the surface upward is wave, not spray
                     double sinTf = -un / u.Length;
                     // 2-D chord of the cross-flow section that throws this jet: its wetted half-width at the root
@@ -853,5 +933,241 @@ public static class FloatHydro
             }
         }
         return count;
+    }
+
+    /// <summary>What the drawn water rudder did on the last Compute (instrumentation and tests). The flow differs from
+    /// cell to cell (the hull's wake), so <see cref="DynamicPressurePa"/> is the wetted cells' mean ½ρw² and
+    /// <see cref="AlphaRad"/> their mean angle weighted by it: LiftN = DynamicPressurePa · S_imm · a · AlphaRad exactly
+    /// (below the stall). <see cref="FreeStreamPressurePa"/> is ½ρV² of the same cells with no hull ahead of them, and
+    /// <see cref="WakeSpeedRatio"/> the wetted area's mean u/U in the hull's boundary layer (1 = clear of it).</summary>
+    public struct WaterRudderReport
+    {
+        public double Retract01, DeltaRad, ImmersedAreaM2, ImmersedSpanM, AspectRatio, LiftSlopePerRad, AlphaRad,
+                      SpeedMs, ReynoldsNumber, LiftN, DragN, SideForceBodyN, YawMomentNm,
+                      DynamicPressurePa, FreeStreamPressurePa, WakeSpeedRatio, BoundaryLayerM;
+    }
+    public static WaterRudderReport LastWaterRudder { get; private set; }
+
+    /// <summary>
+    /// The float's own wake at its heel, which a water rudder hung behind the heel sits in (Ty 2026-11-04 20:28: "local
+    /// water velocity relative to the moving water, include float wake/shadowing").
+    ///
+    /// The hull drags a turbulent boundary layer the length of its wetted bottom and sheds it off the heel. Its
+    /// thickness is the flat plate's, δ = 0.37·L·Re_L^−0.2 (Prandtl/Schlichting, Boundary-Layer Theory ch. 21; turbulent
+    /// from the bow, as the ITTC-57 friction line in (4) already takes it), L the wetted length from the foremost wet
+    /// station to the heel. Across it the water moves at u/U = (d/δ)^(1/7) of the stream relative to the hull (the
+    /// 1/7-power profile, same source), d being the distance from the nearest WETTED edge of the heel section,
+    /// measured where the flow carries the point back to the heel plane — so a blade dead astern of the heel is in the
+    /// wake and one swung out across a sideslipping stream is not. What the wake lacks in speed the hull carries with
+    /// it: the wake water moves (1 − u/U) of the heel's own velocity, and a blade sees that water relative to itself.
+    /// Not modelled (stated): the wake's recovery aft of the heel (the drawn blade reaches 0.26 m aft, a few δ), a dead-
+    /// water core behind the heel's flat end (the cut-off last station; a real Edo heel tapers), and the stern wave.
+    /// </summary>
+    public readonly struct HeelWake
+    {
+        public readonly FloatHull? Hull;
+        public readonly double YF, H0, Hy, Hz, DeltaM, HeelVelX, HeelVelY, FlowX, FlowY;
+        public HeelWake(FloatHull hull, double yF, double h0, double hy, double hz, double deltaM, double vx, double vy)
+        {
+            Hull = hull; YF = yF; H0 = h0; Hy = hy; Hz = hz; DeltaM = deltaM; HeelVelX = vx; HeelVelY = vy;
+            double m = System.Math.Sqrt(vx * vx + vy * vy);
+            FlowX = m > 1e-9 ? -vx / m : 0; FlowY = m > 1e-9 ? -vy / m : 0;    // the stream past the heel (body, horizontal)
+        }
+        public bool On => Hull != null && DeltaM > 0;
+
+        /// <summary>u/U of the hull's wake at a body point (datum frame): 1 clear of it, 0 on the heel's wetted skin.</summary>
+        public double SpeedRatioAt(Vec3 r)
+        {
+            if (!On) return 1.0;
+            FloatHull h = Hull!;
+            double a = h.SternX - r.X;
+            if (a < -1e-9 || FlowX > -1e-3) return 1.0;          // ahead of the heel, or the water coming from astern
+            double t = a / -FlowX;                                // back along the stream to the heel plane
+            double ys = r.Y - YF - t * FlowY, zs = r.Z;
+            var poly = h.Poly[h.Poly.Length - 1];
+            double best = double.MaxValue;
+            for (int k = 0; k < poly.Length; k++)
+            {
+                (double ya, double za) = poly[k];
+                (double yb, double zb) = poly[(k + 1) % poly.Length];
+                double da = H0 + Hy * ya + Hz * za, db = H0 + Hy * yb + Hz * zb;
+                if (da <= 0 && db <= 0) continue;                 // a dry edge sheds no water boundary layer
+                if (da <= 0 || db <= 0)
+                {
+                    double u = da / (da - db);                     // clip to the wetted part
+                    double yc = ya + u * (yb - ya), zc = za + u * (zb - za);
+                    if (da <= 0) { ya = yc; za = zc; } else { yb = yc; zb = zc; }
+                }
+                double ex = yb - ya, ez = zb - za, l2 = ex * ex + ez * ez;
+                double w = l2 > 1e-18 ? System.Math.Clamp(((ys - ya) * ex + (zs - za) * ez) / l2, 0, 1) : 0;
+                double dy = ys - (ya + w * ex), dz = zs - (za + w * ez);
+                best = System.Math.Min(best, dy * dy + dz * dz);
+            }
+            return best == double.MaxValue ? 1.0 : WakeSpeedRatio(System.Math.Sqrt(best), DeltaM);
+        }
+    }
+
+    /// <summary>Turbulent flat-plate boundary-layer thickness δ = 0.37·L·Re_L^−0.2 (m), Re_L = U·L/ν.</summary>
+    public static double HullBoundaryLayerM(double lengthM, double speedMs)
+    {
+        if (lengthM <= 0) return 0;
+        double re = System.Math.Max(speedMs * lengthM / WaterKinematicViscosity, 1e4);
+        return 0.37 * lengthM * System.Math.Pow(re, -0.2);
+    }
+
+    /// <summary>The 1/7-power velocity profile u/U = (d/δ)^(1/7), 1 beyond the layer.</summary>
+    public static double WakeSpeedRatio(double dM, double deltaM)
+    {
+        if (deltaM <= 0 || dM >= deltaM) return 1.0;
+        return dM <= 0 ? 0.0 : System.Math.Pow(dM / deltaM, 1.0 / 7.0);
+    }
+
+    /// <summary>The heel's wake this step: off when the heel station is dry (the stern clear on the step: no skin there
+    /// to shed one) or the hull is out of the water.</summary>
+    private static HeelWake HeelWakeOf(FloatHull h, in FloatHull.Cut heel, double yF, double h0, double hy, double hz,
+        double wetFrontX, RigidBodyState s, Vec3 cg)
+    {
+        if (heel.Area <= 0 || double.IsNaN(h0) || double.IsNaN(wetFrontX)) return default;
+        Vec3 vh = s.Velocity + Vec3.Cross(s.Rates, new Vec3(h.SternX, yF, heel.Cz) - cg);
+        double speed = System.Math.Sqrt(vh.X * vh.X + vh.Y * vh.Y);
+        return new HeelWake(h, yF, h0, hy, hz, HullBoundaryLayerM(wetFrontX - h.SternX, speed), vh.X, vh.Y);
+    }
+
+    /// <summary>Stall of the blade's lift: low-aspect-ratio plates stall late (Hoerner, Fluid-Dynamic Lift, ch. 3:
+    /// AR ≈ 0.7 holds its lift to the mid-30s of degrees). Past it the lift is held, not dropped.</summary>
+    public const double WaterRudderStallRad = 35.0 * System.Math.PI / 180.0;
+    private const int BladeCellsChord = 16, BladeCellsSpan = 12;
+    private static readonly (double u, double v)[] BladeCells = BuildBladeCells();
+    private static (double u, double v)[] BuildBladeCells()
+    {
+        var l = new System.Collections.Generic.List<(double, double)>();
+        for (int i = 0; i < BladeCellsChord; i++)
+            for (int j = 0; j < BladeCellsSpan; j++)
+            {
+                double u = (i + 0.5) / BladeCellsChord - 0.5, v = (j + 0.5) / BladeCellsSpan - 0.5;
+                if (u * u + v * v <= 0.25) l.Add((u, v));
+            }
+        return l.ToArray();
+    }
+
+    /// <summary>
+    /// The water rudder as the hydrofoil it is (Ty 2026-11-02, t278u: "from first principles, no fudge").
+    ///
+    /// The blade is an elliptic flat plate, chord c fore-aft and span b vertical, area S = π/4·c·b. It turns with the
+    /// pedals about a vertical post through the pivot (δ, trailing edge right = +) and the retract cable swings it up and
+    /// aft about the same pivot, in its own plane (θ, 0 = down). Nothing about it is assumed wet:
+    ///  - IMMERSED AREA: the blade is cut into cells; a cell counts only if its centre is below the water surface. A blade
+    ///    swung up out of the water, or a stern lifted clear on the step, has S_imm = 0 and makes no force at all.
+    ///  - LIFT-CURVE SLOPE from the immersed aspect ratio AR = b_imm²/S_imm (b_imm = the vertical extent of the wetted
+    ///    part of the blade) by Helmbold's low-aspect-ratio lifting-surface equation a = 2π·AR / (2 + √(AR² + 4)), which goes to
+    ///    slender-wing theory (π·AR/2) as AR → 0 and to 2π as AR → ∞. No image in the free surface or the hull is
+    ///    taken (the blade hangs aft of the transom, the free surface cutting it with nothing to end-plate it): the
+    ///    conservative choice.
+    ///  - THE WATER EACH CELL SEES (Ty 2026-11-04 20:28): its velocity relative to the blade at that cell, V + ω×r,
+    ///    with V already through the water (a current moves the water, not the blade), less what the float's own wake
+    ///    carries along there (<see cref="HeelWake"/>: the hull's boundary layer shed off the heel). A blade swung up
+    ///    behind the heel keeps only the part that stays wet, AND that part is in the slowest water there is; lowered,
+    ///    most of it hangs below the layer. Up and down are the same equations at a different angle of the same blade:
+    ///    nothing here is a per-state factor, and the lever's travel in between (0.8 s, or a VR hand) is a geometry too.
+    ///  - ANGLE OF ATTACK from that flow, cell by cell: the rudder angle plus the stern's own sideslip, so a swinging
+    ///    stern is damped by the same blade that turns it.
+    ///  - LIFT = Σ ½·ρ_water·w²·ΔS·a·α over the wet cells (α held at the stall), perpendicular to each cell's flow.
+    ///  - DRAG = Σ ½·ρ_water·w²·ΔS·2·C_f (both faces, ITTC-57 C_f = 0.075/(log10 Re − 2)², Re = V·c/ν) along each cell's
+    ///    flow, plus the induced drag of the whole blade's elliptic loading (e = 1), q̄·S_imm·C_L²/(π·AR), along the mean.
+    /// Each cell's force acts at the cell; moments are taken about the CG. Returns world-frame force and moment.
+    /// </summary>
+    public static (Vec3 Force, Vec3 Moment, WaterRudderReport Report) DrawnWaterRudder(FloatsConfig f, RigidBodyState s,
+        Vec3 cg, Vec3 pivotBody, double deltaRad, double retractRad, double wakeDropM = 0.0, HeelWake hull = default)
+    {
+        var rep = new WaterRudderReport { DeltaRad = deltaRad, WakeSpeedRatio = 1.0, BoundaryLayerM = hull.On ? hull.DeltaM : 0 };
+        double c = f.WaterRudderChordM, b = f.WaterRudderSpanM;
+        double cd = System.Math.Cos(deltaRad), sd = System.Math.Sin(deltaRad);
+        double ct = System.Math.Cos(retractRad), st = System.Math.Sin(retractRad);
+        Vec3 eAft = new Vec3(-cd, sd, 0), eDown = new Vec3(0, 0, 1);     // body: blade chord (aft) and the post (down)
+        Vec3 n = new Vec3(sd, cd, 0);                                      // the blade's normal (its right face)
+
+        Vec3 pivotW = s.Position + s.Attitude.Rotate(pivotBody - cg);
+        double? water = WaterSurfaceAt(pivotW.X, pivotW.Y, -pivotW.Z);
+        if (water is null) return (Vec3.Zero, Vec3.Zero, rep);
+        Vec3 aftW = s.Attitude.Rotate(eAft), downW = s.Attitude.Rotate(eDown);
+
+        // Pass 1: which cells are wet, and the wetted part's shape (its area, span and centroid).
+        BladeScratch(BladeCells.Length);
+        double cellArea = System.Math.PI * 0.25 * c * b / BladeCells.Length;   // cells carry the exact ellipse area
+        double area = 0, sumA = 0, sumD = 0, maxDepth = 0, minDepth = double.MaxValue;
+        int wet = 0;
+        foreach ((double u, double v) in BladeCells)
+        {
+            double a0 = f.WaterRudderBladeAftM + u * c, d0 = f.WaterRudderBladeBelowM + v * b;
+            double a1 = a0 * ct + d0 * st, d1 = d0 * ct - a0 * st;            // swung up and aft by the retract angle
+            double depth = pivotW.Z + a1 * aftW.Z + d1 * downW.Z + water.Value - wakeDropM;   // NED: +down; water is height up
+            if (depth <= 0) continue;
+            _cellA![wet] = a1; _cellD![wet] = d1; wet++;
+            area += cellArea; sumA += a1 * cellArea; sumD += d1 * cellArea;
+            maxDepth = System.Math.Max(maxDepth, depth); minDepth = System.Math.Min(minDepth, depth);
+        }
+        if (area <= 0) return (Vec3.Zero, Vec3.Zero, rep);
+
+        // The immersed span is the wetted part's own vertical extent (cell centres ± half a cell), whether its top is
+        // the water surface (a blade dipping in) or the blade's own edge (a blade wholly under).
+        double cellH = b / BladeCellsSpan * System.Math.Abs(ct) + c / BladeCellsChord * System.Math.Abs(st);
+        double span = System.Math.Min(maxDepth - minDepth + cellH, System.Math.Sqrt(b * b * ct * ct + c * c * st * st));   // ≤ the blade's own height
+        double ar = span * span / area;
+        double slope = 2 * System.Math.PI * ar / (2 + System.Math.Sqrt(ar * ar + 4));
+        Vec3 rC = pivotBody + eAft * (sumA / area) + eDown * (sumD / area) - cg;
+        Vec3 vC = s.Velocity + Vec3.Cross(s.Rates, rC);
+        double speedC = System.Math.Sqrt(vC.X * vC.X + vC.Y * vC.Y);
+        double re = System.Math.Max(speedC * c / WaterKinematicViscosity, 1e4);
+        double cf = 0.075 / System.Math.Pow(System.Math.Log10(re) - 2, 2);
+        rep.ImmersedAreaM2 = area; rep.ImmersedSpanM = span; rep.AspectRatio = ar; rep.LiftSlopePerRad = slope; rep.SpeedMs = speedC;
+        rep.ReynoldsNumber = re;
+
+        // Pass 2: each wet cell in its own water. Its velocity relative to the blade is V + ω×r at the cell, less what
+        // the hull's wake carries along with the hull there (HeelWake); its angle is that flow's to the blade.
+        double half = 0.5 * WaterDensity;
+        Vec3 fB = Vec3.Zero, mB = Vec3.Zero, wSum = Vec3.Zero;
+        double qSum = 0, q0Sum = 0, kSum = 0, qAlpha = 0, lift = 0, drag = 0;
+        for (int i = 0; i < wet; i++)
+        {
+            Vec3 rb = pivotBody + eAft * _cellA![i] + eDown * _cellD![i];
+            Vec3 r = rb - cg;
+            Vec3 vb = s.Velocity + Vec3.Cross(s.Rates, r);
+            double k = hull.SpeedRatioAt(rb);
+            Vec3 w = new Vec3(-vb.X + (1 - k) * hull.HeelVelX, -vb.Y + (1 - k) * hull.HeelVelY, 0);
+            double w2 = w.X * w.X + w.Y * w.Y, q = half * w2;
+            q0Sum += half * (vb.X * vb.X + vb.Y * vb.Y); kSum += k;
+            if (w2 < 1e-12) continue;
+            double wl = System.Math.Sqrt(w2);
+            Vec3 wh = w * (1.0 / wl);
+            double alpha = System.Math.Atan2(Vec3.Dot(wh, n), System.Math.Abs(Vec3.Dot(wh, eAft)));
+            double ac = System.Math.Clamp(alpha, -WaterRudderStallRad, WaterRudderStallRad);
+            Vec3 perp = new Vec3(-wh.Y, wh.X, 0);                           // perpendicular to the flow, horizontal
+            if (Vec3.Dot(perp, n) < 0) perp = perp * -1.0;                  // signed so +C_L pushes along +n
+            double li = q * cellArea * slope * ac, di = q * cellArea * 2 * cf;
+            Vec3 fi = perp * li + wh * di;
+            fB += fi; mB += Vec3.Cross(r, fi);
+            qSum += q; qAlpha += q * ac; lift += li; drag += di; wSum += w * q;
+        }
+        if (qSum <= 0) return (Vec3.Zero, Vec3.Zero, rep);
+
+        // Induced drag of the blade as a whole (elliptic loading, e = 1): C_L²/(π·AR) on its mean dynamic pressure,
+        // along the mean flow, at the wetted centroid.
+        double qBar = qSum / wet, cl = slope * qAlpha / qSum;
+        double dInd = qBar * area * cl * cl / (System.Math.PI * ar);
+        Vec3 wMean = wSum.Normalized();
+        fB += wMean * dInd; mB += Vec3.Cross(rC, wMean * dInd); drag += dInd;
+
+        Vec3 fW = s.Attitude.Rotate(fB);
+        Vec3 mW = s.Attitude.Rotate(mB);
+        rep.AlphaRad = qAlpha / qSum; rep.LiftN = lift; rep.DragN = drag; rep.SideForceBodyN = fB.Y; rep.YawMomentNm = mB.Z;
+        rep.DynamicPressurePa = qBar; rep.FreeStreamPressurePa = q0Sum / wet; rep.WakeSpeedRatio = kSum / wet;
+        return (fW, mW, rep);
+    }
+
+    [ThreadStatic] private static double[]? _cellA, _cellD;
+    private static void BladeScratch(int cells)
+    {
+        if (_cellA != null && _cellA.Length >= cells) return;
+        _cellA = new double[cells]; _cellD = new double[cells];
     }
 }

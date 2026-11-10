@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "great-lakes-like",
   "displayName": "Great Lakes 2T-1A-2-like Biplane",
+  "structureType": "steelTube",
+  "structureTypeSource": "Great Lakes 2T-1A-2: welded 4130 steel-tube fuselage, fabric covered; wooden-spar wings (Great Lakes 2T-1A-2 maintenance manual).",
   "_wingStructureNote": "Contact damage (Ty 2026-11-03). Break station = the N-strut on both wings, |y| 2.875 (tools/own_models/build_great_lakes.py YI). The own model has four ailerons and slave struts, but this flight config carries aileron rows on the LOWER wing only, so there is no slaved aileron to model here: see AGENT-LOG NEEDS YOU.",
   "wingBreakStationY": { "wing-upper": 2.875, "wing-lower": 2.875 },
   "spawnIasMs": 44,
@@ -1349,14 +1351,14 @@
     }
   },
   "rig": {
-    "aileronRad": 0.007692,
-    "finOffsetRad": 0.006372,
+    "aileronRad": 0.004145,
+    "finOffsetRad": 0.033325,
     "throttleFraction": 0.75,
     "altitudeM": 1219.2,
-    "tasMs": 55.804,
-    "alphaRad": -0.042543,
-    "elevatorTrimRad": 0.017263,
-    "bankRad": 0.006979
+    "tasMs": 52.356,
+    "alphaRad": -0.037388,
+    "elevatorTrimRad": 0.014697,
+    "bankRad": 0.002511
   },
   "controls": {
     "aileron": {
@@ -1372,7 +1374,6 @@
       "freeTauS": 0.12
     },
     "elevator": {
-      "saturationDeg": 31.4,
       "maxDeflRad": 0.4363,
       "rateRadPerSec": 3.0,
       "expo": 0.1,
@@ -1404,7 +1405,9 @@
     }
   },
   "spinAero": {
-    "rollDueToSideslip": "biplane"
+    "rollDueToSideslip": "biplane",
+    "shadowK": 0.5,
+    "shadowKSource": "Geometric helical shadow depth (TailWake.GeometricShadow): the share of dynamic pressure a fully shadowed strip loses. Replaces the Report 648 wake correlation for EVERY surface of this type, and brings in the fuselage's own shadow on the tail and the wings (TailWake.BodyStation). Ty 2026-11-08: \"expand the shadow work to all 6 shipping aircraft include the shadow effects of the fuselage on the tail and wing's too\". 0.5 is the depth fitted on the Pitts against the owner's spin attitudes on 2026-11-08, and it is a PHYSICAL statement - half the q is gone where a wake fully covers a section - rather than a per-type fudge, so the six carry the same number until a type's own evidence moves it. What differs between types is the geometry, which is the point: the Pitts' cellule shadows itself, the Extra's stabiliser spans well outside its fuselage and is barely shadowed at all (measured in a tumble: tail q 1.00 -> 0.96), and the fuselage's own shadow is what takes the fin in an upright flat spin while leaving it in clear air inverted."
   },
   "construction": {
     "_comment": "Crash-in-water damage (Core/Wreck, lane/claude-crash-water 2026-11-02). Welded steel-tube fuselage and wooden wings, doped fabric covering. Two tandem OPEN cockpits, measured from the own model (tools/own_models/build_great_lakes.py CKP, v6 off the N3765F three-view; docs/models/great-lakes-own-PROVENANCE.md): elliptical openings, front x -0.97..-1.33 half-width 0.19 m, rear x -1.64..-2.08 half-width 0.215 m; area pi*a*b.",
@@ -1433,13 +1436,20 @@
       "sharpSectionFraction": 0.5
     }
   },
-  "smoke": {"aftOfNoseM": 1.2, "downDeg": 31, "displacementCuIn": 361, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [-0.151, -0.187, 0.628]},
+  "smoke": {"cylinders": 4, "aftOfNoseM": 1.2, "downDeg": 31, "displacementCuIn": 361, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [-0.151, -0.187, 0.628]},
   "propulsion": {
     "maxPowerW": 134226,
     "propDiameterM": 1.8796,
+    "fineStopDeg": 12.50,
+    "coarseStopDeg": 26.80,
+    "pitchStopSource": "PUBLISHED, not derived: FAA TCDS A18EA Rev 11 gives the Hartzell HC-C2YK-4F/FC7666A-2 as low 12.5 deg and high 26.8 deg at the 30 in station. Ty's two rules derive 14.20/23.86 \u2014 again narrower at both ends; see the note on pitts-s2b-like. The same sheet also settles the diameter: EXACTLY 74.0 in, 'no reduction allowed', which is what propDiameterM already holds (1.8796 m). The 76 in figure belongs to the 140 hp FIXED-PITCH variant of this type.",
+    "propMaterial": "metal",
+    "propMaterialSource": "Hartzell two-blade aluminium constant-speed",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2700,
-    "propInertia": 5.0,
+    "propInertia": 1.88,
+    "propInertiaSource": "Propeller + spinner + the crank's rotating parts, kg.m2. From the OWNER'S BLADE RULE (2026-11-09, tools/aircraft_builder/prop_inertia.py): each blade is 15 % of the net propeller weight with its centre of mass at 25 % of the DIAMETER from the axis, the rest being hub near the axis - because a heavy constant-speed hub contributes almost nothing to sum(m r^2), so a mass-weighted estimate overstates the couple. M 24.5 kg, D 1.88 m, 2 blades: blades 1.623 + hub 0.172 (k 0.10 m) + crank 0.09 = 1.88, against 5.0 before. MASS: ASSUMED ~50 lb with spinner, Hartzell HC-C2YK-4F 74 in (docs/aircraft/great-lakes-inertia-DERIVATION.md). AEIO-360, four cylinders. VALIDATION: the rule reproduces Hartzell's published two-blade polar moment to +18 % (1.412 against 1.198) and runs +60 % high on their three-blade one, so it is applied to two-blade types only.",
     "rotationSign": 1,
     "efficiency": 0.8,
     "thrustLineZ": 0.0,
@@ -1469,8 +1479,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "rollResistN": 40,
-      "tireRadiusM": 0.222
+      "tire": "6.00-6", "tirePressurePsi": 21
     },
     {
       "pos": [
@@ -1486,8 +1495,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "rollResistN": 40,
-      "tireRadiusM": 0.222
+      "tire": "6.00-6", "tirePressurePsi": 21
     },
     {
       "pos": [
@@ -1503,9 +1511,8 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
-      "rollResistN": 20,
       "steerSpringNmPerRad": 25,
-      "tireRadiusM": 0.1
+      "tire": "scott-8in", "tirePressurePsi": 28.6
     }
   ],
   "limits": {
@@ -1636,5 +1643,27 @@
     ],
     "_armSource": "docs/pending/loading-arm-estimates.md (and .json), lane/codex-loading-arms ee088db",
     "_eyeNote": "seats[].eye lowered 2026-11-01 after Ty flew build 2026.1101.0733: the rear eye at z -0.487 sat 110 mm ABOVE the top of the rear windscreen glass, so the level sightline cleared the screen entirely and the view was over the frame at the cowling, with the top wing's leading edge across it. Measured against great-lakes-like-own.glb: the rear screen's glass spans glTF y 0.167..0.377 and the front's 0.176..0.350. Each eye now sits where the level sightline passes through the MIDDLE of its own screen - rear glass from -13.5 to +13.8 degrees of elevation, front from -16.5 to +16.3 - and holds out to +-20 degrees of azimuth. The seat STATIONS are weight-and-balance arms and are unchanged."
+  },
+  "instruments": {
+    "gMeter": {
+      "_note": "the shared library g-meter (-10..+10 g, 0 g at 9 o'clock); its red lines are limits.gMax / gMin"
+    },
+    "airspeed": {
+      "units": "mph",
+      "scaleMin": 40,
+      "scaleMax": 200,
+      "arcs": {
+        "green": [
+          58,
+          120
+        ],
+        "yellow": [
+          120,
+          153
+        ]
+      },
+      "redline": 153
+    },
+    "_source": "shared instrument library: gl_dialmaps.py (TCDS A18EA rev 11 Vne 153 / Vno 120 mph; green floor 58 (E))"
   }
 }

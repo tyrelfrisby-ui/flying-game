@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using FlyingGame.Core;
+using FlyingGame.Core.MathTypes;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
@@ -53,6 +54,16 @@ namespace FlyingGame.Bridge
         private float _t;
         private readonly HashSet<string> _warned = new();
 
+        /// <summary>A slave strut riding between two rigged surfaces (the Great Lakes' Strut_Slave_L/R): not a rig row
+        /// of its own, because where it goes is decided by its two pins, which the rig has already moved.</summary>
+        private sealed class Strut
+        {
+            public Transform T, PinUpper, PinLower;
+            public Vector3 RestUpper, RestLower, RestPos;
+            public Quaternion RestRot;
+        }
+        private readonly List<Strut> _struts = new();
+
         // The two frame conversions live on RigNode (engine-free, so they are tested): see the class note.
         private static Vector3 Axis(RigNode n)
         {
@@ -81,7 +92,7 @@ namespace FlyingGame.Bridge
                 if (!byName.ContainsKey(n)) byName[n] = t;
             }
 
-            var bound = new AirframeRig();
+            var bound = new AirframeRig { Table = rig };
             int link = 0;
             foreach (RigNode n in rig.Nodes)
             {
@@ -92,11 +103,67 @@ namespace FlyingGame.Bridge
                 bound._bound.Add(new Bound(n, t, Axis(n), wool ? 1.1f : 0f, wool ? 0.37f * link++ : 0f));
             }
             if (bound._bound.Count == 0) return null;
+            bound.BindStruts(byName, modelId);
             Debug.Log($"[Airframe] {modelId}: the model's own rig drives {bound._bound.Count} of {rig.Nodes.Count} nodes"
                       + (bound._missing.Count > 0 ? $"; MISSING from the model: {string.Join(", ", bound._missing)}" : "")
-                      + $" (params {string.Join(", ", rig.Params())})");
+                      + $" (params {string.Join(", ", rig.Params())})"
+                      + (bound._struts.Count > 0 ? $"; {bound._struts.Count} slave strut(s) follow their pins" : ""));
             return bound;
         }
+
+        /// <summary>Strut_Slave_&lt;s&gt; with its Strut_Slave_&lt;s&gt;_PinUpper / _PinLower (children of the upper and lower
+        /// ailerons in the GLB, so the rig carries them). Rest pins and pose are taken in the strut's PARENT frame from
+        /// local transforms: the aeroplane is routinely kilometres from the origin, where world positions round.</summary>
+        private void BindStruts(Dictionary<string, Transform> byName, string modelId)
+        {
+            foreach (string side in new[] { "L", "R" })
+            {
+                string n = "Strut_Slave_" + side;
+                if (!byName.TryGetValue(n, out Transform t) || t == null) continue;
+                byName.TryGetValue(n + "_PinUpper", out Transform pu);
+                byName.TryGetValue(n + "_PinLower", out Transform pl);
+                if (pu == null || pl == null)
+                {
+                    Debug.LogWarning($"[Airframe] {modelId}: {n} has no {(pu == null ? n + "_PinUpper" : n + "_PinLower")} — it will stay at its rest pose while the ailerons move.");
+                    continue;
+                }
+                _struts.Add(new Strut
+                {
+                    T = t, PinUpper = pu, PinLower = pl,
+                    RestUpper = PointIn(pu, t.parent), RestLower = PointIn(pl, t.parent),
+                    RestPos = t.localPosition, RestRot = t.localRotation,
+                });
+            }
+        }
+
+        /// <summary>A transform's origin in <paramref name="frame"/>'s local space, composed from local transforms where
+        /// the frame is one of its ancestors (always, in our GLBs).</summary>
+        private static Vector3 PointIn(Transform t, Transform frame)
+        {
+            Vector3 p = Vector3.zero;
+            Transform x = t;
+            for (; x != null && x != frame; x = x.parent) p = x.localPosition + x.localRotation * Vector3.Scale(x.localScale, p);
+            if (x == frame) return p;
+            return frame != null ? frame.InverseTransformPoint(t.position) : t.position;
+        }
+
+        private static Vec3 V(Vector3 v) => new Vec3(v.x, v.y, v.z);
+
+        /// <summary>Put each slave strut back between its pins: origin on the upper pin, long axis at the lower one.</summary>
+        private void FollowStruts()
+        {
+            foreach (Strut s in _struts)
+            {
+                if (s.T == null || s.PinUpper == null || s.PinLower == null) continue;
+                SlaveStrut.Pose p = SlaveStrut.Solve(V(s.RestUpper), V(s.RestLower), V(s.RestPos),
+                                                     V(PointIn(s.PinUpper, s.T.parent)), V(PointIn(s.PinLower, s.T.parent)));
+                s.T.localPosition = new Vector3((float)p.Origin.X, (float)p.Origin.Y, (float)p.Origin.Z);
+                s.T.localRotation = new Quaternion((float)p.Turn.X, (float)p.Turn.Y, (float)p.Turn.Z, (float)p.Turn.W) * s.RestRot;
+            }
+        }
+
+        /// <summary>The table this was bound from (its rows and its `controls`).</summary>
+        public ModelRig Table { get; private set; }
 
         /// <summary>Every node that bound, for an editor check to measure against the model.</summary>
         public IReadOnlyList<Bound> Nodes => _bound;
@@ -178,6 +245,7 @@ namespace FlyingGame.Bridge
                     b.T.localRotation = b.RestRot * Quaternion.AngleAxis(deg, b.Axis);
                 }
             }
+            FollowStruts();
         }
 
         // ---- the table ---------------------------------------------------------------------------------------
@@ -190,10 +258,10 @@ namespace FlyingGame.Bridge
             if (string.IsNullOrEmpty(modelId)) return null;
             if (Cache.TryGetValue(modelId, out ModelRig cached)) return cached;
             ModelRig rig = null;
-            string path = Path.Combine(Application.streamingAssetsPath, "rigs", modelId + ".json");
+            string path = "rigs/" + modelId + ".json";
             try
             {
-                if (File.Exists(path)) rig = Parse(File.ReadAllText(path));
+                if (StreamingFiles.TryReadAllText(path, out string json, out _)) rig = Parse(json);
             }
             catch (System.Exception e)
             {
@@ -211,7 +279,17 @@ namespace FlyingGame.Bridge
         {
             JObject root = JObject.Parse(json);
             var nodes = new List<RigNode>();
-            var rows = root["rig"] as JArray;
+            string model = root["model"]?.Value<string>() ?? "";
+            List<JToken> rows = null;
+            if (root["rig"] is JArray all)
+            {
+                // Once each: Codex's Extra table repeats its Ctl_* rows (414 rows, 126 nodes). The file is not edited.
+                rows = FlyingGame.Core.Vr.RigRows.FirstOfEach<JToken>(new List<JToken>(all), r => r["node"]?.Value<string>() ?? "", JToken.DeepEquals,
+                                                                      out int dropped, out List<string> differing);
+                if (dropped > 0)
+                    Debug.Log($"[Airframe] rig {model}: {all.Count} rows for {rows.Count} nodes — {dropped} duplicate row(s) dropped, the first of each kept" +
+                              (differing.Count > 0 ? $"; duplicates that DIFFER from the kept row: {string.Join(", ", differing)}" : " (all identical)"));
+            }
             if (rows != null)
             {
                 foreach (JToken row in rows)
@@ -248,7 +326,47 @@ namespace FlyingGame.Bridge
                         jettisonParam: extra?["rig_jettison_param"]?.Value<string>() ?? ""));
                 }
             }
-            return new ModelRig(root["model"]?.Value<string>() ?? "", nodes);
+            return new ModelRig(model, nodes, ParseControls(root, model));
+        }
+
+        /// <summary>The table's `controls` (Codex's phase 3a inventory, docs/models/vr-cockpit-phase3a.md), once each.</summary>
+        private static List<FlyingGame.Core.Vr.PanelControlSpec> ParseControls(JObject root, string model)
+        {
+            var specs = new List<FlyingGame.Core.Vr.PanelControlSpec>();
+            if (root["controls"] is not JArray all) return specs;
+            var rows = FlyingGame.Core.Vr.RigRows.FirstOfEach<JToken>(new List<JToken>(all), r => r["node"]?.Value<string>() ?? "", JToken.DeepEquals,
+                                                                      out int dropped, out List<string> differing);
+            if (dropped > 0)
+                Debug.Log($"[Airframe] rig {model}: {dropped} duplicate control row(s) dropped" + (differing.Count > 0 ? $" (differing: {string.Join(", ", differing)})" : ""));
+            foreach (JToken c in rows)
+            {
+                string kind = c["kind"]?.Value<string>() ?? "";
+                var spec = new FlyingGame.Core.Vr.PanelControlSpec
+                {
+                    Node = c["node"]?.Value<string>() ?? "",
+                    Param = c["param"]?.Value<string>() ?? "",
+                    Seat = c["seat"]?.Value<string>() ?? "Rear",
+                    Semantics = c["semantics"]?.Value<string>() ?? "absolute",
+                    Grip = c["grip"]?.Value<string>() ?? "",
+                    Poke = c["poke"]?.Value<string>() ?? "",
+                    Label = c["label"]?.Value<string>() ?? "",
+                    Kind = kind == "Toggle" ? FlyingGame.Core.Vr.PanelKind.Toggle : kind == "PushPull" ? FlyingGame.Core.Vr.PanelKind.PushPull
+                         : kind == "Lever" ? FlyingGame.Core.Vr.PanelKind.Lever : FlyingGame.Core.Vr.PanelKind.Rotary,
+                };
+                if (c["sim_ends"] is JArray ends && ends.Count == 2) { spec.Lo = ends[0].Value<double>(); spec.Hi = ends[1].Value<double>(); }
+                if (c["detents"] is JArray det)
+                {
+                    spec.Detents = new double[det.Count];
+                    for (int i = 0; i < det.Count; i++) spec.Detents[i] = det[i].Value<double>();
+                }
+                if (c["spring_return"]?.Value<bool>() == true)
+                {
+                    spec.SpringFrom = c["spring_return_from"]?.Value<double>() ?? double.NaN;
+                    spec.SpringTo = c["spring_return_to"]?.Value<double>() ?? double.NaN;
+                }
+                if (spec.Node.Length > 0) specs.Add(spec);
+            }
+            return specs;
         }
     }
 }

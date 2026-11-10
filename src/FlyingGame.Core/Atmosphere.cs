@@ -111,17 +111,81 @@ public static class Atmosphere
     public static MathTypes.Vec3 SteadyWindAt(MathTypes.Vec3 worldPosition) =>
         Field is not null ? Field.SteadyWindAt(worldPosition, SimTimeSec) : SteadyWind * WindGradientFactor(worldPosition);
 
+    /// <summary>Depth of the surface layer (m) for <see cref="NoThroughFlow"/>. Published from the regional config
+    /// when one is loaded (AtmosphereField's constructor) so there is one number whichever path is flying.</summary>
+    public static double SurfaceLayerM { get; set; } = 50.0;
+
+    /// <summary>
+    /// Air cannot come out of the earth. Fades the VERTICAL part of a wind contribution to nothing at the surface,
+    /// over <see cref="SurfaceLayerM"/>; the horizontal part is untouched, because no-through-flow binds only the
+    /// component normal to the ground.
+    ///
+    /// This belongs HERE, where every contribution is finally added together, and not in the thing that produces any
+    /// one of them. Ty 2026-11-08, after the first attempt put it inside AtmosphereField alone: "I flew 3u2 again and
+    /// the bubbles were still coming out of the ground and rising straight up at the surface my cub was climbing at
+    /// over 300 fpm at idle." The field's own slope and convective lift were faded, and then WindFromSample added the
+    /// AUTHORED thermal columns straight on top of them — 10 to 14 m/s cores, one per plateau, 3U2's among them —
+    /// whose profile is a fraction of ABSOLUTE altitude, so on a plateau nearly 5000 ft up a column is already half
+    /// developed where the wheels are. Fixing the producer I happened to be looking at left the one that mattered.
+    /// </summary>
+    public static MathTypes.Vec3 NoThroughFlow(MathTypes.Vec3 worldPosition, MathTypes.Vec3 wind)
+    {
+        if (wind.Z > -1e-9 && wind.Z < 1e-9) return wind;   // nothing vertical: do not pay for a ground query
+        double ground = WorldTerrain.GroundHeightAt(worldPosition.X, worldPosition.Y);
+        double? water = FloatHydro.WaterSurfaceAt(worldPosition.X, worldPosition.Y, -worldPosition.Z);
+        if (water.HasValue && water.Value > ground) ground = water.Value;
+        double taper = AtmosphereField.VerticalGroundTaper(-worldPosition.Z - ground, SurfaceLayerM);
+        return taper >= 1.0 ? wind : new MathTypes.Vec3(wind.X, wind.Y, wind.Z * taper);
+    }
+
     /// <summary>The wind at a point from a regional sample: its mean (and gust), the authored thermals at the field's
-    /// thermal factor, and the glacier wind outside the calm zone.</summary>
+    /// thermal factor, and the glacier wind outside the calm zone. Everything added to the field's own mean is held to
+    /// <see cref="NoThroughFlow"/>; the mean itself was already faded by the field.</summary>
     public static MathTypes.Vec3 WindFromSample(MathTypes.Vec3 worldPosition, in AtmosphereSample s, bool withGusts)
     {
-        MathTypes.Vec3 w = withGusts ? s.MeanWind + s.Gust : s.MeanWind;
+        MathTypes.Vec3 extra = withGusts ? s.Gust : MathTypes.Vec3.Zero;
         double thermal = s.ThermalFactor * ThermalStrengthScale;
         if (thermal > 0)
-            for (int i = 0; i < Thermals.Count; i++) w += Thermals[i].WindAt(worldPosition) * thermal;
+            for (int i = 0; i < Thermals.Count; i++) extra += Thermals[i].WindAt(worldPosition) * thermal;
         double keep = 1.0 - s.CalmWeight;
-        if (keep > 0) w += BraidedRiver.WindAt(worldPosition.X, worldPosition.Y, -worldPosition.Z) * keep;
-        return w;
+        if (keep > 0) extra += BraidedRiver.WindAt(worldPosition.X, worldPosition.Y, -worldPosition.Z) * keep;
+        return s.MeanWind + NoThroughFlow(worldPosition, extra);
+    }
+
+    /// <summary>
+    /// THE WIND AN AEROPLANE OF THIS SPAN ACTUALLY FEELS. <see cref="WindFromSample"/> hands every airframe the gust at
+    /// a single point, but a wing integrates a gust across its span and averages away everything smaller than itself
+    /// (<see cref="Turbulence.UnitGustAt(Vec3,double,double,double,Vec3,double,Vec3,out Vec3)"/>). This rebuilds the
+    /// spectral part of the gust with that averaging, from the sample's own sigma and length scales, and also returns
+    /// the gust's FIRST MOMENT across the span — the rolling cue a soaring pilot reads, in closed form instead of by
+    /// differencing two point samples of a field with metre-scale structure in it.
+    ///
+    /// Everything else in the wind is left alone: the mean wind, the discrete gust increment, the thermal columns and
+    /// the braided-river flow are all far larger than a wingspan, so a point sample of them is the right answer.
+    /// </summary>
+    public static MathTypes.Vec3 WindForSpan(MathTypes.Vec3 worldPosition, in AtmosphereSample s,
+                                             double spanM, MathTypes.Vec3 spanAxisWorld, out MathTypes.Vec3 gustGradPerMetre)
+    {
+        gustGradPerMetre = MathTypes.Vec3.Zero;
+        var field = Field;
+        if (field is null || !(spanM > 0.1) || (s.SigmaHorizMs <= 0 && s.SigmaVertMs <= 0))
+            return WindFromSample(worldPosition, s, true);
+
+        MathTypes.Vec3 unit = field.SpectralTurbulence.UnitGustAt(worldPosition, SimTimeSec, s.LengthHorizM, s.LengthVertM,
+                                                                  field.AdvectionWind, spanM, spanAxisWorld, out MathTypes.Vec3 unitGrad);
+        // The discrete gust increment is whatever the sample's spectral part was not: keep it as sampled.
+        MathTypes.Vec3 spectral = new(unit.X * s.SigmaHorizMs, unit.Y * s.SigmaHorizMs, unit.Z * s.SigmaVertMs);
+        MathTypes.Vec3 unfiltered = field.SpectralTurbulence.UnitGustAt(worldPosition, SimTimeSec, s.LengthHorizM, s.LengthVertM, field.AdvectionWind);
+        MathTypes.Vec3 spectralRaw = new(unfiltered.X * s.SigmaHorizMs, unfiltered.Y * s.SigmaHorizMs, unfiltered.Z * s.SigmaVertMs);
+
+        MathTypes.Vec3 extra = s.Gust - spectralRaw + spectral;
+        double thermal = s.ThermalFactor * ThermalStrengthScale;
+        if (thermal > 0)
+            for (int i = 0; i < Thermals.Count; i++) extra += Thermals[i].WindAt(worldPosition) * thermal;
+        double keep = 1.0 - s.CalmWeight;
+        if (keep > 0) extra += BraidedRiver.WindAt(worldPosition.X, worldPosition.Y, -worldPosition.Z) * keep;
+        gustGradPerMetre = new MathTypes.Vec3(unitGrad.X * s.SigmaHorizMs, unitGrad.Y * s.SigmaHorizMs, unitGrad.Z * s.SigmaVertMs);
+        return s.MeanWind + NoThroughFlow(worldPosition, extra);
     }
 
     /// <summary>Active turbulence field (null = calm). Set by the host (challenge/scene/weather).</summary>
@@ -136,6 +200,25 @@ public static class Atmosphere
     public static double SimTimeSec { get; set; }
 
     public static void AdvanceTime(double dt) => SimTimeSec += dt;
+
+    /// <summary>
+    /// THE ONE CLOCK (local 2-player, 2026-11-05). Every <c>Aircraft.Step</c> used to add its own dt to
+    /// <see cref="SimTimeSec"/>, so the world clock ran once per aircraft: the player at 200 Hz and every combat drone,
+    /// formation ship, dogfight opponent and tow tug at their own rate each added a full second per second. Fifteen
+    /// drones made the turbulence field, the tide and the thermals run sixteen times too fast. A second local player
+    /// would have doubled it again.
+    ///
+    /// When an owner is set, only the owner's steps advance the clock (<see cref="AdvanceTime(object, double)"/>); every
+    /// other aircraft reads it. The game sets the first player's aeroplane (FlightSimDriver, on every new Aircraft).
+    /// Null (headless tools, tests, the Aero Widget) keeps the old rule: every step advances it.
+    /// </summary>
+    public static object? ClockOwner { get; set; }
+
+    /// <summary>Advance the clock by <paramref name="dt"/> if <paramref name="stepper"/> owns it (or nobody does).</summary>
+    public static void AdvanceTime(object stepper, double dt)
+    {
+        if (ClockOwner is null || ReferenceEquals(ClockOwner, stepper)) SimTimeSec += dt;
+    }
 
     /// <summary>Thermals (rising columns) active in the world; glider soaring energy.</summary>
     public static System.Collections.Generic.List<Thermal> Thermals { get; } = new();
@@ -170,25 +253,26 @@ public static class Atmosphere
     {
         if (Field is not null) return WindFromSample(worldPosition, Field.Sample(worldPosition, SimTimeSec), withGusts);
         MathTypes.Vec3 steady = SteadyWind * WindGradientFactor(worldPosition);
-        MathTypes.Vec3 w = steady + (withGusts ? ActiveTurbulence?.WindAt(worldPosition, SimTimeSec) ?? MathTypes.Vec3.Zero : MathTypes.Vec3.Zero);
+        // Everything but the air mass's own horizontal drift goes through NoThroughFlow together.
+        MathTypes.Vec3 up = withGusts ? ActiveTurbulence?.WindAt(worldPosition, SimTimeSec) ?? MathTypes.Vec3.Zero : MathTypes.Vec3.Zero;
         for (int i = 0; i < Thermals.Count; i++)
         {
-            w += Thermals[i].WindAt(worldPosition) * ThermalStrengthScale;
+            up += Thermals[i].WindAt(worldPosition) * ThermalStrengthScale;
         }
 
         if (ActiveRidge is not null)
         {
-            w += ActiveRidge.WindAt(worldPosition, SteadyWind);
+            up += ActiveRidge.WindAt(worldPosition, SteadyWind);
         }
         if (SlopeLiftEnabled && WorldTerrain.Active is not null)
         {
-            w += SlopeLift.WindAt(WorldTerrain.Active, worldPosition, steady);
+            up += SlopeLift.WindAt(WorldTerrain.Active, worldPosition, steady);
         }
         // The glacier wind (owner 2026-10-16): cold air slides off the ice all day and runs down the outwash
         // plain, so a landing upstream on a gravel bar is always into a headwind. It is a shallow layer and
         // it is always there, whatever the session's weather says.
-        w += BraidedRiver.WindAt(worldPosition.X, worldPosition.Y, -worldPosition.Z);
+        up += BraidedRiver.WindAt(worldPosition.X, worldPosition.Y, -worldPosition.Z);
 
-        return w;
+        return steady + NoThroughFlow(worldPosition, up);
     }
 }

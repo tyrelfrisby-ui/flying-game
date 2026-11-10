@@ -1,0 +1,7 @@
+#!/bin/bash
+# The iOS/Quest parity lock (docs/PARITY.md, "The lock"). Installed into the repository's common hooks directory by
+# tools/githooks/install.sh, so it runs in every worktree; it does nothing on any branch but lane/claude-island-nav and
+# lane/claude-quest-islandnav. Never bypass it with --no-verify: sync the lanes instead (the message says how).
+top=$(git rev-parse --show-toplevel) || exit 0
+[ -x "$top/tools/check-parity.sh" ] || exit 0
+exec "$top/tools/check-parity.sh" --hook

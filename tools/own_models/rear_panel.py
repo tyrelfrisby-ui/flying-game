@@ -59,27 +59,31 @@ def strip_old_dials(glb, aircraft):
     expected=(len(before(aircraft))-(aircraft=='extra-300-like'))*132
     assert count==expected,(aircraft,count,expected)
 
+# The airspeed indicator, altimeter, attitude indicator and g-meter are the SHARED INSTRUMENT LIBRARY'S (tools/own_models/
+# instruments, Ty 2026-11-05): their slots keep the bezel and get a blank face, and the game puts the library instrument
+# there (InstrumentLibrary.Pitts, Bridge/SharedInstruments).
+LIBRARY = ('Airspeed', 'Altimeter', 'Attitude', 'G_meter')
+
 def dial_art(path, name):
     from PIL import Image, ImageDraw, ImageFont
     im=Image.new('RGB',(512,512),(19,23,27)); d=ImageDraw.Draw(im)
-    fontdir=Path(os.environ['IAC_FONT_DIR'])
-    font=lambda n:ImageFont.truetype(str(fontdir/'LiberationSans-Bold.ttf'),n)
-    if name=='Attitude':
-        d.ellipse((20,20,492,492),fill=(87,130,162)); d.pieslice((20,20,492,492),0,180,fill=(124,81,48));d.line((30,256,482,256),fill='white',width=5)
+    from instrument_face_style import font, finish
+    if name in LIBRARY:
+        finish(im).save(path); return
     for k in range(33):
         t=math.radians(-140+k*280/32); r=216 if k%4==0 else 228
         d.line((256+r*math.sin(t),256-r*math.cos(t),256+242*math.sin(t),256-242*math.cos(t)),fill='white',width=4)
-    labels={'Airspeed':('AIRSPEED','MPH','90'),'Altimeter':('ALT','FT','2500'), 'G_meter':('G','ACCEL','+1'),
+    labels={
      'Tachometer':('RPM','x100','24'),'Oil_pressure':('OIL','PSI','70'),'Oil_temperature':('OIL','TEMP F','180'),
      'Fuel_pressure':('FUEL','PSI','25'),'Fuel_quantity':('FUEL','GAL','20'),'Voltmeter':('VOLTS','DC','14'),
-     'Compass':('COMPASS','N','N'),'Attitude':('ATTITUDE','','LEVEL')}
+     'Compass':('COMPASS','N','N')}
     title,unit,value=labels[name]
     d.text((256,120),title,font=font(42 if len(title)<8 else 34),anchor='mm',fill='white')
     d.text((256,375),unit,font=font(29),anchor='mm',fill='white')
     d.text((256,320),value,font=font(38),anchor='mm',fill='white')
     if name!='Compass':
         d.line((256,266,174,100),fill=(255,210,70),width=10);d.ellipse((243,243,269,269),fill='white')
-    im.save(path)
+    finish(im).save(path)
 
 def meshes(aircraft):
     """Builder-space mesh tuples matching SequenceCard helper interface."""

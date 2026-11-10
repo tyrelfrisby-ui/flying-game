@@ -34,7 +34,15 @@ namespace FlyingGame.Bridge
         {
             if (!SessionSettings.ShowForceVectors || Driver == null || Driver.Sim == null || _mat == null || SessionSettings.MenuOpen) return;
             var ac = Driver.Sim.Aircraft;
-            var samples = ac.LastForces;
+            // A replay poses the aeroplane; it does not run the physics, so LastForces is whatever the last LIVE step
+            // worked out — drawing that here would hang one instant's forces on another instant's attitude, a picture
+            // right only on the frame the replay was entered on. The replay therefore recomputes them at each pose it
+            // shows (Aircraft.ForcesAtCurrentState) and leaves them here. Gear and contact are missing from that answer
+            // on purpose: their load is how far the integrator pressed the airframe into the ground, which is history
+            // and not pose (Ty 2026-11-08).
+            // Never the fallback inside a replay: if the recompute has not run yet (the vectors were switched on while
+            // the playback sat paused) then nothing is the honest picture, not the last live step's.
+            var samples = SessionSettings.ReplayActive ? Driver.ReplayForces : ac.LastForces;
             if (samples == null || samples.Count == 0) return;
             var st = ac.State; var cg = ac.Config.Mass.CgVec();
             float weight = (float)(ac.MassProperties.MassKg * 9.81);

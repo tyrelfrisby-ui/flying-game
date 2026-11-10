@@ -1,0 +1,19 @@
+{
+  "_comment": "Generic Google Cardboard v2 (the 2015 'Cardboard I/O' viewer) profile, as Google publishes it for viewer manufacturers: https://support.google.com/cardboard/manufacturers/answer/6321873 -- screen to lens 39.3 mm, inter-lens 63.9 mm, tray to lens 35 mm, k1 0.33582564, k2 0.55348791, 60 deg each way, BOTTOM alignment. A DIFFERENT headset needs its own profile; this one is not a measurement of Ty's. ipdM, renderScale, the chromatic-aberration scales and hudMode are ours, not Google's.",
+  "interLensDistanceM": 0.0639,
+  "screenToLensDistanceM": 0.0393,
+  "trayToLensDistanceM": 0.035,
+  "verticalAlignment": "BOTTOM",
+  "k1": 0.33582564,
+  "k2": 0.55348791,
+  "fovLeftDeg": 60.0,
+  "fovRightDeg": 60.0,
+  "fovBottomDeg": 60.0,
+  "fovTopDeg": 60.0,
+  "ipdM": 0.063,
+  "renderScale": 0.85,
+  "chromaticAberration": true,
+  "caRedScale": 0.994,
+  "caBlueScale": 1.006,
+  "hudMode": "minimal"
+}

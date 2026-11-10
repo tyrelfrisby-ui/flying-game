@@ -61,6 +61,7 @@ namespace FlyingGame.Bridge
         private void Start()
         {
             _driver.AircraftChanged += Repair;
+            _driver.AirframeReplaced += Repair;   // the one reset (FlightSimDriver.AirframeReplaced): before the new aeroplane steps
             _audio = GetComponent<FlightAudio>();
             _visual = GetComponent<AirframeVisual>();
             Repair();
@@ -68,24 +69,32 @@ namespace FlyingGame.Bridge
 
         private void OnDestroy()
         {
-            if (_driver != null) _driver.AircraftChanged -= Repair;
+            if (_driver != null) { _driver.AircraftChanged -= Repair; _driver.AirframeReplaced -= Repair; }
         }
 
         /// <summary>Restore an intact airframe (ResetFlight / aircraft switch).</summary>
+        private bool _engineShownBent;   // the engine has been drawn drooped this flight (redrawn as the droop comes off)
+
         public void Repair()
         {
             WingsGone = false;
+            _engineShownBent = false;
             Severity = 0f;
             if (_watched != null) { _watched.ComponentLost -= OnComponentLost; _watched.HardImpact -= OnHardImpact; _watched.Damage.Changed -= OnDamage; _watched.Contact -= OnContact; }
             _watched = _driver != null && _driver.Sim != null ? _driver.Sim.Aircraft : null;
             if (_watched != null) { _watched.ComponentLost += OnComponentLost; _watched.HardImpact += OnHardImpact; _watched.Damage.Changed += OnDamage; _watched.Contact += OnContact; }
             // The old wreck goes with the old aeroplane, and the trees it snapped stand again (FlyingGame.Core.TreeStructure).
             FlyingGame.Core.Forest.ClearBroken();
+            FlyingGame.Core.StrippedTrees.Clear();
             foreach (GameObject g in _wreckVisuals) if (g != null) Destroy(g);
             _wreckVisuals.Clear();
             _relay = _watched != null ? new CrashRelay(_watched, subscribe: false) : null;
             if (GetComponent<FuelSlickVisual>() == null) gameObject.AddComponent<FuelSlickVisual>();
             if (GetComponent<ContactEffects>() == null) gameObject.AddComponent<ContactEffects>();   // placeholder scrape sound + dust
+            if (GetComponent<PropDebris>() == null) gameObject.AddComponent<PropDebris>();           // a broken blade's pieces
+            if (GetComponent<TreeDebris>() == null) gameObject.AddComponent<TreeDebris>();           // needles and twigs a tree hit throws
+            if (GetComponent<GlassShatter>() == null) gameObject.AddComponent<GlassShatter>();       // canopy / windshield / window glass: jagged on a direct hit
+            if (GetComponent<TyreSmoke>() == null) gameObject.AddComponent<TyreSmoke>();             // rubber the tyres lose (Core TyreWear)
             LostLine = null;
             ReadLimits();
         }
@@ -93,18 +102,14 @@ namespace FlyingGame.Bridge
         /// <summary>HUD text naming what has broken off, null while intact.</summary>
         public string LostLine { get; private set; }
 
-        /// <summary>A hard point or wheel just hit. A wheel on land is a tyre chirp; anything else is a crash impact,
-        /// raised by the relay as a CrashEvents impact with the surface it struck (FlightAudio plays crunch or splash).</summary>
+        /// <summary>A hard point or wheel just hit. A wheel on land is not a crash: its chirp comes from the tyre's own
+        /// spin-up slip (Core WheelSpin → GroundSoundMix → TyreBrakeSynth), for as long as the tyre really slips, and a
+        /// leg that breaks adds its own crash via ComponentLost. Anything else is a crash impact, raised by the relay as a
+        /// CrashEvents impact with the surface it struck (FlightAudio plays crunch or splash).</summary>
         private void OnHardImpact(double closingMs, string point)
         {
             if (_audio == null) _audio = GetComponent<FlightAudio>();
-            if (point.StartsWith("Gear") && (_watched == null || !_watched.LastImpact.OnWater))
-            {
-                // A wheel: a subtle tyre chirp (owner: not a gong); a leg that breaks adds its own crash via ComponentLost.
-                if (closingMs < 0.4) return;
-                _audio?.TireChirp(Mathf.Clamp01((float)((closingMs - 0.4) / 3.0)));
-                return;
-            }
+            if (point.StartsWith("Gear") && (_watched == null || !_watched.LastImpact.OnWater)) return;
             _relay?.OnHardImpact(closingMs, point);
         }
 
@@ -124,10 +129,29 @@ namespace FlyingGame.Bridge
         /// impact so FlightAudio plays it, and the panel turned up on the model. Breaks arrive as ComponentLost.</summary>
         private void OnContact(FlyingGame.Core.ContactEvent e)
         {
-            if (e.Kind != FlyingGame.Core.ContactEventKind.PanelBent || _watched == null) return;
+            if (_watched == null) return;
+            if (e.Kind == FlyingGame.Core.ContactEventKind.FuselageCrushed || e.Kind == FlyingGame.Core.ContactEventKind.BranchDamage)
+            {
+                // A crushed fuselage section (it bends instead of breaking) or branches doing harm (Ty 2026-11-04: "it made a
+                // sound with no damage"): the crunch, as a land impact, its severity from the energy the crush or the wood took
+                // against the energy of an arrival at the cabin's break speed.
+                double eBreak = 0.5 * _watched.MassProperties.MassKg * FlyingGame.Core.AirframeContact.CabinBreakMs * FlyingGame.Core.AirframeContact.CabinBreakMs;
+                double sev = System.Math.Clamp(e.Intensity / System.Math.Max(1.0, eBreak), e.Kind == FlyingGame.Core.ContactEventKind.BranchDamage ? 0.1 : 0.25, 1.0);
+                FlyingGame.Core.CrashEvents.RaiseImpact(new FlyingGame.Core.CrashImpact(FlyingGame.Core.ImpactSurface.Land, e.PositionWorld, e.VelocityWorld,
+                    e.VelocityWorld.Length, _watched.MassProperties.MassKg, sev, -1));
+                string what = e.Kind == FlyingGame.Core.ContactEventKind.BranchDamage
+                    ? (e.Component == FlyingGame.Core.AirframeComponent.Propeller ? "PROP DAMAGED BY BRANCHES" : "BRANCH DAMAGE")
+                    : e.Component == FlyingGame.Core.AirframeComponent.TailBoom ? "TAIL BENT"
+                    : e.Component == FlyingGame.Core.AirframeComponent.Nose ? "ENGINE MOUNT BENT" : "FUSELAGE CRUSHED";
+                if (LostLine == null || !LostLine.Contains(what)) LostLine = LostLine == null ? what : LostLine + ", " + what;
+                return;
+            }
+            if (e.Kind != FlyingGame.Core.ContactEventKind.PanelBent && e.Kind != FlyingGame.Core.ContactEventKind.MemberBent) return;
             FlyingGame.Core.CrashEvents.RaiseImpact(new FlyingGame.Core.CrashImpact(FlyingGame.Core.ImpactSurface.Land, e.PositionWorld, e.VelocityWorld,
                 e.VelocityWorld.Length, _watched.MassProperties.MassKg, System.Math.Clamp(e.Intensity, 0.2, 1.0), -1));
-            string name = PanelName(e.Component);
+            // A panel reports again every further 5° it folds (the crunch each time); the line names it once.
+            string name = e.Kind == FlyingGame.Core.ContactEventKind.PanelBent ? PanelName(e.Component) : e.Component.ToString().ToUpperInvariant();
+            if (LostLine != null && LostLine.Contains(name)) return;
             LostLine = LostLine == null ? "BENT: " + name : LostLine + ", BENT " + name;
         }
 
@@ -190,6 +214,28 @@ namespace FlyingGame.Bridge
                 : LostLine == null ? "BROKE OFF: " + name : LostLine + ", " + name;
         }
 
+        /// <summary>The occupied airframe inside a drawn tree has that tree drawn as the sim has it (StrippedTrees, Ty
+        /// 2026-11-05: the Pitts "vanished" against a stem inside the 1.5 m trunk box and the skirts round it).</summary>
+        private void ObserveTrees(Aircraft ac)
+        {
+            FlyingGame.Core.ITreeSource src = ac.Trees ?? (FlyingGame.Core.WorldTerrain.Active != null ? FlyingGame.Core.Forest.Live : null);
+            if (src == null) return;
+            if (!ReferenceEquals(_sizedFor, ac))
+            {
+                _sizedFor = ac;
+                var cf = ac.Config.Fuselage?.Crossflow;
+                double len = cf != null && cf.LengthM > 0 ? cf.LengthM : 6.0;
+                _treeHalfM = 0.5 * System.Math.Max(2.0 * FlyingGame.Core.WingPanels.Semispan(ac.Config), len);
+                _treeBodyM = cf != null && cf.BodyRadiusM > 0 ? cf.BodyRadiusM : 0.5;
+            }
+            FlyingGame.Core.MathTypes.Vec3 p = ac.State.Position;
+            FlyingGame.Core.WorldTerrain w = FlyingGame.Core.WorldTerrain.Active;
+            if (ac.Trees == null && w != null && -p.Z - _treeHalfM > w.HeightAt(p.X, p.Y) + FlyingGame.Core.Forest.MaxHeightM * 1.05) return;   // above every tree
+            FlyingGame.Core.StrippedTrees.Observe(src, p, _treeBodyM, _treeHalfM);
+        }
+        private Aircraft _sizedFor;
+        private double _treeHalfM, _treeBodyM;
+
         private void ReadLimits()
         {
             if (_watched == null) return;
@@ -198,6 +244,36 @@ namespace FlyingGame.Bridge
             GroanG = (float)st.GroanPosG;
             UltimateG = (float)st.UltimatePosG;
             Pops = st.Pops;
+        }
+
+        /// <summary>
+        /// The airframe drawn in a shape the RECORDING holds. Each panel is shown at its recorded set by putting that
+        /// set on the panel, drawing, and putting back what was there: AirframeVisual deforms the mesh through
+        /// WingPanel.Deform, so the panel object itself has to carry the angles for one call. Nothing else reads them
+        /// in between — the sim does not step during a replay — and they are restored before anything could.
+        ///
+        /// The elastic flex is deliberately zeroed rather than recorded: it belongs to the load of the moment, is a few
+        /// milliradians, and nothing in a recorded pose can recover it.
+        /// </summary>
+        private void DrawRecordedShape(Aircraft ac, FlyingGame.Sim.Replay.AirframeShape shape)
+        {
+            var panels = ac.Panels;
+            for (int i = 0; i < panels.Count && i < shape.Panels.Length; i++)
+            {
+                FlyingGame.Core.WingPanel p = panels[i];
+                FlyingGame.Sim.Replay.PanelSet rec = shape.Panels[i];
+                if (p.Component != rec.Component) continue;   // a different airframe: say nothing rather than guess
+                double bend = p.BendRad, twist = p.TwistRad, elastic = p.ElasticRad, flex = p.FlightFlexRad;
+                FlyingGame.Core.PanelState state = p.State;
+                p.BendRad = rec.BendRad; p.TwistRad = rec.TwistRad; p.ElasticRad = 0.0; p.FlightFlexRad = 0.0;
+                p.State = rec.State;
+                // Straight panels still need the call once the meshes exist, or a bend from later in the flight stays
+                // on the model after the head is scrubbed back before it.
+                if (rec.State == FlyingGame.Core.PanelState.Bent || _visual.HasBentPanel(p.Component)) _visual.ShowPanelBend(p, ac.Config);
+                p.BendRad = bend; p.TwistRad = twist; p.ElasticRad = elastic; p.FlightFlexRad = flex; p.State = state;
+            }
+            _visual.ShowFuselageBend(shape.TailBendPitchRad, shape.TailBendYawRad, ac.Config, shape.EngineSagRad);
+            _visual.ShowTailBend(shape.TailBendRad);
         }
 
         private void Update()
@@ -209,13 +285,41 @@ namespace FlyingGame.Bridge
                 Repair();   // AdoptSim / spawn built a new Aircraft: intact again
             }
 
+            if (_visual == null) _visual = GetComponent<AirframeVisual>();
+            // A REPLAY draws the aeroplane of the moment being watched, not the one that limped home. Everything below
+            // reads live airframe state, which during a playback belongs to whenever the replay was entered — so after
+            // a crash the wing was bent from the first frame, before the strike that bent it (Ty 2026-11-08: "The wing
+            // tip was still bent up on replay after a wing strike so that is not fixed yet"). FlightReplay.Shapes knows
+            // when each shape was taken; draw that and leave, because the groan, the pops and the load factor below all
+            // describe a step the sim is not taking.
+            if (_driver.ReplayShape is FlyingGame.Sim.Replay.AirframeShape shape)
+            {
+                if (_visual != null) DrawRecordedShape(ac, shape);
+                return;
+            }
+
             // The wreck and the airframe's flooding, in step with the game clock.
             _relay?.Step(Time.deltaTime);
-            // Bent wing panels follow their deflection (it grows with the load factor until they snap).
-            if (_visual == null) _visual = GetComponent<AirframeVisual>();
+            ObserveTrees(ac);
+            // Bent wing panels follow their shape: the plastic set and twist, and the elastic flex under a tip contact.
             if (_visual != null)
                 foreach (FlyingGame.Core.WingPanel p in ac.Panels)
-                    if (p.State == FlyingGame.Core.PanelState.Bent || System.Math.Abs(p.ElasticRad) > 0.003) _visual.ShowPanelBend(p, ac.Config);
+                    if (p.State == FlyingGame.Core.PanelState.Bent || System.Math.Abs(p.ElasticRad) > 0.003 || System.Math.Abs(p.FlightFlexRad) > 0.003
+                        || (p.State != FlyingGame.Core.PanelState.Broken && _visual.HasBentPanel(p.Component))) _visual.ShowPanelBend(p, ac.Config);
+            // A crushed tail boom or engine mount bends on the model too, and an overstressed engine mount droops (Ty 2026-11-05).
+            // The engine is drawn drooping once its mount is past 1.5 × limit or has kept a set: putting the nose on its
+            // pivot cuts the model and freezes its rig, as the crash bend does, and a pull just past the limit must not
+            // stop the control surfaces moving for the rest of the flight. Below that the droop is in the thrust line only.
+            FlyingGame.Core.OverstressMember em = ac.Structure.EngineMount;
+            bool engineDrawn = em != null && (em.Overstressed || System.Math.Abs(em.SetRad) >= FlyingGame.Core.WingStructure.VisibleSetRad);
+            double sag = (engineDrawn ? em.DeflectionRad : 0.0) + ac.Crush.NoseBendRad;
+            if (_visual != null && (ac.Crush.TailCrushM > 0 || ac.Crush.NoseCrushM > 0 || System.Math.Abs(sag) > 0.003 || _engineShownBent))
+            {
+                _visual.ShowFuselageBend(ac.Crush, ac.Config, sag);
+                _engineShownBent |= System.Math.Abs(sag) > 0.003;
+            }
+            // The horizontal tail's overstress bend (tips down under positive g).
+            if (_visual != null) _visual.ShowTailBend(ac.TailBendRad);
 
             StructuralState st = ac.Structure;
             LoadFactorG = (float)ac.LoadFactorZ;

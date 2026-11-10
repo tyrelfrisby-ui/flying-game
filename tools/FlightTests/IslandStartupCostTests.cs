@@ -18,11 +18,20 @@ namespace FlyingGame.FlightTests;
 /// The timings below are REPORTED, not asserted: a frame budget belongs to the machine, and a timing assertion on a
 /// shared runner is a flake waiting to happen. What IS asserted is the safety property the fix rests on — that
 /// skipping the contact loop at altitude never skips a real contact.
+///
+/// Every test here installs the island (<c>WorldTerrain.Active ??= …</c>), and until 2026-11-06 none of them took it
+/// away again: the island stayed under every class that ran after this one, so the ground at (0, 0) was 2,460 m and
+/// StructuralTests, which flies from 600-1,500 m over what it takes to be flat ground, started underground and went
+/// NaN (B1 qualification, t971u: 40 names, reproduced by running this class before it). <see cref="Dispose"/> puts back
+/// whatever terrain was there before, after every test, pass or fail.
 /// </summary>
-public class IslandStartupCostTests
+[Collection("WorldTerrainActive")]   // swaps the global terrain: never in parallel with the legacy-world tests
+public class IslandStartupCostTests : IDisposable
 {
     private readonly ITestOutputHelper _o;
-    public IslandStartupCostTests(ITestOutputHelper o) { _o = o; }
+    private readonly WorldTerrain? _previousTerrain;
+    public IslandStartupCostTests(ITestOutputHelper o) { _o = o; _previousTerrain = WorldTerrain.Active; }
+    public void Dispose() => WorldTerrain.Active = _previousTerrain;
 
     [Fact]
     public void HowExpensiveIsAGroundSample()

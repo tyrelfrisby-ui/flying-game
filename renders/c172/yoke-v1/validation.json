@@ -1,0 +1,20 @@
+[
+  {
+    "model": "unity/Assets/_Project/Resources/Models/c172-like/c172-like-own.glb",
+    "sha256": "7a6c59224867c89b740a8c63aaae9f3b67dd5e9a5e3470ddc103ccac0256327a",
+    "nodes": 163,
+    "bindings": 104,
+    "required_bindings": 53,
+    "graph": "unique names, one parent, no cycles, no orphan nodes",
+    "result": "PASS"
+  },
+  {
+    "model": "renders/c172/yoke-v1/c172-interior.glb",
+    "sha256": "026de20f77c3ee86cbd47faedead67e7c5a7c9d2658ef2849396d80ad7882555",
+    "nodes": 135,
+    "bindings": 104,
+    "required_bindings": 53,
+    "graph": "unique names, one parent, no cycles, no orphan nodes",
+    "result": "PASS"
+  }
+]

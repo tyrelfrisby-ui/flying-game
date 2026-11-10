@@ -15,7 +15,7 @@ DOWN) as separate hinged parts. Variant floats: EDO 1320 floats, struts and wire
 Frame while building: x = -(distance aft of the prop hub), z = up from the thrust line (the three-view frame), y port;
 at the end every mesh shifts by (+1.817, 0, +0.135) so the wing LE / thrust line match the Unity config, then the usual
 yaw of 180 deg for export (nose +x after glTF import, like the Pitts / EA300 / Great Lakes).
-  J3_VARIANT=wheels|floats blender -b --python tools/own_models/build_j3_cub.py
+  J3_VARIANT=wheels|floats|skis blender -b --python tools/own_models/build_j3_cub.py
 """
 import bpy, bmesh, sys, os, math, numpy as np
 from mathutils import Matrix, Vector
@@ -24,6 +24,10 @@ import paint
 from paint import View
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 VAR = os.environ.get('J3_VARIANT', 'wheels').lower()
+if VAR == 'skis':
+    import runpy
+    runpy.run_path(os.path.join(HERE, 'build_j3_skis.py'), run_name='__main__')
+    raise SystemExit(0)
 assert VAR in ('wheels', 'floats'), VAR
 NAME = 'j3-cub-like' if VAR == 'wheels' else 'j3-cub-floats-like'
 OUT = os.environ.get('J3_OUT') or os.path.join(ROOT, 'unity/Assets/_Project/Resources/Models/%s/%s-own.glb' % (NAME, NAME))
@@ -456,20 +460,31 @@ print('V TUBES v13 (meet at the 15 pct front-spar apex): (%.3f, %.3f, %.3f) -> (
 # xd RS_X) forward and inboard to the single front-spar fitting on the centreline above the windshield (15 pct chord),
 # the same point the windshield V tubes meet. A rear-spar carry-through tube crosses the cabin between the two rear
 # attach points, under the greenhouse's aft edge. All yellow 1 in steel tube lying just under the wing lower contour.
+# v16 (Ty 2026-11-02: "the cub needs the top tubes moved up about 6 inches just below the clear roof"): the ceiling tubes,
+# their rear fittings and the carry-through no longer follow the wing's LOWER contour; they follow the skylight's
+# underside, CV_GAP below the clear panel, inside the open wing well (|y| < SK_Y, between the spar faces), so they sit
+# visibly under the glass and never through it or through the root ribs. The windshield V tubes still meet at the
+# front-spar fitting under the wing; the ceiling tubes now start at the top of that spar face.
+CV_GAP = 0.016                                                       # glass underside -> tube top
+def cv_z(x_, y_): return float(wsurf(W, y_, (x_ - LE_D) / CH, True)[2]) - CV_GAP - AP_R
 _bcv = bmesh.new(); _CVE = []
-_cxa = _vx + 0.012
-_zr = wing_low_c(RS_X) - AP_R - 0.002
-_yr = fus_y(RS_X, _zr - 0.01) - AP_R * 1.6
-for sy in (1, -1):
-    pts = []
-    for t_ in np.linspace(0, 1, 32):
-        x_ = _cxa + (RS_X - _cxa) * t_; y_ = sy * (0.020 + (_yr - 0.020) * t_)
-        pts.append(B(x_, y_, wing_low_c(x_) - AP_R - 0.002))
-    tube(_bcv, pts, AP_R, n=14); _CVE.append((RS_X, sy * _yr, _zr))
-    rbox(_bcv, B(RS_X, sy * _yr, wing_low_c(RS_X) - 0.006), (0.05, 0.04, 0.012))         # rear-spar attach fitting
-tube(_bcv, [B(RS_X, y_, _zr) for y_ in np.linspace(-_yr - 0.01, _yr + 0.01, 12)], AP_R, n=14)   # rear-spar carry-through
+_cxa = _vx + AP_R + 0.004                                            # just aft of the front spar face
+_rxa = RS_X - AP_R - 0.004                                           # just ahead of the rear spar face
+_yr = SK_Y - AP_R - 0.012                                            # inside the root ribs
+_zr = cv_z(_rxa, _yr)
+_cvgap = []
+for sy in (1, -1):                                                   # straight steel tube spar to spar (the glass bows up over it)
+    _a, _b = np.array((_cxa, sy * 0.020, cv_z(_cxa, 0.020))), np.array((_rxa, sy * _yr, _zr))
+    pts = [_a + (_b - _a) * t_ for t_ in np.linspace(0, 1, 12)]
+    _cvgap += [float(wsurf(W, q[1], (q[0] - LE_D) / CH, True)[2]) - q[2] - AP_R for q in pts]
+    tube(_bcv, [B(*q) for q in pts], AP_R, n=14); _CVE.append((_rxa, sy * _yr, _zr))
+    rbox(_bcv, B(RS_X - 0.003, sy * _yr, _zr), (0.006, 0.04, 0.05))                    # rear-spar attach fitting (plate on the spar face)
+    rbox(_bcv, B(_vx + 0.003, sy * 0.020, cv_z(_cxa, 0.02)), (0.006, 0.05, 0.05))     # front-spar attach fitting
+tube(_bcv, [B(_rxa, y_, cv_z(_rxa, y_)) for y_ in np.linspace(-_yr - 0.01, _yr + 0.01, 12)], AP_R, n=14)   # rear-spar carry-through
 P['Ceiling_Tubes'] = link('Ceiling_Tubes', _bcv)
-print('CEILING v13: front-spar apex (%.3f, 0, %.3f) = %.0f pct chord -> rear-spar attach (%.3f, +-%.3f, %.3f) = %.1f pct chord; carry-through tube at xd %.3f; r %.4f' % (_cxa, wing_low_c(_cxa) - AP_R - 0.002, FS_F * 100, RS_X, _yr, _zr, RS_F * 100, RS_X, AP_R))
+_cv_up = [cv_z(_cxa, 0.0) - (wing_low_c(_cxa) - AP_R - 0.002), 0.5 * (cv_z(_cxa, 0.0) + _zr) - (wing_low_c(0.5 * (_cxa + _rxa)) - AP_R - 0.002), _zr - (wing_low_c(_rxa) - AP_R - 0.002)]
+print('CEILING v16: front-spar (%.3f, +-0.020, %.3f) -> rear-spar attach (%.3f, +-%.3f, %.3f), straight; carry-through at xd %.3f; tube tops %.3f..%.3f m under the skylight skin; '
+      'raised %s m over v13 (front / mid / rear); r %.4f' % (_cxa, cv_z(_cxa, 0.02), _rxa, _yr, _zr, _rxa, min(_cvgap), max(_cvgap), [round(u_, 3) for u_ in _cv_up], AP_R))
 # ---- v11 skylight: cut the wing centre section, clear panel on top, root ribs + front spar face (yellow) -------------
 _bw = bmesh.new(); _bw.from_mesh(P['Wing'].data); _bw.faces.ensure_lookup_table(); bmesh.ops.recalc_face_normals(_bw, faces=_bw.faces)
 def _wf(c_): return (-c_.x - LE_D) / CH
@@ -488,7 +503,9 @@ if sum(f.normal.z for f in _bsk.faces) < 0: bmesh.ops.reverse_faces(_bsk, faces=
 P['Skylight'] = link('Skylight', _bsk)
 _bsf = bmesh.new()
 def _two(pts):
-    _bsf.faces.new([_bsf.verts.new(tuple(q)) for q in pts]); _bsf.faces.new([_bsf.verts.new(tuple(q)) for q in pts[::-1]])
+    # v16: ONE face. Every J-3 material is doubleSided, so the old front + reversed pair were two coincident faces that
+    # fought (the root ribs read as yellow / dark shards from the rear seat, and the mag switch now sits on one).
+    _bsf.faces.new([_bsf.verts.new(tuple(q)) for q in pts])
 def _strip(f0_, f1_, up_):                                           # yellow skin back to the spar line (both faces)
     fs_ = np.linspace(f0_, f1_, 3)
     for a_, b_ in zip(fs_, fs_[1:]):
@@ -892,7 +909,7 @@ for lp in P['Prop'].data.loops:
     co = P['Prop'].data.vertices[lp.vertex_index].co; _uv.data[lp.index].uv = ((co.y + R_P) / (2 * R_P), (co.z + 0.10) / 0.20)
 
 # ---- cabin: floor, two seats in tandem, two sticks, pedals, panel with five gauges + compass, window frame tubes -------
-CK_T = ['floor', 'seat', 'panel', 'gauge', 'face', 'stick', 'tubeY', 'dark', 'chrome', 'alu', 'label', 'red', 'maroon']
+CK_T = ['floor', 'seat', 'panel', 'gauge', 'face', 'stick', 'tubeY', 'dark', 'chrome', 'alu', 'label', 'red', 'maroon', 'heel', 'tubeK', 'brass']   # v18: tubeK = the black under-tank tubes, brass = the primer barrel
 bmc = bmesh.new(); ck_tag = []
 def ck(tag, fn):
     fn(); tag_new(bmc, CK_T.index(tag))
@@ -963,6 +980,15 @@ def tank_deck():                                                    # dash deck:
 ck('panel', tank_deck)
 print('PANEL v12: vertical face to knee z %.3f, top rolls forward into the deck, radius %.3f m centre / %.3f m ends' % (p_arch(0) - p_rad(0), p_rad(0), p_rad(PHW)))
 ZG = PZB + 0.110
+# GAUGES are the five panel SLOTS, left to right as seen from the seat (y port = left): bezel and face size per slot.
+# v17 (Ty photo ty-panel-tank-behind.png, left to right: oil temp / pressure, tach, compass, altimeter, airspeed): CELL
+# says which atlas face (j3_panel_atlas.png: 0 tach, 1 ASI, 2 compass, 3 altimeter, 4 oil) sits in each slot. v5..v16
+# had tach / ASI / compass / altimeter / oil. The chrome-bezelled outer slots now carry the oil gauge and the ASI.
+# v18 (Ty 2026-11-02, t282u then corrected t283u): left to right TACH, AIRSPEED, COMPASS, ALTIMETER, OIL TEMP/PRESSURE,
+# with the airspeed the same size as the altimeter. Slots 1 and 3 are the twin black-bezelled 0.0355 / 0.030 gauges, so
+# the ASI takes slot 1 and the altimeter slot 3; the big chrome outer slots hold the tach (left) and the oil gauge (right).
+CELL = [0, 1, 2, 3, 4]
+def slot_of(cell): return CELL.index(cell)
 GAUGES = [(0.164, 0.043, 'chrome', 0.036), (0.075, 0.0355, 'gauge', 0.030), (-0.011, 0.0355, 'gauge', 0.027),
           (-0.095, 0.0355, 'gauge', 0.030), (-0.181, 0.041, 'chrome', 0.035)]
 def circ(y0, z0, r, n=32): return [(y0 + r * math.cos(t), z0 + r * math.sin(t)) for t in np.linspace(0, 2 * math.pi, n, endpoint=False)]
@@ -975,12 +1001,27 @@ for gy, rb, bt, rf in GAUGES:                                                   
         y_, z_ = gy + (rb + 0.007) * math.cos(math.radians(t_)), ZG + (rb + 0.007) * math.sin(math.radians(t_))
         ck('chrome', lambda: cyl(bmc, B(PXA, y_, z_), B(PXA + 0.002, y_, z_), 0.0028, 8, r2=0.002))
 ck('alu', lambda: rbox(bmc, B(PXA + 0.001, 0, PZB + 0.153), (0.002, 0.034, 0.012)))          # small placard, top centre
-ck('dark', lambda: cyl(bmc, B(PXA, 0.215, PZB + 0.140), B(PXA + 0.024, 0.215, PZB + 0.140), 0.014, 16))      # knob, upper left
-ck('chrome', lambda: cyl(bmc, B(PXA, -0.240, PZB + 0.041), B(PXA + 0.014, -0.240, PZB + 0.041), 0.007, 12))   # primer barrel
-sub_begin()                                                                                     # v15: Primer_Plunger node (pulls aft)
-ck('chrome', lambda: cyl(bmc, B(PXA - 0.040, -0.240, PZB + 0.041), B(PXA + 0.014, -0.240, PZB + 0.041), 0.0035, 10))  # plunger rod (hidden in the barrel when in)
-ck('chrome', lambda: cyl(bmc, B(PXA + 0.014, -0.240, PZB + 0.041), B(PXA + 0.024, -0.240, PZB + 0.041), 0.012, 16))  # primer knob
-sub_end('Primer_Plunger'); RIGPTS['Primer_Plunger'] = B(PXA + 0.014, -0.240, PZB + 0.041)
+# v17 (Ty photo ty-panel-tank-behind.png): the black knob at the far left is the cabin heat / fresh air push-pull, labelled
+# 'PULL for HEAT' above it and 'FRESH AIR PUSH' below it (labels with the mag switch's text, after class Plane). v5..v16
+# had it unlabelled at y 0.215 z PZB + 0.140, high on the rolled hood; it comes down beside the oil gauge, as in the photo.
+HK_Y, HK_Z = 0.228, PZB + 0.072
+ck('dark', lambda: cyl(bmc, B(PXA, HK_Y, HK_Z), B(PXA + 0.024, HK_Y, HK_Z), 0.012, 16))             # heat knob, far left
+# v18 (Ty 2026-11-02, t284u): "at the far right of the panel, after oil temp/pressure, add a primer: the typical J-3
+# plunger-style push-pull primer, a small round knob on a brass barrel". v15..v17 had a small chrome one low in the right
+# corner (y -0.240, z PZB + 0.041). It moves up beside the oil gauge, as far right as the panel's rolled edge allows (the
+# knee drops toward the panel ends, z 0.094 here), on a brass hex nut and barrel, with a black round knob on a chrome
+# plunger that pulls straight aft 50 mm (the rod stays in the barrel at full pull). Hands: the 'controls' row in
+# j3_rig_json.py (PushPull, rear seat) and the Grip_Primer empty at the knob's centre.
+PR_Y, PR_Z = -0.244, PZB + 0.066
+ck('brass', lambda: cyl(bmc, B(PXA, PR_Y, PR_Z), B(PXA + 0.004, PR_Y, PR_Z), 0.0105, 6))                 # hex panel nut
+ck('brass', lambda: cyl(bmc, B(PXA + 0.004, PR_Y, PR_Z), B(PXA + 0.022, PR_Y, PR_Z), 0.0062, 14))         # barrel
+ck('brass', lambda: cyl(bmc, B(PXA + 0.022, PR_Y, PR_Z), B(PXA + 0.024, PR_Y, PR_Z), 0.0062, 14, r2=0.0045))   # barrel lip
+sub_begin()                                                                                     # Primer_Plunger node (pulls aft)
+ck('chrome', lambda: cyl(bmc, B(PXA - 0.040, PR_Y, PR_Z), B(PXA + 0.028, PR_Y, PR_Z), 0.0030, 10))   # plunger rod (in the barrel when in)
+ck('dark', lambda: cyl(bmc, B(PXA + 0.026, PR_Y, PR_Z), B(PXA + 0.030, PR_Y, PR_Z), 0.0060, 16, r2=0.0110))   # round knob: neck
+ck('dark', lambda: cyl(bmc, B(PXA + 0.030, PR_Y, PR_Z), B(PXA + 0.038, PR_Y, PR_Z), 0.0110, 16))          #             body
+ck('dark', lambda: cyl(bmc, B(PXA + 0.038, PR_Y, PR_Z), B(PXA + 0.042, PR_Y, PR_Z), 0.0110, 16, r2=0.0060))   #             domed end
+sub_end('Primer_Plunger'); RIGPTS['Primer_Plunger'] = B(PXA + 0.024, PR_Y, PR_Z)
 _po = np.array(panel_outline(0.013)); _sl = np.r_[0, np.cumsum(np.linalg.norm(np.diff(np.vstack([_po, _po[:1]]), axis=0), axis=1))]
 for s_ in np.linspace(0, _sl[-1], 16, endpoint=False):                                                # chrome screws
     y_ = np.interp(s_, _sl, np.r_[_po[:, 0], _po[0, 0]]); z_ = np.interp(s_, _sl, np.r_[_po[:, 1], _po[0, 1]])
@@ -995,8 +1036,8 @@ def uvface(vu):
     f = bmg.faces.new([bmg.verts.new(p) for p, _ in vu])
     for l_, (_, uv) in zip(f.loops, vu): l_[_uvg].uv = uv
 for i, (gy, rb, bt, rf) in enumerate(GAUGES):
-    xf_ = PXA + (0.007 if i == 2 else 0.004); cu = (i * 512 + 256) / AW
-    rim_ = [(B(xf_, gy + rf * math.cos(t), ZG + rf * math.sin(t)), ((i * 512 + 256 - 254 * math.cos(t)) / AW, 1 - (256 - 254 * math.sin(t)) / AH))
+    c_ = CELL[i]; xf_ = PXA + (0.007 if i == 2 else 0.004); cu = (c_ * 512 + 256) / AW
+    rim_ = [(B(xf_, gy + rf * math.cos(t), ZG + rf * math.sin(t)), ((c_ * 512 + 256 - 254 * math.cos(t)) / AW, 1 - (256 - 254 * math.sin(t)) / AH))
             for t in np.linspace(0, 2 * math.pi, 32, endpoint=False)]
     for k in range(32): uvface([(B(xf_ + (0.002 if i == 2 else 0), gy, ZG), (cu, 1 - 256 / AH)), rim_[(k + 1) % 32], rim_[k]])
 _pw, _ph, _py, _pz = 0.071, 0.0142, -0.011, PZB + 0.037
@@ -1020,15 +1061,16 @@ def needle_mesh(name, gi, cpx, a_deg, L, tail, wpx, mat, dz=0.0, hub=16):
     bm = bmesh.new(); prism(bm, [tuple(q) for q in pts], xf + 0.0009, xf + 0.0014); nf = len(bm.faces)
     cyl(bm, B(xf + 0.0005, c[0], c[1]), B(xf + 0.0020, c[0], c[1]), hub * k, 12)
     NEEDLE_TAGS[name] = (mat, nf, len(bm.faces) - nf); P[name] = link(name, bm); NEEDLES[name] = B(xf, c[0], c[1])
-needle_mesh('Needle_Tach', 0, 0, -140, 200, 40, 9, 'needle_orange')
-needle_mesh('Needle_Airspeed', 1, 0, 18, 205, 40, 9, 'needle_red')
-needle_mesh('Needle_Alt_1000ft', 3, 0, 0, 120, 20, 16, 'needle_black')
-needle_mesh('Needle_Alt_100ft', 3, 0, 0, 210, 40, 8, 'needle_black', dz=0.0008, hub=12)
-needle_mesh('Needle_OilTemp', 4, -35, -60, 190, 20, 8, 'needle_black')
-needle_mesh('Needle_OilPress', 4, 175, -60, 190, 20, 8, 'needle_black')
+needle_mesh('Needle_Tach', slot_of(0), 0, -140, 200, 40, 9, 'needle_orange')                 # v17: needles follow their face's slot
+needle_mesh('Needle_Airspeed', slot_of(1), 0, 18, 205, 40, 9, 'needle_red')
+needle_mesh('Needle_Alt_1000ft', slot_of(3), 0, 0, 120, 20, 16, 'needle_black')
+needle_mesh('Needle_Alt_100ft', slot_of(3), 0, 0, 210, 40, 8, 'needle_black', dz=0.0008, hub=12)
+needle_mesh('Needle_OilTemp', slot_of(4), -35, -60, 190, 20, 8, 'needle_black')
+needle_mesh('Needle_OilPress', slot_of(4), 175, -60, 190, 20, 8, 'needle_black')
 # compass card: vertical-axis drum behind the compass window, UVs into the atlas strip (x 640..2560, y 516..636). Label L
 # (deg) sits at drum bearing L+180 (the side facing the pilot shows the heading), so the numbers run right-to-left as on
 # a real wet compass. Modelled at heading 000 (N under the lubber line).
+assert CELL[2] == 2, 'the compass drum and lubber line are built for the centre slot'
 CC_R, CC_H = 0.016, 0.016; _cg = GAUGES[2][0]; CC_X = PXA + 0.005
 bmk = bmesh.new(); _uvk = bmk.loops.layers.uv.new('UVMap'); _NK = 72
 def _ck_pt(L, z): t = math.radians(L); return B(CC_X + CC_R * math.cos(t), _cg + CC_R * math.sin(t), z)
@@ -1057,7 +1099,9 @@ for x0, x1, zb, zt in ((1.68, 2.05, -0.36, 0.05), (2.45, 2.82, -0.40, 0.18)):   
     # v4: black seats; front seat 14 in wide (owner's manual) with a round-topped back ~0.50 m tall, slight recline
     sw = 0.36 if x0 < 2 else min(0.58, 2 * (min(fus_y(x1 + 0.06, zb - 0.04), fus_y(x1 + 0.06, zb + 0.04)) - 0.02))
     ck('seat', lambda: rbox(bmc, B((x0 + x1) / 2, 0, zb), (x1 - x0, sw, 0.08)))
-    if x0 < 2: ck('seat', lambda: round_back(bmc, x1 + 0.03, zb - 0.04, 0.50, sw))
+    if x0 < 2:
+        ck('seat', lambda: round_back(bmc, x1 + 0.03, zb - 0.04, 0.50, sw))
+        FSB_TOP = (x1 + 0.03 + 0.10 * 0.50, zb - 0.04 + 0.50)              # v17: top of the front seat back (centre of its 5 cm board, lean 0.10)
     else: ck('seat', lambda: rbox(bmc, B(x1 + 0.03, 0, (zb + zt) / 2 + 0.03), (0.06, sw, zt - zb)))
     zf = F_BOT(x1) + 0.05; ck('dark', lambda: rbox(bmc, B((x0 + x1) / 2, 0, (zb + zf) / 2), (x1 - x0 - 0.05, min(0.40, sw - 0.04), zb - zf)))
 for nm_, sx in (('Front', 1.55), ('Rear', 2.30)):                       # v15: each stick its own node (pivot at the floor socket)
@@ -1072,14 +1116,159 @@ for nm_, px in (('Front', 1.12), ('Rear', 1.85)):                       # v15: e
         sub_end('Pedal_%s_%s' % (nm_, sd_)); RIGPTS['Pedal_%s_%s' % (nm_, sd_)] = B(px, sy * 0.13, -0.53)
 # v6 (Ty review): the cabin is fabric-lined throughout (Cabin_Liner / Liner_Stbd) -- no exposed steel tube truss on the
 # sidewalls or in the windows. Only a couple of tubes show, low in the footwell under the fuel tank (behind the panel).
+# v16 (Ty 2026-11-02): "the tubes under the fuel tank go from the tube cluster at the bottom of the windshield and
+# instrument panel on both sides to a point in the middle at the firewall between the rudder pedals on a diagonal and
+# the only horizontal cross bar is the one behind the bottom of the instrument panel out of sight." So: a V seen from
+# above, one diagonal per side from the side cluster (A-pillar foot / panel bottom corner) down and forward to ONE
+# fitting on the firewall centreline at rudder-pedal height, and one cross bar just ahead of the panel's bottom edge.
+UT_X, UT_Z = PX - 0.012, PZB + 0.016                                  # side cluster: just ahead of the panel, at its bottom corner
+UT_FX = 0.83                                                         # firewall centre fitting, between the front pedals
+# v18 (Ty 2026-11-02 20:2x): "Make the diagonal tubes under the tank black and have them come to a point lower almost
+# 'under the floor' and they go under the tank with close clearance." v16/v17 met at z -0.43, 9 cm above the floorboards,
+# and crossed the lower part of the tank's face from the rear eye. They now meet AT floor level (the floorboards' top
+# line, F_BOT + 0.047, carried forward to the firewall), and are black (tubeK) with their side clusters, the firewall
+# fitting and the hidden cross bar behind the panel bottom.
+UT_FZ = F_BOT(UT_FX) + 0.035 + 0.012
+_utw = fus_y(UT_X, UT_Z) - 0.016
 for sy in (1, -1):
-    def wall(x_, z_): return B(x_, sy * (fus_y(x_, z_) - 0.016), z_)
-    ck('tubeY', lambda: tube(bmc, [wall(0.98, -0.06), wall(1.20, -0.40)], 0.010, n=10))          # diagonal under the tank
-ck('tubeY', lambda: tube(bmc, [B(1.04, fus_y(1.04, -0.36) - 0.016, -0.36), B(1.04, -(fus_y(1.04, -0.36) - 0.016), -0.36)], 0.010, n=10))  # cross tube
+    ck('tubeK', lambda: tube(bmc, [B(UT_X, sy * _utw, UT_Z), B(UT_FX, sy * 0.006, UT_FZ)], 0.010, n=10))     # diagonal under the tank
+    ck('tubeK', lambda: bmesh.ops.create_uvsphere(bmc, u_segments=12, v_segments=8, radius=0.016, matrix=Matrix.Translation(B(UT_X, sy * _utw, UT_Z))))                                       # side cluster
+ck('tubeK', lambda: rbox(bmc, B(UT_FX - 0.008, 0, UT_FZ), (0.010, 0.05, 0.05)))                         # firewall fitting
+ck('tubeK', lambda: tube(bmc, [B(UT_X, _utw, UT_Z), B(UT_X, -_utw, UT_Z)], 0.010, n=10))                 # the one cross bar, behind the panel bottom
+print('UNDER-TANK v18 (black): diagonals from the side clusters (xd %.3f, +-%.3f, z %.3f) to the firewall centre (xd %.3f, z %.3f); one cross bar at xd %.3f z %.3f behind the panel (face xd %.3f, bottom z %.3f)'
+      % (UT_X, _utw, UT_Z, UT_FX, UT_FZ, UT_X, UT_Z, PXA, PZB))
 for px in (1.12, 1.85):                                                                     # heel brakes (black pads)
     for sy in (1, -1):
         ck('dark', lambda: bar(bmc, [B(px + 0.11, sy * 0.13, -0.545), B(px + 0.08, sy * 0.13, -0.49)], 0.05, 0.010, up=(1, 0, 0.6)))
         ck('stick', lambda: cyl(bmc, B(px + 0.115, sy * 0.13, -0.56), B(px + 0.115, sy * 0.13, -0.53), 0.006, 6))
+# v17 (Ty photo ty-panel-tank-behind.png): flat metal heel plates on the floorboards just aft of the front pedals' heel
+# brakes, one each side of the stick, where the front pilot's heels rest. 3 mm sheet laid on the floor's top surface.
+HP_X0, HP_X1, HP_YC, HP_W = 1.245, 1.455, 0.135, 0.150
+def heel_plates():
+    for sy in (1, -1):
+        rs = []
+        for xd in np.linspace(HP_X0, HP_X1, 6):
+            zf = F_BOT(xd) + 0.035 + 0.012                                  # floor top (floor(): F_BOT + 0.035, 12 mm boards)
+            rs.append([B(xd, sy * (HP_YC + HP_W / 2), zf), B(xd, sy * (HP_YC - HP_W / 2), zf),
+                       B(xd, sy * (HP_YC - HP_W / 2), zf + 0.003), B(xd, sy * (HP_YC + HP_W / 2), zf + 0.003)])
+        loft_rings(bmc, rs)
+ck('heel', heel_plates)
+# ---- v17 (Ty 2026-11-02 19:00: "there is also a fuel tank behind the instrument panel with a clear hose that runs to the
+# floor for a drain. the tank sort of looks like a drum with vertical striations for stiffening."). The J-3's 12 US gal
+# nose tank (AOPA J-3 fact sheet: "located in the fuselage just behind the fire-wall ... 12 gallons"; Univair U70723-000,
+# 12 gal, all J-3s of 50 hp and up). No published drawing gives its size, so it is sized to hold 12 gal (45.4 L) in the
+# room this model has, and shaped after Ty's two photos (ty-nose-tank-firewall.png: a black drum, rounded top, closely
+# spaced vertical stiffening beads all round, a bright rim band round its front edge, the filler cap on top just aft of
+# the firewall; ty-panel-tank-behind.png: the beaded black face below and behind the panel).
+#   * front face 2.5 cm aft of the firewall (xd 0.80), aft face TK_X1, 11 cm ahead of the panel (room for the gauge cans).
+#   * front view: rounded top (elliptical crown under the cowl / dash deck, trimmed to stay TK_SKIN inside the skin),
+#     vertical sides, rounded lower corners.
+#   * side view: the lower aft edge is cut parallel to Ty's v16 under-tank V tubes, TK_G above their centreline, so the
+#     tubes run UNDER the tank from the panel's bottom corners down to the firewall fitting; the bottom is lowest at the
+#     firewall, where the sump and drain are.
+#   * vertical beads (TK_NB across, TK_A proud) on the front face, the aft face and the sloping lower aft face; the crown,
+#     the bottom and the flat sides (4 cm from the cabin walls, unseen) are plain.
+#   * the filler neck rises to the v4 red cap (xd 0.85) and the float-gauge wire hangs into the tank through it.
+#   * a clear, slightly tinted fuel drain hose from a brass sump under the tank, down to a grommet in the floorboards.
+TK_X0, TK_X1, TK_HW, TK_ZS, TK_ZC, TK_RC, TK_ZB = 0.825, 1.120, 0.230, 0.040, 0.180, 0.035, -0.265
+TK_G, TK_NB, TK_A, TK_SKIN = 0.062, 22, 0.0035, 0.015              # v18: TK_G set for a ~2.5 cm surface gap over the steeper tubes
+_uts = (UT_Z - UT_FZ) / (UT_X - UT_FX)                                # slope of the V tubes in side view
+def tk_line(xd): return UT_FZ + _uts * (xd - UT_FX) + TK_G           # the cut over the V tubes
+def _fits(xd, y, z):                                                  # TK_SKIN inside the skin (and under the dash deck)
+    if fus_y(xd, z) - 0.006 - abs(y) < TK_SKIN or z > F_TOP(xd) - TK_SKIN: return False
+    return not (xd >= 0.95 and z > p_arch(y) - TK_SKIN)
+def tk_top(y):
+    z = TK_ZS + (TK_ZC - TK_ZS) * math.sqrt(max(0.0, 1 - (y / TK_HW) ** 2))
+    while z > TK_ZS and not all(_fits(x_, y, z) for x_ in np.linspace(TK_X0, TK_X1, 13)): z -= 0.001
+    return z
+def tk_bot(y):
+    e = abs(y) - (TK_HW - TK_RC)
+    return TK_ZB + (TK_RC - math.sqrt(max(0.0, TK_RC ** 2 - e ** 2)) if e > 0 else 0.0)
+def tk_bead(y):                                                       # 0 at both side edges (whole number of beads)
+    return TK_A * (0.5 - 0.5 * math.cos(2 * math.pi * (y + TK_HW) * TK_NB / (2 * TK_HW))) ** 1.5
+def tk_loop(y):
+    """side-view outline (xd, z, nx, nz, beaded) of the column at y: front up, crown aft, aft face down, slope, bottom"""
+    zt, zb = tk_top(y), tk_bot(y); zk = tk_line(TK_X1); xs = UT_FX + (zb - UT_FZ - TK_G) / _uts
+    dx, dz = TK_X1 - xs, zk - zb; ln = math.hypot(dx, dz); sn = (dz / ln, -dx / ln)
+    seg = [((TK_X0, zb), (TK_X0, zt), 10, (-1.0, 0.0), True), ((TK_X0, zt), (TK_X1, zt), 8, (0.0, 1.0), False),
+           ((TK_X1, zt), (TK_X1, zk), 6, (1.0, 0.0), True), ((TK_X1, zk), (xs, zb), 10, sn, True), ((xs, zb), (TK_X0, zb), 4, (0.0, -1.0), False)]
+    out = []
+    for (a, b, n, nrm, bd) in seg:
+        for k in range(n):
+            t = k / n; out.append((a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, nrm, bd))
+    return out
+def _tk_vol():
+    ys = np.linspace(-TK_HW, TK_HW, 241); A_ = []
+    for y_ in ys:
+        q = np.array([(x_, z_) for x_, z_, _, _ in tk_loop(y_)]); A_.append(0.5 * abs(np.dot(q[:, 0], np.roll(q[:, 1], 1)) - np.dot(q[:, 1], np.roll(q[:, 0], 1))))
+    return float(np.trapezoid(A_, ys)) if hasattr(np, 'trapezoid') else float(np.trapz(A_, ys))
+# v18: the steeper, lower tubes leave more room under the tank's lower aft cut, so the drum would grow past 12 gal; its
+# flat bottom (TK_ZB, v17 -0.265) is raised until the drawn outline holds 12 US gal (45.4 L) again (bisection).
+_lo, _hi = -0.265, -0.150
+for _ in range(40):
+    TK_ZB = 0.5 * (_lo + _hi)
+    if _tk_vol() > 0.04542: _lo = TK_ZB
+    else: _hi = TK_ZB
+TK_ZB = round(TK_ZB, 4)
+assert tk_line(TK_X1) > TK_ZB + TK_RC, 'the lower aft cut must stay above the bottom corners'
+bmt_ = bmesh.new(); TK_COLS = list(np.linspace(-TK_HW, TK_HW, TK_NB * 6 + 1)); _cols = []
+for y_ in TK_COLS:
+    h_ = tk_bead(y_)
+    _cols.append([bmt_.verts.new(B(x_ + (nrm[0] * h_ if bd else 0.0), y_, z_ + (nrm[1] * h_ if bd else 0.0))) for x_, z_, nrm, bd in tk_loop(y_)])
+for a_, b_ in zip(_cols, _cols[1:]):
+    n_ = len(a_)
+    for i in range(n_):
+        j = (i + 1) % n_; bmt_.faces.new((a_[i], a_[j], b_[j], b_[i]))
+for sy, col_ in ((-1, _cols[0]), (1, _cols[-1])):                    # side walls: vertical beads too ("ribs all round")
+    bmt_.faces.new(col_ if sy < 0 else col_[::-1])                    # the flat wall
+    _zt = tk_top(sy * TK_HW); _zb0 = tk_bot(sy * TK_HW) + 0.004; _xs = UT_FX + (_zb0 - UT_FZ - TK_G) / _uts
+    _nsb = int(round((TK_X1 - TK_X0) / (2 * TK_HW / TK_NB)))
+    for k in range(_nsb):                                              # one bead per pitch, proud of the wall by TK_A
+        xa_ = TK_X0 + (TK_X1 - TK_X0) * (k + 0.25) / _nsb; xb_ = TK_X0 + (TK_X1 - TK_X0) * (k + 0.75) / _nsb; xm_ = 0.5 * (xa_ + xb_)
+        zl_ = max(_zb0, tk_line(xm_) + 0.004) if xm_ > _xs else _zb0
+        if _zt - 0.004 - zl_ < 0.02: continue
+        ring_ = [(xa_, 0.0), (xm_, TK_A), (xb_, 0.0)]
+        bar_ = [[bmt_.verts.new(B(x_, sy * (TK_HW + h_), z_)) for x_, h_ in ring_] for z_ in (zl_, _zt - 0.004)]
+        for i in range(2): bmt_.faces.new((bar_[0][i], bar_[0][i + 1], bar_[1][i + 1], bar_[1][i]))
+tag_new(bmt_, 0)
+_rim = [(y_, tk_top(y_)) for y_ in TK_COLS[::-3]] + [(-TK_HW, z_) for z_ in np.linspace(TK_ZS, tk_bot(-TK_HW), 5)[1:-1]] \
+     + [(y_, tk_bot(y_)) for y_ in TK_COLS[::3]] + [(TK_HW, z_) for z_ in np.linspace(tk_bot(TK_HW), TK_ZS, 5)[1:-1]]   # [1:-1]: the loop closes on its first point
+_rc = np.array((0.0, 0.5 * (TK_ZS + TK_ZB)))
+_rim = [tuple(np.array(q) + 0.002 * (np.array(q) - _rc) / np.linalg.norm(np.array(q) - _rc)) for q in _rim]
+assert all(np.hypot(a_[0] - b_[0], a_[1] - b_[1]) > 1e-4 for a_, b_ in zip(_rim, _rim[1:] + _rim[:1])), 'rim loop: repeated point'
+tube(bmt_, [B(TK_X0 - 0.001, y_, z_) for y_, z_ in _rim + _rim[:1]], 0.0055, n=10)   # bright rim band round the front edge (over the bead tops)
+tag_new(bmt_, 1)
+tube(bmt_, [B(TK_X1 - 0.002, y_, z_) for y_, z_ in [(y_, tk_top(y_) + 0.002) for y_ in TK_COLS[::3]]], 0.004, n=8)   # rolled seam, aft top edge
+tag_new(bmt_, 0)
+cyl(bmt_, B(0.85, 0, tk_top(0.0) - 0.010), B(0.85, 0, ZCAP - 0.004), 0.024, 20)              # filler neck up to the cap
+# v18 (Ty 2026-11-02, t285u): the drain is at the CENTRE of the tank bottom, not the right side, and the hose runs straight
+# down to a floor grommet at the centre, clear of the black V tubes (at xd 0.940 they are +-0.087 m apart, ~7 cm air each side).
+TK_SX, TK_SY = 0.940, 0.0                                             # sump: centre of the flat tank bottom
+cyl(bmt_, B(TK_SX, TK_SY, TK_ZB + 0.004), B(TK_SX, TK_SY, TK_ZB - 0.018), 0.014, 6)               # brass hex sump fitting
+cyl(bmt_, B(TK_SX, TK_SY, TK_ZB - 0.018), B(TK_SX, TK_SY, TK_ZB - 0.030), 0.0065, 12)             # hose barb
+tag_new(bmt_, 2)
+TK_TAG = tags_of(bmt_); P['Fuel_Tank'] = link('Fuel_Tank', bmt_)
+_zfl = lambda xd: F_BOT(xd) + 0.035 + 0.012
+HOSE = [B(TK_SX, TK_SY, TK_ZB - 0.020), B(TK_SX, TK_SY, _zfl(TK_SX) - 0.004)]       # straight down
+_hp = []
+for a_, b_ in zip(HOSE, HOSE[1:]): _hp += [tuple(np.array(a_) + (np.array(b_) - np.array(a_)) * t_) for t_ in np.linspace(0, 1, 6)[:-1]]
+_hp.append(HOSE[-1])
+_bh = bmesh.new(); tube(_bh, _hp, 0.0055, n=12); P['Fuel_Drain_Hose'] = link('Fuel_Drain_Hose', _bh)
+ck('dark', lambda: cyl(bmc, B(TK_SX, TK_SY, _zfl(TK_SX) - 0.001), B(TK_SX, TK_SY, _zfl(TK_SX) + 0.004), 0.011, 14))   # floor grommet
+TK_VOL = _tk_vol()
+def _tube_gap():                                                      # closest approach of each V tube to the tank's lower aft cut
+    g_ = []
+    for sy in (1, -1):
+        for t_ in np.linspace(0, 1, 200):
+            x_ = UT_X + (UT_FX - UT_X) * t_; y_ = sy * (_utw + (0.006 - _utw) * t_); z_ = UT_Z + (UT_FZ - UT_Z) * t_
+            if TK_X0 <= x_ <= TK_X1 and abs(y_) <= TK_HW: g_.append((tk_line(x_) - z_) * math.cos(math.atan(_uts)) - 0.010)
+    return min(g_)
+_skin = min(fus_y(x_, z_) - 0.006 - abs(y_) for x_ in np.linspace(TK_X0, TK_X1, 13) for y_ in TK_COLS[::6] for z_ in (tk_top(y_), TK_ZS, tk_bot(y_)))
+print('FUELTANK v18: xd %.3f..%.3f (firewall 0.800, panel face %.3f, cross bar %.3f), half-width %.3f, crown z %.3f (dash deck %.3f, cap %.3f), '
+      'shoulder %.3f, bottom %.3f at the firewall, lower aft cut %.3f..%.3f m over the V tubes (surface gap %.3f m), %d beads %.1f mm proud; '
+      'volume %.1f L = %.2f US gal (12 gal = 45.4 L); min gap to the cabin wall %.3f m; sump (%.3f, %.3f, %.3f); hose straight down to the floor at xd %.3f z %.3f'
+      % (TK_X0, TK_X1, PXA, UT_X, TK_HW, tk_top(0.0), p_arch(0.0), ZCAP, TK_ZS, TK_ZB, tk_line(TK_X1), tk_line(UT_FX + (TK_ZB - UT_FZ - TK_G) / _uts),
+         _tube_gap(), TK_NB, TK_A * 1000, TK_VOL * 1000, TK_VOL * 1000 / 3.78541, _skin, TK_SX, TK_SY, TK_ZB - 0.030, TK_SX, _zfl(TK_SX)))
 # ---- v14 (Ty reference photos, read literally; nothing traced or copied, sizes by eye against the 2.6 in gauges):
 #  throttles: two black inverted-triangle plates high on the left wall just under the window sill, front (just aft of the
 #    panel) and rear (beside the rear seat); black label band 'CLOSED -> OPEN' / 'THROTTLE' in white; black ball knob on a
@@ -1153,9 +1342,9 @@ for nm, xc_ in (('front', 1.335), ('rear', 2.205)):
     w_ = Wall(1, xc_, 0.012)
     w_.slab('panel', [(-TW / 2, 0), (-TB / 2, -TH), (TB / 2, -TH), (TW / 2, 0)], 0.0, 0.0025)
     w_.slab('face', [(-0.037, -0.009), (-0.037, -0.036), (0.037, -0.036), (0.037, -0.009)], 0.0025, 0.0032)       # label band
-    NTX += w_.text('CLOSED', -0.022, -0.0155, 0.0068, 0.0034, tilt=0.06) + w_.text('OPEN', 0.024, -0.0155, 0.0068, 0.0034, tilt=-0.06)
+    NTX += w_.text('CLOSED', -0.0215, -0.0150, 0.0074, 0.0034, tilt=0.06) + w_.text('OPEN', 0.0240, -0.0150, 0.0076, 0.0034, tilt=-0.06)
     w_.arrow(-0.0045, 0.0055, -0.0150, 0.0034, w=0.0007, head=0.0025)
-    NTX += w_.text('THROTTLE', 0.0, -0.0290, 0.0105, 0.0034)
+    NTX += w_.text('THROTTLE', 0.0, -0.0290, 0.0118, 0.0034)
     w_.screw(0.0, -TH + 0.016, 0.0025)
     st0, st1 = (-TW / 2 + 0.011, -0.002, 0.004), (-TW / 2 + 0.003, 0.024, 0.010)           # short stem out of the aft top corner (closed end)
     sub_begin()                                                         # v15: Throttle_Lever_Front / _Rear node (pivot at the plate tip)
@@ -1172,94 +1361,172 @@ _fw = np.array(B(0.82, fus_y(0.82, -0.10) - 0.012, -0.10))
 _lp = [_lk[1] + (_lk[0] - _lk[1]) * t_ for t_ in np.linspace(0, 1, 40)] + [_lk[0] + (_fw - _lk[0]) * t_ for t_ in np.linspace(0, 1, 20)[1:]]
 for q_ in _lp: q_[1] = fus_y(-q_[0], q_[2]) - 0.003                    # follows the skin inside the 6 mm liner gap, so it stays hidden
 ck('dark', lambda: tube(bmc, [tuple(q_) for q_ in _lp], 0.0015, n=6))
-# -- fuel shut-off D plate (left wall, between the throttles; round side aft, flat side forward, red knob forward top)
-FW_ = Wall(1, 1.530, -0.100); _fo = d_shape(0.150, 0.088, True); _fi = shrink(_fo, 0.86)
-FW_.slab('dark', _fo, 0.0, 0.0015)                                    # recessed pan (fills the D)
-FW_.ring('panel', _fo, _fi, 0.0, 0.0110)                              # raised black bezel -> pan reads recessed ~10 mm
-for u_, v_ in [(_fo[0][0] + 0.006, 0.0), (0.069, 0.038), (0.069, -0.038), (-0.020, 0.040), (-0.020, -0.040)]:
-    FW_.screw(u_ if abs(u_) < 0.07 else u_, v_ * 1.0, 0.0110)
-NTX += FW_.text('FUEL', 0.004, 0.004, 0.0085, 0.0018)
-NTX += FW_.text('OFF', -0.026, -0.019, 0.0105, 0.0018) + FW_.text('ON', 0.030, -0.019, 0.0105, 0.0018)
-FW_.arrow(0.019, -0.010, -0.019, 0.0018, w=0.0011, head=0.0040)      # OFF <- ON
-sub_begin()                                                             # v15: FuelValve_Lever node (pivot boss in the pan)
-FW_.cyl('chrome', (0.016, 0.0, 0.0015), (0.016, 0.0, 0.0060), 0.0045, 12)                         # pivot boss
-FW_.cyl('chrome', (0.016, 0.0, 0.0040), (0.046, 0.020, 0.0040), 0.0022, 8)                        # lever arm
-FW_.cyl('chrome', (0.046, 0.020, 0.0016), (0.046, 0.020, 0.016), 0.0028, 8)
-FW_.ball('red', (0.046, 0.020, 0.020), 0.0075)
-sub_end('FuelValve_Lever'); RIGPTS['FuelValve_Lever'] = (FW_.P(0.016, 0.0, 0.0), wall_n(FW_, 0.016, 0.0), FW_.P(0.046, 0.020, 0.020))
-FV = np.array(FW_.P(0.046, 0.020, 0.020))
-# -- elevator trim: square plate below the fuel plate, tick scale, crank
-TR_ = Wall(1, 1.565, -0.220); TS = 0.088
+# -- fuel shut-off D plate (left wall, between the throttles; round side aft, flat side forward)
+# v16 (Ty 2026-11-02: "make the fuel valve a push pull control with the red knob not a lever"): same D outline, same place
+# (his v14 photo put the shut-off here, on the left wall at the front pilot's left knee, 0.30 m aft of the panel), but the
+# lever is now a push-pull: a round red knob on a chrome shaft through a chrome nut and guide sleeve in the plate's flat
+# (forward) end, labels in the round (aft) end so the knob never hides them from the rear seat; PUSH = ON (modelled),
+# PULL = OFF, 30 mm stroke straight out of the wall. The plate is FLAT now (the v14 recessed pan + 11 mm bezel housed the
+# lever, and from the rear seat its aft rim hid half the lettering); labels larger and pure white.
+FW_ = Wall(1, 1.530, -0.100); _fo = d_shape(0.150, 0.088, True)
+FW_.slab('panel', _fo, 0.0, 0.0025)
+for u_, v_ in [(-0.066, 0.0), (0.067, 0.036), (0.067, -0.036), (-0.008, 0.038), (-0.008, -0.038)]:
+    FW_.screw(u_, v_, 0.0025)
+NTX += FW_.text('FUEL', -0.024, 0.0205, 0.0150, 0.0029)
+NTX += FW_.text('PUSH ON', -0.024, 0.0005, 0.0098, 0.0029) + FW_.text('PULL OFF', -0.024, -0.0190, 0.0098, 0.0029)
+FV_U, FV_STROKE = 0.036, 0.030
+FW_.cyl('chrome', (FV_U, 0.0, 0.0025), (FV_U, 0.0, 0.0060), 0.0090, 16)                           # small round plate (nut) on the plate
+FW_.cyl('chrome', (FV_U, 0.0, 0.0060), (FV_U, 0.0, 0.0262), 0.0050, 12)                           # guide sleeve the shaft slides in
+sub_begin()                                                             # v16: FuelValve_Knob node (push-pull along the wall normal)
+FW_.cyl('chrome', (FV_U, 0.0, -0.0065), (FV_U, 0.0, 0.0300), 0.0030, 10)                          # shaft: in the sleeve when ON, still in it at full pull
+FW_.cyl('red', (FV_U, 0.0, 0.0255), (FV_U, 0.0, 0.0300), 0.0080, 20, r2=0.0135)                   # red knob: flared neck
+FW_.cyl('red', (FV_U, 0.0, 0.0300), (FV_U, 0.0, 0.0400), 0.0135, 20, r2=0.0135)                   #           round body
+FW_.cyl('red', (FV_U, 0.0, 0.0400), (FV_U, 0.0, 0.0440), 0.0135, 20, r2=0.0100)                   #           domed face
+sub_end('FuelValve_Knob'); RIGPTS['FuelValve_Knob'] = (FW_.P(FV_U, 0.0, 0.0), wall_n(FW_, FV_U, 0.0))
+FV = np.array(FW_.P(FV_U, 0.0, 0.0440))
+# -- elevator trim: square plate, tick scale, crank. v16 (Ty 2026-11-02: "move the trim crank back about a foot"): plate,
+# scale and crank 0.30 m aft of the v14 spot (xd 1.565 -> 1.865), same height on the left wall, beside the front seat;
+# plate 88 -> 104 mm and lettering ~40 pct larger, pure white, for the rear seat.
+TR_X0, TR_DX = 1.565, 0.30
+TR_ = Wall(1, TR_X0 + TR_DX, -0.220); TS = 0.104
 TR_.slab('panel', [(-TS / 2, -TS / 2), (TS / 2, -TS / 2), (TS / 2, TS / 2), (-TS / 2, TS / 2)], 0.0, 0.0025)
-for k_, u_ in enumerate(np.linspace(-0.030, 0.030, 13)):
-    hh = 0.0055 if k_ % 6 == 0 else 0.0035
-    TR_.slab('label', [(u_ - 0.0007, 0.035 - hh), (u_ + 0.0007, 0.035 - hh), (u_ + 0.0007, 0.035), (u_ - 0.0007, 0.035)], 0.0025, 0.0029)
-NTX += TR_.text('NOSE', 0.0, 0.019, 0.0078, 0.0028) + TR_.text('UP', -0.031, 0.020, 0.0055, 0.0028) + TR_.text('DOWN', 0.029, 0.020, 0.0055, 0.0028)
-NTX += TR_.text('UP', -0.030, -0.027, 0.0055, 0.0028) + TR_.text('DOWN', 0.028, -0.027, 0.0055, 0.0028)
-for u_, v_ in [(-0.037, 0.037), (0.037, 0.037), (-0.037, -0.037), (0.037, -0.037)]: TR_.screw(u_, v_, 0.0025)
+for k_, u_ in enumerate(np.linspace(-0.036, 0.036, 13)):
+    hh = 0.0070 if k_ % 6 == 0 else 0.0045
+    TR_.slab('label', [(u_ - 0.0009, 0.044 - hh), (u_ + 0.0009, 0.044 - hh), (u_ + 0.0009, 0.044), (u_ - 0.0009, 0.044)], 0.0025, 0.0029)
+NTX += TR_.text('NOSE', 0.0, 0.0255, 0.0110, 0.0028) + TR_.text('UP', -0.037, 0.0255, 0.0085, 0.0028) + TR_.text('DOWN', 0.034, 0.0255, 0.0085, 0.0028)
+NTX += TR_.text('UP', -0.034, -0.035, 0.0085, 0.0028) + TR_.text('DOWN', 0.030, -0.035, 0.0085, 0.0028)
+for u_, v_ in [(-0.046, 0.046), (0.046, 0.046), (-0.046, -0.046), (0.046, -0.046)]: TR_.screw(u_, v_, 0.0025)
 sub_begin()                                                             # v15: Trim_Crank node (turns about the hub)
 TR_.cyl('chrome', (0.0, -0.002, 0.0025), (0.0, -0.002, 0.014), 0.011, 16)                        # crank hub
 ck('chrome', lambda: bar(bmc, [TR_.P(0.0, -0.002, 0.016), TR_.P(-0.034, 0.006, 0.016)], 0.010, 0.005, up=tuple(np.array(TR_.P(0, 0, 1)) - np.array(TR_.P(0, 0, 0)))))
 TR_.cyl('chrome', (-0.034, 0.006, 0.016), (-0.034, 0.006, 0.046), 0.0062, 12)                    # handle
 sub_end('Trim_Crank'); RIGPTS['Trim_Crank'] = (TR_.P(0.0, -0.002, 0.0), wall_n(TR_, 0.0, -0.002), TR_.P(0.0, 0.030, 0.0))
 TK = np.array(TR_.P(-0.034, 0.006, 0.046))
-# -- carb heat D plate (right wall, s = -1: u = +xd = aft; flat side forward, round side aft) + rod to the rear knob
+# -- carb heat D plate (right wall, s = -1: u = +xd = aft; flat side forward, round side aft). v16 (Ty 2026-11-02: "remove
+# the long rod back for the carb heat and make the person actually lean forward to get to it"): the push-pull rod along the
+# lower right wall, its wall clip and the rear-seat red knob (CarbHeat_Knob_Rear) are gone; this lever at the front is the
+# only carb heat control, so from the rear seat it is a lean forward. Lettering larger and pure white (v16).
 CW_ = Wall(-1, 1.455, -0.175); _co = d_shape(0.130, 0.080, False); _ci = shrink(_co, 0.85)
 CW_.slab('dark', _co, 0.0, 0.0015); CW_.ring('panel', _co, _ci, 0.0, 0.0105)
 for u_, v_ in [(0.059, 0.034), (0.059, -0.034), (-0.015, 0.036), (-0.015, -0.036), (-0.059, 0.0)]: CW_.screw(u_, v_, 0.0105)
-NTX += CW_.text('CARB HEAT', 0.008, 0.016, 0.0080, 0.0018) + CW_.text('OFF', -0.014, -0.006, 0.0085, 0.0018) + CW_.text('ON', 0.032, -0.006, 0.0085, 0.0018)
-CW_.arrow(0.024, 0.001, -0.006, 0.0018, w=0.0010, head=0.0035)
+NTX += CW_.text('CARB HEAT', 0.006, 0.0175, 0.0100, 0.0018) + CW_.text('OFF', -0.019, -0.0040, 0.0100, 0.0018) + CW_.text('ON', 0.035, -0.0040, 0.0100, 0.0018)
+CW_.arrow(0.025, -0.002, -0.0040, 0.0018, w=0.0011, head=0.0038)
 sub_begin()                                                             # v15: CarbHeat_Lever node (pivot at the fork)
 CW_.cyl('chrome', (-0.040, -0.024, 0.008), (0.034, -0.024, 0.008), 0.0026, 8)                   # lever rod across the pan
 CW_.cyl('chrome', (0.004, -0.024, 0.003), (0.004, -0.024, 0.013), 0.0045, 10)                   # pivot / fork
 CW_.ball('stick', (-0.043, -0.024, 0.009), 0.0055)                                              # small black ball, forward end
 sub_end('CarbHeat_Lever'); RIGPTS['CarbHeat_Lever'] = (CW_.P(0.004, -0.024, 0.0), wall_n(CW_, 0.004, -0.024), CW_.P(-0.043, -0.024, 0.009))
-_c0 = np.array(CW_.P(0.034, -0.024, 0.012))
-CK2 = Wall(-1, 2.150, -0.262)                                          # rear-seat knob, lower right wall
-_c1 = np.array(CK2.P(0.0, 0.0, 0.016))
-_cr = [tuple(_c0 + (_c1 - _c0) * t_) for t_ in np.linspace(0, 1, 16)]
-ck('stick', lambda: tube(bmc, _cr, 0.0024, n=8))                       # black push-pull rod
-_cm = Wall(-1, 1.80, -0.175 + (-0.262 + 0.175) * (1.455 - 1.80) / (1.455 - 2.150)); _cm.slab('chrome', [(-0.003, -0.011), (0.003, -0.011), (0.003, 0.003), (-0.003, 0.003)], 0.0, 0.0012)   # wall clip
-sub_begin()                                                             # v15: CarbHeat_Knob_Rear node (pulls aft along the rod)
-_cd = (_c1 - _c0) / np.linalg.norm(_c1 - _c0)
-ck('chrome', lambda: cyl(bmc, tuple(_c1 - 0.045 * _cd), tuple(_c1), 0.0017, 8))                # inner wire (hidden in the rod when pushed in)
-CK2.cyl('chrome', (0.0, 0.0, 0.016), (0.012, 0.0, 0.016), 0.0030, 8)                           # shaft into the knob (aft)
-CK2.cyl('red', (0.010, 0.0, 0.016), (0.022, 0.0, 0.016), 0.0055, 16, r2=0.0125)               # red mushroom knob
-CK2.cyl('red', (0.022, 0.0, 0.016), (0.030, 0.0, 0.016), 0.0125, 16, r2=0.0115)
-sub_end('CarbHeat_Knob_Rear'); RIGPTS['CarbHeat_Knob_Rear'] = (tuple(_c1), _cd)
-CH_K = np.array(CK2.P(0.030, 0.0, 0.016))
-# -- magneto switch (Ty photo, v14): black oval plate on the ceiling at the LEFT wing root, the wing's lower skin just
-# inboard of / above the left window near the upper longeron, ahead of the front spar (the greenhouse opens aft of it).
-# 'OFF L R BOTH' round the top, 'AAF TYPE A' along the bottom, maroon rotary knob with a lever handle.
+CH_K = np.array(CW_.P(-0.043, -0.024, 0.009))
+# -- magneto switch (Ty photo, v14): black oval plate, 'OFF L R BOTH' round the top, 'AAF TYPE A' along the bottom, maroon
+# rotary knob with a lever handle. v16 (Ty 2026-11-02: "the mag switch is on the left side wing root wall the vertical wall
+# on the left above the left window"): no longer on the ceiling ahead of the front spar but on the LEFT root rib, the
+# vertical face that closes the wing well on the left above the left window, just aft of the front spar, low on the rib
+# (near the window top) where the front pilot's left hand reaches it. Plate faces inboard; reads upright from the seat.
 class Plane(Wall):
     def __init__(self, o, U, V):
         self.o, self.U, self.V = np.array(o, float), np.array(U, float), np.array(V, float)
         self.N = np.cross(self.U, self.V); self.N /= np.linalg.norm(self.N)
     def P(self, u, v, h=0.0): return tuple(self.o + u * self.U + v * self.V + h * self.N)
-MG_X, MG_Y = 1.560, 0.215
-_mz = wing_low_c(MG_X) - 0.0055
-_sl = (wing_low_c(MG_X + 0.01) - wing_low_c(MG_X - 0.01)) / 0.02              # lower-skin slope dz/dxd
-_Vb = np.array(B(MG_X - 0.01, 0, -_sl * 0.01)) - np.array(B(MG_X, 0, 0)); _Vb /= np.linalg.norm(_Vb)   # plate up = forward
-MG = Plane(B(MG_X, MG_Y, _mz), np.array(B(0, -1, 0)) * (1, 1, 1) - np.array(B(0, 0, 0)), _Vb)        # u = to the right seen from the seat
-if MG.N[2] > 0: MG = Plane(B(MG_X, MG_Y, _mz), -(np.array(B(0, -1, 0)) - np.array(B(0, 0, 0))), _Vb)
-MG = Plane(MG.o, -MG.U, -MG.V)                                         # turn 180 deg: reads upright from the front seat (checked in render)
-_ov = [(0.036 * math.cos(t), 0.027 * math.sin(t)) for t in np.linspace(0, 2 * math.pi, 28, endpoint=False)]
+# v17 (Ty 2026-11-02 19:00: "the ignition switch is abeam the top of the front seat so much further aft"): same root-rib
+# wall, same height above the rib's lower edge, but at the station of the top of the front seat back (FSB_TOP), not 9.5 cm
+# aft of the front spar (v16 xd 1.743).
+MG_X = FSB_TOP[0]
+assert LE_D + FS_F * CH + 0.05 < MG_X < LE_D + SK_FC1 * CH - 0.05, 'the mag plate must stay on the root rib'
+_mz = float(wsurf(W, SK_Y, (MG_X - LE_D) / CH, False)[2]) + 0.050      # 5 cm above the rib's lower edge (the window top)
+MG_Y = SK_Y - 0.0012                                                   # 1.2 mm proud of the rib face (no coplanar faces)
+# v17: from the rear eye the rib is seen 57 deg off its normal, and on a flat mount the knob hid BOTH; the plate now sits on
+# a black wedge, its aft edge on the rib and its face turned MG_YAW toward the rear seat (centre still at MG_X).
+MG_YAW, MG_HU = math.radians(20.0), 0.052                              # yaw toward aft; plate half-length incl. ears
+_mc, _ms = math.cos(MG_YAW), math.sin(MG_YAW)
+MG = Plane(B(MG_X, MG_Y - MG_HU * _ms, _mz), (_mc, -_ms, 0.0), (0.0, 0.0, 1.0))   # u = forward = to the right seen from the seat, v = up
+assert MG.N[1] < -0.9 and MG.N[0] < -0.3, 'mag plate must face inboard and aft'
+_we = [np.array(MG.P(-MG_HU, 0.0, 0.0)), np.array(MG.P(MG_HU, 0.0, 0.0))]
+_ww = np.array(_we[1]); _ww[1] = MG_Y + 0.0008                         # wall point under the forward edge (just inside the rib face)
+def _wedge():
+    vs = [[bmc.verts.new(tuple(q + (0, 0, dz))) for q in (_we[0], _we[1], _ww)] for dz in (-0.033, 0.033)]
+    bmc.faces.new(vs[0][::-1]); bmc.faces.new(vs[1])
+    for i in range(3): j = (i + 1) % 3; bmc.faces.new((vs[0][i], vs[0][j], vs[1][j], vs[1][i]))
+ck('panel', _wedge)
+_ov = [(0.041 * math.cos(t), 0.031 * math.sin(t)) for t in np.linspace(0, 2 * math.pi, 28, endpoint=False)]   # v16: 15 pct larger
 MG.slab('panel', _ov, 0.0, 0.0030)
 for su in (-1, 1):                                                     # mounting ears + screws
-    MG.slab('panel', [(su * 0.030, -0.010), (su * 0.043, -0.008), (su * 0.043, 0.008), (su * 0.030, 0.010)][::su], 0.0, 0.0030)
-    MG.screw(su * 0.039, 0.0, 0.0030)
+    MG.slab('panel', [(su * 0.035, -0.011), (su * 0.050, -0.009), (su * 0.050, 0.009), (su * 0.035, 0.011)][::su], 0.0, 0.0030)
+    MG.screw(su * 0.045, 0.0, 0.0030)
 for w_, a_ in (('OFF', 145), ('L', 108), ('R', 72), ('BOTH', 30)):
-    t_ = math.radians(a_); NTX += MG.text(w_, 0.0275 * math.cos(t_), 0.0195 * math.sin(t_), 0.0060, 0.0032, tilt=t_ - math.pi / 2)
-NTX += MG.text('AAF TYPE A', 0.0, -0.0205, 0.0054, 0.0032)
+    t_ = math.radians(a_); NTX += MG.text(w_, 0.0318 * math.cos(t_), 0.0226 * math.sin(t_), 0.0071, 0.0032, tilt=t_ - math.pi / 2)
+NTX += MG.text('AAF TYPE A', 0.0, -0.0238, 0.0060, 0.0032)
 sub_begin()                                                             # v15: MagSwitch_Knob node (rotary, OFF/L/R/BOTH detents)
 MG.cyl('maroon', (0.0, -0.002, 0.003), (0.0, -0.002, 0.016), 0.0150, 20, 0.0130)          # rotary knob
 MG.cyl('maroon', (0.0, -0.002, 0.016), (0.0, -0.002, 0.019), 0.0130, 20, 0.0110)
 ck('maroon', lambda: bar(bmc, [MG.P(-0.004, -0.002, 0.012), MG.P(-0.036, 0.004, 0.010)], 0.009, 0.005, up=tuple(MG.N)))   # lever handle
 sub_end('MagSwitch_Knob'); RIGPTS['MagSwitch_Knob'] = (MG.P(0.0, -0.002, 0.0), tuple(MG.N))
 MGP = np.array(MG.P(0, 0, 0))
-print('MAGSWITCH v14: left wing-root ceiling xd %.3f y %.3f z %.3f (wing lower skin %.3f, front spar xd %.3f), plate normal %s' % (MG_X, MG_Y, _mz, wing_low_c(MG_X), LE_D + FS_F * CH, np.round(MG.N, 2)))
-print('CONTROLS v14 (Ty photos): throttle plates (left wall) front xd 1.335 rear xd 2.205, top z 0.012 (window sill 0.03), %.3f x %.3f m, ball r 0.0165 at front %s rear %s, linked behind the liner; fuel D plate xd 1.530 z -0.100 (0.150 x 0.088), red knob %s; trim plate xd 1.565 z -0.220 (%.3f sq), crank handle %s; carb heat D plate (right wall) xd 1.455 z -0.175 (0.130 x 0.080), rod aft to red knob %s; %d label text faces' % (
-    TW, TH, np.round(THR['front'][1], 3), np.round(THR['rear'][1], 3), np.round(FV, 3), TS, np.round(TK, 3), np.round(CH_K, 3), NTX))
+# v17 cabin heat labels on the panel face beside the heat knob (u = to the pilot's right, v = up, N = aft toward the seat)
+HKP = Plane(B(PXA + 0.0006, HK_Y, HK_Z), (0.0, -1.0, 0.0), (0.0, 0.0, 1.0))
+assert HKP.N[0] < -0.99, 'heat labels must face aft'
+for t_, v_ in (('PULL for', 0.0265), ('HEAT', 0.0175), ('FRESH AIR', -0.0185), ('PUSH', -0.0275)):
+    NTX += HKP.text(t_, 0.0, v_, 0.0058, 0.0)
+print('MAGSWITCH v17: left root-rib wall xd %.3f (front seat back top xd %.3f z %.3f) y %.3f z %.3f (rib face y %.3f, rib lower edge z %.3f, upper %.3f; front spar xd %.3f), plate normal %s (turned %.0f deg aft on a %.3f m wedge)' % (MG_X, FSB_TOP[0], FSB_TOP[1], MG_Y, _mz, SK_Y, float(wsurf(W, SK_Y, (MG_X - LE_D) / CH, False)[2]), float(wsurf(W, SK_Y, (MG_X - LE_D) / CH, True)[2]), LE_D + FS_F * CH, np.round(MG.N, 2), math.degrees(MG_YAW), 2 * MG_HU * _ms))
+print('CONTROLS v16 (Ty photos + 2026-11-02 changes): throttle plates (left wall) front xd 1.335 rear xd 2.205, top z 0.012 (window sill 0.03), %.3f x %.3f m, ball r 0.0165 at front %s rear %s, linked behind the liner; fuel D plate xd 1.530 z -0.100 (0.150 x 0.088), push-pull red knob face %s; trim plate xd %.3f z -0.220 (%.3f sq), crank handle %s; carb heat D plate (right wall) xd 1.455 z -0.175 (0.130 x 0.080), lever ball %s, no rear knob; %d label text faces' % (
+    TW, TH, np.round(THR['front'][1], 3), np.round(THR['rear'][1], 3), np.round(FV, 3), TR_X0 + TR_DX, TS, np.round(TK, 3), np.round(CH_K, 3), NTX))
+# -- water-rudder retract (floats only; Ty 2026-11-02, t278u): "the floatplane j3 has a water rudder hook on the back of
+# the front seat on the left side. the water rudder is springloaded down so when it is down the female side of the cable
+# in the cockpit is simple let go of and sits on the floor vertically left of the stick. make it red and label it water
+# rudder. picking it up and hanging it on the hook raises the water rudder." So: the retract cable comes up through a
+# chrome fairlead in the floor just left of the rear stick and ends in a RED handle (chrome ferrule where the cable goes
+# in, red grip, red ring at the top, red tag lettered WATER / RUDDER in white facing the rear seat). Let go, the spring
+# at the rudder pulls the cable back down and the handle stands on the fairlead. A chrome J-hook on the aft face of the
+# front seat back, left side, takes the ring: hung there the cable is pulled up WR_TRAVEL and the blade is up.
+# The handle moves by pure translation (it hangs vertically on the hook and stands vertically on the floor), so it is
+# one 'move' node (WaterRudder_Handle, param water_rudder_up 0..1). The cable is its own node (WaterRudder_Cable): a
+# steel tube of unit length up local +Z from the fairlead, scaled to nothing as built (the handle is on it); the game
+# (CockpitWaterRudder) and the shot script aim it at the handle's ferrule and stretch it to length. Sizes by eye.
+if VAR == 'floats':
+    WR_HAND_Y = 0.090                                                   # left of the rear stick (y 0), 9 cm to port
+    WR_FX = 2.270                                                       # fairlead: just ahead of the rear stick socket (xd 2.30)
+    WR_FZ = F_BOT(WR_FX) + 0.047                                        # floorboard top there
+    WR_FAIR = B(WR_FX, WR_HAND_Y, WR_FZ)
+    ck('chrome', lambda: cyl(bmc, B(WR_FX, WR_HAND_Y, WR_FZ - 0.002), B(WR_FX, WR_HAND_Y, WR_FZ + 0.004), 0.0135, 20, 0.0110))   # fairlead grommet
+    ck('dark', lambda: cyl(bmc, B(WR_FX, WR_HAND_Y, WR_FZ + 0.0035), B(WR_FX, WR_HAND_Y, WR_FZ + 0.0045), 0.0050, 12))          # its hole
+    # hook: aft face of the front seat back (round_back xc 2.08, th 0.05, lean 0.10 from zb -0.40), left side
+    WR_HKZ, WR_HKY = -0.150, 0.115
+    _sb = lambda z_: 2.08 + 0.025 + 0.10 * (z_ + 0.40)                 # seat-back aft face xd at height z
+    _vv = np.array([-0.10, 0.0, 1.0]); _vv /= np.linalg.norm(_vv)      # up the leaning face (build frame: -x = aft)
+    HKP = Plane(B(_sb(WR_HKZ) + 0.0005, WR_HKY, WR_HKZ), (0.0, -1.0, 0.0), tuple(_vv))
+    assert HKP.N[0] < -0.99, 'hook plate must face aft'
+    HKP.slab('chrome', [(-0.014, -0.022), (0.014, -0.022), (0.014, 0.022), (-0.014, 0.022)], 0.0, 0.0025)
+    for v_ in (-0.015, 0.015): HKP.screw(0.0, v_, 0.0025)
+    HKP.cyl('chrome', (0.0, -0.004, 0.0025), (0.0, -0.004, 0.034), 0.0035, 10)                    # hook arm, straight aft
+    ck('chrome', lambda: tube(bmc, [HKP.P(0.0, -0.004, 0.034), HKP.P(0.0, 0.000, 0.040), HKP.P(0.0, 0.010, 0.041)], 0.0035, n=10))   # turned up at the tip
+    HKP.ball('chrome', (0.0, 0.011, 0.041), 0.0042)
+    WR_CROOK = np.array(HKP.P(0.0, -0.0005, 0.030))                    # where the ring's top rests on the arm (arm top surface)
+    # handle, modelled ON THE FLOOR (water_rudder_up = 0): bottom of the ferrule on the fairlead
+    WR_FER, WR_GRIP, WR_NECK, WR_RR, WR_RT = 0.022, 0.090, 0.008, 0.019, 0.0042   # ferrule, grip, neck lengths; ring radius, ring tube
+    WR_RING_C = WR_FER + WR_GRIP + WR_NECK + WR_RR - WR_RT             # ring centre above the handle bottom
+    WR_HLEN = WR_RING_C + WR_RR + WR_RT
+    _fb = np.array(B(WR_FX, WR_HAND_Y, WR_FZ + 0.004))                 # handle bottom, on the grommet
+    def _hp(dz, dy=0.0, dx_aft=0.0): return tuple(_fb + np.array([-dx_aft, dy, dz]))
+    sub_begin()
+    ck('chrome', lambda: cyl(bmc, _hp(0.0), _hp(WR_FER), 0.0085, 16, 0.0095))                      # ferrule (the cable's female end)
+    ck('red', lambda: cyl(bmc, _hp(WR_FER), _hp(WR_FER + WR_GRIP), 0.0140, 20, 0.0130))           # grip
+    ck('red', lambda: cyl(bmc, _hp(WR_FER + WR_GRIP), _hp(WR_FER + WR_GRIP + WR_NECK), 0.0130, 16, 0.0070))
+    _ring = [_hp(WR_RING_C + WR_RR * math.cos(t_), WR_RR * math.sin(t_)) for t_ in np.linspace(-math.pi / 2, 1.5 * math.pi, 33)]
+    ck('red', lambda: tube(bmc, _ring, WR_RT, n=10, cap=False))       # ring in the y-z plane: the hook arm (along x) goes through it
+    # tag on the grip's aft face, facing the rear seat: red plate, white WATER / RUDDER
+    TG = Plane(_hp(WR_FER + 0.5 * WR_GRIP, 0.0, 0.0138), (0.0, -1.0, 0.0), (0.0, 0.0, 1.0))
+    assert TG.N[0] < -0.99, 'tag must face aft'
+    TG.slab('red', [(-0.027, -0.019), (0.027, -0.019), (0.027, 0.019), (-0.027, 0.019)], 0.0, 0.0030)
+    NTX += TG.text('WATER', 0.0, 0.0085, 0.0118, 0.0034) + TG.text('RUDDER', 0.0, -0.0085, 0.0118, 0.0034)
+    sub_end('WaterRudder_Handle')
+    WR_HOOKED_BOTTOM = WR_CROOK - np.array([0.0, 0.0, WR_RING_C + WR_RR - WR_RT])
+    WR_MOVE = WR_HOOKED_BOTTOM - _fb; WR_TRAVEL = float(np.linalg.norm(WR_MOVE))
+    RIGPTS['WaterRudder_Handle'] = (tuple(_fb), tuple(WR_MOVE / WR_TRAVEL))
+    sub_begin()                                                         # cable: unit length up local +Z, scaled to ~0 as built
+    ck('chrome', lambda: cyl(bmc, WR_FAIR, tuple(np.array(WR_FAIR) + np.array([0, 0, 1.0])), 0.0022, 8))
+    sub_end('WaterRudder_Cable')
+    print('WATER RUDDER v17: fairlead xd %.3f y %.3f z %.3f (rear stick xd 2.30 y 0); handle %.3f m tall (ferrule %.3f, red grip %.3f, ring r %.3f), tag 54 x 38 mm WATER/RUDDER; '
+          'hook on the front seat back aft face xd %.3f y %.3f z %.3f (arm 34 mm aft); hung: handle bottom %s, travel %.3f m (cable pulled up that much)'
+          % (WR_FX, WR_HAND_Y, WR_FZ, WR_HLEN, WR_FER, WR_GRIP, WR_RR, _sb(WR_HKZ), WR_HKY, WR_HKZ, np.round([-WR_HOOKED_BOTTOM[0], WR_HOOKED_BOTTOM[1], WR_HOOKED_BOTTOM[2]], 3), WR_TRAVEL))
 ck_tag = tags_of(bmc); P['Cabin'] = link('Cabin', bmc)
 TAGS = {}
 
@@ -1488,15 +1755,29 @@ if VAR == 'floats':
     bar(bm, [B(xh, Y_FL + 0.07, ZD + 0.035), B(xh, Y_FL - 0.07, ZD + 0.035)], 0.03, 0.008)  # steering horn
     rbox(bm, B(xh, Y_FL, fz(3040)), (0.04, 0.03, 0.03))                                     # blade yoke / retract pivot
     P['WaterRudder_L'] = link('WaterRudder_L', bm)
-    bm = bmesh.new()                                                # blade: the rounded paddle drawn on 60-S-908A (~13 x 7 in)
-    blade = [(5598 + 106 * math.cos(t), 3082 + 56 * math.sin(t)) for t in np.linspace(math.radians(-115), math.radians(235), 30)]
-    blade = [(5560, 3035)] + blade + [(5585, 3030)]
+    bm = bmesh.new()
+    # blade: the rounded paddle drawn on 60-S-908A (~13 x 7 in). v18 (Ty t286u): the WHOLE blade sits aft of the round
+    # steering post, in its plane (the float centreline), so swung up 90 deg it stands directly behind the post, lined up
+    # with it in side and top views. Its leading edge and top edge are both WR_CLR (post radius 0.011 + 6 mm) from the
+    # hinge, which sits on the post axis at the post's foot; a strap (the notch to the hinge) carries it. The sim's
+    # elliptic plate (configs waterRudderBladeAftM / BelowM / RetractRad) is the same ellipse.
+    WR_CLR = 0.017 / KPX                                            # drawing units
+    # The chord (aft, down) is sized so that standing up it stays UNDER the post top (0.2305 + WR_CLR = 0.248 m above the
+    # hinge; the post top is 0.255 m), so from behind the post hides it; the span (depth) grew to keep the area (v17
+    # was 13 x 7 in, now 9.1 x 9.7 in, about the same 0.044 m2).
+    WR_SA, WR_SB = 75, 80                                           # semi-chord, semi-span (drawing units)
+    _cx, _cy = 5570 + WR_CLR + WR_SA, 3040 + WR_CLR + WR_SB         # ellipse centre: aft and below the hinge
+    blade = [(_cx + WR_SA * math.cos(t), _cy + WR_SB * math.sin(t)) for t in np.linspace(math.radians(243), math.radians(212 + 360), 34)]
+    blade = blade + [(5570 + 9, 3040 + 9)]                          # the strap corner, in the hinge yoke (14 mm aft: clear of the post)
+    FLOAT_INFO['water_rudder_blade'] = dict(aft_m=round((_cx - 5570) * KPX, 4), below_m=round((_cy - 3040) * KPX, 4),
+                                            chord_m=round(2 * WR_SA * KPX, 4), span_m=round(2 * WR_SB * KPX, 4))
+    print('WRUDDER blade v18: centre %.3f aft, %.3f below the hinge; chord %.4f span %.4f' % ((_cx - 5570) * KPX, (_cy - 3040) * KPX, 2 * WR_SA * KPX, 2 * WR_SB * KPX))
     vf = [bm.verts.new(B(fx(a), Y_FL + 0.004, fz(b))) for a, b in blade]; vb = [bm.verts.new(B(fx(a), Y_FL - 0.004, fz(b))) for a, b in blade]
     bm.faces.new(vf); bm.faces.new(vb[::-1])
     for i in range(len(blade)):
         j = (i + 1) % len(blade); bm.faces.new((vf[i], vb[i], vb[j], vf[j]))
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces); P['WaterRudder_Blade_L'] = link('WaterRudder_Blade_L', bm)
-    FLOAT_INFO['water_rudder_blade_down_z'] = round(fz(3138), 4)
+    FLOAT_INFO['water_rudder_blade_down_z'] = round(fz(_cy + WR_SB), 4)
 #FLOATS-END#
 
 # ---- paint: Cub yellow everywhere, plain black lightning stripe on both fuselage sides (no logo, no registration) -----
@@ -1544,16 +1825,17 @@ M.update(yellow=C('Paint_cub_yellow', YEL, rough=0.4), black=C('Paint_black', BL
          ck_panel=C('Cabin_panel', (52, 40, 30), rough=0.6), ck_gauge=C('Gauge_bezel', (30, 30, 32), rough=0.4, metal=0.4),
          ck_face=C('Gauge_face', (14, 14, 16), rough=0.2), ck_stick=C('Cabin_stick', (28, 28, 30), rough=0.5),
          ck_dark=C('Cabin_dark', (40, 36, 32), rough=0.9))
-M['ck_tubeY'] = M['yellow']; M['en_steel'] = M['steel']
+M['ck_tubeY'] = M['yellow']; M['ck_tubeK'] = C('Cabin_tube_black', (20, 20, 22), rough=0.45); M['ck_brass'] = C('Primer_brass', (204, 172, 112), rough=0.25, metal=1.0); M['en_steel'] = M['steel']
 # v5 materials: exhaust chrome/steel, cowl gap, black interior (Ty panel photo), panel atlas, varnished prop
 TEXD = os.path.join(HERE, 'textures')
 M.update(en_plug=C('Spark_plug_shield', (170, 170, 175), rough=0.35, metal=1.0), en_wire=C('Ignition_lead_yellow', (214, 170, 30), rough=0.6),
          en_steel=C('Exhaust_steel', (150, 150, 156), rough=0.30, metal=1.0), en_seam=C('Cowl_panel_gap', (40, 30, 8), rough=0.9),
          en_alu=C('Fuel_cap_red', (196, 28, 24), rough=0.35),
          ck_panel=C('Cabin_panel_black', (20, 20, 22), rough=0.45), ck_gauge=C('Gauge_bezel_black', (14, 14, 16), rough=0.3, metal=0.3),
-         ck_label=C('Placard_text_white', (236, 236, 230), rough=0.5), ck_red=C('Knob_red', (186, 22, 20), rough=0.35), ck_maroon=C('Knob_maroon', (118, 34, 28), rough=0.4),
+         ck_label=C('Placard_text_white', (252, 252, 250), rough=0.75), ck_red=C('Knob_red', (186, 22, 20), rough=0.35), ck_maroon=C('Knob_maroon', (118, 34, 28), rough=0.4),
          ck_chrome=C('Cabin_chrome', (226, 228, 232), rough=0.1, metal=1.0), ck_alu=C('Placard_aluminium', (196, 198, 202), rough=0.3, metal=0.8),
          ck_floor=C('Cabin_floor_black', (30, 29, 28), rough=0.9), ck_dark=C('Cabin_dark', (28, 27, 26), rough=0.9),
+         ck_heel=C('Heel_plate_metal', (62, 62, 64), rough=0.35, metal=0.7),                    # v17 heel plates
          cabin=C('Cabin_fabric_yellow', (176, 138, 36), rough=0.9), door_in=C('Door_inner_yellow', YEL, rough=0.7),   # v7 (Ty): door inner face (upper + lower) is the Cub-yellow paint, not black (v7c 176,138,36 read olive in shade)
            # v5f: sidewalls = inside of the yellow fabric (photos d01, c14)
          ck_atlas=paint.mat_image('Panel_gauge_faces', bpy.data.images.load(os.path.join(TEXD, 'j3_panel_atlas.png')), rough=0.25),
@@ -1620,6 +1902,39 @@ for n, m in (('Wing', 'yellow'), ('Aileron_L', 'yellow'), ('Aileron_R', 'yellow'
              ('Gear_Leg_R', 'yellow'), ('Shock_Lower_L', 'yellow'), ('Shock_Lower_R', 'yellow'), ('Shock_Boot_L', 'boot'),
              ('Shock_Boot_R', 'boot'), ('TailWheel_Spring', 'black'), ('TailWheel_Steer', 'black'), ('TailWheel_Links', 'steel')):
     if n in P: setm(P[n], [m])
+# ---- v17 (Ty 2026-11-02 19:06 / 19:07, photo ty-panel-tank-behind.png: "match the black paint in the front"): SEMI-GLOSS
+# black only in the front: the floorboards and footwell, the rudder pedals (ck_stick, already semi-gloss black) and the
+# walls FORWARD of the instrument panel. The side walls turn yellow just aft of the panel, on a CURVED parting line: level
+# with the panel's lower gauges the yellow starts right behind the panel's edge, and lower down the black runs further aft,
+# so the yellow sides curve down behind the panel edges as in the photo. Material / UV only: the liner geometry is as v16.
+# Liner faces wholly forward of the line are plain semi-gloss black, faces wholly aft stay the yellow fabric, and the
+# faces the line crosses carry a side-view projection of the two colours, so the parting is the curve, not the mesh steps.
+LP_X0, LP_Z0, LP_ZF, LP_K = PX + 0.010, PZB + 0.060, -0.600, 0.320
+def lp_x(z): return LP_X0 + LP_K * np.clip((LP_Z0 - np.asarray(z, float)) / (LP_Z0 - LP_ZF), 0.0, 1.0) ** 2
+CAB_YEL, FRONT_BLK = (176, 138, 36), (20, 20, 22)
+VLP = View('j3_liner_part', (-1.75, -0.75), (-0.70, 0.30), 1024, 1024)
+VLP.fill(np.ones(VLP.A.shape, bool), CAB_YEL); VLP.fill(-VLP.A < lp_x(VLP.B), FRONT_BLK)
+M.update(liner_black=C('Cabin_front_black_semigloss', FRONT_BLK, rough=0.40),
+         liner_part=paint.mat_image('Cabin_liner_parting', VLP.to_image(os.path.join(TEX, VLP.name + '.png')), rough=0.6),
+         ck_floor=C('Cabin_floor_black_semigloss', (26, 25, 24), rough=0.45),
+         tank_black=C('Fuel_tank_black', (18, 18, 20), rough=0.35), tank_rim=C('Fuel_tank_rim_brass', (204, 172, 112), rough=0.2, metal=1.0),
+         hose=paint.mat_glass('Fuel_drain_hose_clear', col=(226, 218, 168), alpha=0.5))
+LP_N = {}
+for n_ in ('Cabin_Liner', 'Liner_Stbd'):
+    o_ = P[n_]; setm(o_, ['cabin', 'liner_black', 'liner_part']); me_ = o_.data
+    if not me_.uv_layers: me_.uv_layers.new(name='UVMap')
+    uvl_ = me_.uv_layers[0].data; cnt = [0, 0, 0]
+    for pg in me_.polygons:
+        cs = [me_.vertices[me_.loops[li].vertex_index].co for li in pg.loop_indices]
+        d_ = [-c.x - float(lp_x(c.z)) for c in cs]
+        mi = 0 if min(d_) >= 0.0 else (1 if max(d_) <= 0.0 else 2)
+        pg.material_index = mi; cnt[mi] += 1
+        for li, c in zip(pg.loop_indices, cs): uvl_[li].uv = VLP.uv(c.x, c.z)
+    LP_N[n_] = cnt
+setm(P['Cabin'], ['ck_' + t for t in CK_T], ck_tag)                    # v17: re-set so the Cabin picks up the semi-gloss floor
+setm(P['Fuel_Tank'], ['tank_black', 'tank_rim', 'tank_rim'], TK_TAG); setm(P['Fuel_Drain_Hose'], ['hose'])
+print('BLACK FRONT v17: parting xd %.3f above z %.3f, curving aft to xd %.3f at z %.3f (front throttle plate %.3f, carb heat plate %.3f); '
+      'liner faces yellow / black / on the curve %s' % (LP_X0, LP_Z0, float(lp_x(LP_ZF)), LP_ZF, float(lp_x(-0.086)), float(lp_x(-0.215)), LP_N))
 M.update(float_alu=C('Float_skin_aluminium', (196, 198, 202), rough=0.35, metal=0.85),
          float_dark=C('Float_hardware', (70, 72, 76), rough=0.5, metal=0.6))
 for n, t in TAGS.items():
@@ -1631,7 +1946,7 @@ for n in P:
     if not P[n].data.materials: print('NO MATERIAL', n)
 for o in P.values():
     bm = bmesh.new(); bm.from_mesh(o.data)
-    if o.name not in ('Glass', 'Window_R', 'Skylight', 'Skylight_Frame', 'Cabin_Liner', 'Liner_Stbd', 'Panel_Gauges', 'Fin_Decal_L', 'Fin_Decal_R'): bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    if o.name not in ('Glass', 'Window_R', 'Fuel_Drain_Hose', 'Skylight', 'Skylight_Frame', 'Cabin_Liner', 'Liner_Stbd', 'Panel_Gauges', 'Fin_Decal_L', 'Fin_Decal_R'): bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(o.data); bm.free()
     for p in o.data.polygons: p.use_smooth = True
     try: o.data.set_sharp_from_angle(angle=math.radians(50))
@@ -1788,18 +2103,35 @@ if VAR == 'wheels':
 if VAR == 'floats':
     o = origin('WaterRudder_L', w(WR_P)); o['steer_axis_gltf'] = gl_axis((0, 0, 1))
     o['note'] = 'LH water rudder only (60-1320 Fig.1: RH float less water rudder). Steers about steer_axis, linked to the air rudder'
-    b = origin('WaterRudder_Blade_L', w(WR_H), parent=o); b['retract_axis_gltf'] = gl_axis((0, -1, 0)); b['retract_deg'] = 90.0
-    b['note'] = 'rotate about retract_axis by retract_deg to pull the blade up (retracted); 0 = down (water)'
+    # v18 (t286u): retract 90 deg so the blade stands right behind the post (v17 swung 140 deg, its forward lobe ahead of
+    # the post). v17 (t278u): the bottom swinging AFT then up (the spring pulls it down; the cockpit handle on the
+    # hook holds it up). 90 = the configs' waterRudderRetractRad 1.5708; the sim's drawn blade (FloatHydro.DrawnWaterRudder)
+    # must be dry at it both afloat at rest and taxiing at 5.5 m/s (J3WaterRudderTests).
+    WR_RETRACT = 90.0; _rax = Vector((0, -1, 0))                       # export frame: +x aft, z up; about -y the bottom goes aft
+    b = origin('WaterRudder_Blade_L', w(WR_H), parent=o); b['retract_axis_gltf'] = gl_axis(_rax); b['retract_deg'] = WR_RETRACT
+    b['note'] = 'rotate about retract_axis by retract_deg to pull the blade up (retracted); 0 = down (water). Driven by water_rudder_up (cockpit handle on the hook)'
     vs0 = np.array([v.co[:] for v in b.data.vertices]).mean(0)
-    R = Matrix.Rotation(math.radians(90), 4, Vector((0, -1, 0))); vs1 = np.array([(R @ v.co)[:] for v in b.data.vertices]).mean(0)
-    print('WRUDDER blade centroid rel hinge down %s -> retracted %s' % (np.round(vs0, 3), np.round(vs1, 3)))
+    _vh = (Matrix.Rotation(math.radians(0.5 * WR_RETRACT), 4, _rax) @ Vector(vs0)) - Vector(vs0)
+    assert _vh.x > 0 and _vh.z > 0, 'retract must swing the bottom aft first'
+    R = Matrix.Rotation(math.radians(WR_RETRACT), 4, _rax); vs1 = np.array([(R @ v.co)[:] for v in b.data.vertices]).mean(0)
+    _lo1 = min((R @ v.co).z for v in b.data.vertices)
+    print('WRUDDER blade centroid rel hinge down %s -> retracted %.0f deg %s (lowest point %+.3f rel hinge)' % (np.round(vs0, 3), WR_RETRACT, np.round(vs1, 3), _lo1))
     assert vs1[2] > vs0[2] + 0.05, 'retract must lift the blade'
+    _up = [R @ v.co for v in b.data.vertices]
+    _ax = min(v.x for v in _up); _ay = max(abs(v.y) for v in _up)
+    print('WRUDDER retracted: every blade point %.3f+ aft of the post axis (post radius 0.011), within %.3f of its plane' % (_ax, _ay))
+    assert _ax > 0.011 and _ay < 0.006, 'retracted, the blade must sit wholly behind the post, in line with it'
+    _hi1 = max(v.z for v in _up); _post_top = (ZD + 0.035) - fz(3040)
+    print('WRUDDER retracted top %.3f above the hinge, post top %.3f' % (_hi1, _post_top))
+    assert _hi1 < _post_top, 'retracted, the blade must stay under the post top (hidden behind it from aft)'
     # steering: cable-linked to the air rudder pedals; EDO-style water rudder swings ~25 deg each way (judgement: no
     # 60-1320 travel figure in hand), so full rudder (30) gives 25 (link ratio 0.833) and the water rudder stops at 25.
     rig_rot(o, 'rudder', Vector((0, 0, 1)), 25.0, 25.0, lambda d: d.y > 0, 'blade trails to starboard at +1 (right pedal)')
     o['rig_link'] = 'air rudder via cables: water rudder deg = rudder param * 25 (limit +/-25; air rudder 30 at the same pedal)'
     o['rig_limit_deg'] = 25.0
-    rig_rot(b, 'water_rudder_up', Vector((0, -1, 0)), 90.0, 0.0, lambda d: d.z > 0, 'blade swings up/aft at 1 (retracted), 0 = down')
+    rig_rot(b, 'water_rudder_up', _rax, WR_RETRACT, 0.0, lambda d: d.z > 0, 'blade bottom swings aft then up %.0f deg at 1 (retracted), 0 = down' % WR_RETRACT)
+    assert list(b['rig_axis_gltf']) == gl_axis(_rax), 'rig kept the aft-swinging axis'
+    b['rig_link'] = 'WaterRudder_Handle (same param): handle on the floor = down, hung on the front-seat-back hook = up'
     for side in ('L', 'R'): o = origin('Float_' + side, w(B(FLOAT_INFO['step_xd'], (1 if side == 'L' else -1) * 75 * IN / 2, FLOAT_INFO['deck_z'])))
     root = P['Fuselage']
     for k, v in FLOAT_INFO.items():
@@ -1873,9 +2205,9 @@ for nm_ in ('Front', 'Rear'):
     pv, nb, kb = RIGPTS['Throttle_Lever_' + nm_]; o = origin2('Throttle_Lever_' + nm_, pv, CTL)
     rig2(o, 'throttle', wd(nb), [0, 1], [0, THR_DEG], '0..1', 'ball swings forward along the plate top edge CLOSED (aft) -> OPEN (fwd) about the plate tip',
          tv=w(kb) - w(pv), want=lambda d: d.x < 0, link='front and rear throttles share one push rod (same param)')
-pv, nb, kb = RIGPTS['FuelValve_Lever']; o = origin2('FuelValve_Lever', pv, CTL)
-rig2(o, 'fuel_valve', wd(nb), [0, 1], [90, 0], '0=OFF 1=ON', 'shut-off lever, modelled ON (knob forward); OFF swings the knob up/aft 90 deg',
-     tv=w(kb) - w(pv), want=lambda d: d.x > 0)
+pv, nb = RIGPTS['FuelValve_Knob']; o = origin2('FuelValve_Knob', pv, CTL)
+rig2(o, 'fuel_valve', wd(nb), [0, 1], [FV_STROKE, 0], '0=OFF 1=ON', 'fuel shut-off push-pull, modelled ON (pushed in); OFF pulls the red knob %d mm straight out of the wall' % round(FV_STROKE * 1000),
+     kind='move', want=lambda d: d.y > 0.99)                      # out of the left wall, into the cabin
 pv, nb, kb = RIGPTS['Trim_Crank']; o = origin2('Trim_Crank', pv, CTL)
 rig2(o, 'trim', wd(nb), [-1, 0, 1], [-450, 0, 450], '-1 nose down .. +1 nose up', 'trim crank, 1.25 turns each way from neutral (judgement); +nose-up turns the top of the crank aft (toward UP)',
      tv=w(kb) - w(pv), want=lambda d: d.x > 0, link='drives the Stab jack screw (trim param)')
@@ -1883,15 +2215,13 @@ rig2(P['Stab'], 'trim', Vector(_le), [-1, 0, 1], [2.5, 0, -4.0], '-1 nose down .
      link='Trim_Crank (same param); Elevator_L/R ride on the Stab')
 pv, nb, kb = RIGPTS['CarbHeat_Lever']; o = origin2('CarbHeat_Lever', pv, CTL)
 rig2(o, 'carb_heat', wd(nb), [0, 1], [0, 35], '0=OFF 1=ON', 'carb heat lever about its fork pivot; ON swings the forward ball up 35 deg (judgement)',
-     tv=w(kb) - w(pv), want=lambda d: d.z > 0, link='rear knob CarbHeat_Knob_Rear (same param, push-pull rod)')
-pv, cd = RIGPTS['CarbHeat_Knob_Rear']; o = origin2('CarbHeat_Knob_Rear', pv, CTL)
-rig2(o, 'carb_heat', wd(cd), [0, 1], [0, 0.035], '0=OFF 1=ON', 'rear-seat carb heat knob pulls 35 mm aft along the rod for ON', kind='move', want=lambda d: d.x > 0,
-     link='CarbHeat_Lever (same param)')
+     tv=w(kb) - w(pv), want=lambda d: d.z > 0, note='the only carb heat control (v16: no rear-seat knob; the rear pilot leans forward)')
 pv, nb = RIGPTS['MagSwitch_Knob']; o = origin2('MagSwitch_Knob', pv, CKP)
-rig2(o, 'magneto', wd(nb), [0, 1, 2, 3], [0, -37, -73, -115], '0 OFF 1 L 2 R 3 BOTH (integer detents)', 'rotary mag switch, detents at the plate labels OFF/L/R/BOTH (clockwise seen from below)',
+rig2(o, 'magneto', wd(nb), [0, 1, 2, 3], [0, -37, -73, -115], '0 OFF 1 L 2 R 3 BOTH (integer detents)', 'rotary mag switch on the left root-rib wall, detents at the plate labels OFF/L/R/BOTH (clockwise seen from the cabin)',
      extra={'rig_detents': ['OFF', 'L', 'R', 'BOTH']})
 o = origin2('Primer_Plunger', RIGPTS['Primer_Plunger'], INS)
 rig2(o, 'primer', AFT, [0, 1], [0, 0.050], '0 in .. 1 out', 'primer plunger pulls straight aft 50 mm (judgement)', kind='move', want=lambda d: d.x > 0)
+group('Grip_Primer', B(PXA + 0.034, PR_Y, PR_Z), o)                                              # v18: where a hand takes the knob
 # sticks: roll empty on the torque tube (x axis) -> stick node pitches about y. Both sticks share the params (rigid link).
 for nm_ in ('Front', 'Rear'):
     pv = RIGPTS['Stick_' + nm_]; ro = group('Stick_%s_Roll' % nm_, pv, CTL)
@@ -1906,6 +2236,18 @@ for nm_ in ('Front', 'Rear'):
         rig2(o, 'rudder', STBD, [-1, 0, 1], [-18, 0, 18], '-1..+1', '%s pedal hinged at the floor: +1 (right rudder) moves its top %s' % (sd_, 'forward' if sd_ == 'R' else 'aft'),
              tv=UP, want=(lambda d: d.x < 0) if sd_ == 'R' else (lambda d: d.x > 0),
              link='Rudder (+/-30), TailWheel_Steer (+/-30, wheels), WaterRudder_L (+/-25, floats); all four pedals linked')
+if VAR == 'floats':
+    pv, mv = RIGPTS['WaterRudder_Handle']; o = origin2('WaterRudder_Handle', pv, CKP)
+    rig2(o, 'water_rudder_up', wd(mv), [0, 1], [0, WR_TRAVEL], '0 down (let go, on the floor) .. 1 up (hung on the hook)',
+         'water-rudder retract handle: straight up and forward %.3f m from the floor fairlead to the front-seat-back hook' % WR_TRAVEL,
+         kind='move', want=lambda d: d.z > 0,
+         link='WaterRudder_Blade_L retract (same param); the cable WaterRudder_Cable runs from the fairlead to this node',
+         extra={'grab': 1, 'hook_gltf': gl_pt(w(tuple(WR_CROOK))), 'hook_snap_m': 0.06})
+    group('Grip_WaterRudder', _hp(WR_FER + 0.5 * WR_GRIP), o)                                    # v18: the red grip's middle, where a hand takes it
+    o = origin2('WaterRudder_Cable', WR_FAIR, CKP); o.scale = (1.0, 1.0, 0.001)
+    o['cable_to'] = 'WaterRudder_Handle'
+    o['note'] = ('retract cable: unit length along local +Z (glTF +Y) from the floor fairlead; aim it at the WaterRudder_Handle '
+                 'node origin (the ferrule) and scale local Z (glTF Y) to the distance. Scaled to 0.001 as built (handle on the floor)')
 _lst = [n_ for n_ in RIG]
 print('RIG v15 nodes: %d cockpit/instrument nodes + %d existing surface nodes' % (len(RIG2), len(_lst)))
 if os.environ.get('J3_RIGJSON'):

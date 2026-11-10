@@ -1,0 +1,13 @@
+Grob G 103 C Twin III Acro - derived from Florian Blanc's G103c Twin III Acro.
+Original mesh: Florian Blanc, CC BY-SA.
+https://www.printables.com/model/852637-g103c-twin-iii-acro
+
+Adapted mesh assets in *-own.glb and *-own-tf.glb: CC BY-SA 4.0.
+https://creativecommons.org/licenses/by-sa/4.0/
+Credit Florian Blanc, link the source and licence, indicate modifications,
+and distribute adaptations under the same share-alike terms.
+No endorsement is implied. See CREDITS.md for changes, source hash,
+source licence record, retained original cockpit, and reproduction commands.
+
+This supersedes the previous original-geometry ownership statement for these
+GLBs. The filenames are retained for importer compatibility.

@@ -2,6 +2,11 @@
   "schemaVersion": 1,
   "id": "dhc2-beaver-floats-like",
   "displayName": "Beaver-like on Floats",
+  "structureType": "aluminumMonocoque",
+  "structureTypeSource": "DHC-2 Beaver: all-metal aluminium semi-monocoque fuselage (DHC-2 maintenance manual).",
+  "wingBracing": "strut",
+  "wingBreakStationY": { "wing": 3.1 },
+  "wingBreakStationSource": "As dhc2-beaver-like: lift-strut wing attach ~122 in = 3.10 m from the centreline, scaled (+/-5 in) off the L-20A/DHC-2 three-view (48 ft span); no published station found.",
   "spawnIasMs": 48,
   "mass": {
     "massKg": 2200.0,
@@ -1467,6 +1472,9 @@
   "propulsion": {
     "maxPowerW": 336000,
     "propDiameterM": 2.59,
+    "propMaterial": "metal",
+    "propMaterialSource": "Hamilton Standard 2D30 two-blade aluminium",
+    "propBladeCount": 2,
     "idleRpm": 600,
     "maxRpm": 2300,
     "propInertia": 9.0,
@@ -1499,7 +1507,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1516,7 +1523,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 2500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1533,7 +1539,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1550,7 +1555,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1567,7 +1571,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 2500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1584,7 +1587,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     }
   ],

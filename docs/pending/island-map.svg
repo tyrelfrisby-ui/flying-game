@@ -130,6 +130,58 @@
 <path d="M689.10,914.80 L642.85,914.80" fill="none" stroke="#a1845e" stroke-width="7" stroke-dasharray=""/>
 <path d="M689.10,914.80 L642.85,914.80" fill="none" stroke="#508aa4" stroke-width="1.2" stroke-dasharray=""/>
 <text x="729.80" y="933.30" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">C4</text><text x="729.80" y="933.30" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="#695337">C4</text>
+<path d="M1003.60,972.15 L1009.15,940.70" fill="none" stroke="#a1845e" stroke-width="7" stroke-dasharray=""/>
+<path d="M1003.60,972.15 L1009.15,940.70" fill="none" stroke="#508aa4" stroke-width="1.2" stroke-dasharray=""/>
+<text x="1003.60" y="972.15" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">C2-MF1</text><text x="1003.60" y="972.15" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="#695337">C2-MF1</text>
+<path d="M1009.15,940.70 L1014.70,883.35" fill="none" stroke="#a1845e" stroke-width="7" stroke-dasharray=""/>
+<path d="M1009.15,940.70 L1014.70,883.35" fill="none" stroke="#508aa4" stroke-width="1.2" stroke-dasharray=""/>
+<text x="1009.15" y="940.70" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">C2-MF2</text><text x="1009.15" y="940.70" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="#695337">C2-MF2</text>
+<path d="M1014.70,883.35 L1046.15,877.06" fill="none" stroke="#a1845e" stroke-width="7" stroke-dasharray=""/>
+<path d="M1014.70,883.35 L1046.15,877.06" fill="none" stroke="#508aa4" stroke-width="1.2" stroke-dasharray=""/>
+<text x="1014.70" y="883.35" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">C2-MF3</text><text x="1014.70" y="883.35" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="#695337">C2-MF3</text>
+<path d="M1046.15,877.06 L1057.25,864.85" fill="none" stroke="#a1845e" stroke-width="7" stroke-dasharray=""/>
+<path d="M1046.15,877.06 L1057.25,864.85" fill="none" stroke="#508aa4" stroke-width="1.2" stroke-dasharray=""/>
+<path d="M1046.15,877.06 L1046.15,863.06" stroke="#695337" stroke-width=".5" opacity=".6"/>
+<text x="1046.15" y="863.06" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">C2-MF4</text><text x="1046.15" y="863.06" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="#695337">C2-MF4</text>
+<path d="M1057.25,864.85 L1062.80,809.35" fill="none" stroke="#a1845e" stroke-width="7" stroke-dasharray=""/>
+<path d="M1057.25,864.85 L1062.80,809.35" fill="none" stroke="#508aa4" stroke-width="1.2" stroke-dasharray=""/>
+<path d="M1057.25,864.85 L1071.25,840.85" stroke="#695337" stroke-width=".5" opacity=".6"/>
+<text x="1071.25" y="840.85" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">C2-MF5</text><text x="1071.25" y="840.85" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="#695337">C2-MF5</text>
+<path d="M1062.80,809.35 L1075.75,794.55" fill="none" stroke="#a1845e" stroke-width="7" stroke-dasharray=""/>
+<path d="M1062.80,809.35 L1075.75,794.55" fill="none" stroke="#508aa4" stroke-width="1.2" stroke-dasharray=""/>
+<text x="1062.80" y="809.35" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">C2-MF6</text><text x="1062.80" y="809.35" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="#695337">C2-MF6</text>
+<path d="M1075.75,794.55 L1088.70,779.75" fill="none" stroke="#a1845e" stroke-width="7" stroke-dasharray=""/>
+<path d="M1075.75,794.55 L1088.70,779.75" fill="none" stroke="#508aa4" stroke-width="1.2" stroke-dasharray=""/>
+<path d="M1075.75,794.55 L1075.75,780.55" stroke="#695337" stroke-width=".5" opacity=".6"/>
+<text x="1075.75" y="780.55" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">C2-MF7</text><text x="1075.75" y="780.55" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="#695337">C2-MF7</text>
+<path d="M1088.70,779.75 L1101.65,764.95" fill="none" stroke="#a1845e" stroke-width="7" stroke-dasharray=""/>
+<path d="M1088.70,779.75 L1101.65,764.95" fill="none" stroke="#508aa4" stroke-width="1.2" stroke-dasharray=""/>
+<path d="M1088.70,779.75 L1102.70,755.75" stroke="#695337" stroke-width=".5" opacity=".6"/>
+<text x="1102.70" y="755.75" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">C2-MF8</text><text x="1102.70" y="755.75" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="#695337">C2-MF8</text>
+<path d="M994.35,814.90 L999.90,831.55" fill="none" stroke="#a1845e" stroke-width="7" stroke-dasharray=""/>
+<path d="M994.35,814.90 L999.90,831.55" fill="none" stroke="#508aa4" stroke-width="1.2" stroke-dasharray=""/>
+<text x="994.35" y="814.90" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">C2-SC1</text><text x="994.35" y="814.90" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="#695337">C2-SC1</text>
+<path d="M999.90,831.55 L1014.70,883.35" fill="none" stroke="#a1845e" stroke-width="7" stroke-dasharray=""/>
+<path d="M999.90,831.55 L1014.70,883.35" fill="none" stroke="#508aa4" stroke-width="1.2" stroke-dasharray=""/>
+<path d="M999.90,831.55 L999.90,845.55" stroke="#695337" stroke-width=".5" opacity=".6"/>
+<text x="999.90" y="845.55" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">C2-SC2</text><text x="999.90" y="845.55" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="#695337">C2-SC2</text>
+<path d="M1086.85,877.06 L1057.25,864.85" fill="none" stroke="#a1845e" stroke-width="7" stroke-dasharray=""/>
+<path d="M1086.85,877.06 L1057.25,864.85" fill="none" stroke="#508aa4" stroke-width="1.2" stroke-dasharray=""/>
+<path d="M1086.85,877.06 L1086.85,891.06" stroke="#695337" stroke-width=".5" opacity=".6"/>
+<text x="1086.85" y="891.06" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">C2-BC1</text><text x="1086.85" y="891.06" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="#695337">C2-BC1</text>
+<path d="M898.15,938.85 L877.80,1014.70" fill="none" stroke="#a1845e" stroke-width="7" stroke-dasharray=""/>
+<path d="M898.15,938.85 L877.80,1014.70" fill="none" stroke="#508aa4" stroke-width="1.2" stroke-dasharray=""/>
+<text x="898.15" y="938.85" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">C2-CC1</text><text x="898.15" y="938.85" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="#695337">C2-CC1</text>
+<path d="M877.80,1014.70 L846.35,1057.25" fill="none" stroke="#a1845e" stroke-width="7" stroke-dasharray=""/>
+<path d="M877.80,1014.70 L846.35,1057.25" fill="none" stroke="#508aa4" stroke-width="1.2" stroke-dasharray=""/>
+<text x="877.80" y="1014.70" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">C2-CC2</text><text x="877.80" y="1014.70" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="#695337">C2-CC2</text>
+<path d="M846.35,1057.25 L835.25,1072.05" fill="none" stroke="#a1845e" stroke-width="7" stroke-dasharray=""/>
+<path d="M846.35,1057.25 L835.25,1072.05" fill="none" stroke="#508aa4" stroke-width="1.2" stroke-dasharray=""/>
+<text x="846.35" y="1057.25" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">C2-CC3</text><text x="846.35" y="1057.25" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="#695337">C2-CC3</text>
+<path d="M835.25,1072.05 L831.55,1090.55" fill="none" stroke="#a1845e" stroke-width="7" stroke-dasharray=""/>
+<path d="M835.25,1072.05 L831.55,1090.55" fill="none" stroke="#508aa4" stroke-width="1.2" stroke-dasharray=""/>
+<path d="M835.25,1072.05 L835.25,1086.05" stroke="#695337" stroke-width=".5" opacity=".6"/>
+<text x="835.25" y="1086.05" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">C2-CC4</text><text x="835.25" y="1086.05" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="#695337">C2-CC4</text>
 <polygon points="896.30,755.70 896.07,759.17 895.39,762.56 894.28,765.78 892.77,768.75 890.88,771.40 888.67,773.66 886.20,775.48 883.52,776.81 880.69,777.63 877.80,777.90 874.91,777.63 872.08,776.81 869.40,775.48 866.93,773.66 864.72,771.40 862.83,768.75 861.32,765.78 860.21,762.56 859.53,759.17 859.30,755.70 859.53,752.23 860.21,748.84 861.32,745.62 862.83,742.65 864.72,740.00 866.93,737.74 869.40,735.92 872.08,734.59 874.91,733.77 877.80,733.50 880.69,733.77 883.52,734.59 886.20,735.92 888.67,737.74 890.88,740.00 892.77,742.65 894.28,745.62 895.39,748.84 896.07,752.23" fill="#80b6d3" stroke="#397b9c" stroke-width="0.6"/>
 <polygon points="530.81,994.48 529.82,994.37 528.68,993.59 527.40,992.13 526.02,990.05 524.58,987.40 523.10,984.23 521.64,980.62 520.21,976.67 518.86,972.47 517.62,968.13 516.52,963.75 515.59,959.44 514.85,955.31 514.32,951.45 514.01,947.97 513.94,944.95 514.09,942.46 514.47,940.56 515.07,939.31 515.87,938.72 516.86,938.83 518.00,939.61 519.28,941.07 520.66,943.15 522.10,945.80 523.58,948.97 525.04,952.58 526.47,956.53 527.82,960.73 529.06,965.07 530.16,969.45 531.09,973.76 531.83,977.89 532.36,981.75 532.67,985.23 532.74,988.25 532.59,990.74 532.21,992.64 531.61,993.89" fill="#80b6d3" stroke="#397b9c" stroke-width="0.6"/>
 <polygon points="659.50,914.80 659.30,916.25 658.69,917.66 657.69,919.00 656.32,920.24 654.62,921.34 652.64,922.28 650.41,923.04 648.00,923.60 645.45,923.94 642.85,924.05 640.25,923.94 637.70,923.60 635.29,923.04 633.06,922.28 631.08,921.34 629.38,920.24 628.01,919.00 627.01,917.66 626.40,916.25 626.20,914.80 626.40,913.35 627.01,911.94 628.01,910.60 629.38,909.36 631.08,908.26 633.06,907.32 635.29,906.56 637.70,906.00 640.25,905.66 642.85,905.55 645.45,905.66 648.00,906.00 650.41,906.56 652.64,907.32 654.62,908.26 656.32,909.36 657.69,910.60 658.69,911.94 659.30,913.35" fill="#80b6d3" stroke="#397b9c" stroke-width="0.6"/>
@@ -142,8 +194,6 @@
 <polygon points="931.54,781.60 931.47,782.29 931.27,782.97 930.93,783.62 930.46,784.21 929.89,784.74 929.22,785.19 928.46,785.56 927.64,785.82 926.78,785.99 925.90,786.04 925.02,785.99 924.16,785.82 923.34,785.56 922.58,785.19 921.91,784.74 921.34,784.21 920.87,783.62 920.53,782.97 920.33,782.29 920.26,781.60 920.33,780.91 920.53,780.23 920.87,779.58 921.34,778.99 921.91,778.46 922.58,778.01 923.34,777.64 924.16,777.38 925.02,777.21 925.90,777.16 926.78,777.21 927.64,777.38 928.46,777.64 929.22,778.01 929.89,778.46 930.46,778.99 930.93,779.58 931.27,780.23 931.47,780.91" fill="#80b6d3" stroke="#397b9c" stroke-width="0.6"/>
 <path d="M700.20,951.80 L678.00,896.30" fill="none" stroke="#f4fcff" stroke-width="9" stroke-dasharray=""/>
 <path d="M678.00,896.30 L659.50,896.30" fill="none" stroke="#f4fcff" stroke-width="9" stroke-dasharray=""/>
-<circle cx="670.60" cy="896.30" r="4" fill="white" stroke="#4b7a94"/>
-<text x="676.15" y="891.86" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Knik ski 1100 ft</text><text x="676.15" y="891.86" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#1a2930">Knik ski 1100 ft</text>
 <path d="M855.60,692.80 L789.00,746.45" fill="none" stroke="#f4fcff" stroke-width="9" stroke-dasharray=""/>
 <path d="M789.00,746.45 L755.70,726.10" fill="none" stroke="#f4fcff" stroke-width="9" stroke-dasharray=""/>
 <circle cx="755.70" cy="726.10" r="4" fill="white" stroke="#4b7a94"/>
@@ -4287,8 +4337,6 @@
 <path d="M1318.10,809.35 L1318.10,752.96" fill="none" stroke="#766f9b" stroke-width="0.9" stroke-dasharray="5 4"/>
 <path d="M883.35,518.90 L826.96,518.90" fill="none" stroke="#766f9b" stroke-width="0.9" stroke-dasharray="5 4"/>
 <path d="M916.65,518.90 L973.04,518.90" fill="none" stroke="#766f9b" stroke-width="0.9" stroke-dasharray="5 4"/>
-<path d="M992.50,930.89 L992.50,987.28" fill="none" stroke="#766f9b" stroke-width="0.9" stroke-dasharray="5 4"/>
-<path d="M992.50,891.30 L992.50,834.92" fill="none" stroke="#766f9b" stroke-width="0.9" stroke-dasharray="5 4"/>
 <path d="M997.13,1214.39 L940.75,1213.40" fill="none" stroke="#766f9b" stroke-width="0.9" stroke-dasharray="5 4"/>
 <path d="M1010.07,1214.61 L1066.45,1215.60" fill="none" stroke="#766f9b" stroke-width="0.9" stroke-dasharray="5 4"/>
 <path d="M578.62,686.25 L546.27,732.44" fill="none" stroke="#766f9b" stroke-width="0.9" stroke-dasharray="5 4"/>
@@ -4410,13 +4458,15 @@
 <polygon points="641.57,664.87 647.18,646.53 647.83,646.73 642.22,665.07" fill="#577d37" stroke="#243744" stroke-width="0.5"/>
 <text x="651.36" y="657.65" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">AP2</text><text x="651.36" y="657.65" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#375c29">AP2</text>
 <polygon points="822.59,1031.20 830.06,1057.22 829.41,1057.40 821.94,1031.38" fill="#577d37" stroke="#243744" stroke-width="0.5"/>
-<text x="832.66" y="1046.15" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">AP3</text><text x="832.66" y="1046.15" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#375c29">AP3</text>
+<path d="M832.66,1046.15 L832.66,1032.15" stroke="#375c29" stroke-width=".5" opacity=".6"/>
+<text x="832.66" y="1032.15" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">AP3</text><text x="832.66" y="1032.15" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#375c29">AP3</text>
 <polygon points="979.41,643.69 991.34,660.11 990.79,660.51 978.86,644.09" fill="#577d37" stroke="#243744" stroke-width="0.5"/>
 <text x="991.76" y="653.95" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">AP4</text><text x="991.76" y="653.95" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#375c29">AP4</text>
 <polygon points="1169.67,796.81 1162.52,781.48 1163.13,781.19 1170.28,796.52" fill="#577d37" stroke="#243744" stroke-width="0.5"/>
 <text x="1173.06" y="790.85" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">AP5</text><text x="1173.06" y="790.85" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#375c29">AP5</text>
 <polygon points="1078.22,736.72 1099.41,744.44 1099.18,745.08 1077.99,737.36" fill="#577d37" stroke="#243744" stroke-width="0.5"/>
-<text x="1095.36" y="742.75" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">AP6</text><text x="1095.36" y="742.75" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#375c29">AP6</text>
+<path d="M1095.36,742.75 L1095.36,728.75" stroke="#375c29" stroke-width=".5" opacity=".6"/>
+<text x="1095.36" y="728.75" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">AP6</text><text x="1095.36" y="728.75" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#375c29">AP6</text>
 <polygon points="570.57,854.48 593.07,856.05 593.03,856.72 570.53,855.15" fill="#577d37" stroke="#243744" stroke-width="0.5"/>
 <text x="588.46" y="857.45" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">AP7</text><text x="588.46" y="857.45" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#375c29">AP7</text>
 <polygon points="594.48,781.31 598.05,752.21 598.72,752.29 595.15,781.39" fill="#577d37" stroke="#243744" stroke-width="0.5"/>
@@ -4427,7 +4477,8 @@
 <polygon points="680.39,1119.64 697.97,1123.70 697.81,1124.36 680.23,1120.30" fill="#577d37" stroke="#243744" stroke-width="0.5"/>
 <text x="695.76" y="1123.85" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">AP9</text><text x="695.76" y="1123.85" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#375c29">AP9</text>
 <polygon points="959.62,858.67 972.97,830.05 973.58,830.33 960.23,858.95" fill="#577d37" stroke="#243744" stroke-width="0.5"/>
-<text x="973.26" y="846.35" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">AP10</text><text x="973.26" y="846.35" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#375c29">AP10</text>
+<path d="M973.26,846.35 L959.26,812.35" stroke="#375c29" stroke-width=".5" opacity=".6"/>
+<text x="959.26" y="812.35" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">AP10</text><text x="959.26" y="812.35" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#375c29">AP10</text>
 <polygon points="891.09,723.84 909.27,735.19 908.91,735.76 890.73,724.41" fill="#577d37" stroke="#243744" stroke-width="0.5"/>
 <text x="906.66" y="731.65" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">AP11</text><text x="906.66" y="731.65" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#375c29">AP11</text>
 <polygon points="938.88,1024.05 964.43,1012.14 964.72,1012.75 939.17,1024.66" fill="#577d37" stroke="#243744" stroke-width="0.5"/>
@@ -4436,29 +4487,30 @@
 <text x="1110.16" y="1086.85" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">AP13</text><text x="1110.16" y="1086.85" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#375c29">AP13</text>
 <polygon points="799.13,1184.08 823.10,1177.66 823.27,1178.32 799.30,1184.74" fill="#577d37" stroke="#243744" stroke-width="0.5"/>
 <text x="817.86" y="1183.05" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">AP14</text><text x="817.86" y="1183.05" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#375c29">AP14</text>
-<polygon points="914.78,983.66 935.75,948.78 937.02,949.54 916.05,984.42" fill="#3c4651" stroke="#243744" stroke-width="0.5"/>
-<text x="929.60" y="966.60" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Chamberlain</text><text x="929.60" y="966.60" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">Chamberlain</text>
-<polygon points="991.87,930.89 991.87,891.30 993.13,891.30 993.13,930.89" fill="#3c4651" stroke="#243744" stroke-width="0.5"/>
-<path d="M996.20,911.10 L982.20,877.10" stroke="#6a5f3f" stroke-width=".5" opacity=".6"/>
-<text x="982.20" y="877.10" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Big Creek</text><text x="982.20" y="877.10" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">Big Creek</text>
-<polygon points="1040.53,872.26 1085.23,878.54 1085.07,879.64 1040.37,873.36" fill="#3c4651" stroke="#243744" stroke-width="0.5"/>
-<text x="1066.50" y="875.95" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Thomas Creek</text><text x="1066.50" y="875.95" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">Thomas Creek</text>
-<polygon points="1009.70,920.07 1041.52,908.49 1041.90,909.53 1010.08,921.11" fill="#3c4651" stroke="#243744" stroke-width="0.5"/>
-<path d="M1029.50,914.80 L1029.50,900.80" stroke="#6a5f3f" stroke-width=".5" opacity=".6"/>
-<text x="1029.50" y="900.80" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Sulphur Creek</text><text x="1029.50" y="900.80" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">Sulphur Creek</text>
-<polygon points="1040.59,850.20 1055.36,849.16 1055.41,849.90 1040.64,850.94" fill="#3c4651" stroke="#243744" stroke-width="0.5"/>
-<text x="1051.70" y="850.05" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Soldier Bar</text><text x="1051.70" y="850.05" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">Soldier Bar</text>
-<polygon points="1014.92,871.13 1015.22,888.15 1014.48,888.17 1014.18,871.15" fill="#3c4651" stroke="#243744" stroke-width="0.5"/>
-<path d="M1018.40,879.65 L1053.40,835.65" stroke="#6a5f3f" stroke-width=".5" opacity=".6"/>
-<text x="1053.40" y="835.65" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Cabin Creek</text><text x="1053.40" y="835.65" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">Cabin Creek</text>
-<polygon points="874.60,998.18 866.75,1009.40 866.20,1009.02 874.05,997.80" fill="#3c4651" stroke="#243744" stroke-width="0.5"/>
-<text x="874.10" y="1003.60" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Dewey Moore</text><text x="874.10" y="1003.60" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">Dewey Moore</text>
-<polygon points="1012.61,840.99 1045.63,810.20 1046.39,811.01 1013.37,841.80" fill="#3c4651" stroke="#243744" stroke-width="0.5"/>
-<path d="M1033.20,826.00 L1033.20,812.00" stroke="#6a5f3f" stroke-width=".5" opacity=".6"/>
-<text x="1033.20" y="812.00" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Indian Creek</text><text x="1033.20" y="812.00" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">Indian Creek</text>
-<polygon points="1092.57,859.49 1084.06,844.75 1084.83,844.31 1093.34,859.05" fill="#3c4651" stroke="#243744" stroke-width="0.5"/>
-<path d="M1092.40,851.90 L1106.40,827.90" stroke="#6a5f3f" stroke-width=".5" opacity=".6"/>
-<text x="1106.40" y="827.90" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Mackay Bar</text><text x="1106.40" y="827.90" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">Mackay Bar</text>
+<polygon points="853.31,1058.09 877.52,1025.37 878.71,1026.25 854.50,1058.97" fill="#3c4651" stroke="#243744" stroke-width="0.5"/>
+<path d="M869.71,1042.17 L904.71,1086.17" stroke="#6a5f3f" stroke-width=".5" opacity=".6"/>
+<text x="904.71" y="1086.17" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Chamberlain</text><text x="904.71" y="1086.17" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">Chamberlain</text>
+<polygon points="883.97,1015.71 894.22,977.47 895.43,977.79 885.19,1016.03" fill="#3c4651" stroke="#243744" stroke-width="0.5"/>
+<path d="M893.40,996.75 L893.40,982.75" stroke="#6a5f3f" stroke-width=".5" opacity=".6"/>
+<text x="893.40" y="982.75" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Big Creek</text><text x="893.40" y="982.75" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">Big Creek</text>
+<polygon points="1021.45,890.27 1017.13,935.20 1016.02,935.10 1020.35,890.16" fill="#3c4651" stroke="#243744" stroke-width="0.5"/>
+<path d="M1022.44,912.68 L1022.44,898.68" stroke="#6a5f3f" stroke-width=".5" opacity=".6"/>
+<text x="1022.44" y="898.68" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Thomas Creek</text><text x="1022.44" y="898.68" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">Thomas Creek</text>
+<polygon points="1004.82,875.76 995.55,843.20 996.61,842.90 1005.89,875.46" fill="#3c4651" stroke="#243744" stroke-width="0.5"/>
+<text x="1004.42" y="859.33" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Sulphur Creek</text><text x="1004.42" y="859.33" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">Sulphur Creek</text>
+<polygon points="863.73,1026.97 865.40,1012.27 866.14,1012.35 864.46,1027.06" fill="#3c4651" stroke="#243744" stroke-width="0.5"/>
+<path d="M868.63,1019.66 L868.63,1033.66" stroke="#6a5f3f" stroke-width=".5" opacity=".6"/>
+<text x="868.63" y="1033.66" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Soldier Bar</text><text x="868.63" y="1033.66" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">Soldier Bar</text>
+<polygon points="1068.10,873.33 1083.84,879.82 1083.55,880.50 1067.82,874.01" fill="#3c4651" stroke="#243744" stroke-width="0.5"/>
+<path d="M1079.53,876.92 L1114.53,832.92" stroke="#6a5f3f" stroke-width=".5" opacity=".6"/>
+<text x="1114.53" y="832.92" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Cabin Creek</text><text x="1114.53" y="832.92" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">Cabin Creek</text>
+<polygon points="894.77,964.91 904.79,955.58 905.24,956.06 895.23,965.40" fill="#3c4651" stroke="#243744" stroke-width="0.5"/>
+<text x="903.71" y="960.49" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Dewey Moore</text><text x="903.71" y="960.49" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">Dewey Moore</text>
+<polygon points="1069.63,815.38 1065.15,860.29 1064.04,860.18 1068.53,815.27" fill="#3c4651" stroke="#243744" stroke-width="0.5"/>
+<text x="1070.54" y="837.78" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Indian Creek</text><text x="1070.54" y="837.78" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">Indian Creek</text>
+<polygon points="1041.23,867.93 1024.54,871.27 1024.36,870.40 1041.05,867.06" fill="#3c4651" stroke="#243744" stroke-width="0.5"/>
+<path d="M1036.50,869.16 L1071.50,913.16" stroke="#6a5f3f" stroke-width=".5" opacity=".6"/>
+<text x="1071.50" y="913.16" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Mackay Bar</text><text x="1071.50" y="913.16" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">Mackay Bar</text>
 <polygon points="997.14,1213.74 1010.09,1213.97 1010.06,1215.26 997.11,1215.03" fill="#d9c38a" stroke="#243744" stroke-width="0.5"/>
 <text x="1007.30" y="1214.50" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">B1</text><text x="1007.30" y="1214.50" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">B1</text>
 <polygon points="578.09,685.87 584.45,676.78 585.51,677.53 579.15,686.62" fill="#d9c38a" stroke="#243744" stroke-width="0.5"/>
@@ -4472,14 +4524,17 @@
 <text x="1321.80" y="763.10" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">B5</text><text x="1321.80" y="763.10" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">B5</text>
 <polygon points="916.65,462.75 927.75,462.75 927.75,464.05 916.65,464.05" fill="#d9c38a" stroke="#243744" stroke-width="0.5"/>
 <text x="925.90" y="463.40" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">B6</text><text x="925.90" y="463.40" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">B6</text>
+<polygon points="703.12,924.97 715.99,929.15 715.78,929.79 702.91,925.61" fill="#3c4651" stroke="#243744" stroke-width="0.5"/>
+<path d="M713.15,927.38 L713.15,913.38" stroke="#6a5f3f" stroke-width=".5" opacity=".6"/>
+<text x="713.15" y="913.38" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Knik River</text><text x="713.15" y="913.38" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#6a5f3f">Knik River</text>
 <polygon points="1082.78,1043.56 1082.78,1030.24 1087.22,1030.24 1087.22,1043.56" fill="#c2a883" stroke="#866749" stroke-width="1"/>
 <text x="1085.00" y="1036.90" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">PAGE-M1 4475 ft</text><text x="1085.00" y="1036.90" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#765838">PAGE-M1 4475 ft</text>
 <polygon points="1097.58,1043.56 1097.58,1030.24 1102.02,1030.24 1102.02,1043.56" fill="#c2a883" stroke="#866749" stroke-width="1"/>
 <path d="M1099.80,1036.90 L1099.80,1022.90" stroke="#765838" stroke-width=".5" opacity=".6"/>
 <text x="1099.80" y="1022.90" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">PAGE-M2 4075 ft</text><text x="1099.80" y="1022.90" font-family="Arial, sans-serif" font-size="9" text-anchor="start" fill="#765838">PAGE-M2 4075 ft</text>
 <polygon points="1081.30,729.06 1077.23,739.05 1085.37,739.05" fill="none" stroke="#a53243" stroke-width="1.5"/>
-<path d="M1087.59,733.13 L1087.59,719.13" stroke="#a53243" stroke-width=".5" opacity=".6"/>
-<text x="1087.59" y="719.13" font-family="Arial, sans-serif" font-size="10" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">T1 75m</text><text x="1087.59" y="719.13" font-family="Arial, sans-serif" font-size="10" text-anchor="start" fill="#a53243">T1 75m</text>
+<path d="M1087.59,733.13 L1101.59,709.13" stroke="#a53243" stroke-width=".5" opacity=".6"/>
+<text x="1101.59" y="709.13" font-family="Arial, sans-serif" font-size="10" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">T1 75m</text><text x="1101.59" y="709.13" font-family="Arial, sans-serif" font-size="10" text-anchor="start" fill="#a53243">T1 75m</text>
 <polygon points="837.10,917.76 833.03,927.75 841.17,927.75" fill="none" stroke="#a53243" stroke-width="1.5"/>
 <path d="M843.39,921.83 L857.39,897.83" stroke="#a53243" stroke-width=".5" opacity=".6"/>
 <text x="857.39" y="897.83" font-family="Arial, sans-serif" font-size="10" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">T2 35m</text><text x="857.39" y="897.83" font-family="Arial, sans-serif" font-size="10" text-anchor="start" fill="#a53243">T2 35m</text>
@@ -4516,7 +4571,8 @@
 <path d="M685.40,911.10 L523.34,966.60" fill="none" stroke="#ce7739" stroke-width="1.5" stroke-dasharray="3 2"/>
 <path d="M744.60,933.30 L742.75,946.25" fill="none" stroke="#b63b27" stroke-width="1.5" stroke-dasharray="3 2"/>
 <circle cx="744.60" cy="933.30" r="4" fill="#d28c41" stroke="none"/>
-<text x="748.30" y="924.05" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">L2</text><text x="748.30" y="924.05" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="#8e491e">L2</text>
+<path d="M748.30,924.05 L748.30,938.05" stroke="#8e491e" stroke-width=".5" opacity=".6"/>
+<text x="748.30" y="938.05" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">L2</text><text x="748.30" y="938.05" font-family="Arial, sans-serif" font-size="13" text-anchor="start" fill="#8e491e">L2</text>
 <path d="M1069.46,1099.06 L1007.30,1133.10" fill="none" stroke="#ce7739" stroke-width="1.5" stroke-dasharray="3 2"/>
 <path d="M1007.30,1133.10 L900.00,1148.64" fill="none" stroke="#ce7739" stroke-width="1.5" stroke-dasharray="3 2"/>
 <path d="M900.00,1148.64 L843.02,1255.20" fill="none" stroke="#ce7739" stroke-width="1.5" stroke-dasharray="3 2"/>
@@ -4553,11 +4609,11 @@
 <path d="M1089.44,1048.00 L1075.44,1014.00" stroke="#284d42" stroke-width=".5" opacity=".6"/>
 <text x="1075.44" y="1014.00" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">F12</text><text x="1075.44" y="1014.00" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#284d42">F12</text>
 <circle cx="652.10" cy="888.90" r="3" fill="#385b51" stroke="none"/>
-<path d="M656.54,900.00 L642.54,866.00" stroke="#284d42" stroke-width=".5" opacity=".6"/>
-<text x="642.54" y="866.00" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">F13</text><text x="642.54" y="866.00" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#284d42">F13</text>
-<circle cx="1029.50" cy="881.50" r="3" fill="#385b51" stroke="none"/>
-<path d="M1033.94,892.60 L1033.94,878.60" stroke="#284d42" stroke-width=".5" opacity=".6"/>
-<text x="1033.94" y="878.60" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">F14</text><text x="1033.94" y="878.60" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#284d42">F14</text>
+<path d="M656.54,900.00 L656.54,886.00" stroke="#284d42" stroke-width=".5" opacity=".6"/>
+<text x="656.54" y="886.00" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">F13</text><text x="656.54" y="886.00" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#284d42">F13</text>
+<circle cx="1030.42" cy="880.21" r="3" fill="#385b51" stroke="none"/>
+<path d="M1034.87,891.30 L1069.87,935.30" stroke="#284d42" stroke-width=".5" opacity=".6"/>
+<text x="1069.87" y="935.30" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">F14</text><text x="1069.87" y="935.30" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#284d42">F14</text>
 <circle cx="633.60" cy="685.40" r="3" fill="#385b51" stroke="none"/>
 <text x="638.04" y="696.50" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">F15</text><text x="638.04" y="696.50" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#284d42">F15</text>
 <circle cx="1003.60" cy="1233.00" r="3" fill="#385b51" stroke="none"/>
@@ -4565,7 +4621,8 @@
 <circle cx="944.40" cy="833.40" r="3" fill="#385b51" stroke="none"/>
 <text x="948.84" y="844.50" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">F17</text><text x="948.84" y="844.50" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#284d42">F17</text>
 <circle cx="1059.10" cy="752.00" r="3" fill="#385b51" stroke="none"/>
-<text x="1063.54" y="763.10" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">F18</text><text x="1063.54" y="763.10" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#284d42">F18</text>
+<path d="M1063.54,763.10 L1063.54,749.10" stroke="#284d42" stroke-width=".5" opacity=".6"/>
+<text x="1063.54" y="749.10" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">F18</text><text x="1063.54" y="749.10" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#284d42">F18</text>
 <circle cx="1077.60" cy="1144.20" r="3" fill="#385b51" stroke="none"/>
 <text x="1082.04" y="1155.30" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">CITY</text><text x="1082.04" y="1155.30" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#284d42">CITY</text>
 <circle cx="1270.00" cy="1381.00" r="3" fill="#385b51" stroke="none"/>
@@ -4620,16 +4677,15 @@
 <path d="M969.26,909.68 L961.59,945.74" fill="none" stroke="#537f4c" stroke-width="0.8" stroke-dasharray="2 2"/>
 <path d="M786.59,941.81 L786.59,986.21" fill="none" stroke="#537f4c" stroke-width="0.8" stroke-dasharray="2 2"/>
 <path d="M1108.45,917.70 L1116.16,961.42" fill="none" stroke="#537f4c" stroke-width="0.8" stroke-dasharray="2 2"/>
-<path d="M1059.10,752.00 L1059.10,738.00" stroke="#946127" stroke-width=".5" opacity=".6"/>
-<text x="1059.10" y="738.00" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">S1</text><text x="1059.10" y="738.00" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#946127">S1</text>
+<path d="M1059.10,752.00 L1073.10,728.00" stroke="#946127" stroke-width=".5" opacity=".6"/>
+<text x="1073.10" y="728.00" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">S1</text><text x="1073.10" y="728.00" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#946127">S1</text>
 <path d="M762.73,937.00 L776.73,913.00" stroke="#946127" stroke-width=".5" opacity=".6"/>
 <text x="776.73" y="913.00" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">S2</text><text x="776.73" y="913.00" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#946127">S2</text>
 <path d="M1110.90,1070.20 L1145.90,1114.20" stroke="#946127" stroke-width=".5" opacity=".6"/>
 <text x="1145.90" y="1114.20" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">S3</text><text x="1145.90" y="1114.20" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#946127">S3</text>
 <text x="907.40" y="811.20" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">S4</text><text x="907.40" y="811.20" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#946127">S4</text>
 <text x="981.40" y="1233.00" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">S5</text><text x="981.40" y="1233.00" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#946127">S5</text>
-<path d="M678.00,877.80 L678.00,863.80" stroke="#946127" stroke-width=".5" opacity=".6"/>
-<text x="678.00" y="863.80" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">S6</text><text x="678.00" y="863.80" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#946127">S6</text>
+<text x="678.00" y="877.80" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">S6</text><text x="678.00" y="877.80" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#946127">S6</text>
 <text x="618.80" y="996.20" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">S7</text><text x="618.80" y="996.20" font-family="Arial, sans-serif" font-size="12" text-anchor="start" fill="#946127">S7</text>
 <path d="M1001.66,682.89 L1006.84,677.71" fill="none" stroke="#077c95" stroke-width="1.5" stroke-dasharray=""/>
 <path d="M1001.66,677.71 L1006.84,682.89" fill="none" stroke="#077c95" stroke-width="1.5" stroke-dasharray=""/>

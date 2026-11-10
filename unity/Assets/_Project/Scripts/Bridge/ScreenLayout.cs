@@ -28,7 +28,7 @@ namespace FlyingGame.Bridge
         public static bool Portrait => UiSurface.Height > UiSurface.Width;
 
         /// <summary>Pad label block above each pad: three label lines (name + value + the trim bar's label).</summary>
-        public static float LabelBlockPx => Mathf.RoundToInt(Mathf.Min(Screen.width, Screen.height) * FontFrac) * 1.5f * 3f;
+        public static float LabelBlockPx => Mathf.RoundToInt(UiLayout.Unit * FontFrac) * 1.5f * 3f;
 
         /// <summary>Height of the bottom control tray in px (0 in landscape: the pads float over the view).</summary>
         public static float TrayHeightPx

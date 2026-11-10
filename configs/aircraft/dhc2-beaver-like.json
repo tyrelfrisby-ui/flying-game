@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "dhc2-beaver-like",
   "displayName": "Beaver-like",
+  "structureType": "aluminumMonocoque",
+  "structureTypeSource": "DHC-2 Beaver: all-metal aluminium semi-monocoque fuselage (DHC-2 maintenance manual).",
   "wingBracing": "strut",
   "wingBreakStationY": { "wing": 3.1 },
   "wingBreakStationSource": "Lift-strut wing attach |y| ~122 in = 3.10 m from the centreline, scaled (+/-5 in) off the L-20A/DHC-2 three-view on Wikimedia Commons against its 48 ft 0 in span dimension (strut tops 209 / 213 px at 1.72 px/in). No published station found (DHC-2 PSM 1-2-2/1-2-4 not reachable). FAA AD 2018-19-11 rear-spar pieces WS 89.16-170.16 are root-rib stations (root rib ~BL 26 in) and put a spar splice at ~115 in from the centreline, near but not at the strut; the three-view figure is used.",
@@ -1427,8 +1429,7 @@
       "hingeChDelta": -0.4,
       "centeringSpringKt": 0,
       "trimType": "tab",
-      "freeTauS": 0.14,
-      "saturationDeg": 18.8
+      "freeTauS": 0.14
     },
     "rudder": {
       "maxDeflRad": 0.44,
@@ -1470,6 +1471,9 @@
   "propulsion": {
     "maxPowerW": 336000,
     "propDiameterM": 2.59,
+    "propMaterial": "metal",
+    "propMaterialSource": "Hamilton Standard 2D30 two-blade aluminium",
+    "propBladeCount": 2,
     "idleRpm": 600,
     "maxRpm": 2300,
     "propInertia": 9.0,
@@ -1502,7 +1506,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 20554,
-      "rollResistN": 103
+      "tire": "8.50-10", "tirePressurePsi": 30, "tundraTire": "351510.R"
     },
     {
       "pos": [
@@ -1518,7 +1522,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 20554,
-      "rollResistN": 103
+      "tire": "8.50-10", "tirePressurePsi": 30, "tundraTire": "351510.R"
     },
     {
       "pos": [
@@ -1534,7 +1538,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 5652,
-      "rollResistN": 51,
+      "tire": "legacy-beaver-tail", "tirePressurePsi": 38,
       "steerSpringNmPerRad": 18.0
     }
   ],

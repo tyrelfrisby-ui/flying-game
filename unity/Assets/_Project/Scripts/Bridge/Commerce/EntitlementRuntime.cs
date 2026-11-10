@@ -106,11 +106,10 @@ namespace FlyingGame.Bridge.Commerce
 
         private void LoadConfig()
         {
-            string path = Path.Combine(Application.streamingAssetsPath, "commerce.json");
             try
             {
-                if (!File.Exists(path)) { Debug.LogWarning("commerce.json missing — nothing is for sale this run."); return; }
-                var o = JObject.Parse(File.ReadAllText(path));
+                if (!StreamingFiles.TryReadAllText("commerce.json", out string json, out _)) { Debug.LogWarning("commerce.json missing — nothing is for sale this run."); return; }
+                var o = JObject.Parse(json);
                 _trialId = o.Value<string>("trialProductId") ?? "";
                 _unlockId = o.Value<string>("unlockProductId") ?? "";
                 if (o["multiplayerProductIds"] is JArray pass)

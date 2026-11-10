@@ -33,6 +33,8 @@ namespace FlyingGame.Bridge
 
         private static Vector3 U(double x, double y, double up) => new((float)y, (float)up, (float)x);
 
+        private static readonly SeasideBuilder.Batch ChunkBatch = new();
+
         public static int ChunkOf(double v) => (int)System.Math.Floor(v / ChunkM);
 
         /// <summary>
@@ -42,7 +44,10 @@ namespace FlyingGame.Bridge
         public static GameObject BuildChunk(WorldTerrain t, Transform parent, int ci, int cj, bool detail)
         {
             double x0 = ci * ChunkM, y0 = cj * ChunkM;
-            var b = new SeasideBuilder.Batch();
+            // One batch, reused: its four lists used to regrow from empty for every chunk (several a second of flying),
+            // hundreds of KB of garbage each time for a headset's collector. Main thread only, as every caller is.
+            SeasideBuilder.Batch b = ChunkBatch;
+            b.Clear();
             int n = 0;
             foreach (Forest.Tree tr in Forest.InRect(x0, y0, x0 + ChunkM, y0 + ChunkM))
             {
@@ -91,17 +96,29 @@ namespace FlyingGame.Bridge
             float twist = (float)tr.TwistDeg, lean = (float)tr.LeanDeg;
             Quaternion rot = Quaternion.Euler(lean, twist, 0);
 
+            // A tree the airframe has gone into (StrippedTrees, Ty 2026-11-05): its stem as the sim has it, not the 1.5 m
+            // trunk box an aeroplane against the stem disappears inside, and none of the skirts it went through.
+            if (StrippedTrees.TryGet(tr, out _))
+            {
+                float d0 = (float)TreeStructure.BaseDiameterM(tr), d1 = (float)TreeStructure.DiameterAt(tr, g + h * 0.5);
+                b.Box(U(tr.X, tr.Y, g + h * 0.25), new Vector3(d0, h * 0.5f, d0), rot, Trunk);
+                b.Box(U(tr.X, tr.Y, g + h * 0.75), new Vector3(Mathf.Max(d1, 0.05f), h * 0.5f, Mathf.Max(d1, 0.05f)), rot, Trunk);
+                foreach (StrippedTrees.Skirt s in StrippedTrees.DetailSkirts)
+                    if (StrippedTrees.SkirtDrawn(tr, s))
+                        Spire(b, tr, g + h * s.BaseFrac, h * (float)s.RiseFrac, r * (float)s.RadiusFrac, needle, lit, twist + (float)s.TwistDeg, lean);
+                return;
+            }
             if (detail)
             {
-                b.Box(U(tr.X, tr.Y, g + h * 0.16), new Vector3((float)tr.RadiusM * 1.2f, h * 0.34f, (float)tr.RadiusM * 1.2f), rot, Trunk);
-                Spire(b, tr, g + h * 0.22, h * 0.42f, r, needle, lit, twist, lean);
-                Spire(b, tr, g + h * 0.52, h * 0.34f, r * 0.72f, needle, lit, twist + 23, lean);
-                Spire(b, tr, g + h * 0.78, h * 0.24f, r * 0.42f, needle, lit, twist + 47, lean);
+                float tw = (float)(tr.RadiusM * StrippedTrees.TrunkWidthOfRadius);
+                b.Box(U(tr.X, tr.Y, g + h * StrippedTrees.TrunkCentreFrac), new Vector3(tw, h * (float)StrippedTrees.TrunkHeightFrac, tw), rot, Trunk);
+                foreach (StrippedTrees.Skirt s in StrippedTrees.DetailSkirts)
+                    Spire(b, tr, g + h * s.BaseFrac, h * (float)s.RiseFrac, r * (float)s.RadiusFrac, needle, lit, twist + (float)s.TwistDeg, lean);
             }
             else
             {
-                Spire(b, tr, g + h * 0.20, h * 0.52f, r, needle, lit, twist, lean);
-                Spire(b, tr, g + h * 0.62, h * 0.40f, r * 0.60f, needle, lit, twist + 31, lean);
+                foreach (StrippedTrees.Skirt s in StrippedTrees.FarSkirts)
+                    Spire(b, tr, g + h * s.BaseFrac, h * (float)s.RiseFrac, r * (float)s.RadiusFrac, needle, lit, twist + (float)s.TwistDeg, lean);
             }
         }
 
@@ -181,10 +198,47 @@ namespace FlyingGame.Bridge
             return s;
         }
 
+        // Stripped trees (StrippedTrees): the chunks drawn with one in them, and the version they were drawn at.
+        private readonly HashSet<(int, int)> _strippedChunks = new(), _strippedNow = new();
+        private int _strippedVersion;
+
+        /// <summary>A tree the airframe went into is redrawn at once, whatever the budget: the pilot is looking at it, and it
+        /// is one chunk, a few times a crash (StrippedTrees.Version changes only when a skirt goes).</summary>
+        private void RedrawStripped()
+        {
+            int v = StrippedTrees.Version;
+            if (v == _strippedVersion) return;
+            _strippedVersion = v;
+            _strippedNow.Clear();
+            foreach ((int i, int j) c in StrippedTrees.Cells)
+                _strippedNow.Add((ForestBuilder.ChunkOf((c.i + 0.5) * Forest.CellM), ForestBuilder.ChunkOf((c.j + 0.5) * Forest.CellM)));
+            _strippedChunks.UnionWith(_strippedNow);   // and every chunk that had one, so a cleared tree stands again
+            foreach ((int, int) k in _strippedChunks)
+            {
+                if (!_live.TryGetValue(k, out GameObject old)) continue;   // not built: it is built stripped when it comes in
+                bool detail = true;
+                if (old != null)
+                {
+                    var mf = old.GetComponent<MeshFilter>();
+                    if (mf != null && mf.sharedMesh != null) Destroy(mf.sharedMesh);
+                    Destroy(old);
+                }
+                if (_cam != null)
+                {
+                    double cx = (k.Item1 + 0.5) * ForestBuilder.ChunkM - _cam.transform.position.z, cy = (k.Item2 + 0.5) * ForestBuilder.ChunkM - _cam.transform.position.x;
+                    detail = System.Math.Sqrt(cx * cx + cy * cy) < DetailRadiusM;
+                }
+                _live[k] = ForestBuilder.BuildChunk(_t, _root, k.Item1, k.Item2, detail);
+            }
+            _strippedChunks.Clear();
+            _strippedChunks.UnionWith(_strippedNow);
+        }
+
         private void LateUpdate()
         {
             if (_t == null) return;
             if (_cam == null) { _cam = Camera.main; if (_cam == null) return; }
+            RedrawStripped();
             // Unity x is the sim's y, Unity z is the sim's x.
             Vector3 p = _cam.transform.position;
             double x = p.z, y = p.x;
@@ -195,7 +249,11 @@ namespace FlyingGame.Bridge
             }
             if (_want.Count == 0) return;
             bool starved = Time.unscaledTime - _lastBuiltAt > StarveAfterS;
-            if (!starved && Time.unscaledDeltaTime * 1000.0 > StallGuardMs) return;
+            // In a headset "a frame and a half" is 20.8 ms at 72 Hz, not the phone's 24: a frame that missed its
+            // vsync must not be followed by a chunk build as well.
+            float hz = XrHeadset.Active ? XrHeadset.CurrentRefreshHz : 0f;
+            double guardMs = hz > 1f ? System.Math.Min(StallGuardMs, 1500.0 / hz) : StallGuardMs;
+            if (!starved && Time.unscaledDeltaTime * 1000.0 > guardMs) return;
 
             double began = Time.realtimeSinceStartupAsDouble * 1000.0;
             for (int k = 0; k < MaxPerFrame && _want.Count > 0; k++)

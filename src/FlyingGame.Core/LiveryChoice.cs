@@ -28,6 +28,21 @@ public static class LiveryChoice
         ["pitts-s2b-like"] = new[] { ("checker-unmarked", "Checkered"), ("factory-unmarked", "Factory"), ("n31dg", "N31DG"), ("n1191", "N1191") },
     };
 
+    /// <summary>
+    /// Types that come in exactly ONE scheme, whatever was saved or set. Ty 2026-11-02, after flying the red-and-white
+    /// 2-33 on the Quest: that livery is removed everywhere, and the yellow 2-33 is the default and the only one. The
+    /// red-and-white was the procedural trainer drawn for the 2-33's "type" livery (AirframeVisual.StyleFor), so the
+    /// 2-33 never resolves to "type" any more: it is always our own yellow model in Talk Flying trim
+    /// (glider-2-33-like-own-tf.glb, "the yellow 2-33" of da5c8f05 / ad33a2c). A saved choice from a build with a
+    /// 2-33 picker ("factory", "type", anything) is ignored, so it falls back to the yellow one. The plain factory
+    /// yellow (-own, "factory") is still yellow and stays reachable through AERO_LIVERY for captures and renders; no
+    /// menu offers it.
+    /// </summary>
+    private static readonly Dictionary<string, (string Id, string[] OverrideAlso)> Only = new()
+    {
+        ["glider-2-33-like"] = ("talk-flying", new[] { "factory" }),
+    };
+
     /// <summary>The schemes a player can choose between for <paramref name="aircraftId"/>; empty if it has no choice.</summary>
     public static IReadOnlyList<(string Id, string Name)> For(string? aircraftId) =>
         aircraftId != null && Options.TryGetValue(aircraftId, out var o) ? o : Array.Empty<(string, string)>();
@@ -48,10 +63,13 @@ public static class LiveryChoice
         return false;
     }
 
-    /// <summary>The scheme id to paint and load <paramref name="aircraftId"/> with: the override, else the type's saved
-    /// choice if it is still one of its options, else the type's default; "type" for a type with no choice.</summary>
+    /// <summary>The scheme id to paint and load <paramref name="aircraftId"/> with: for a type with only one scheme
+    /// (<see cref="Only"/>, the 2-33) that scheme; otherwise the override, else the type's saved choice if it is still
+    /// one of its options, else the type's default; "type" for a type with no choice.</summary>
     public static string Resolve(string? aircraftId, string? envOverride, string? saved)
     {
+        if (aircraftId != null && Only.TryGetValue(aircraftId, out var only))
+            return !string.IsNullOrEmpty(envOverride) && System.Array.IndexOf(only.OverrideAlso, envOverride) >= 0 ? envOverride! : only.Id;
         if (!string.IsNullOrEmpty(envOverride)) return envOverride!;
         if (!HasChoice(aircraftId)) return FleetDefault;
         return IsOption(aircraftId, saved) ? saved! : Default(aircraftId)!;
@@ -65,6 +83,32 @@ public static class LiveryChoice
         if (o.Count == 0) return null;
         return IsOption(aircraftId, resolved) ? resolved : o[0].Id;
     }
+
+    /// <summary>
+    /// The types whose OWN model (Models/&lt;id&gt;/&lt;id&gt;-own*.glb) the game draws whatever the "own models" option says
+    /// (AirframeModels.PickOwn). Every other type draws its downloaded model unless SessionSettings.UseOwnModels is on,
+    /// and that option is OFF by default.
+    ///
+    /// c172-like joined 2026-11-04. Ty, 5:25 PM PT, on the iPhone (set.ownModels=0): "The Cessna 172 cockpit is
+    /// TRANSPARENT, with NO interior at all." With the option off the 172 drew the downloaded c172-like.obj, an exterior
+    /// shell with no cabin, whose outward-facing faces are back-face culled from the eye, so the pilot looked straight
+    /// through the aeroplane. The period panel, the four-place cabin, the rig and the raised yoke that Ty approved in
+    /// renders (OwnRigCheck forces own models on) had only ever been in our GLB, which the game never placed by default.
+    /// </summary>
+    private static readonly HashSet<string> OwnAlways = new(StringComparer.Ordinal)
+    {
+        "extra-300-like",       // our EA300 for every livery (Ty 2026-10-27)
+        "pitts-s2b-like",       // our S-2B for every livery (Ty 2026-10-27)
+        "great-lakes-like",     // there is no downloaded Great Lakes
+        "glider-2-33-like",     // yellow, the only 2-33 (Ty 2026-11-02)
+        "j3-cub-like",          // wheels and floats (Ty 2026-11-02)
+        "j3-cub-floats-like",
+        "c172-like",            // its cabin and panel exist only in our GLB (Ty 2026-11-04, see above)
+        "glider-grob103-acro-like",   // there is no downloaded Twin III (2026-11-04)
+    };
+
+    /// <summary>Does the game draw our own model of this type even with the "own models" option off?</summary>
+    public static bool OwnModelAlways(string? modelId) => modelId != null && OwnAlways.Contains(modelId);
 
     /// <summary>The GLB suffix for our own model in a livery (Models/&lt;id&gt;/&lt;id&gt;&lt;suffix&gt;). Our 2-33, Extra and
     /// Pitts have their paint baked in, one GLB per livery. 2-33 (tools/own_models/build_sgs233.py, SGS_LIVERY=talk-flying):

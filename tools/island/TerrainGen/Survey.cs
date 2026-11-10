@@ -70,7 +70,7 @@ public static class Probe
             i++;
             if (b.S("kind") == "airway") { double d = IslandTerrain.Segment(p, b["a"].Point, b["b"].Point).d; if (d < b.N("width") + b.N("blend")) Console.WriteLine($"  airway#{i} cap {b.N("cap_m"):F0} d={d:F2}"); continue; }
             var u = b["u"].Point; var dp = p - b["a"].Point; double along = -dp.Dot(u), cross = Math.Abs(dp.E * u.N - dp.N * u.E);
-            double dd = Math.Max(0, Math.Max(Math.Max(-along - .25, along - b.N("length") - .25), cross - (.15 + .05 * Math.Max(0, along)) - .25));
+            double dd = Math.Max(0, Math.Max(Math.Max(-along - .25, along - b.N("length") - .25), cross - (b.N("half_width_km", .15) + b.N("widen", .05) * Math.Max(0, along)) - .25));
             if (dd < b.N("blend")) Console.WriteLine($"  final#{i} a=({b["a"].Point.E:F2},{b["a"].Point.N:F2}) elev {b.N("elevation_m"):F0} along {along:F2} cap {b.N("elevation_m") + Math.Max(0, along) * 1000 / b.N("ratio") - 30:F0}");
         }
     }
@@ -85,7 +85,7 @@ public static class EnvelopeMap
         for (int k = 0; k < g.N; k++) src[k] = c.Ocean[k] ? 0 : c.Hi[k];
         var env = Envelope.Compute(g, src, Math.Tan(double.Parse(Environment.GetEnvironmentVariable("ENVSLOPE") ?? "38") * Math.PI / 180));
         foreach (var s in c.Summits) Console.WriteLine($"summit {s.id,-14} authored {s.z,6:F0} m ({s.z / .3048,5:F0} ft)  envelope {env[g.Nearest(s.p)],6:F0} m ({env[g.Nearest(s.p)] / .3048,5:F0} ft)");
-        foreach (var (id, e, n) in new[] { ("Knik ski", -6.2, .1), ("Fairweather ski", -3.9, 4.7), ("Chugach", -3.8, -1.8) }) Console.WriteLine($"{id}: envelope {env[g.Nearest(new IslandPoint(e, n))]:F0}");
+        foreach (var (id, e, n) in new[] { ("Knik River strip", -5.205, -.713), ("Fairweather ski", -3.9, 4.7), ("Chugach", -3.8, -1.8) }) Console.WriteLine($"{id}: envelope {env[g.Nearest(new IslandPoint(e, n))]:F0}");
         Png.Write(Path.Combine(outDir, "envelope.png"), g.W, g.H, (x, y) =>
         {
             int k = (g.H - 1 - y) * g.W + x; if (c.Ocean[k]) return (20, 40, 80);

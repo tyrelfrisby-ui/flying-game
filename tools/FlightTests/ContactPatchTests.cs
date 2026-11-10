@@ -143,7 +143,7 @@ public class ContactPatchTests : IDisposable
             var ac = new Aircraft(Load(type), new RigidBodyState(new Vec3(0, 0, -500), new Quat(0, 0, 0, 1), new Vec3(40, 0, 0), Vec3.Zero), ControlDeflections.Neutral);
             WingPanel p = Panel(ac, comp);
             _out.WriteLine($"{type} {comp}: station {p.BreakY:F3} ({p.StationSource}), M1 {p.M1Nm:F0}, design {p.DesignNm1:F0}, limit {p.LimitNm:F0}, ultimate {p.UltimateNm:F0} N·m, " +
-                           $"intact rotation {WingStructure.IntactRotationAt1g(p, ac.Config) / Deg:F3}°/g vs bent {WingStructure.TangentRadPerG / Deg:F0}°/g");
+                           $"intact rotation {WingStructure.IntactRotationAt1g(p, ac.Config) / Deg:F3}°/g");
             Assert.Equal(y, p.BreakY, 3);
             Assert.StartsWith(source, p.StationSource);
         }
@@ -172,9 +172,9 @@ public class ContactPatchTests : IDisposable
         double yawGrass = Yaw(WorldTerrain.Surface.Grass, out double fG, out double nG);
         _out.WriteLine($"paved: N {nP:F0} N, friction {fP:F0} N, yaw {yawPaved:F0} N·m; grass: friction {fG:F0} N, yaw {yawGrass:F0} N·m");
         Assert.True(yawPaved > 0, "a right tip dragging must swing the nose RIGHT, toward it");
-        Assert.Equal(0.55, fP / nP, 3);   // metal/hard structure on asphalt (KeelSlidingCoefficient)
-        Assert.Equal(0.35, fG / nG, 3);   // on grass
-        Assert.Equal(0.35 / 0.55, yawGrass / yawPaved, 3);
+        Assert.Equal(0.60, fP / nP, 3);   // wrecked/hard structure on asphalt (AirframeContact.SlidingMu, Ty 2026-11-04 18:31)
+        Assert.Equal(0.65, fG / nG, 3);   // on grass
+        Assert.Equal(0.65 / 0.60, yawGrass / yawPaved, 3);
     }
 
     [Fact]
@@ -216,45 +216,87 @@ public class ContactPatchTests : IDisposable
     }
 
     [Fact]
-    public void MediumTipStrikeBendsThePanelFiveDegreesWithACrunch()
+    public void MediumTipStrikeLeavesASmallSetWithACrunch()
     {
+        // Past 1.5 × its limit moment (Ty 2026-11-05: permanent deformation begins after 1.5 × limit) and short of its
+        // ultimate a spruce spar takes a set of a fraction of a degree (it is short of its peak, 0.007 rad,
+        // MemberMaterials) and stays on: Ty 2026-11-05 replaced the 11-03 fixed 5° set.
         var c = Load("pitts-s2b-like");
         WorldTerrain.Active = null;
-        var ac = BankedOntoRightTip(c, 35, 20.0, 0.8);
+        var ac = BankedOntoRightTip(c, 35, 20.0, SetSinkMs);
         var ev = new List<ContactEvent>(); ac.Contact += ev.Add;
-        Vec3 tipBefore = Point(ac, "tip:wing-lower-LE-R").Body;
         var sim = new SimLoop(ac);
-        for (double t = 0; t < 0.6 && !ev.Any(e => e.Kind == ContactEventKind.PanelBent); t += 0.005) sim.RunFor(0.005, new ControlInputs(0, 0, 0, 1.0));
+        for (double t = 0; t < 0.6; t += 0.005) sim.RunFor(0.005, new ControlInputs(0, 0, 0, 1.0));
         WingPanel p = Panel(ac, AirframeComponent.WingTipLowerRight);
-        _out.WriteLine($"peak {p.PeakContactNm:F0} N·m against limit {p.LimitNm:F0}, ultimate {p.UltimateNm:F0}; events {string.Join(" | ", ev)}");
-        ContactEvent bent = ev.First(e => e.Kind == ContactEventKind.PanelBent);
-        Assert.Equal(AirframeComponent.WingTipLowerRight, bent.Component);
-        Assert.Equal(5.0, bent.Value, 6);
+        _out.WriteLine($"peak {p.PeakContactNm:F0} N·m against limit {p.LimitNm:F0} (yield {p.Bending!.YieldNm:F0}), ultimate {p.UltimateNm:F0}; bend {p.BendRad / Deg:F3}°, twist {p.TwistRad / Deg:F3}°; events {string.Join(" | ", ev)}");
+        Assert.Contains(ev, e => e.Kind == ContactEventKind.PanelBent && e.Component == AirframeComponent.WingTipLowerRight);
         Assert.Equal(PanelState.Bent, p.State);
-        Assert.Equal(5.0 * Deg, p.BendRad, 9);
-        Assert.InRange(p.PeakContactNm, p.LimitNm, p.UltimateNm);
-        // The tip has turned up about the I-strut: 0.71 m outboard of it, sin 5° → 6 cm higher.
-        Vec3 tipAfter = Point(ac, "tip:wing-lower-LE-R").Body;
-        Assert.InRange(tipBefore.Z - tipAfter.Z, 0.055, 0.068);
+        Assert.InRange(p.PeakContactNm, 1.5 * p.LimitNm, p.UltimateNm);
+        Assert.InRange(Math.Abs(p.BendRad) / Deg, 0.001, 0.4);
+        Assert.False(p.Bending!.Damaged, "short of its ultimate the spar has not cracked");
+        Assert.False(ac.IsLost(AirframeComponent.WingTipLowerRight));
         Assert.Equal(PanelState.Intact, Panel(ac, AirframeComponent.WingTipRight).State);   // the upper wing is untouched
     }
 
+    private const double SetSinkMs = 1.0;
+
     [Fact]
-    public void HardTipStrikeBreaksTheLowerPanelOffOutboardOfTheIStrut()
+    public void ATipStrikeBetweenTheLimitAndOnePointFiveTimesItIsElastic()
     {
+        // Ty 2026-11-05: "After 1.5 limit load permanent deformation begins." The same touch at 0.8 m/s asks the Pitts'
+        // lower station for 1.37 × its limit moment: it flexes and springs back.
+        var c = Load("pitts-s2b-like");
+        WorldTerrain.Active = null;
+        var ac = BankedOntoRightTip(c, 35, 20.0, 0.8);
+        var sim = new SimLoop(ac);
+        for (double t = 0; t < 0.6; t += 0.005) sim.RunFor(0.005, new ControlInputs(0, 0, 0, 1.0));
+        WingPanel p = Panel(ac, AirframeComponent.WingTipLowerRight);
+        _out.WriteLine($"peak {p.PeakContactNm:F0} N·m against limit {p.LimitNm:F0}; bend {p.BendRad / Deg:F4}°");
+        Assert.InRange(p.PeakContactNm, p.LimitNm, 1.5 * p.LimitNm);
+        Assert.Equal(PanelState.Intact, p.State);
+        Assert.Equal(0.0, p.BendRad, 12);
+    }
+
+    [Fact]
+    public void HardTipStrikeFoldsTheLowerPanelUpAndItHangsOn()
+    {
+        // 3 m/s onto the tip asks the station for more than twice its ultimate. The spar cracks and the panel folds up
+        // about the I-strut; what is left of it (35 %, the rear spar, the drag truss, the fabric) holds it on.
         var c = Load("pitts-s2b-like");
         WorldTerrain.Active = null;
         var ac = BankedOntoRightTip(c, 35, 20.0, 3.0);
+        Vec3 tipBefore = Point(ac, "tip:wing-lower-LE-R").Body;
+        var sim = new SimLoop(ac);
+        for (double t = 0; t < 0.6; t += 0.005) sim.RunFor(0.005, new ControlInputs(0, 0, 0, 1.0));
+        WingPanel p = Panel(ac, AirframeComponent.WingTipLowerRight);
+        Vec3 tipAfter = Point(ac, "tip:wing-lower-LE-R").Body;
+        _out.WriteLine($"peak {p.PeakContactNm:F0} N·m against ultimate {p.UltimateNm:F0}; bend {p.BendRad / Deg:F1}°, path {p.Bending!.PathRad:F3} rad; tip up {(tipBefore.Z - tipAfter.Z) * 100:F1} cm");
+        Assert.True(p.PeakContactNm > 2 * p.UltimateNm);
+        Assert.Equal(PanelState.Bent, p.State);
+        Assert.True(p.Bending.Damaged);
+        Assert.InRange(p.BendRad / Deg, 10.0, 22.9);   // short of the 0.40 rad the fabric tears at
+        Assert.False(ac.IsLost(AirframeComponent.WingTipLowerRight));
+        Assert.True(tipBefore.Z - tipAfter.Z > 0.10, "the tip has turned up about the I-strut");
+        // Its rows are still flying, folded: their dihedral has grown by the bend.
+        Assert.All(p.Strips, i => Assert.True(ac.StripMask is null || ac.StripMask[i]));
+        Assert.All(p.Strips, i => Assert.Equal(p.BendRad, ac.FlowStateForTests.BendRad![i], 12));
+    }
+
+    [Fact]
+    public void AHarderStrikeBreaksTheLowerPanelOffOutboardOfTheIStrut()
+    {
+        var c = Load("pitts-s2b-like");
+        WorldTerrain.Active = null;
+        var ac = BankedOntoRightTip(c, 35, 20.0, 6.0);
         var ev = new List<ContactEvent>(); ac.Contact += ev.Add;
         double mass0 = ac.MassProperties.MassKg;
         var sim = new SimLoop(ac);
-        for (double t = 0; t < 0.3 && !ac.IsLost(AirframeComponent.WingTipLowerRight); t += 0.005) sim.RunFor(0.005, new ControlInputs(0, 0, 0, 1.0));
+        for (double t = 0; t < 0.6 && !ac.IsLost(AirframeComponent.WingTipLowerRight); t += 0.005) sim.RunFor(0.005, new ControlInputs(0, 0, 0, 1.0));
         WingPanel p = Panel(ac, AirframeComponent.WingTipLowerRight);
-        _out.WriteLine($"peak {p.PeakContactNm:F0} N·m against ultimate {p.UltimateNm:F0}; lost {string.Join(",", ac.LostComponents)}; mass {mass0:F1} → {ac.MassProperties.MassKg:F1} (panel {p.MassKg:F1} kg); CG shift {ac.CgShiftBody}");
+        _out.WriteLine($"peak {p.PeakContactNm:F0} N·m against ultimate {p.UltimateNm:F0}; work {p.Bending!.WorkJ:F0} J; lost {string.Join(",", ac.LostComponents)}; mass {mass0:F1} → {ac.MassProperties.MassKg:F1} (panel {p.MassKg:F1} kg); CG shift {ac.CgShiftBody}");
         Assert.Equal(PanelState.Broken, p.State);
-        Assert.DoesNotContain(ev, e => e.Kind == ContactEventKind.PanelBent);
         Assert.Contains(ev, e => e.Kind == ContactEventKind.PanelBroken && e.Component == AirframeComponent.WingTipLowerRight);
-        Assert.True(p.PeakContactNm > p.UltimateNm);
+        Assert.True(p.Bending.Ruptured || p.Twisting!.Ruptured);
         Assert.False(ac.IsLost(AirframeComponent.WingTipRight));
         Assert.False(ac.IsLost(AirframeComponent.WingRightOuter));
         // Its rows are out of the aero, the rest of the lower wing and the whole upper wing are in.
@@ -270,44 +312,33 @@ public class ContactPatchTests : IDisposable
     // ---- (2c) the bent panel in flight --------------------------------------------------------------------------------
 
     [Fact]
-    public void BentPanelLawIsFiveDegreesAtOneGFifteenAtTwoAndRatchets()
+    public void ABentPanelFliesOnWhatIsLeftOfItAndGoesPastIt()
     {
-        Assert.Equal(5.0, WingStructure.BentDeflection(1.0, 5 * Deg) / Deg, 9);
-        Assert.Equal(10.0, WingStructure.BentDeflection(1.5, 5 * Deg) / Deg, 9);
-        Assert.Equal(15.0, WingStructure.BentDeflection(2.0, 5 * Deg) / Deg, 9);
-        Assert.Equal(10.0, WingStructure.BentDeflection(1.0, 10 * Deg) / Deg, 9);   // a panel once at 10° stays there
-        Assert.Equal(5.0, WingStructure.BentDeflection(0.0, 5 * Deg) / Deg, 9);     // and does not spring back below its set
-    }
-
-    [Fact]
-    public void BentPanelSnapsOffJustPastTwoG()
-    {
-        var c = Load("pitts-s2b-like");
+        // The J-3's right panel bent 5° (spruce: past its peak, down to the 35 % residual, MemberMaterials). In flight the
+        // air bends it by n × M1: it holds while that is under 0.35 × 6190 N·m and goes beyond — 0.35·6190/613 = 3.53 g
+        // (literals: ContactPatchTests.BreakStationsComeFromEachTypesStructure prints M1 613, ultimate 6190).
+        var c = Load("j3-cub-like");
         WorldTerrain.Active = null;
-        var ac = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, -1500), new Quat(0, 0, 0, 1), new Vec3(60, 0, 2), Vec3.Zero), ControlDeflections.Neutral);
-        Assert.True(ac.BendPanel(AirframeComponent.WingTipLowerRight));
-        WingPanel p = Panel(ac, AirframeComponent.WingTipLowerRight);
+        var ac = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, -1500), new Quat(0, 0, 0, 1), new Vec3(55, 0, 1), Vec3.Zero), ControlDeflections.Neutral);
+        Assert.True(ac.BendPanel(AirframeComponent.WingTipRight));
+        WingPanel p = Panel(ac, AirframeComponent.WingTipRight);
+        Assert.InRange(p.Bending!.Capacity, 0.35 * 6190 - 5, 0.35 * 6190 + 5);
         var sim = new SimLoop(ac);
-        // A second at about 1 g: still 5°.
         for (double t = 0; t < 1.0; t += 0.01) sim.RunFor(0.01, new ControlInputs(0, -0.02, 0, 0.0));
-        _out.WriteLine($"after 1 s near 1 g (n {ac.LoadFactorZ:F2}): bend {p.BendRad / Deg:F2}°");
         Assert.Equal(PanelState.Bent, p.State);
-        Assert.InRange(p.BendRad / Deg, 5.0, 5.0 + 10.0 * Math.Max(0, ac.LoadFactorZ - 1) + 3.0);
-        // Pull: the bend follows the load and the panel goes once it passes 15°, i.e. 2 g.
+        Assert.Equal(5.0, p.BendRad / Deg, 1);
         double nAtBreak = double.NaN, nMaxBent = 0;
         for (double t = 0; t < 4.0 && p.State != PanelState.Broken; t += 0.005)
         {
-            double n = ac.LoadFactorZ;
-            sim.RunFor(0.005, new ControlInputs(0, -Math.Min(1.0, 0.5 * t), 0, 0.0));   // aft stick is negative
-            if (p.State == PanelState.Broken) nAtBreak = ac.LoadFactorZ;
-            else nMaxBent = Math.Max(nMaxBent, ac.LoadFactorZ);
-            _ = n;
+            sim.RunFor(0.005, new ControlInputs(0, -Math.Min(1.0, 0.4 * t), 0, 0.0));   // aft stick is negative
+            if (p.State == PanelState.Broken) nAtBreak = ac.AeroLoadFactorZ;
+            else nMaxBent = Math.Max(nMaxBent, ac.AeroLoadFactorZ);
         }
-        _out.WriteLine($"bent panel held to {nMaxBent:F3} g, snapped at {nAtBreak:F3} g");
+        _out.WriteLine($"bent panel held to {nMaxBent:F3} g, went at {nAtBreak:F3} g");
         Assert.Equal(PanelState.Broken, p.State);
-        Assert.InRange(nMaxBent, 1.9, 2.0 + 1e-9);
-        Assert.InRange(nAtBreak, 2.0, 2.2);
-        Assert.True(ac.IsLost(AirframeComponent.WingTipLowerRight));
+        Assert.InRange(nMaxBent, 3.2, 3.6);
+        Assert.InRange(nAtBreak, 3.4, 3.8);
+        Assert.False(ac.IsLost(AirframeComponent.WingTipLeft));
     }
 
     // ---- (2b) slave strut ---------------------------------------------------------------------------------------------
@@ -432,6 +463,10 @@ public class ContactPatchTests : IDisposable
 
     // ---- prop strike --------------------------------------------------------------------------------------------------
 
+    /// <summary>The lowest tip 5 mm into the ground for one step (5 ms, a quarter turn at 2,700 rpm), full power, then
+    /// clear, at a dozen instants. Each blade is struck only if it sweeps through the struck arc in that step
+    /// (AircraftContactDamage.PropStrike, lane/claude-floats 2026-11-05), so a brush curls ONE blade by the 5 mm it
+    /// went in, or none; never both. The engine runs on; the thrust is (mean R_k²/R₀²)^(1/3) (PropBladeDamage.Performance).</summary>
     [Fact]
     public void APropBrushCurlsTheTipsAndTheEngineRunsOn()
     {
@@ -439,22 +474,40 @@ public class ContactPatchTests : IDisposable
         WorldTerrain.Active = null;
         var att = new Quat(0, 0, 0, 1);
         double low = AirframeContact.BuildPoints(c).Where(p => p.PropDisc).Max(p => p.Body.Z - c.Mass.CgVec().Z);
-        // In the air, the lowest blade tip 5 mm into the ground for one step, full power, then clear.
-        var ac = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, -(low - 0.005)), att, new Vec3(30, 0, 0), Vec3.Zero), ControlDeflections.Neutral);
-        var ev = new List<ContactEvent>(); ac.Contact += ev.Add;
-        var sim = new SimLoop(ac);
-        sim.RunFor(0.005, new ControlInputs(0, 0, 0, -1.0));
-        RigidBodyState s = ac.State;
-        ac.State = new RigidBodyState(s.Position + new Vec3(0, 0, -2), s.Attitude, s.Velocity, s.Rates);
-        sim.RunFor(0.1, new ControlInputs(0, 0, 0, -1.0));
-        _out.WriteLine($"events {string.Join(" | ", ev)}; radius {ac.PropRadiusM():F4} m, thrust x{ac.PropThrustScale():F4}, rpm {ac.EngineRpm:F0}");
-        Assert.Contains(ev, e => e.Kind == ContactEventKind.PropStrike);
-        Assert.DoesNotContain(ev, e => e.Kind == ContactEventKind.PropStoppage);
-        Assert.False(ac.EngineStopped);
-        Assert.True(ac.EngineRpm > 1000);
-        Assert.InRange(ac.PropRadiusM(), 0.99 - 0.012, 0.99 - 0.002);   // 1.98 m prop, tips curled by about the 5 mm they went in
-        Assert.Equal(Math.Pow(ac.PropRadiusM() / 0.99, 2.0 / 3.0), ac.PropThrustScale(), 9);
-        Assert.True(ac.PropThrustScale() < 1.0);
+        int curled = 0;
+        try
+        {
+            for (int i = 0; i < 12; i++)
+            {
+                // In the air, the lowest blade tip 5 mm into the ground for one step, full power, then clear. The rotor turns on
+                // its own rpm, so i more 5 ms steps up high first put the blades somewhere else when the brush comes.
+                var ac = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, -50), att, new Vec3(30, 0, 0), Vec3.Zero), ControlDeflections.Neutral);
+                var ev = new List<ContactEvent>(); ac.Contact += ev.Add;
+                var sim = new SimLoop(ac);
+                sim.RunFor(0.005 * i, new ControlInputs(0, 0, 0, -1.0));
+                ac.State = new RigidBodyState(new Vec3(0, 0, -(low - 0.005)), att, new Vec3(30, 0, 0), Vec3.Zero);
+                sim.RunFor(0.005, new ControlInputs(0, 0, 0, -1.0));
+                RigidBodyState s = ac.State;
+                ac.State = new RigidBodyState(s.Position + new Vec3(0, 0, -2), s.Attitude, s.Velocity, s.Rates);
+                sim.RunFor(0.1, new ControlInputs(0, 0, 0, -1.0));
+                double b0 = 0.99 - ac.PropBladeRadiusM(0, 0), b1 = 0.99 - ac.PropBladeRadiusM(0, 1);
+                _out.WriteLine($"events {string.Join(" | ", ev)}; blades {ac.PropBladeRadiusM(0, 0):F4}/{ac.PropBladeRadiusM(0, 1):F4} m, thrust x{ac.PropThrustScale():F4}, rpm {ac.EngineRpm:F0}");
+                Assert.Contains(ev, e => e.Kind == ContactEventKind.PropStrike);
+                Assert.DoesNotContain(ev, e => e.Kind == ContactEventKind.PropStoppage);
+                Assert.False(ac.EngineStopped);
+                Assert.True(ac.EngineRpm > 1000);
+                Assert.Equal(0.0, Math.Min(b0, b1), 9);
+                if (Math.Max(b0, b1) <= 0) continue;
+                curled++;
+                Assert.InRange(Math.Max(b0, b1), 0.002, 0.012);   // curled by about the 5 mm it went in
+                double x = (0.99 - Math.Max(b0, b1)) / 0.99;
+                Assert.Equal(Math.Pow(0.5 * (1 + x * x), 1.0 / 3.0), ac.PropThrustScale(), 9);   // PropBladeDamage.Performance
+                Assert.Equal(1, ac.PropBladeCurl(0, b0 > 0 ? 0 : 1));   // full power, a governing prop: it was pulling, so it curls forward
+                Assert.True(ac.PropThrustScale() < 1.0);
+            }
+        }
+        finally { Atmosphere.SimTimeSec = 0; }
+        Assert.True(curled >= 2, $"only {curled} of 12 brushes met a blade");
     }
 
     [Fact]

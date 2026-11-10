@@ -1,0 +1,1912 @@
+{
+ "model": "pitts-s2b-like-own",
+ "rig": [
+  {
+   "node": "Pedal_L_Front",
+   "param": "rudder",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.22,
+    -0.535,
+    0.13
+   ],
+   "map": [
+    [
+     -1,
+     15
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -15
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Pedal_R_Front",
+   "param": "rudder",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.22,
+    -0.535,
+    -0.13
+   ],
+   "map": [
+    [
+     -1,
+     -15
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     15
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Pedal_L_Rear",
+   "param": "rudder",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.43,
+    -0.535,
+    0.285
+   ],
+   "map": [
+    [
+     -1,
+     15
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -15
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Pedal_R_Rear",
+   "param": "rudder",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.43,
+    -0.535,
+    -0.285
+   ],
+   "map": [
+    [
+     -1,
+     -15
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     15
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "StickRoll_Front",
+   "param": "aileron",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.17,
+    -0.58,
+    0.0
+   ],
+   "map": [
+    [
+     -1,
+     -18
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     18
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Stick_Front",
+   "param": "elevator",
+   "parent": "StickRoll_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    0.17,
+    -0.58,
+    0.0
+   ],
+   "map": [
+    [
+     -1,
+     -12
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     18
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Throttle_Front",
+   "param": "throttle",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.425,
+    -0.29,
+    0.238
+   ],
+   "map": [
+    [
+     0,
+     -25
+    ],
+    [
+     1,
+     25
+    ]
+   ],
+   "model": 0.5,
+   "unit": "0..1",
+   "desc": "Pitts v2 (Ty 2026-11-05): black cylinder knob on a 160 mm quadrant arm, modelled at mid travel; idle -25 deg (knob aft) .. full +25 deg (knob forward) about the lateral axis (E)",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "StickRoll_Rear",
+   "param": "aileron",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.93,
+    -0.58,
+    0.0
+   ],
+   "map": [
+    [
+     -1,
+     -18
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     18
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Stick_Rear",
+   "param": "elevator",
+   "parent": "StickRoll_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    0.93,
+    -0.58,
+    0.0
+   ],
+   "map": [
+    [
+     -1,
+     -12
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     18
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Throttle_Rear",
+   "param": "throttle",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.145,
+    -0.29,
+    0.238
+   ],
+   "map": [
+    [
+     0,
+     -25
+    ],
+    [
+     1,
+     25
+    ]
+   ],
+   "model": 0.5,
+   "unit": "0..1",
+   "desc": "Pitts v2 (Ty 2026-11-05): black cylinder knob on a 160 mm quadrant arm, modelled at mid travel; idle -25 deg (knob aft) .. full +25 deg (knob forward) about the lateral axis (E)",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Slide",
+   "param": "canopy_slide",
+   "parent": "Canopy_Detachable",
+   "kind": "move",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.8,
+    0.16,
+    -0.36
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0.1524
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Pitts v2 (2026-11-05): the slide alone, 0..1 of the 6 in track (4 in normal stop + 2 in once the jettison frees it, E); CanopyDynamics.Slide01",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy",
+   "param": "canopy_open",
+   "parent": "Canopy_Slide",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.8,
+    0.16,
+    -0.36
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     175
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Pitts v2 (2026-11-05): the swing alone, 0..1 = 0..175 deg (the hinge limit); the frame stops on Canopy_Stop_Rubber at ~97 deg (CanopyStopTab)",
+   "extra": {
+    "detachable_root": "Canopy_Detachable"
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Latch_Knob",
+   "param": "canopy_latch",
+   "parent": "Canopy",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.872,
+    0.1683,
+    0.278
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Pitts latch v2 (Ty 2026-11-05): black 2 in lever, knob FORWARD = latched (0), pulled BACK through 90 deg to point up = unlatched (1); both levers on one cable (PittsCanopyLatch)",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Latch_Knob_Front",
+   "param": "canopy_latch",
+   "parent": "Canopy",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.55,
+    0.1725,
+    0.320813
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Pitts latch v2 (Ty 2026-11-05): black 2 in lever, knob FORWARD = latched (0), pulled BACK through 90 deg to point up = unlatched (1); both levers on one cable (PittsCanopyLatch)",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Release_Primary_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Buckle_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.2,
+    -0.265,
+    0.0
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     80
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Visual simultaneous release; two physically independent lap belts; Ty review required",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Primary_L_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.3800000000000001,
+    -0.445,
+    0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Primary_R_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.3800000000000001,
+    -0.445,
+    -0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Release_Secondary_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Buckle_Secondary_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.2,
+    -0.31,
+    0.0
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     80
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Visual simultaneous release; two physically independent lap belts; Ty review required",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Secondary_L_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.3800000000000001,
+    -0.49,
+    0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Secondary_R_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.3800000000000001,
+    -0.49,
+    -0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Shoulder_L_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.45,
+    0.065,
+    0.13
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Shoulder_R_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.45,
+    0.065,
+    -0.13
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Crotch_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.2550000000000001,
+    -0.42500000000000004,
+    0.0
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     100
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Release_Primary_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Buckle_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.43000000000000005,
+    -0.265,
+    0.0
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     80
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Visual simultaneous release; two physically independent lap belts; Ty review required",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Primary_L_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.61,
+    -0.445,
+    0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Primary_R_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.61,
+    -0.445,
+    -0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Release_Secondary_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Buckle_Secondary_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.43000000000000005,
+    -0.31,
+    0.0
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     80
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Visual simultaneous release; two physically independent lap belts; Ty review required",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Secondary_L_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.61,
+    -0.49,
+    0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Secondary_R_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.61,
+    -0.49,
+    -0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Shoulder_L_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.68,
+    0.065,
+    0.13
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Shoulder_R_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.68,
+    0.065,
+    -0.13
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Crotch_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.48500000000000004,
+    -0.42500000000000004,
+    0.0
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     100
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Jettison_Knob_Rear",
+   "param": "canopy_jettison",
+   "parent": "Canopy",
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.875,
+    0.18045,
+    -0.31840100440030916
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0.04
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Right bow/sill junction confirmed by Ty 2026-11-02; estimated 40 mm inboard pull releases right hinge pins at any speed",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Jettison_Knob_Front",
+   "param": "canopy_jettison",
+   "parent": "Canopy",
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.22,
+    0.19218518518518518,
+    -0.2573582321171389
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0.04
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Right bow/sill junction confirmed by Ty 2026-11-02; estimated 40 mm inboard pull releases right hinge pins at any speed",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Master",
+   "param": "master",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.226
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Alternator",
+   "param": "alternator",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.176
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.257
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.288
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_Mixture",
+   "param": "mixture",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.319
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.05
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_Prop",
+   "param": "prop",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    -0.35
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.05
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector",
+   "param": "fuel_selector",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    -0.226
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     2,
+     180
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "PropLever_Front",
+   "param": "prop",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.4,
+    -0.18,
+    0.2329972883068913
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     50
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "PropLever_Rear_Slide",
+   "param": "prop",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.08,
+    0.025,
+    0.275
+   ],
+   "map": [
+    [
+     0,
+     -0.04
+    ],
+    [
+     1,
+     0.04
+    ]
+   ],
+   "model": 0.5,
+   "unit": "0..1",
+   "desc": "(E) 80 mm prop slot; forward = fine (high rpm); moves only with the blade released",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "PropLever_Rear",
+   "param": "prop_lock",
+   "parent": "PropLever_Rear_Slide",
+   "kind": "rot",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.08,
+    0.025,
+    0.275
+   ],
+   "map": [
+    [
+     0,
+     -90
+    ],
+    [
+     1,
+     0
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Blue bar on the firewall rod (v2 model): hangs DOWN locked (0), turned about the rod to point inboard = released (1); then slides with PropLever_Rear_Slide",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Mixture",
+   "param": "mixture",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.205,
+    -0.275,
+    0.302
+   ],
+   "map": [
+    [
+     0,
+     0.05
+    ],
+    [
+     1,
+     0
+    ]
+   ],
+   "model": 1.0,
+   "unit": "0..1",
+   "desc": "(E) 50 mm push-pull: in = rich, out = lean, fully out = idle cut-off",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "FuelValve_Rear",
+   "param": "fuel_valve",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.97,
+    -0.16,
+    -0.277
+   ],
+   "map": [
+    [
+     0,
+     90
+    ],
+    [
+     1,
+     0
+    ]
+   ],
+   "model": 1.0,
+   "unit": "0..1",
+   "desc": "UP = ON, turned to horizontal pointing to the pilot's LEFT = OFF (Ty 2026-11-04 19:27)",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "TrimLever_Rear",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.36,
+    -0.26,
+    0.27
+   ],
+   "map": [
+    [
+     -1,
+     12
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -12
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Pitts v2 (Ty 2026-11-05): 16 in lever hinged near the hip, neutral straight forward; (E) +-12 deg, tip UP = nose up",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "CowlFlap",
+   "param": "cowl_flap",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.26,
+    -0.445,
+    0.245
+   ],
+   "map": [
+    [
+     0,
+     -35
+    ],
+    [
+     0.5,
+     0
+    ],
+    [
+     1,
+     35
+    ]
+   ],
+   "model": 0.5,
+   "unit": "0..1",
+   "desc": "(E) +-35 deg over the gate: CLOSED aft, MID, OPEN forward",
+   "extra": {},
+   "link": "",
+   "note": ""
+  }
+ ],
+ "notes": "Phase 2 original visual geometry; dimensions/placement estimates require Ty review. harness_latch drives both independent releases visually.",
+ "controls": [
+  {
+   "node": "Ctl_Toggle_Master",
+   "param": "master",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.226
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Master",
+   "grip": "Grip_Master",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap",
+   "label": "MASTER"
+  },
+  {
+   "node": "Ctl_Toggle_Alternator",
+   "param": "alternator",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.176
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Alternator",
+   "grip": "Grip_Alternator",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap",
+   "label": "ALTERNATOR"
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump",
+   "param": "fuel_pump",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.257
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_FuelPump",
+   "grip": "Grip_FuelPump",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap",
+   "label": "FUEL PUMP"
+  },
+  {
+   "node": "Ctl_Toggle_Smoke",
+   "param": "smoke",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.288
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Smoke",
+   "grip": "Grip_Smoke",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap",
+   "label": "SMOKE"
+  },
+  {
+   "node": "PropLever_Rear",
+   "param": "prop_lock",
+   "kind": "Lever",
+   "seat": "Rear",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.08,
+    0.025,
+    0.275
+   ],
+   "travel": 90,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "",
+   "grip": "",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts cockpit v2 (Ty 2026-11-05): blue bar on the firewall rod, high on the left wall",
+   "label": "PROP"
+  },
+  {
+   "node": "Mixture",
+   "param": "mixture",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.205,
+    -0.275,
+    0.302
+   ],
+   "travel": 50,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "",
+   "grip": "",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v4 reference pass (Ty's photos 2026-11-04)",
+   "label": "MIXTURE"
+  },
+  {
+   "node": "FuelValve_Rear",
+   "param": "fuel_valve",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.97,
+    -0.16,
+    -0.277
+   ],
+   "travel": 90,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "",
+   "grip": "",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v4 reference pass (Ty's photos 2026-11-04)",
+   "label": "FUEL"
+  },
+  {
+   "node": "TrimLever_Rear",
+   "param": "trim",
+   "kind": "Lever",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.36,
+    -0.26,
+    0.27
+   ],
+   "travel": 24,
+   "travel_unit": "deg",
+   "sim_ends": [
+    -1,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": -1,
+   "poke": "",
+   "grip": "",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts cockpit v2 (Ty 2026-11-05): hinged at the hip, 16 in, neutral forward",
+   "label": "TRIM"
+  },
+  {
+   "node": "CowlFlap",
+   "param": "cowl_flap",
+   "kind": "Lever",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.26,
+    -0.445,
+    0.245
+   ],
+   "travel": 70,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    0.5,
+    1
+   ],
+   "detent_count": 3,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "",
+   "grip": "",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v4 reference pass (Ty's photos 2026-11-04)",
+   "label": "COWL FLAP"
+  }
+ ],
+ "phase3a_notes": "All placements (E). Both seats linked. Pitts/Extra: alternate air, no carb heat. Great Lakes: config 180hp/361in3, builder O-360; carb heat pending Ty engine confirmation. New params require Claude binding. Existing primary controls/canopy/egress retain prior rigs."
+}

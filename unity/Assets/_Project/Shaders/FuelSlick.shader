@@ -15,7 +15,7 @@ Shader "FlyingGame/FuelSlick"
             #pragma vertex vert
             #pragma fragment frag
             #include "UnityCG.cginc"
-            float _SurfaceY;
+            float _SurfaceY, _ReflectionRendering;
             struct appdata { float4 vertex:POSITION; float2 uv:TEXCOORD0; };
             struct v2f { float4 pos:SV_POSITION; float2 uv:TEXCOORD0; float3 wp:TEXCOORD1; };
             float hash(float2 p) { return frac(sin(dot(p,float2(127.1,311.7)))*43758.5453); }
@@ -31,7 +31,9 @@ Shader "FlyingGame/FuelSlick"
             }
             fixed4 frag(v2f i):SV_Target
             {
-                // Per-camera rejection also covers egress and reflection cameras below this water plane.
+                // A film ON the water is not in the water's mirror: WaterReflection's camera drew it from below (2026-11-05,
+                // a lattice of purple crosses in the reflection target). Per-camera rejection covers egress cameras.
+                clip(.5 - _ReflectionRendering);
                 clip(_WorldSpaceCameraPos.y - _SurfaceY);
                 float2 p=i.uv;
                 // Irregular edge stays inside the physics radius; only the visual feather is warped.

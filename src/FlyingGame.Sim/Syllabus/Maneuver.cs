@@ -3,8 +3,12 @@ using FlyingGame.Sim.Practice;
 
 namespace FlyingGame.Sim.Syllabus;
 
-/// <summary>The training courses (owner 2026-10-03: "glider, private, multi, ATP … basic aerobatics").</summary>
-public enum Course { Glider, Private, Commercial, Instrument, Multi, Atp, Aerobatics }
+/// <summary>
+/// The training courses (owner 2026-10-03: glider, the first powered level, multi, airline, basic aerobatics).
+/// Renamed 2026-11-01 with the level restructure: <c>Private</c> is <c>Pilot</c> and <c>Atp</c> is
+/// <c>Airline</c>. Nothing persists a Course, so no migration is needed.
+/// </summary>
+public enum Course { Glider, Pilot, Commercial, Instrument, Multi, Airline, Aerobatics }
 
 /// <summary>Everything a manoeuvre needs to know about the aircraft this instant (angles in RADIANS, speeds m/s, heights m).</summary>
 public sealed class FlightNow
@@ -169,6 +173,12 @@ public abstract class Maneuver
     public virtual int DefaultUserAxes => 0b1111;
     /// <summary>The aircraft the course flies this in (the menu offers it; any type can try).</summary>
     public virtual string? Aircraft => null;
+    /// <summary>
+    /// The airline course's aeroplane. It was the 737-800, which is retired from the progression (owner
+    /// 2026-11-01: the glass cockpit goes; the airline track is the DC-3 and a steam-gauge 737-200, which is a
+    /// placeholder until it is built — see <c>Ratings.Hangar</c>).
+    /// </summary>
+    public const string AirlineAircraft = "dc3-like";
     public virtual ManeuverSetup Setup(FlightNow f) => new();
     /// <summary>A run longer than this ends (s, live).</summary>
     public virtual double TimeLimitSec => 240;

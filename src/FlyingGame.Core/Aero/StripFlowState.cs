@@ -30,6 +30,7 @@ public sealed class StripFlowState
     /// those are not mirror images.</summary>
     public double[] StallPosRad = System.Array.Empty<double>();
     public double[] StallNegRad = System.Array.Empty<double>();
+
     public bool LagPrimed;
 
     // Reversible controls (owner 2026-10-02): what a FREE hinged surface feels — the flow angle over it (before its own
@@ -47,6 +48,12 @@ public sealed class StripFlowState
     public double[]? DeflectionOverride;
     public double[]? BendRad;
     public MathTypes.Vec3[]? BendOffset;
+    /// <summary>Crash damage (Ty 2026-11-04), null while the airframe is whole. IncidenceDeltaRad: a bent tail boom turns its
+    /// tail surfaces with it (FuselageStructure). LiftFactor / ExtraCd: a strip whose leading edge has been dented or whose
+    /// fabric has been torn by branches (BranchStrike) keeps LiftFactor of its lift and adds ExtraCd of profile drag.</summary>
+    public double[]? IncidenceDeltaRad;
+    public double[]? LiftFactor;
+    public double[]? ExtraCd;
 
     // Downwash transport lag (proposal 1): eps lagged by tail-arm/V (the Cm-alphadot term).
     public double DownwashEpsLagged;

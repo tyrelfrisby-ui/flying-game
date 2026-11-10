@@ -41,7 +41,7 @@ namespace FlyingGame.Bridge
         private void EnsureStyles()
         {
             float s = Mathf.Min(Screen.width, Screen.height);
-            float fs = Mathf.Round(s * 0.028f);
+            float fs = Mathf.Round(UiLayout.PanelUnit * 0.028f);   // SIZE from the finger's unit; s above stays the screen's, for width
             if (_body != null && Mathf.Approximately(fs, _fs)) return;
             _fs = fs;
             _bg ??= Solid(new Color(0.02f, 0.03f, 0.05f, 0.97f));
@@ -65,16 +65,15 @@ namespace FlyingGame.Bridge
         private void Load()
         {
             if (_text != null) return;
-            string path = Path.Combine(Application.streamingAssetsPath, "credits.md");
             try
             {
-                _text = File.ReadAllText(path);
+                _text = StreamingFiles.ReadAllText("credits.md");
             }
             catch (System.Exception e)
             {
                 _text = "The credits file could not be read, which is a bug — every 3-D model in this game is used "
-                        + "under a licence that requires its author to be credited here.\n\nThe full list is in "
-                        + "docs/CREDITS.md in the project, and in a LICENSE.txt beside each model.\n\n(" + path + ": " + e.Message + ")";
+                        + "on terms that require its author to be credited here.\n\nThe full list is in "
+                        + "docs/CREDITS.md in the project, and in a text file beside each model.\n\n(StreamingAssets/credits.md: " + e.Message + ")";
             }
         }
 

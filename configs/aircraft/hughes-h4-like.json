@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "hughes-h4-like",
   "displayName": "H-4-like Flying Boat",
+  "structureType": "wood",
+  "structureTypeSource": "Hughes H-4 Hercules: laminated birch (Duramold) wooden monocoque.",
   "spawnIasMs": 70,
   "mass": {
     "massKg": 136000.0,
@@ -1724,8 +1726,7 @@
       "rateRadPerSec": 0.8,
       "expo": 0.1,
       "deadZone": 0.03,
-      "reversible": false,
-      "saturationDeg": 57.1
+      "reversible": false
     },
     "rudder": {
       "maxDeflRad": 0.3,
@@ -1762,6 +1763,9 @@
   "propulsion": {
     "maxPowerW": 2237000,
     "propDiameterM": 4.27,
+    "propMaterial": "metal",
+    "propMaterialSource": "Hamilton Standard four-blade aluminium",
+    "propBladeCount": 4,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 60.0,

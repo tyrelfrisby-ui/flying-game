@@ -42,6 +42,10 @@ public static class WaterSlam
     /// the probe; the flooding sees the holes through the elements' openings.
     /// </summary>
     public static List<Panel>? Damage(IEnumerable<HydroElement> els, Vec3 cg, RigidBodyState s, double waterUp)
+        => Damage(els, cg, s, waterUp, WaterCurrent.Local.None);
+
+    /// <param name="flow">The water's own motion (<see cref="WaterCurrent"/>): a face's speed is its speed through the water.</param>
+    public static List<Panel>? Damage(IEnumerable<HydroElement> els, Vec3 cg, RigidBodyState s, double waterUp, in WaterCurrent.Local flow)
     {
         if (double.IsNaN(waterUp)) return null;
         List<Panel>? broke = null;
@@ -56,6 +60,7 @@ public static class WaterSlam
                 double wet = WetFraction(p, cg, s, waterUp);
                 if (wet <= 0 || (p.Skin && wet <= p.Broken)) continue;
                 Vec3 v = s.Velocity + Vec3.Cross(s.Rates, p.At - cg);
+                if (flow.Moving) v -= s.Attitude.Conjugate().Rotate(flow.At(s.Position + s.Attitude.Rotate(p.At - cg), System.Math.Max(0.0, Depth(p.At, cg, s, waterUp))));
                 double pa = WaterPhysics.FacePressurePa(Vec3.Dot(v, p.Normal), entering);
                 if (pa > p.PeakPa) p.PeakPa = pa;
                 if (pa <= p.FailPa) continue;
@@ -67,6 +72,23 @@ public static class WaterSlam
             }
         }
         return broke;
+    }
+
+    /// <summary>Break open, as the slam would, every intact hatch whose <see cref="Panel.Why"/> <paramref name="which"/>
+    /// accepts, with the panels linked to it (Sim's AircraftGlazing: a canopy shattered on the ground is a hole for the
+    /// water too). Returns how many opened.</summary>
+    public static int BreakHatches(IEnumerable<HydroElement> els, System.Func<string, bool> which)
+    {
+        int n = 0;
+        foreach (HydroElement e in els)
+            foreach (Panel p in e.Panels)
+            {
+                if (p.Skin || p.Broken >= 1 || !which(p.Why)) continue;
+                p.Broken = 1; Open(e, p); n++;
+                foreach (Panel q in p.Linked)
+                    if (q.Broken < 1 && q.Owner != null) { q.Broken = 1; Open(q.Owner, q); n++; }
+            }
+        return n;
     }
 
     private static void Open(HydroElement e, Panel p)
@@ -95,6 +117,10 @@ public static class WaterSlam
     /// its quadratic drag, plus its buoyancy less the weight of the water inside it.
     /// </summary>
     public static Vec3 ElementForce(HydroElement e, Vec3 cg, RigidBodyState s0, RigidBodyState s1, double waterUp, double dt)
+        => ElementForce(e, cg, s0, s1, waterUp, dt, WaterCurrent.Local.None);
+
+    /// <param name="flow">The water's own motion: the momentum and the drag are the element's relative to the water.</param>
+    public static Vec3 ElementForce(HydroElement e, Vec3 cg, RigidBodyState s0, RigidBodyState s1, double waterUp, double dt, in WaterCurrent.Local flow)
     {
         if (double.IsNaN(waterUp) || e.NoDrag) return Vec3.Zero;
         Vec3 rb = e.Centre - cg;
@@ -102,6 +128,11 @@ public static class WaterSlam
         double sub0 = Sub(s0), sub1 = Sub(s1);
         if (sub1 <= 0 && sub0 <= 0) return Vec3.Zero;
         Vec3 v0 = s0.Velocity + Vec3.Cross(s0.Rates, rb), v1 = s1.Velocity + Vec3.Cross(s1.Rates, rb);
+        if (flow.Moving)
+        {
+            v0 -= s0.Attitude.Conjugate().Rotate(flow.At(s0.Position + s0.Attitude.Rotate(rb), System.Math.Max(0.0, Depth(e.Centre, cg, s0, waterUp))));
+            v1 -= s1.Attitude.Conjugate().Rotate(flow.At(s1.Position + s1.Attitude.Rotate(rb), System.Math.Max(0.0, Depth(e.Centre, cg, s1, waterUp))));
+        }
         double Axis(int k, double a0, double a1)
         {
             double ma0 = e.AddedMass(k) * sub0, ma1 = e.AddedMass(k) * sub1;

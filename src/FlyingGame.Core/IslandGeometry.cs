@@ -5,7 +5,7 @@ namespace FlyingGame.Core;
 /// Event, scoring, AI, runway selection and weather remain outside this world-owned layer.</summary>
 public static class IslandGeometry
 {
-    public sealed class Block : WorldSolids.IShape, WorldDecks.IDeck, WorldSolids.IBounded
+    public sealed class Block : WorldSolids.IShape, WorldDecks.IDeck, WorldSolids.IFootprint, WorldSolids.IBounded
     {
         public readonly string Id, Material;
         public readonly double X, Y, Bottom, Top, Length, Width, Heading;
@@ -18,6 +18,9 @@ public static class IslandGeometry
             return (dx * Math.Cos(h) + dy * Math.Sin(h), -dx * Math.Sin(h) + dy * Math.Cos(h));
         }
         public bool TopAt(double x, double y, out double topM) { var (a, c) = Local(x, y); topM = Top; return Math.Abs(a) <= Length / 2 && Math.Abs(c) <= Width / 2; }
+        /// <summary>The circle round the rotated rectangle, and a centimetre.</summary>
+        public void Footprint(out double x0, out double y0, out double x1, out double y1)
+        { double r = 0.5 * Math.Sqrt(Length * Length + Width * Width) + 0.01; x0 = X - r; y0 = Y - r; x1 = X + r; y1 = Y + r; }
         public bool Penetrate(double x, double y, double up, out Vec3 normalNed, out double depth)
         {
             normalNed = Vec3.Zero; depth = 0; var (a, c) = Local(x, y);
@@ -33,7 +36,7 @@ public static class IslandGeometry
             minX = X - ex - 0.01; maxX = X + ex + 0.01; minY = Y - ey - 0.01; maxY = Y + ey + 0.01; minUp = Bottom; maxUp = Top;
         }
     }
-    public sealed class Slope : WorldDecks.IDeck, WorldSolids.IShape
+    public sealed class Slope : WorldDecks.IDeck, WorldSolids.IShape, WorldSolids.IFootprint
     {
         public readonly string Id; public readonly IslandPoint Centre, U, V;
         public readonly double Length, Width, Heading, Elevation, Grade;
@@ -44,6 +47,9 @@ public static class IslandGeometry
             var d=new IslandPoint(y/1000,x/1000)-Centre; double along=d.Dot(U)*1000;
             topM=Elevation+along*Grade; return Math.Abs(along)<=Length/2 && Math.Abs(d.Dot(V)*1000)<=Width/2;
         }
+        /// <summary>The circle round the rotated rectangle (Penetrate needs TopAt), and a centimetre.</summary>
+        public void Footprint(out double x0,out double y0,out double x1,out double y1)
+        { double r=0.5*Math.Sqrt(Length*Length+Width*Width)+0.01; x0=Centre.X-r; y0=Centre.Y-r; x1=Centre.X+r; y1=Centre.Y+r; }
         public bool Penetrate(double x,double y,double up,out Vec3 normalNed,out double depth)
         {
             normalNed=new Vec3(-Grade*U.N,-Grade*U.E,-1).Normalized(); depth=0;
@@ -51,10 +57,12 @@ public static class IslandGeometry
             depth=(top-up)/Math.Sqrt(1+Grade*Grade); return true;
         }
     }
-    public sealed class Cable : WorldSolids.IShape, WorldSolids.IBounded
+    public sealed class Cable : WorldSolids.IShape, WorldSolids.IFootprint, WorldSolids.IBounded
     {
         public readonly string Id, Material; public readonly Vec3 A, B; public readonly double Radius;
         public Cable(string id, string material, Vec3 a, Vec3 b, double radius) { Id = id; Material = material; A = a; B = b; Radius = radius; }
+        public void Footprint(out double x0, out double y0, out double x1, out double y1)
+        { double r = Radius + 0.01; x0 = Math.Min(A.X, B.X) - r; y0 = Math.Min(A.Y, B.Y) - r; x1 = Math.Max(A.X, B.X) + r; y1 = Math.Max(A.Y, B.Y) + r; }
         public bool Penetrate(double x, double y, double up, out Vec3 normalNed, out double depth)
         {
             var p = new Vec3(x, y, -up); var ab = B - A; double t = Math.Clamp(Vec3.Dot(p - A, ab) / Math.Max(1e-12, Vec3.Dot(ab, ab)), 0, 1); var delta = p - (A + ab * t); double d = delta.Length;
@@ -103,7 +111,7 @@ public static class IslandGeometry
                 continue;
             }
             var u = e["u"].Point; var d = p - e["a"].Point; double along = -d.Dot(u), cross = Math.Abs(d.E * u.N - d.N * u.E);
-            if (along + radiusKm < 0 || along - radiusKm > e.N("length") || cross - radiusKm > .15 + .05 * Math.Max(0, along + radiusKm)) continue;
+            if (along + radiusKm < 0 || along - radiusKm > e.N("length") || cross - radiusKm > e.N("half_width_km", .15) + e.N("widen", .05) * Math.Max(0, along + radiusKm)) continue;
             cap = Math.Min(cap, e.N("elevation_m") + Math.Max(0, along - radiusKm) * 1000 / e.N("ratio") - 3);
         }
         return cap;
@@ -383,7 +391,7 @@ public static class IslandGeometry
         foreach (var e in W["clearance_budgets"].Items)
         {
             if (e.S("kind") != "final") continue; var d = p - e["a"].Point; var u = e["u"].Point; double ad = -d.Dot(u), cr = Math.Abs(d.E * u.N - d.N * u.E);
-            if (ad >= -.2 && ad <= e.N("length") && cr <= .20 + .05 * ad) return false;
+            if (ad >= -.2 && ad <= e.N("length") && cr <= e.N("half_width_km", .15) + .05 + e.N("widen", .05) * ad) return false;
         }
         foreach (var f in W["features"].Items)
         {

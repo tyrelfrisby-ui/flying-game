@@ -510,7 +510,23 @@ public sealed class WorldTerrain
         /// (IslandRelief), and the cm-scale sun cups and runnels are in <see cref="MicroBumpAt"/>. APPENDED (6).
         /// </summary>
         GlacierIce,
+        /// <summary>
+        /// A dirt strip (Frank Church, the island's "dirt" fields): hard, unpaved, no stones. It was rolled as
+        /// <see cref="Gravel"/> until 2026-11-04 and keeps gravel's grip; it rolls a little worse (dry packed earth
+        /// 0.04-0.08). APPENDED (7). Everything that only cares about the CLASS of ground (heating, the chart, the
+        /// rattle) reads it through <see cref="Coarse"/> and sees gravel, as it always did.
+        /// </summary>
+        Dirt,
+        /// <summary>
+        /// HARD sand: the island's "hard sand" beach strips, wet-packed (a beach you can land on). Loose sand
+        /// (0.15-0.30) is not on the map. Was gravel until 2026-11-04; APPENDED (8), coarse class gravel.
+        /// </summary>
+        Sand,
     }
+
+    /// <summary>The class a surface had before Dirt and Sand existed: they are unpaved hard ground, i.e. gravel, to
+    /// everything that is not a tyre (thermal heating, the chart's tint, the wheels' small rattle, a sliding keel).</summary>
+    public static Surface Coarse(Surface s) => s is Surface.Dirt or Surface.Sand ? Surface.Gravel : s;
 
     /// <summary>Rolling-resistance coefficient (μ_r = rolling force / wheel load) per surface. Values from
     /// published aircraft ground-roll data (ESDU 71026, Raymer Table 17.1, FAA): dry concrete/asphalt
@@ -535,19 +551,30 @@ public sealed class WorldTerrain
         // The rattle of the melt hummocks is not in this number: it is in the ground (MicroBumpAt), and the energy it
         // costs is spent in the gear's own damper.
         Surface.GlacierIce => RollingCoefficient(Surface.Paved),
+        // Dry packed dirt 0.04-0.08 (Raymer Table 17.1 "hard turf/firm dirt"; ESDU 85029): a little more than gravel's
+        // firm 0.05, because the tyre presses a shallow rut into it.
+        Surface.Dirt => 0.06,
+        // Hard, wet-packed beach sand: 0.06-0.10 for a light tyre at a few dozen psi (loose sand is 0.15-0.30, and is
+        // not what the island's "hard sand" strips are).
+        Surface.Sand => 0.08,
         _ => 0.15,
     };
 
     /// <summary>KINETIC friction of a float keel (aluminium float bottom with a steel/aluminium keel skid strip) SLIDING on
     /// the surface (owner 2026-10-03). Published sliding coefficients: metal on dry asphalt/concrete 0.5-0.6 (Engineering
     /// ToolBox: metal-concrete 0.3-0.6; aluminium-asphalt ~0.5-0.6) -> 0.55; gravel ~0.5; grass 0.3-0.4 dry, ~0.2 wet
-    /// (why floatplanes use wet grass) -> 0.35; ploughed/rough ground ~0.5. A Beaver sliding on at 50 kt stops in ~60 m on
+    /// (why floatplanes use wet grass) -> 0.35; rough pasture 0.45 (below). A Beaver sliding on at 50 kt stops in ~60 m on
     /// pavement, ~90 m on grass.</summary>
-    public static double KeelSlidingCoefficient(Surface s) => s switch
+    public static double KeelSlidingCoefficient(Surface s) => Coarse(s) switch
     {
         Surface.Paved => 0.55,
         Surface.Gravel => 0.50,
         Surface.Grass => 0.35,
+        // ROUGH is the island's green ground off the strips: pasture, i.e. grass over uneven earth (Ty 2026-11-04, "the
+        // friction is too high"). It used to fall to the 0.50 default (ploughed earth). Dry grass is 0.3–0.45 and the
+        // unevenness is in the ground itself (MicroBumpAt: a belly slide over it loses 6 % more distance than on flat
+        // grass of the same μ, CrashSlideProbe), so it takes the top of the grass band rather than a second helping.
+        Surface.Rough => 0.45,
         Surface.Snow => 0.10,          // a keel on snow slides like a ski, because that is what it is
         Surface.PackedGlacierSnow => 0.04,   // and on packed, wind-polished ice it slides very nearly freely
         // Metal on ice, the same table as above (Engineering ToolBox): steel-ice 0.03, brass-ice 0.02 at 0 C.
@@ -565,7 +592,7 @@ public sealed class WorldTerrain
     public static Surface SurfaceAt(double x, double y)
     {
         if (SurfaceOverride.HasValue) return SurfaceOverride.Value;
-        if (Active != null) return IslandTerrain.SurfaceAt(x, y);
+        if (Active != null) return IslandTerrain.WheelSurfaceAt(x, y);
         foreach (Airport a in Airports)
         {
             if (PadOutsideX(a, x) > 50 || System.Math.Abs(y - a.Y) > PadHalfY + 50) continue;
@@ -654,7 +681,7 @@ public sealed class WorldTerrain
     /// few metres on rough ground (bounce, and at speed a possible nose-over), a 1–2 cm rattle on gravel.</summary>
     public static double MicroBumpAt(double x, double y)
     {
-        Surface s = SurfaceAt(x, y);
+        Surface s = Coarse(SurfaceAt(x, y));
         // BROKEN ICE. A crevasse field is a no-go area, and a no-go area a wheel cannot feel is a decoration:
         // the handoff's no-go zones (the icefall, the margins, local steepening — never inside the landing
         // buffer) get half-metre blocks at a few metres' pitch, so putting an aeroplane down there wrecks the

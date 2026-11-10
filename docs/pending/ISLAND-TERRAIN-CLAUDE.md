@@ -321,7 +321,8 @@ are fixed surfaces and stay clear, but the ground round them is ice.
   icefield's south-west outlet, whose lobe ends 0.6 km SSE of the zone at ~1,400 ft. No generated ice is on the
   zone itself at 1,300 ft: the only ice at 1,000–1,300 ft anywhere is that lobe's snout, too steep and narrow for
   450 m of runway. Putting the zone on the icefield (2,936 ft) would break decision 7; Ty decides.
-* **Knik unchanged** (−6.2, 0.1), 1,100 ft. The real-looking glacier face is 1.6 km up-valley at the C4 head.
+* ~~Knik unchanged (−6.2, 0.1), 1,100 ft.~~ **Removed 2026-11-04** (Ty: the Knik landing is "really a gravel strip in
+  the valley, not on the glacier"): the Knik River bar strip on the C4 floor below the glacier face replaces it, §12.8.
 
 ### 11.6 Palette from the imagery (`shader_palette.py`)
 
@@ -395,7 +396,7 @@ ice-undulation weight, crevasse intensity, ledge), all deterministic and regener
 
 **Protection** (`Surfaces.Protection`): every channel above is multiplied by (1 − PROTECT), which is 1 inside and
 falls to 0 over 150 m outside: every runway/strip/pad + 400 m; every published instrument final and every visual
-runway-end surface (the runtime's own footprint and guard) + 100 m; each ski zone 2.0 km (no heading is published,
+runway-end surface (the runtime's own footprint and guard) + 100 m; the ski zone (Fairweather's; the Knik's was removed 2026-11-04) 2.0 km (no heading is published,
 so every direction of approach); lakes to 1.6 × their radii; mesa pads 0.6 km; spawns 0.8 km; caves (F1, F2 and
 their chambers) 1.0 km; every other feature 0.5 km; lesson paths 0.4 km; landable beaches and backcountry strips
 0.8 km; every VOR/NDB and outer nav-aid site 0.6 km. Snow patches and ledges keep clear of Ty's list (airports,
@@ -507,10 +508,16 @@ on the ridge south-west of Drake Hill above the southern ice.
 
 ### 12.6 Ski zones, and what moved
 
-Knik (−6.2, 0.1) 1,100 ft and Fairweather (−3.9, 4.7) 1,300 ft: unchanged — SNOW, flat to ±5 cm within 100 m, and
-no crevasse, undulation or boulder within 1.5 km (test). **Found, not caused: Knik is flat only to 100 m in every
-direction** — its canyon walls rise from 110 m (108 m up at 200 m) — short of the spec's 450 × 100 m zone. Measured
-identically on the branch point (0df90495), so it dates from v2; not changed here (moving a ski zone is Ty's call). **Nothing in the KEEP list moved**: no airport, runway,
+**Since 2026-11-04 there is one ski zone, Fairweather (−3.9, 4.7) at 1,300 ft**: unchanged — SNOW, flat to its
+crest's shape within 100 m, and no crevasse, undulation or boulder within 1.5 km (test,
+`IslandSurfaceTests.TheSkiZoneStaysSnowFlatAndFreeOfIceDetail`). Its natural lie is chosen by the glacier's place in
+the `glaciers` list, which did not change, so it keeps its 1.15 m crest. **The Knik ski zone at (−6.2, 0.1),
+1,100 ft, is gone** (Ty, 2026-11-04): the Knik glacier entry keeps its path but no `ski_zone`, the ground there is no
+longer stamped Snow and the 1,100 ft shelf the relief generator held there is free relief again. It was always a
+surface override — no generated ice ever reached it — and was flat only to 100 m (its canyon walls rose from 110 m,
+short of the spec's 450 × 100 m). The Knik landing is now a gravel bar strip in the valley, §12.8.
+
+(2026-11-02, as built then:) **Nothing in the KEEP list moved**: no airport, runway,
 strip, pad, lake, water lane, cave, nav aid, spawn, lesson box, combat zone, aerobatic box, chart feature or IFR
 datum. What changed: (1) glacier surface kind — v2 reported all ice as Snow; now Snow above the snowline, GlacierIce
 below, Gravel on boulders; (2) heights on the ice (undulation, crevasses, seracs, boulders, moraine ridges up to
@@ -520,7 +527,7 @@ format IRL1 → IRL2 (both still decode); (5) the chart colours bare ice (196, 2
 
 ### 12.7 Glacier landings on plain snow; strips and snow sites lie naturally (Ty, 2026-11-03)
 
-**"The runway on the glacier"** was Knik's river bar F13 (−6.7, 0.3), 250 m from the ski zone at the glacier's
+**"The runway on the glacier"** was Knik's river bar F13 (−6.7, 0.3), 250 m from the (since removed, §12.6) ski zone at the glacier's
 foot: a painted 520 × 52 m tan "clean lane" between eight ruled braid lines 25 m apart, in a 700 × 240 m gravel
 rectangle cut out of the forest, running straight up to the zone's stamped 300 m snow disc. Now:
 
@@ -554,13 +561,65 @@ skewed), **rolling** (0.3–0.5 m on 100–160 m and 220–340 m). Added grade �
 | AP8 | crest 2.00 m — from 1.8 m above one threshold the far end is hidden by 1.3 m |
 | AP14 | rolling 0.33 m |
 | Sulphur Creek (turf) | banana 1.92 m |
-| Knik ski zone | banana 0.97 m (added after its pad) |
+| ~~Knik ski zone~~ | ~~banana 0.97 m~~ — zone removed 2026-11-04 (§12.6, §12.8) |
 | Fairweather ski zone | crest 1.15 m (added after lesson 3's box floor, which holds the zone at 1,300 ft) |
 | SP1 / SP2 / SP3 / SP4 | crest 0.58 / banana 0.49 / rolling 0.35 / crest 0.71 m (sites chosen on their planes, unmoved) |
 
 Paved, gravel, dirt and sand strips, Drake's (which runs into the cave) and the rock ledges stay as they were. The
 strip paint, numbers, windsock, AP3 markers and parked aircraft follow the shaped surface. A Cub rolling up AP8's
 crest and along AP1's rolls keeps its mains down and its CG height above the ground to 3 cm.
+
+### 12.8 The Knik landing is a gravel bar strip in the valley (Ty, 2026-11-04)
+
+Ty: the Knik landing site "is really a GRAVEL STRIP in the valley, not on the glacier". The real one: the Knik River
+below the Knik Glacier is braided gravel bar country, and the bars at the glacier's foot are landed on by bush planes on
+tundra tyres (the area has its own CTAF, 122.7 MHz; there is a strip at the base of the glacier and a 600 ft one at the
+top of Knik Gorge — pilot reports, no FAA 5010 record found). So the strip is a short, bare bar laid along the river.
+
+**Where.** On the island the Knik River valley is canyon C4 (floor 100 ft, 300 m wide): it runs from the glacier face
+at its head (−4.6, −0.9), where the generated glacier's snout lies on the floor, WNW to the Knik ice lake (−6.95, −0.4).
+The strip lies on the floor's south-west bank, beside the river, just below the snout:
+
+| | |
+|---|---|
+| Spec | `island-spec.json` `world.bush_strips[0]` "Knik River" (a new list; it joins the runtime fields like the beaches and backcountry strips) |
+| Centre | **(−5.150, −0.740) km** (sim x −740, y −5150) |
+| Heading | **108° true** (numbers 10/28 magnetic), along the valley |
+| Size | **1,200 × 60 ft** (366 × 18.3 m), shoulders 15 m, end shoulders 50 m, blend 40 m |
+| Elevation | **103 ft** (31.39 m), level — 3 ft above the floor and the river |
+| Surface | gravel (`StripFinish`: no paint; rolls as Gravel); no hangar, house or parked aircraft (windsock only) |
+| Use | **one-way**: land 108 up-valley toward the glacier, take off 288 down it; no go-around once committed |
+| Ice | none on the strip or its shoulders; the snout's first trace 34 m past the east end, GlacierIce surface from ~110 m |
+| River | 48 m off the centreline at the nearest, beside the strip, never across it, always below it |
+
+**The approach** comes down the valley floor and over the lake. A straight-in final cannot follow the C4 bend at
+(−5.7, −0.4), so the strip is laid 6° off the lower reach's axis so that its final runs down the floor and out over the
+lake. The charted wire W3 spans the lake's east end, and its north pole stood 0.3 m into a 3° glidepath from a
+threshold 1.14 km away: the strip was moved up the valley until the pole was 14.6 m under the path (1.43 km), which
+is as far as the ice allows (the strip was also shortened from the first 1,400 ft to 1,200 ft for it). Clearance is
+held two ways, both tested (`IslandSurfaceTests.TheKnikRiverStripHasAClearApproachDownTheValley`):
+
+* a **Part 77 utility visual approach surface** on the landing end only (`runway_finals`, one-way): 20:1 for 1,524 m
+  from the end of the 50 m end shoulder at strip elevation, 250 ft wide there and 1,250 ft at its far end
+  (14 CFR 77.19(d)). Two new per-surface fields carry that: `half_width_km`/`widen` (defaults 0.15 km / 5 %, every
+  other runway end unchanged) and the field's `visual_surface` (`start_beyond_end_m`, `margin_m` 0 — the floor it
+  starts over is 0.9 m below the strip, and a 10 m margin cut a 10 m trench across it). TerrainGen holds the relief
+  under it, the runtime caps it, trees keep out of it;
+* along a 3° glidepath to the threshold out to 1 NM, in a corridor 30 m + 10 % either side: ground at or under the
+  path, no tree in the corridor along the visual surface (the nearest beyond it 1.9 m under, 1.66 km out at the
+  corridor's edge), W3's north pole 14.6 m and its wire 16.9 m under.
+
+**What it cost.** The strip is a new anchor and the Knik zone's anchor is gone, and the relief generator is global (a
+harmonic membrane through the anchors, then 330 erosion steps whose drainage reorganises): regenerating moved ground
+everywhere, not only at the Knik. Measured on a 100 m grid of the mainland against the branch point: 28 % of land
+samples moved by more than 1 m and 9 % by more than 10 m; the median change is 0.05 m beyond 4 km of the strip, but
+single drainage captures moved points by up to 270 m. Every authored layer — airports, strips, pads, lakes, summits,
+the Fairweather zone — is exact as before. The generator's site search re-picked its sites: **three snow patches**
+(1°, 3° and 10°; the 5° one found no clear site any more) and six ledges (`IslandSurfaceTests.Patches/Ledges`
+re-copied from the generate log), 46 boulders. Beside the approach the inside corner of the C4 bend south of the
+strip is lower than it was (TerrainGen's 42° bound beside the visual surface). One trap found on the way: a field with
+a `river` key is read by TerrainGen as a Frank Church canyon strip and has its walls leaned back to 35° for 400 m —
+that took 400 m off the C4 walls round the strip, so this strip says `beside` instead.
 
 ## 10. Open questions for Ty
 

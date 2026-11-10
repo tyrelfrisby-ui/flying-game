@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "great-lakes-like",
   "displayName": "Great Lakes 2T-1A-2-like Biplane",
+  "structureType": "steelTube",
+  "structureTypeSource": "Great Lakes 2T-1A-2: welded 4130 steel-tube fuselage, fabric covered; wooden-spar wings (Great Lakes 2T-1A-2 maintenance manual).",
+  "_wingStructureNote": "Contact damage (Ty 2026-11-03). Break station = the N-strut on both wings, |y| 2.875 (tools/own_models/build_great_lakes.py YI). The own model has four ailerons and slave struts, but this flight config carries aileron rows on the LOWER wing only, so there is no slaved aileron to model here: see AGENT-LOG NEEDS YOU.",
+  "wingBreakStationY": { "wing-upper": 2.875, "wing-lower": 2.875 },
   "spawnIasMs": 44,
   "mass": {
     "massKg": 816,
@@ -1431,10 +1435,13 @@
       "sharpSectionFraction": 0.5
     }
   },
-  "smoke": {"aftOfNoseM": 1.2, "downDeg": 31, "displacementCuIn": 361, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [-0.151, -0.187, 0.628]},
+  "smoke": {"cylinders": 4, "aftOfNoseM": 1.2, "downDeg": 31, "displacementCuIn": 361, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [-0.151, -0.187, 0.628]},
   "propulsion": {
     "maxPowerW": 134226,
     "propDiameterM": 1.8796,
+    "propMaterial": "metal",
+    "propMaterialSource": "Hartzell two-blade aluminium constant-speed",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 5.0,
@@ -1467,8 +1474,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "rollResistN": 40,
-      "tireRadiusM": 0.222
+      "tire": "6.00-6", "tirePressurePsi": 21
     },
     {
       "pos": [
@@ -1484,8 +1490,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "rollResistN": 40,
-      "tireRadiusM": 0.222
+      "tire": "6.00-6", "tirePressurePsi": 21
     },
     {
       "pos": [
@@ -1501,9 +1506,8 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
-      "rollResistN": 20,
       "steerSpringNmPerRad": 25,
-      "tireRadiusM": 0.1
+      "tire": "scott-8in", "tirePressurePsi": 28.6
     }
   ],
   "limits": {

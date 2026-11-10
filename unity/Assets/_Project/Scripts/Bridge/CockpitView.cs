@@ -33,8 +33,34 @@ namespace FlyingGame.Bridge
         /// <summary>The look itself. The camera reads it; everything here writes it.</summary>
         public readonly CockpitLook Look = new();
 
-        /// <summary>Which authored seat the pilot is in. Clamped to what the aeroplane has.</summary>
+        /// <summary>Which authored seat the pilot is in. Clamped to what the aeroplane has. FOLLOWS the choice kept
+        /// per aircraft by seat ID (<see cref="SessionSettings.SeatIdFor"/>), re-resolved whenever the aeroplane or
+        /// the choice changes, so a seat picked for one type can never land in another type's seat at the same
+        /// position in the list.</summary>
         public int SeatIndex { get; private set; }
+
+        private int _seatVersion = -1;
+
+        /// <summary>Sit in the seat chosen for the aeroplane now loaded (its primary seat if none was chosen).</summary>
+        private void ResolveSeat()
+        {
+            _seatVersion = SessionSettings.SeatChoiceVersion;
+            string id = Driver != null ? SessionSettings.SeatIdFor(Driver.AircraftId) : null;
+            int i = SeatChoice.IndexOf(Seats, id);
+            if (i == SeatIndex) return;
+            SeatIndex = i;
+            FollowLegacySeat();
+            Look.Centre();
+        }
+
+        /// <summary>The Options page's Rear / Front row and the model's own eye empties read
+        /// <see cref="SessionSettings.Seat"/>; keep it saying the same seat this view is in.</summary>
+        private void FollowLegacySeat()
+        {
+            string id = SeatChoice.IdAt(Seats, SeatIndex);
+            if (id == "front") SessionSettings.Seat = SessionSettings.CockpitSeat.Front;
+            else if (id == "rear") SessionSettings.Seat = SessionSettings.CockpitSeat.Rear;
+        }
 
         // THE SETTINGS ARE STATIC, and deliberately so. Options must be able to show and change them whether or
         // not a CockpitView exists right now -- on the menu, in an outside view, before an aeroplane is loaded
@@ -100,8 +126,11 @@ namespace FlyingGame.Bridge
             }
         }
 
-        /// <summary>This instance's view of the setting, for the view panel.</summary>
-        public bool DeviceLook => DeviceLookEnabled;
+        /// <summary>This instance's view of the setting, for the view panel. FALSE while tilt is flying the
+        /// aeroplane: the two cannot both have the phone, or looking out of the left window would roll it left — the
+        /// failure the note below was written to prevent. The view is then looked around with the on-screen pad, the
+        /// same one that is there when move-to-look is simply switched off (Ty 2026-11-08).</summary>
+        public bool DeviceLook => DeviceLookEnabled && !TiltSteering.Enabled;
         public float DeviceGain => DeviceLookGain;
 
         /// <summary>Set by the view panel each frame while an on-screen look button is held: right and up positive.</summary>
@@ -125,6 +154,7 @@ namespace FlyingGame.Bridge
             LoadSettings();
             if (Driver != null) Driver.AircraftChanged += OnAircraftChanged;
             ApplySettings();
+            ResolveSeat();
         }
 
         private void OnDestroy()
@@ -132,10 +162,13 @@ namespace FlyingGame.Bridge
             if (Driver != null) Driver.AircraftChanged -= OnAircraftChanged;
         }
 
-        /// <summary>A different aeroplane has different seats: keep the index legal and look ahead again.</summary>
+        /// <summary>A different aeroplane has different seats: sit in the one chosen FOR IT (by ID — before
+        /// 2026-11-02 the old index was clamped and kept, which put a glider's "rear" in the Pitts' front seat) and
+        /// look ahead again.</summary>
         private void OnAircraftChanged()
         {
-            SeatIndex = Mathf.Clamp(SeatIndex, 0, Mathf.Max(0, SeatCount - 1));
+            SeatIndex = -1;
+            ResolveSeat();
             Look.Centre();
         }
 
@@ -149,20 +182,17 @@ namespace FlyingGame.Bridge
 
         public int SeatCount => Mathf.Max(1, Seats.Count);
 
-        public string SeatLabel
-        {
-            get
-            {
-                var seats = Seats;
-                if (seats.Count == 0) return "Cockpit";
-                int i = Mathf.Clamp(SeatIndex, 0, seats.Count - 1);
-                return string.IsNullOrEmpty(seats[i].Label) ? $"Seat {i + 1}" : seats[i].Label;
-            }
-        }
+        public string SeatLabel => SeatChoice.Label(Seats, SeatChoice.IdAt(Seats, SeatIndex));
 
-        public void SelectSeat(int index)
+        /// <summary>Sit in seat <paramref name="index"/> of the aeroplane now loaded. <paramref name="remember"/>
+        /// keeps it as the choice for this type (the seat buttons); editor tools that only look pass false.</summary>
+        public void SelectSeat(int index, bool remember = true)
         {
             SeatIndex = Mathf.Clamp(index, 0, Mathf.Max(0, SeatCount - 1));
+            if (remember && Driver != null && Seats.Count > 0)
+                SessionSettings.ChooseSeat(Driver.AircraftId, SeatChoice.IdAt(Seats, SeatIndex));
+            _seatVersion = SessionSettings.SeatChoiceVersion;
+            FollowLegacySeat();
             Look.Centre();
         }
 
@@ -203,26 +233,34 @@ namespace FlyingGame.Bridge
             // Settings first, and even while the menu is open: the pilot is standing in Options moving the slider,
             // and the gyro has to come on there so the view is already following him when he closes it.
             ApplySettings();
+            // A seat chosen from a menu (the VR menu, Options) while this aeroplane is loaded: sit in it now.
+            if (_seatVersion != SessionSettings.SeatChoiceVersion) ResolveSeat();
             if (SessionSettings.MenuOpen) { _hadHat = false; _hatHeld = 0f; return; }
 
             // The device first, then the hat. They do NOT exclude each other: CockpitLook keeps the two offsets
             // apart and sums them, so holding the phone turned and tapping the pad compose the way a pilot's neck
             // and his seat do. (Before 2026-11-01 the device took the frame and returned here, which meant turning
             // the option on silently disabled the look pad.)
-            if (DeviceLook && TryDeviceAttitude(out Quaternion q)) Look.FromDevice(ToCore(q));
+            // VR owns the gyro while it is on: both applying would double every head movement, and VR
+            // is one-for-one where this is geared. VrRig drives the camera instead.
+            // A native headset (Quest) likewise: QuestRig drives the camera from the headset's own pose.
+            // Split screen: the device, the joystick's hat and the glass buttons are the FIRST player's; the second
+            // player's head turns only from their own pad (GamepadInput.For).
+            bool primary = Driver == null || Driver.PlayerIndex == 0;
+            if (primary && DeviceLook && !VrMode.HeadTracked && TryDeviceAttitude(out Quaternion q)) Look.FromDevice(ToCore(q));
 
             // The stick's hat, then the buttons on glass. Either may be the only one present.
             int x = 0, y = 0;
-            if (JoystickInput.ButtonHeld(JoystickInput.HatButton0 + 0)) y += 1;   // up
-            if (JoystickInput.ButtonHeld(JoystickInput.HatButton0 + 1)) x += 1;   // right
-            if (JoystickInput.ButtonHeld(JoystickInput.HatButton0 + 2)) y -= 1;   // down
-            if (JoystickInput.ButtonHeld(JoystickInput.HatButton0 + 3)) x -= 1;   // left
+            if (primary && JoystickInput.ButtonHeld(JoystickInput.HatButton0 + 0)) y += 1;   // up
+            if (primary && JoystickInput.ButtonHeld(JoystickInput.HatButton0 + 1)) x += 1;   // right
+            if (primary && JoystickInput.ButtonHeld(JoystickInput.HatButton0 + 2)) y -= 1;   // down
+            if (primary && JoystickInput.ButtonHeld(JoystickInput.HatButton0 + 3)) x -= 1;   // left
             // A gamepad's optional look: the d-pad while L3 is held (GamepadInput). R3 recentres. No stick or
             // trigger is read here -- the right stick FLIES (Ty, 2026-11-02), so it must never also turn the head.
-            var gp = GamepadInput.Now;
+            var gp = primary ? GamepadInput.Now : GamepadInput.For(Driver.PlayerIndex);
             if (gp.RecentrePressed) Centre();
             if (x == 0 && y == 0 && gp.LookHeld) { x = gp.LookX; y = gp.LookY; }
-            if (x == 0 && y == 0) { x = OnScreenHat.x; y = OnScreenHat.y; }
+            if (primary && x == 0 && y == 0) { x = OnScreenHat.x; y = OnScreenHat.y; }
 
             bool hat = x != 0 || y != 0;
             if (hat)
@@ -282,7 +320,7 @@ namespace FlyingGame.Bridge
         {
             Look.DeviceGain = DeviceLookGain;
             Look.SpringCentre = SpringCentreEnabled;
-            bool want = DeviceLookEnabled;
+            bool want = DeviceLookEnabled || TiltSteering.Enabled;   // never switch it off under the other reader
             if (want == _deviceLookApplied) return;
             _deviceLookApplied = want;
             EnableDeviceAttitude(want);
@@ -314,11 +352,13 @@ namespace FlyingGame.Bridge
         /// not offer itself there.</summary>
         public static bool DeviceAttitudeAvailable => SystemInfo.supportsGyroscope;
 
-        // NOTHING ELSE IN THE GAME READS THE DEVICE'S MOTION (checked 2026-11-01: Input.gyro, Input.acceleration and
-        // the InputSystem sensors appear in this file and nowhere else), so tilting the phone moves the VIEW and
-        // only the view — there is no tilt steering for it to double-count against. If one is ever added, it must
-        // take its own reference and its own zero: feeding the same attitude to both would make looking out of the
-        // left window also roll the aeroplane left, which is the one way this feature can go badly wrong.
+        // ONE OTHER PLACE READS THE DEVICE'S MOTION: TiltSteering (Ty 2026-11-08), added under the rule this note
+        // left for it. It takes its OWN reference and its OWN zero, and the two never both apply: DeviceLook above is
+        // false while tilt is flying, so looking out of the left window cannot also roll the aeroplane left — the one
+        // way this feature can go badly wrong. Anything further that wants the device's motion joins the same terms.
+        //
+        // Each turns the sensor on for itself; Input.gyro.enabled is idempotent and neither may turn it OFF on the
+        // other's behalf, which is why the call below asks for tilt as well as for looking.
         //
         // The project is on the old input handler (ProjectSettings activeInputHandler: 0), so Input.gyro is the API.
         // Deliberately no InputSystem.AttitudeSensor branch: it would be dead code today and a compile error the day

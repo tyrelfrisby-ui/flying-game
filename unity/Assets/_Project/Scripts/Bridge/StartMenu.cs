@@ -126,7 +126,7 @@ namespace FlyingGame.Bridge
 
         private void EnsureStyles()
         {
-            int fs = Mathf.RoundToInt(Mathf.Min(Screen.width, Screen.height) * 0.026f);
+            int fs = Mathf.RoundToInt(UiLayout.PanelUnit * 0.026f);
             if (_btn != null && fs == _fs) return;
             _fs = fs;
             _bg ??= Solid(new Color(0.05f, 0.08f, 0.12f, 0.92f));
@@ -257,7 +257,7 @@ namespace FlyingGame.Bridge
             }
             string mp = SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.Solo ? "solo"
                       : SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.FreeForAll ? "free-for-all"
-                      : SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.Lan ? "same network" : "private room";
+                      : SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.Lan ? "same network" : "room by code";
             return $"{ac}  ·  {where}, {SessionSettings.Airport.Name}  ·  {what}  ·  "
                  + $"wind {SessionSettings.WindFromDeg:000}°/{SessionSettings.WindSpeedMs * 1.944f:F0} kt  ·  {mp}";
         }
@@ -292,22 +292,41 @@ namespace FlyingGame.Bridge
             UiLayout.Label(new Rect(sideM, titleY, w * 0.52f, lh * 1.3f), "FLIGHT SETUP", _title);
             UiLayout.Label(new Rect(sideM + w * 0.52f, titleY, w * 0.48f, lh * 1.3f), SetupLine(), _small);
 
-            // The chapter tabs, one row across whatever the shape.
+            // The chapter tabs: ONE row while they fit, stacked when they do not. At the bigger UI size six of them
+            // across a phone left each about 150 px, so the names broke in half — "Aircra/ft", "Loadin/g" (Ty
+            // 2026-11-08: "Can you double stack there is tons of unused space at the center"). There is plenty of
+            // room downward and none sideways, so that is the way to go.
             float tabY = titleY + lh * 1.5f;
+            float tabH = bh * 1.15f, tabGap = gap * 0.4f;
+            int tabRows;
             {
                 int n = PageNames.Length;
-                float tw = (w - (n - 1) * gap * 0.4f) / n;
+                float minTab = UiLayout.PanelUnit * 0.185f;   // the longest chapter name on one line at the reading floor
+                int per = Mathf.Clamp(Mathf.FloorToInt((w + tabGap) / (minTab + tabGap)), 1, n);
+                tabRows = Mathf.CeilToInt(n / (float)per);
+                per = Mathf.CeilToInt(n / (float)tabRows);   // even the rows out: six over two rows is 3 and 3, not 4 and 2
+                float tw = (w - (per - 1) * tabGap) / per;
                 for (int i = 0; i < n; i++)
-                    if (UiLayout.Button(new Rect(sideM + i * (tw + gap * 0.4f), tabY, tw, bh * 1.15f), PageNames[i], (int)_page == i ? _tabOn : _tab))
+                {
+                    int r = i / per, c = i % per;
+                    var tab = new Rect(sideM + c * (tw + tabGap), tabY + r * (tabH + tabGap), tw, tabH);
+                    if (UiLayout.Button(tab, PageNames[i], (int)_page == i ? _tabOn : _tab))
                     { _page = (Page)i; _scrollY = 0f; _dd = null; }
+                }
             }
-            float pageTop = tabY + bh * 1.15f + gap;
+            float pageTop = tabY + tabRows * tabH + (tabRows - 1) * tabGap + gap;
 
             // One column, wide enough to read and narrow enough to thumb: the page no longer has to be
             // divided into columns to fit, because only one chapter is on screen at a time.
             _colW = Mathf.Min(w, s * 0.86f);
 
-            float fh0 = s * 0.09f;
+            // FLY and the utility row. They used to share one line, and the rectangles overlapped even before the UI
+            // grew: CREDITS ran to about 0.75 of the width while FLY began at 0.71, so the green box sat on top of
+            // CREDITS' label. They are stacked whenever one line cannot hold both (Ty 2026-11-08's screenshot).
+            float flyW = Mathf.Min(s * 0.26f, w), flyH = s * 0.09f;
+            float utilH = flyH * 0.78f;                               // two wrapped lines of a short label
+            bool stackBottom = (s * 0.7225f + gap * 1.5f) > (w - flyW - gap);
+            float fh0 = stackBottom ? flyH + utilH + gap * 0.5f : flyH;
             var viewport = new Rect(0f, pageTop, Screen.width, bottom - pageTop - fh0 - m * 1.5f);
             if (!listOpen) ScrollInput(viewport, lh);   // (kept for very small screens; a chapter normally fits)
             _scrollY = Mathf.Clamp(_scrollY, 0f, Mathf.Max(0f, _contentH - viewport.height));
@@ -336,23 +355,28 @@ namespace FlyingGame.Bridge
                 GUI.DrawTexture(new Rect(Screen.width - m * 0.5f, thumbY, m * 0.18f, thumbH), _btnOnBg);
             }
 
-            // ---- FLY
-            float fw = s * 0.26f, fh = s * 0.09f;
+            // ---- FLY, always on the bottom line and always alone on it when the row is stacked.
+            float fw = flyW, fh = flyH;
             if (UiLayout.Button(new Rect(Screen.width - sideM - fw, bottom - m - fh, fw, fh), "FLY", _btnOn)) Fly();
 
             // ---- HELP, bottom left, in the strip the page's viewport already leaves clear for FLY (no-overlap
             // rule). The pause menu and the in-flight OPTIONS panel both carry it, on all three platforms
             // (handoff 2026-10-17): a web page in the browser, nothing sent from the app. See SupportDesk.
-            float hw = s * 0.17f, hh = fh * 0.62f;
-            if (UiLayout.Button(new Rect(sideM, bottom - m - hh, hw, hh), "HELP", _btn)) SupportDesk.OpenHelp();
-            if (UiLayout.Button(new Rect(sideM + hw + gap * 0.5f, bottom - m - hh, hw * 1.25f, hh), "Copy diagnostics", _btn)) SupportDesk.CopyDiagnostics();
+            // Four equal buttons across the full width when they have a line to themselves, so none of them has to
+            // lose its tail to an ellipsis ("diagnosti"); a two-line height lets the longer label wrap instead.
+            float hh = stackBottom ? utilH : fh * 0.62f;
+            float utilY = stackBottom ? bottom - m - fh - gap * 0.5f - hh : bottom - m - hh;
+            float uw = stackBottom ? (w - 3 * gap * 0.5f) / 4f : s * 0.17f;
+            float ux = sideM, ustep = uw + gap * 0.5f;
+            if (UiLayout.Button(new Rect(ux, utilY, uw, hh), "HELP", _btn)) SupportDesk.OpenHelp();
+            if (UiLayout.Button(new Rect(ux + ustep, utilY, stackBottom ? uw : uw * 1.25f, hh), "Copy diagnostics", _btn)) SupportDesk.CopyDiagnostics();
             // CHART (owner 2026-10-18): readable on the ground as well as in the air — the point of a chart
             // is that you look at it before you go.
-            if (UiLayout.Button(new Rect(sideM + hw * 2.25f + gap, bottom - m - hh, hw, hh), "CHART", _btn)) { ChartPanel.Toggle(); }
+            if (UiLayout.Button(new Rect(ux + (stackBottom ? 2 * ustep : uw * 2.25f + gap), utilY, uw, hh), "CHART", _btn)) { ChartPanel.Toggle(); }
             // CREDITS: required attribution for the 3-D models, not a courtesy. See CreditsPanel.
-            if (UiLayout.Button(new Rect(sideM + hw * 3.25f + gap * 1.5f, bottom - m - hh, hw, hh), "CREDITS", _btn)) { CreditsPanel.Toggle(); }
+            if (UiLayout.Button(new Rect(ux + (stackBottom ? 3 * ustep : uw * 3.25f + gap * 1.5f), utilY, uw, hh), "CREDITS", _btn)) { CreditsPanel.Toggle(); }
             if (SupportDesk.Note.Length > 0)
-                UiLayout.Label(new Rect(sideM, bottom - m - hh - _fs * 1.1f, Screen.width - 2 * sideM - fw - gap, _fs * 1.05f), SupportDesk.Note, _small);
+                UiLayout.Label(new Rect(sideM, utilY - _fs * 1.1f, Screen.width - 2 * sideM - (stackBottom ? 0f : fw + gap), _fs * 1.05f), SupportDesk.Note, _small);
 
             GUI.enabled = true;
             DrawDropdown(bh, gap);
@@ -553,6 +577,16 @@ namespace FlyingGame.Bridge
             foreach (var st in starts) if (st.Item1 == SessionSettings.StartMode) startName = st.Item2;
             Dropdown("start", new Rect(x, y, colW, bh), startName, System.Linq.Enumerable.Select(starts, st => (st.Item2, st.Item1 == SessionSettings.StartMode, (System.Action)(() => SessionSettings.StartMode = st.Item1))));
             y += row;
+            if (SessionSettings.StartMode == SessionSettings.Start.InTheAir)
+            {
+                // How high the airborne start begins, above the ground beneath it (owner 2026-11-10).
+                string AltName(int ft) => $"{ft:N0} ft";
+                Dropdown("startAlt", new Rect(x, y, colW, bh), AltName(SessionSettings.StartAltitudeFt),
+                         System.Linq.Enumerable.Select(SessionSettings.StartAltitudesFt,
+                             ft => (AltName(ft), ft == SessionSettings.StartAltitudeFt,
+                                    (System.Action)(() => { SessionSettings.StartAltitudeFt = ft; SessionSettings.SavePrefs(); }))));
+                y += row;
+            }
             if (SessionSettings.StartMode == SessionSettings.Start.OnTheRunway || SessionSettings.StartMode == SessionSettings.Start.OnFinal)
             {
                 // Runway choice (owner 2026-09-10): into the wind on the 09/27, or the crosswind main.
@@ -581,7 +615,7 @@ namespace FlyingGame.Bridge
                 y += row;
             }
             UiLayout.Label(new Rect(x, y, colW, lh * 2f), SessionSettings.StartMode == SessionSettings.Start.InTheAir
-                ? "Airborne 2,000 ft over the field, trimmed."
+                ? $"Airborne {SessionSettings.StartAltitudeFt:N0} ft over the ground, trimmed."
                 : SessionSettings.StartMode == SessionSettings.Start.InAeroBox ? "Running in to the aerobatic box, 2,300 ft above the ground."
                 : SessionSettings.StartMode == SessionSettings.Start.InCombatZone ? "Entering the combat zone, guns hot."
                 : SessionSettings.StartMode == SessionSettings.Start.InThermal ? "Circling right in a thermal at min-sink speed, trimmed. Hold the bank and climb."
@@ -703,7 +737,7 @@ namespace FlyingGame.Bridge
             }
 
             if (locked) GUI.enabled = wasEnabled;
-            // Bushwheels: twice the tyre, no pants, half the pressure. It changes how the aeroplane lands on
+            // Bushwheels: a real tundra tyre from the catalog on each main wheel, at its own pressure (TireFit). It changes how the aeroplane lands on
             // a bar or skims water, so it belongs with the conditions rather than buried in a menu.
             if (locked) GUI.enabled = false;
             if (UiLayout.Button(new Rect(x, y, colW, bh), SessionSettings.Bushwheels ? "Bushwheels ON" : "Bushwheels off",
@@ -745,7 +779,7 @@ namespace FlyingGame.Bridge
             // says what the fourth one actually does.
             float half = (colW - gap * 0.4f) / 2f;
             var modes = new[] { (SessionSettings.MultiplayerMode.Solo, "Solo"), (SessionSettings.MultiplayerMode.FreeForAll, "Free-for-all"),
-                                (SessionSettings.MultiplayerMode.PrivateRoom, "Private room"), (SessionSettings.MultiplayerMode.Lan, "Same network") };
+                                (SessionSettings.MultiplayerMode.CodeRoom, "Room by code"), (SessionSettings.MultiplayerMode.Lan, "Same network") };
             for (int i = 0; i < modes.Length; i++)
             {
                 float bx = x + (i % 2) * (half + gap * 0.4f), by = y + (i / 2) * row;
@@ -796,7 +830,7 @@ namespace FlyingGame.Bridge
                                _small);
                 y += lh * 2f;
             }
-            if (SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.PrivateRoom)
+            if (SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.CodeRoom)
             {
                 float lw = colW * 0.3f, cw = colW * 0.42f;
                 UiLayout.Label(new Rect(x, y, lw, bh), "Code", _label);

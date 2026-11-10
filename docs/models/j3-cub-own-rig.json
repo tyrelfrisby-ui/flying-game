@@ -439,9 +439,9 @@
     -1.0
    ],
    "pivot_gltf": [
-    -0.252,
+    0.048,
     -0.087,
-    0.3066
+    0.3071
    ],
    "map": [
     [
@@ -706,20 +706,52 @@
    "extra": {}
   },
   {
+   "node": "Primer_Plunger",
+   "parent": "Instruments",
+   "param": "primer",
+   "unit": "0 in .. 1 out",
+   "kind": "move",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -0.56,
+    0.189,
+    -0.244
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.05
+    ]
+   ],
+   "model": 0.0,
+   "desc": "primer plunger pulls straight aft 50 mm (judgement)",
+   "link": "",
+   "note": "",
+   "extra": {}
+  },
+  {
    "node": "MagSwitch_Knob",
    "parent": "Cockpit",
    "param": "magneto",
    "unit": "0 OFF 1 L 2 R 3 BOTH (integer detents)",
    "kind": "rot",
    "axis_gltf": [
-    -0.08196,
-    -0.99664,
-    -0.0
+    0.34202,
+    0.0,
+    -0.93969
    ],
    "pivot_gltf": [
-    -0.259,
-    0.6609,
-    0.215
+    0.313,
+    0.7122,
+    0.281
    ],
    "map": [
     [
@@ -740,7 +772,7 @@
     ]
    ],
    "model": 0.0,
-   "desc": "rotary mag switch, detents at the plate labels OFF/L/R/BOTH (clockwise seen from below)",
+   "desc": "rotary mag switch on the left root-rib wall, detents at the plate labels OFF/L/R/BOTH (clockwise seen from the cabin)",
    "link": "",
    "note": "map re-ordered for the sim (0 OFF, 1 R, 2 L, 3 BOTH) onto the plate OFF / L / R / BOTH",
    "extra": {
@@ -931,28 +963,50 @@
    "link": "rudder springs; breaks out to full swivel beyond rig_deg (ground handling)",
    "note": "tailwheel swivel pivot: rotate about steer_axis (local origin on the kingpin). Steered by the rudder springs through about +/-30 deg (judgement), beyond that it breaks out and casters (full swivel) for ground handling",
    "extra": {}
+  },
+  {
+   "node": "FuelGauge_Wire",
+   "parent": "",
+   "param": "fuel",
+   "unit": "0 empty .. 1 full (nose tank)",
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    -0.967,
+    0.3937,
+    0.0
+   ],
+   "map": [
+    [
+     0.0,
+     -0.221
+    ],
+    [
+     1.0,
+     0.0
+    ]
+   ],
+   "model": 1.0,
+   "desc": "nose-tank cork float wire, modelled at FULL (10 in showing above the cap crown); it slides down through the guide as the tank empties until only the hook rests on the guide (0.221 m of travel, build_j3_cub.py FUEL_TRAVEL)",
+   "link": "RigInputs.Fuel = the nose tank's fuel / its capacity, live from AircraftLoad (Ty 2026-11-05 ADDENDUM)",
+   "note": "",
+   "extra": {}
   }
  ],
  "static": [
-  {
-   "node": "CarbHeat_Knob_Rear",
-   "param": "carb_heat",
-   "why": "no carburettor heat in the sim"
-  },
   {
    "node": "CarbHeat_Lever",
    "param": "carb_heat",
    "why": "no carburettor heat in the sim"
   },
   {
-   "node": "FuelValve_Lever",
+   "node": "FuelValve_Knob",
    "param": "fuel_valve",
    "why": "the sim has no J-3 fuel shut-off; drawn ON"
-  },
-  {
-   "node": "Primer_Plunger",
-   "param": "primer",
-   "why": "no primer in the sim"
   },
   {
    "node": "DoorLower_R",
@@ -965,14 +1019,43 @@
    "why": "no door control in the sim; drawn closed"
   },
   {
-   "node": "FuelGauge_Wire",
-   "param": "fuel",
-   "why": "nose-tank float wire: no per-tank gauge feed for the J-3; drawn FULL"
-  },
-  {
    "node": "Prop",
    "param": "prop_rpm",
    "why": "the propeller is spun by AirframeVisual.BindModelProp, not by the rig"
+  }
+ ],
+ "controls": [
+  {
+   "node": "Primer_Plunger",
+   "param": "primer",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -0.56,
+    0.189,
+    -0.244
+   ],
+   "travel": 50,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "",
+   "grip": "Grip_Primer",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
   }
  ]
 }

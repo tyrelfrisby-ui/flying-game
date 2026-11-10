@@ -31,6 +31,7 @@ namespace FlyingGame.Bridge
             if (mode == "dust") { yield return DustTest(); yield break; }
             if (mode == "instr") { yield return InstrTest(); yield break; }
             if (mode == "menu") { yield return MenuLayoutTest(); yield break; }
+            if (mode == "options") { yield return OptionsLayoutTest(); yield break; }
             if (mode == "ui") { yield return UiLayoutTest(); yield break; }
             if (mode == "perf") { yield return PerfTest(); yield break; }
             if (mode == "starts") { yield return StartsTest(); yield break; }
@@ -54,6 +55,7 @@ namespace FlyingGame.Bridge
             if (mode == "desert") { yield return DesertTest(); yield break; }
             if (mode == "brs") { yield return BrsTest(); yield break; }
             if (mode == "lesson") { yield return LessonTest(); yield break; }
+            if (mode == "cockpit1105") { yield return Cockpit1105Test(); yield break; }
             ClipRecorder.KeepCopies(true);
             bool keepInst = ClipRecorder.IncludeInstruments; int keepSec = ClipRecorder.ClipSeconds;
             ClipRecorder.IncludeInstruments = true;   // the setting applies to footage recorded from now on
@@ -372,6 +374,72 @@ namespace FlyingGame.Bridge
             Debug.Log("[SelfTest] skins DONE");
         }
 
+        /// <summary>AERO_SELFTEST=cockpit1105 (Ty's 2026-11-05 cockpit spec): the Pitts from the rear seat; the Kollsman popup as
+        /// opened by a touch on the altimeter, then with an out-of-window value refused; Options > Display at the card and
+        /// altimeter rows with a card of the pilot's own added (Remove shown). PNGs into AERO_SHOT_DIR.</summary>
+        private IEnumerator Cockpit1105Test()
+        {
+            string dir = System.Environment.GetEnvironmentVariable("AERO_SHOT_DIR") ?? ".";
+            string keepCard = SequenceCardLibrary.Current.Id;
+            SessionSettings.ChallengeId = null; SessionSettings.AircraftId = "pitts-s2b-like";
+            SessionSettings.UseAirframeModels = true; SessionSettings.UseOwnModels = true;
+            yield return new WaitForSecondsRealtime(2f);
+            Menu.Fly();
+            yield return new WaitForSecondsRealtime(4f);
+            Chase.SetView(ChaseCamera.View.Cockpit);
+            yield return new WaitForSecondsRealtime(2f);
+            var taps = Object.FindFirstObjectByType<CockpitTaps>();
+            if (taps != null)
+            {
+                taps.OpenPopup();
+                yield return new WaitForSecondsRealtime(1f);
+                ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "popup-kollsman_pitts.png"));
+                yield return new WaitForSecondsRealtime(0.5f);
+                taps.TypeForShots("31.50");
+                yield return new WaitForSecondsRealtime(1f);
+                ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "popup-kollsman-refused_pitts.png"));
+                yield return new WaitForSecondsRealtime(0.5f);
+                taps.TypeForShots("23.98");
+                yield return new WaitForSecondsRealtime(1f);
+                ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "popup-kollsman-zeroed6000_pitts.png"));
+                yield return new WaitForSecondsRealtime(0.5f);
+                taps.ClosePopupForShots();
+            }
+            else Debug.LogError("[SelfTest] cockpit1105: no CockpitTaps");
+            // A card of his own, so the Options rows show Remove.
+            var sample = Resources.Load<Texture2D>("SequenceCards/iac-2026-unlimited-right");
+            string added = null;
+            if (sample != null)
+            {
+                var rt = RenderTexture.GetTemporary(sample.width, sample.height);
+                Graphics.Blit(sample, rt);
+                var prev = RenderTexture.active; RenderTexture.active = rt;
+                var cpu = new Texture2D(sample.width, sample.height, TextureFormat.RGB24, false);
+                cpu.ReadPixels(new Rect(0, 0, sample.width, sample.height), 0, 0); cpu.Apply();
+                RenderTexture.active = prev; RenderTexture.ReleaseTemporary(rt);
+                added = SequenceCardLibrary.Import(cpu.EncodeToPNG(), "My airshow card", out string why);
+                Object.Destroy(cpu);
+                if (added == null) Debug.LogError("[SelfTest] cockpit1105: import failed: " + why);
+            }
+            var opts = Object.FindFirstObjectByType<OptionsPanel>();
+            if (opts != null)
+            {
+                opts.ShowPageForTest("Display");
+                opts.ScrollForTest(99999f);
+                yield return new WaitForSecondsRealtime(1f);
+                ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "settings-cards-altimeter_display-page.png"));
+                yield return new WaitForSecondsRealtime(0.5f);
+                opts.Close();
+            }
+            yield return new WaitForSecondsRealtime(1f);
+            ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "settings-uploaded-card-on-holder_pitts.png"));
+            yield return new WaitForSecondsRealtime(0.5f);
+            if (added != null) SequenceCardLibrary.Remove(added);
+            SequenceCardLibrary.Select(keepCard);   // leave the deck as it was found
+            Debug.Log("[SelfTest] DONE cockpit1105");
+            Application.Quit();
+        }
+
         /// <summary>AERO_SELFTEST=ui (owner 2026-10-03: no text or UI may overlap — landing page AND flying, landscape AND
         /// portrait): on a device the screen is rotated by the app itself; screenshots of the landing page (top/bottom) and
         /// in flight (powered with dials, with HUD, glider, a lesson live) in each orientation.</summary>
@@ -426,6 +494,63 @@ namespace FlyingGame.Bridge
         /// (owner 2026-10-28) there is no top and bottom of one long page to shoot — every CHAPTER gets its own shot,
         /// on both pages, and so does every chapter of the in-flight OPTIONS panel. A chapter that needs a scrollbar at
         /// any of these four shapes is a chapter with too much on it.</summary>
+        /// <summary>
+        /// Every chapter of OPTIONS, at every shape, scrolled top and bottom. Ty 2026-11-08, after two rounds of
+        /// sending me photographs of his own phone: "Can you screenshot these yourself and look for problems so I
+        /// don't have to?" — so this exists to be looked at before he is asked to look at anything.
+        ///
+        /// It catches the kind of fault a photograph catches: a label cut off mid-sentence, two controls on top of
+        /// each other, a page that cannot be scrolled to its end. It cannot tell whether the result is pleasant to
+        /// use, which is still his to judge.
+        /// </summary>
+        private IEnumerator OptionsLayoutTest()
+        {
+            yield return new WaitForSecondsRealtime(2f);
+            string dir = System.Environment.GetEnvironmentVariable("AERO_SHOT_DIR") ?? ".";
+            System.IO.Directory.CreateDirectory(dir);
+            var options = Object.FindFirstObjectByType<OptionsPanel>();
+            if (options == null) { Debug.Log("[SelfTest] options: no OptionsPanel in the scene"); yield break; }
+            // THE WINDOW IS THE SHAPE. Screen.SetResolution was the obvious way and it is a trap: on a Mac the window
+            // took the width asked for and kept its own height, so "iphone-port" came out 603x542 — which the layout
+            // correctly read as LANDSCAPE and gave 186 px of safe area down each side, and the tabs stacked one per row
+            // in the narrow column that was left. Every "defect" in that run was the harness. So the shape comes from
+            // the player's own -screen-width / -screen-height, one run per shape, and this only reports what it got.
+            var menu = Object.FindFirstObjectByType<StartMenu>();
+            if (menu != null && menu.IsOpen) menu.Fly();   // OptionsPanel refuses to draw while the landing page is up
+            yield return new WaitForSecondsRealtime(1.5f);
+
+            bool portrait = Screen.height > Screen.width;
+            bool ipad = System.Environment.GetEnvironmentVariable("AERO_SHOT_IPAD") == "1";
+            string shape = (ipad ? "ipad" : "iphone") + (portrait ? "-port" : "-land");
+            bool oldTouch = UiLayout.ForceTouchLayoutForTest, oldSafe = UiLayout.IPhoneSafeAreaForTest;
+            try
+            {
+                UiLayout.ForceTouchLayoutForTest = UiLayout.IPhoneSafeAreaForTest = true;
+                UiLayout.IPadSafeAreaForTest = ipad;
+                UiLayout.ScaleForTest = ipad ? 1f : 1.73f;   // the scale that device would really get
+                yield return new WaitForSecondsRealtime(0.5f);
+                Debug.Log($"[SelfTest] options: {shape} at {Screen.width}x{Screen.height}, scale {UiLayout.Scale:0.00}");
+                foreach (string page in OptionsPanel.PageNamesForTest)
+                {
+                    options.ShowPageForTest(page);
+                    options.ScrollForTest(0f);
+                    yield return new WaitForSecondsRealtime(0.35f);
+                    ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, $"options-{shape}-{page.ToLowerInvariant()}-top.png"));
+                    yield return new WaitForSecondsRealtime(0.35f);
+                    options.ScrollForTest(100000f);   // clamped to the end: the bottom of the chapter
+                    yield return new WaitForSecondsRealtime(0.35f);
+                    ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, $"options-{shape}-{page.ToLowerInvariant()}-end.png"));
+                    yield return new WaitForSecondsRealtime(0.35f);
+                }
+                Debug.Log($"[SelfTest] options: shots written to {dir}");
+            }
+            finally
+            {
+                UiLayout.ForceTouchLayoutForTest = oldTouch; UiLayout.IPhoneSafeAreaForTest = oldSafe;
+                UiLayout.IPadSafeAreaForTest = false; UiLayout.ScaleForTest = -1f;
+            }
+        }
+
         private IEnumerator MenuLayoutTest()
         {
             var shapes = new (string name, int w, int h)[] { ("iphone-land", 1311, 603), ("iphone-port", 603, 1311), ("ipad-land", 1180, 820), ("ipad-port", 820, 1180) };
@@ -1160,6 +1285,9 @@ namespace FlyingGame.Bridge
                     // AERO_HUDSHOTS_DEVICE=ipad: iPad mini (2266x1488 at 2x, no notch, 20 pt home indicator) instead of the iPhone.
                     bool ipad = System.Environment.GetEnvironmentVariable("AERO_HUDSHOTS_DEVICE") == "ipad";
                     UiLayout.IPadSafeAreaForTest = ipad;
+                    // Pin the UI scale to what the device being SIMULATED would get, so these images do not change
+                    // size with the dots per inch of whatever machine runs the self-test (UiLayout.AutoScale).
+                    UiLayout.ScaleForTest = ipad ? 1f : 1.73f;
                     int lo = ipad ? 1488 : 1206, hi = ipad ? 2266 : 2622;
                     int w = portrait ? lo : hi, h = portrait ? hi : lo;
                     if (ipad) orient += "-ipad";
@@ -1199,6 +1327,7 @@ namespace FlyingGame.Bridge
                     aero.Insets.Clear(); foreach (var key in aeroInsets) aero.Insets.Add(key);
                 }
                 UiLayout.ForceTouchLayoutForTest = oldTouch; GamepadInput.SimulateConnectedForTest = oldGamepad; UiLayout.IPhoneSafeAreaForTest = oldSafe; UiLayout.IPadSafeAreaForTest = false;
+                UiLayout.ScaleForTest = -1f;
                 if (challengeHud != null) challengeHud.enabled = oldChallenge;
                 Screen.SetResolution(oldW, oldH, oldMode); Application.runInBackground = oldBackground;
                 SessionSettings.ApplyTimeScale();

@@ -118,7 +118,11 @@ public class NaturalSurfaceTests : IDisposable
         var start = f.Centre + f.U * (fromCentreM / 1000); double hd = f.Heading * Math.PI / 180;
         double x = start.N * 1000, y = start.E * 1000;
         RigidBodyState rest = LandingGear.RestingState(c, x, y, H(x, y), hd);
-        var ac = new Aircraft(c, new RigidBodyState(rest.Position, rest.Attitude, new Vec3(speed, 0, 0), Vec3.Zero), new ControlDeflections(0, 0, 0, 0));
+        // Rolling ALONG THE GROUND: the speed is horizontal, not along the three-point body axis (that was a 2.3 m/s
+        // climb out of the resting state, a hop the gear then had to settle from; with a real tyre in series it took
+        // longer than the settling window — 2026-11-04 tundra tyres).
+        Vec3 vBody = rest.Attitude.Conjugate().Rotate(new Vec3(speed * Math.Cos(hd), speed * Math.Sin(hd), 0));
+        var ac = new Aircraft(c, new RigidBodyState(rest.Position, rest.Attitude, vBody, Vec3.Zero), new ControlDeflections(0, 0, 0, 0));
         var loop = new SimLoop(ac); double dt = SimLoop.DefaultFixedDtSec, air = 0, agl0 = double.NaN, stray = 0, g0 = double.NaN, g1 = 0;
         for (double t = 0; t < seconds; t += dt)
         {
@@ -151,9 +155,11 @@ public class NaturalSurfaceTests : IDisposable
     [Fact]
     public void TheSkiZonesLieLikeGlacierSnow()
     {
-        // Knik banana (0.97 m sag) and Fairweather crest (1.15 m), along each glacier's path through the zone: at the
-        // centre the snow is 0.97 m below / 1.15 m above the zone's authored elevation, and the added grade is gentle.
-        foreach (var (id, ft, centre) in new[] { ("Knik", 1100.0, -.97), ("Fairweather", 1300.0, 1.15) })
+        // Fairweather crest (1.15 m), along the glacier's path through the zone: at the centre the snow is 1.15 m above
+        // the zone's authored elevation, and the added grade is gentle. (The Knik's banana zone was removed 2026-11-04,
+        // Ty: its landing is the gravel strip in the valley. Fairweather keeps its crest: the shape is chosen by the
+        // glacier's own place in the list, which did not change.)
+        foreach (var (id, ft, centre) in new[] { ("Fairweather", 1300.0, 1.15) })
         {
             var q = IslandTerrain.World["glaciers"].Items.Single(g => g.S("id") == id); var c = q["ski_zone"]["centre"].Point;
             Assert.Equal(centre < 0 ? "banana" : "crest", NaturalShapeParams.SkiZone(id, 450, 100).Name);

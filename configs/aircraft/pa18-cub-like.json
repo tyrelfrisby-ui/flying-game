@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "pa18-cub-like",
   "displayName": "Super Cub-like",
+  "structureType": "steelTube",
+  "structureTypeSource": "Piper PA-18 Super Cub: welded 4130 steel-tube fuselage, fabric covered (FAA TCDS 1A2; Piper PA-18 service manual).",
+  "wingSpar": "aluminumFabric",
+  "wingSparSource": "Piper PA-18 Super Cub: two extruded aluminium spars, aluminium ribs, fabric covered (FAA TCDS 1A2; Piper PA-18 service manual).",
   "wingBracing": "strut",
   "wingBreakStationY": { "wing": 3.4 },
   "wingBreakStationSource": "Lift-strut wing attach |y| 3.40 m (133.9 in): the J-3/PA-18 wing shares Piper spar drawing 14383 and its strut fittings, so the J-3 model's station (build_j3_cub.py Y_ST) is used. Sources: strut fitting 123.5 in (front) / 122.25 in (rear) from the spar root end, measured on a PA-18 spar, drawing 14388/14453 figure 121.25 in from the root bolt hole (supercub.org 'Spar Drilling'); root end ~13 in from the centreline (scaled) -> 135-136.5 in; PA-18 Information Manual three-view p.4 scales to 129-131 in. Not to better than +/-4 in.",
@@ -1427,8 +1431,7 @@
       "hingeChDelta": -0.4,
       "centeringSpringKt": 30,
       "trimType": "spring",
-      "freeTauS": 0.12,
-      "saturationDeg": 71.9
+      "freeTauS": 0.12
     },
     "rudder": {
       "maxDeflRad": 0.44,
@@ -1467,13 +1470,17 @@
       "lengthM": 6.88
     }
   },
-  "smoke": {"aftOfNoseM": 0.87, "downDeg": 90, "displacementCuIn": 320, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [0.995, 0.249, 0.467]},
+  "smoke": {"cylinders": 4, "compressionRatio": 7.0, "aftOfNoseM": 0.87, "downDeg": 90, "displacementCuIn": 320, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [0.995, 0.249, 0.467]},
   "propulsion": {
     "maxPowerW": 112000,
     "propDiameterM": 1.88,
+    "propMaterial": "metal",
+    "propMaterialSource": "Sensenich / McCauley forged aluminium",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2700,
-    "propInertia": 3.5,
+    "propInertia": 1.56,
+    "propInertiaSource": "Propeller + spinner + the crank's rotating parts, kg.m2. From the OWNER'S BLADE RULE (2026-11-09, tools/aircraft_builder/prop_inertia.py): each blade is 15 % of the net propeller weight with its centre of mass at 25 % of the DIAMETER from the axis, the rest being hub near the axis - because a heavy constant-speed hub contributes almost nothing to sum(m r^2), so a mass-weighted estimate overstates the couple. M 20.0 kg, D 1.88 m, 2 blades: blades 1.325 + hub 0.140 (k 0.10 m) + crank 0.09 = 1.56, against 3.5 before. MASS: SOURCED: Sensenich give 44 lb for the metal Super Cub propeller (against 21 lb for their composite). O-320, four cylinders. VALIDATION: the rule reproduces Hartzell's published two-blade polar moment to +18 % (1.412 against 1.198) and runs +60 % high on their three-blade one, so it is applied to two-blade types only.",
     "rotationSign": 1,
     "efficiency": 0.75,
     "thrustLineZ": 0.0,
@@ -1502,7 +1509,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "rollResistN": 40
+      "tire": "8.00-6", "tirePressurePsi": 18
     },
     {
       "pos": [
@@ -1518,7 +1525,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "rollResistN": 40
+      "tire": "8.00-6", "tirePressurePsi": 18
     },
     {
       "pos": [
@@ -1534,7 +1541,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
-      "rollResistN": 20,
+      "tire": "scott-8in", "tirePressurePsi": 18,
       "steerSpringNmPerRad": 7
     }
   ],

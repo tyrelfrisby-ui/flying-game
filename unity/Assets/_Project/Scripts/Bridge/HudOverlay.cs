@@ -20,7 +20,7 @@ namespace FlyingGame.Bridge
         public float LadderHalfWidthDeg = 9f;   // half-length of ladder bars in azimuth degrees
         public float LineWidthFrac = 0.0022f;   // line width as a fraction of min(w,h)
 
-        private Camera _cam;
+        private Camera _cam, _liveCam;
         private Material _mat;
         private GUIStyle _text, _small, _engineLabel, _engineValue;
         private int _fs;
@@ -29,9 +29,16 @@ namespace FlyingGame.Bridge
         private System.Collections.Generic.List<Sym> _labels = new();
         private System.Collections.Generic.List<Sym> _clipLabels = new();   // the same symbology computed for the clip camera
 
+        /// <summary>Split screen: this camera's player (null in single-player, where everything is as it always was).</summary>
+        private LocalPlayerView View => LocalSplit.Active ? LocalPlayerView.Of(this) : null;
+        /// <summary>This camera's view is in the cockpit (single-player: the static, as always).</summary>
+        private bool InCockpitHere => View?.InCockpit ?? ChaseCamera.InCockpit;
+        /// <summary>The engine band and the touch tray belong to the first player's screen.</summary>
+        private bool SecondaryView => View != null && View.PlayerIndex != 0;
+
         private void Awake()
         {
-            _cam = GetComponent<Camera>();
+            _cam = _liveCam = GetComponent<Camera>();
             Shader sh = Shader.Find("FlyingGame/HudLine");
             if (sh != null) _mat = new Material(sh) { color = Color.white };
         }
@@ -100,13 +107,20 @@ namespace FlyingGame.Bridge
 
         private void OnPostRender()
         {
+            if (LocalPlayerHud.CompactActive) { _labels.Clear(); return; }
             if (Driver == null || Driver.Sim == null || _mat == null || SessionSettings.MenuOpen || SessionSettings.Instruments != SessionSettings.InstrumentMode.Hud) { _labels.Clear(); return; }
+            // In a headset's cockpit the real instruments count: no HUD unless the VR menu's HUD row asks for it.
+            // (Only the live pass: a clip renders its own camera, which is never the headset's.)
+            if (_cam == _liveCam && !XrHeadset.HudAllowed) { _labels.Clear(); return; }
+            // Not once the pilot is leaving or has left (PilotOutRules.ShowHud): the HUD is the aeroplane's, and the
+            // camera that follows him out is not a view of it (Ty 2026-11-04, Great Lakes bail-out on the Quest).
+            if (!PilotEgress.HudAllowed(Driver)) { _labels.Clear(); return; }
             _labels.Clear();
             float vw = _cam.pixelWidth, vh = _cam.pixelHeight;   // the flying area (full screen in landscape)
             float s = Mathf.Min(vw, vh);
             _w = Mathf.Max(1.5f, s * LineWidthFrac);
             Rect engineBand = UiLayout.EngineRowRect;
-            _lineFloor = _cam.targetTexture == null && engineBand.width > 0f && !ChaseCamera.InCockpit
+            _lineFloor = _cam.targetTexture == null && engineBand.width > 0f && !InCockpitHere && !SecondaryView
                 ? Mathf.Max(0f, Screen.height - engineBand.y - _cam.pixelRect.y) : 0f;
             // TV mode: the same floor over the TV's engine band (DrawForTv), measured in the TV's pixels.
             if (TvOutput.Active && _cam == Camera.main && !ChaseCamera.InCockpit && Driver.Sim.Aircraft?.Config?.Propulsion != null)
@@ -245,6 +259,9 @@ namespace FlyingGame.Bridge
         private void OnGUI()
         {
             if (TvOutput.Active) return;   // TV mode: the HUD is on the TV (DrawForTv)
+            if (LocalPlayerHud.CompactActive) return;
+            // In a headset a screen-space overlay smears across both eyes at the wrong depth.
+            if (VrMode.SuppressFlatOverlays) return;
             DrawLabels(_labels, _cam.pixelRect, Screen.height);
             DrawEngineReadouts(UiLayout.EngineRowRect);
         }
@@ -262,9 +279,9 @@ namespace FlyingGame.Bridge
         private void DrawEngineReadouts(Rect band)
         {
             var ac = Driver?.Sim?.Aircraft;
-            if (ac?.Config?.Propulsion == null || band.width <= 0f || ChaseCamera.InCockpit ||
+            if (ac?.Config?.Propulsion == null || band.width <= 0f || InCockpitHere || SecondaryView ||
                 SessionSettings.MenuOpen || SessionSettings.ReplayActive || UiLayout.Modal ||
-                SessionSettings.Instruments != SessionSettings.InstrumentMode.Hud) return;
+                SessionSettings.Instruments != SessionSettings.InstrumentMode.Hud || !PilotEgress.HudAllowed(Driver)) return;
 
             _engineLabel ??= new GUIStyle { font = UiFont.Get(), alignment = TextAnchor.MiddleCenter };
             _engineValue ??= new GUIStyle(_engineLabel) { fontStyle = FontStyle.Bold };
@@ -307,7 +324,7 @@ namespace FlyingGame.Bridge
                 float px = l.Pos.x + vp.x, py = l.Pos.y + vp.y;
                 float x = l.Anchor is TextAnchor.MiddleRight ? px - w : l.Anchor is TextAnchor.MiddleCenter ? px - w * 0.5f : px;
                 var rect = new Rect(x, screenH - py - h * 0.5f, w, h);
-                if (ReferenceEquals(labels, _labels) && !UiSurface.IsTv && UiLayout.EngineRowRect.width > 0f && !ChaseCamera.InCockpit &&
+                if (ReferenceEquals(labels, _labels) && !UiSurface.IsTv && UiLayout.EngineRowRect.width > 0f && !InCockpitHere && !SecondaryView &&
                     rect.yMax > UiLayout.EngineRowRect.y) continue;
                 GUI.Label(rect, l.Text, st);
             }

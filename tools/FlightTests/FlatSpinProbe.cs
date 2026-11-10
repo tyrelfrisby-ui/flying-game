@@ -1,3 +1,4 @@
+using System.Linq;
 using FlyingGame.Core;
 using FlyingGame.Core.Aero;
 using FlyingGame.Core.DataContracts;
@@ -40,8 +41,9 @@ public class FlatSpinProbe
                 if (i == 100 && name == "full AFT" && System.Environment.GetEnvironmentVariable("FLATSPIN_IP_AFTER") is string ipa) cfg.Propulsion!.PropInertia = double.Parse(ipa, System.Globalization.CultureInfo.InvariantCulture);
                 sim.RunFor(0.1, ci); Wrap(ac);
             }
-            int n = 0; double pitch = 0, a = 0, aL = 0, aR = 0, w = 0, kt = 0, bet = 0;
-            double mWing = 0, mTail = 0, mFus = 0, mPure = 0, mThr = 0, mGyro = 0, mIn = 0, mOther = 0;
+            int n = 0; double pitch = 0, a = 0, aL = 0, aR = 0, w = 0, kt = 0, bet = 0, pr = 0, qr = 0, rr = 0;
+            double mWing = 0, mTail = 0, mFus = 0, mPure = 0, mThr = 0, mGyro = 0, mPropN = 0, mIn = 0, mOther = 0;
+            var others = new System.Collections.Generic.SortedDictionary<string, double>();
             ac.CaptureForces = true;
             var I = ac.MassProperties; var cg = cfg.Mass.CgVec();
             for (int i = 0; i < 100; i++)
@@ -58,6 +60,7 @@ public class FlatSpinProbe
                     if (side < 0) aL += al; else aR += al;
                 }
                 w += om.Length * 57.3; kt += vb.Length * 1.943844; bet += System.Math.Asin(vb.Y / vb.Length) * 57.3; n++;
+                pr += om.X; qr += om.Y; rr += om.Z;
                 foreach (var f in ac.LastForces)
                 {
                     double my = Vec3.Cross(f.PosBody - cg, f.ForceBody).Y + f.MomentBody.Y;
@@ -67,9 +70,15 @@ public class FlatSpinProbe
                         case "fuselage": mFus += my; break;
                         case "moment": mPure += my; break;
                         case "thrust": mThr += my; break;
+                        // "gyro" and "propn" are breakdowns of the "thrust" sample, not forces of their own — never add them to the total.
                         case "gyro": mGyro += f.MomentBody.Y; break;
-                        case "weight": break;
-                        default: mOther += my; break;
+                        case "propn": mPropN += my; break;
+                        // "tailflow" is not a force: AeroModel packs (α_t, ε, η_t) into MomentBody and the local flow
+                        // vector into ForceBody for the overlay. Crossing it with an arm as if it were newtons is what
+                        // put a phantom "other +965 ft·lb" nose-up in this budget. SpinProbe, SpinBalanceProbe,
+                        // GroundLoopTests and PittsInvertedBankProbe all skip it by name; this one did not.
+                        case "tailflow": case "weight": break;
+                        default: mOther += my; others.TryGetValue(f.Kind, out double o); others[f.Kind] = o + my; break;
                     }
                 }
                 double hx = I.Ixx * om.X - I.Ixz * om.Z, hz = I.Izz * om.Z - I.Ixz * om.X;
@@ -78,7 +87,10 @@ public class FlatSpinProbe
             ac.CaptureForces = false;
             double k = 0.7376 / n;   // N·m → ft·lb, mean
             _out.WriteLine($"{cfg.Id} UPRIGHT flat, left rudder, full power, aileron {ci.Aileron:0.0}, {name}: pitch {pitch / n:0.0}  α {a / n:0.0}  α85 L {aL / n:0} R {aR / n:0}  {360 / (w / n):0.00} s/turn  {kt / n:0} kt TAS  β {bet / n:0}"
-                + $"\n   pitch moments (ft·lb, + nose-up): wing {mWing * k:+0;-0}  tail {mTail * k:+0;-0}  fuselage {mFus * k:+0;-0}  pure(Cm/damping) {mPure * k:+0;-0}  thrust {mThr * k:+0;-0} (of it gyro {mGyro * k:+0;-0})  other {mOther * k:+0;-0}  | inertial {mIn * k:+0;-0}");
+                + $"\n   body rates (rad/s): p {pr / n:+0.00;-0.00}  q {qr / n:+0.00;-0.00}  r {rr / n:+0.00;-0.00}   (Izz−Ixx)·p·r {(I.Izz - I.Ixx) * (pr / n) * (rr / n) * 0.7376:+0;-0} ft·lb"
+                + $"\n   pitch moments (ft·lb, + nose-up): wing {mWing * k:+0;-0}  tail {mTail * k:+0;-0}  fuselage {mFus * k:+0;-0}  pure(Cm/damping) {mPure * k:+0;-0}  thrust {mThr * k:+0;-0}  | inertial {mIn * k:+0;-0}"
+                + $"\n   sum {(mWing + mTail + mFus + mPure + mThr + mOther + mIn) * k:+0;-0}   breakdowns inside thrust: gyro {mGyro * k:+0;-0}  prop normal {mPropN * k:+0;-0}  (thrust minus both {(mThr - mGyro - mPropN) * k:+0;-0})"
+                + (others.Count == 0 ? "   unbucketed: none" : "\n   UNBUCKETED: " + string.Join("  ", others.Select(o => $"{o.Key} {o.Value * k:+0;-0}"))));
         }
     }
 

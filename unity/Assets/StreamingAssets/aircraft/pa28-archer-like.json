@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "pa28-archer-like",
   "displayName": "Archer-like",
+  "structureType": "aluminumMonocoque",
+  "structureTypeSource": "Piper PA-28 Archer: all-metal aluminium semi-monocoque (Piper PA-28 service manual).",
   "spawnIasMs": 55,
   "mass": {
     "massKg": 1090,
@@ -1505,6 +1507,9 @@
   "propulsion": {
     "maxPowerW": 134000,
     "propDiameterM": 1.93,
+    "propMaterial": "metal",
+    "propMaterialSource": "Sensenich 76EM8 forged aluminium",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 1.7,
@@ -1536,7 +1541,7 @@
       "maxSteerRad": 0.5,
       "tireMu": 0.8,
       "corneringStiffnessN": 5000,
-      "rollResistN": 30
+      "tire": "5.00-5", "tirePressurePsi": 18
     },
     {
       "pos": [
@@ -1552,7 +1557,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 12000,
-      "rollResistN": 40
+      "tire": "6.00-6", "tirePressurePsi": 24
     },
     {
       "pos": [
@@ -1568,7 +1573,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 12000,
-      "rollResistN": 40
+      "tire": "6.00-6", "tirePressurePsi": 24
     }
   ],
   "limits": {

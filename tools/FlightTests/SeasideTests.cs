@@ -8,10 +8,12 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>The seaside world (owner 2026-10-03): coast, gorge to the sea, Golden Gate, city, Catalina-like island with
 /// its runway, sea arch, Avalon and the sea cave. Geometry facts a pilot would rely on.</summary>
-public class SeasideTests
+public class SeasideTests : IDisposable
 {
     private readonly ITestOutputHelper _o;
     public SeasideTests(ITestOutputHelper o) { _o = o; }
+    /// <summary>Landmarks.RegisterSolids adds the world's solids and decks and nothing takes them down: do it here.</summary>
+    public void Dispose() => SimGlobals.ClearSolids();
     private static readonly WorldTerrain T = new();
 
     [Fact]

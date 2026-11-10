@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "j3-cub-floats-like",
   "displayName": "J-3 Cub-like on Floats",
+  "structureType": "steelTube",
+  "structureTypeSource": "Piper J-3 Cub: welded 4130/1025 steel-tube fuselage, fabric covered (FAA TCDS A-691; Piper J-3 parts catalogue).",
+  "wingSpar": "wood",
+  "wingSparSource": "Piper J-3 Cub: two solid spruce spars, aluminium ribs, fabric covered (FAA TCDS A-691; Piper J-3 parts catalogue).",
   "wingBracing": "strut",
   "wingBreakStationY": { "wing": 3.4 },
   "wingBreakStationSource": "Lift-strut wing attach |y| 3.40 m (133.9 in) from the centreline: our own J-3 model (tools/own_models/build_j3_cub.py Y_ST, traced from the J-3 three-view). Checks: Piper spar drawing 14383 (J-3 to PA-18) puts the strut fitting 121.25 in from the root bolt hole, measured 123.5 front / 122.25 rear in from the spar root end on a PA-18 spar (supercub.org 'Spar Drilling', quoting drawings 14388/14453), plus ~13 in root-end offset (scaled) = 135-136.5 in; the PA-18 Information Manual three-view (p.4) scales to 129-131 in. 3.40 m sits inside that 130-136 in spread.",
@@ -1367,14 +1371,14 @@
     }
   },
   "rig": {
-    "aileronRad": 0.006158,
-    "finOffsetRad": 0.008068,
+    "aileronRad": 0.001754,
+    "finOffsetRad": 0.031751,
     "throttleFraction": 0.75,
     "altitudeM": 1219.2,
-    "tasMs": 28.544,
-    "alphaRad": 0.076871,
-    "elevatorTrimRad": -0.031029,
-    "bankRad": 0.006723
+    "tasMs": 32.739,
+    "alphaRad": 0.036259,
+    "elevatorTrimRad": -0.014933,
+    "bankRad": -0.00061
   },
   "controls": {
     "aileron": {
@@ -1400,8 +1404,7 @@
       "hingeChDelta": -0.4,
       "centeringSpringKt": 0,
       "trimType": "spring",
-      "freeTauS": 0.12,
-      "saturationDeg": 59.8
+      "freeTauS": 0.12
     },
     "rudder": {
       "maxDeflRad": 0.5236,
@@ -1423,7 +1426,8 @@
     }
   },
   "fuselage": {
-    "cd0Area": 1.25,
+    "cd0Area": 0.771,
+    "cd0AreaSource": "Tuned 2026-11-09 from 1.25 to the owner's own cruise: he sets 2200 rpm on floats and sees about 75 mph indicated. The blade is already fitted (2150 static -> 15.33 deg), so the thrust at 2200 rpm and 75 mph is decided at 848 N; this is the drag that equals it. Cruise is then 49.4 hp, 68 percent of what the C-85 can make at 2200 rpm, against 93 percent before. NOTE: this is LESS than the wheeled Cub's 0.92, and floats cannot be cleaner than a Cub's gear \u2014 so the wheeled aeroplane is too draggy too and wants the same treatment, which needs its own datum and a re-rig.",
     "sideForceArea": 6.0,
     "damping": {
       "p": 0,
@@ -1431,6 +1435,11 @@
       "r": 0
     },
     "crossflow": {
+      "stationX": [-0.3, -0.8, -1.4, -2.0, -2.6, -3.1, -3.7, -4.3, -4.9, -5.5, -6.1],
+      "stationMidZ": [0.1134, 0.1827, 0.1898, 0.1604, 0.0481, -0.0427, -0.0751, -0.104, -0.1544, -0.2078, -0.2405],
+      "stationHalfY": [0.225, 0.2763, 0.315, 0.315, 0.315, 0.285, 0.2542, 0.2018, 0.1365, 0.0783, 0.033],
+      "stationHalfZ": [0.2866, 0.3835, 0.4379, 0.4604, 0.4895, 0.4933, 0.4314, 0.3719, 0.3261, 0.2832, 0.2195],
+      "stationSource": "Measured 2026-11-09 off the type's own three-view lines in tools/own_models/build_j3_cub.py (F_TOP, F_BOT, F_HW), the same tables the visual model is built from. The midline RISES 0.169 m by the fin station, which the constant-section crossflow body could not say at all (CentreZ was zero everywhere) - and an attached propeller wash needs a shape to follow. Owner 2026-11-09: the vortex has a tendency to follow the fuselage, not a rule, so PropJet traces attached and free and blends them.",
       "bodyRadiusM": 0.5,
       "planArea": 4.0,
       "planCenterX": -0.5,
@@ -1440,13 +1449,23 @@
       "lengthM": 6.83
     }
   },
-  "smoke": {"aftOfNoseM": 0.75, "downDeg": 39, "displacementCuIn": 188, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [0.947, 0.178, 0.568]},
+  "spinAero": {
+    "shadowK": 0.5,
+    "shadowKSource": "Geometric helical shadow depth (TailWake.GeometricShadow): the share of dynamic pressure a fully shadowed strip loses. Replaces the Report 648 wake correlation for EVERY surface of this type, and brings in the fuselage's own shadow on the tail and the wings (TailWake.BodyStation). Ty 2026-11-08: \"expand the shadow work to all 6 shipping aircraft include the shadow effects of the fuselage on the tail and wing's too\". 0.5 is the depth fitted on the Pitts against the owner's spin attitudes on 2026-11-08, and it is a PHYSICAL statement - half the q is gone where a wake fully covers a section - rather than a per-type fudge, so the six carry the same number until a type's own evidence moves it. What differs between types is the geometry, which is the point: the Pitts' cellule shadows itself, the Extra's stabiliser spans well outside its fuselage and is barely shadowed at all (measured in a tumble: tail q 1.00 -> 0.96), and the fuselage's own shadow is what takes the fin in an upright flat spin while leaving it in clear air inverted."
+  },
+  "smoke": {"cylinders": 4, "compressionRatio": 6.3, "aftOfNoseM": 0.75, "downDeg": 39, "displacementCuIn": 188, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [0.947, 0.178, 0.568]},
   "propulsion": {
     "maxPowerW": 63400.0,
     "propDiameterM": 1.83,
+    "bladePitch75Deg": 15.33,
+    "bladePitchSource": "Fitted 2026-11-09 to the owner's OWN aeroplane: 2150 rpm static at full power, sea level, on his metal propeller (he says 76AK; propMaterialSource here says 76AM-2 \u2014 worth reconciling). He does not have the wooden blade, so this figure belongs to the FLOAT Cub and not to the wheeled one. Fit: PistonEngine.FitPitchForStaticRpm, blade-element against the engine's torque. Static rpm for any fixed-pitch type with a TCDS is published there; take the middle of the range at sea level.",
+    "propMaterial": "metal",
+    "propMaterialSource": "Sensenich 76AM-2 forged aluminium: a seaplane flies metal, spray erodes wood",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2575,
-    "propInertia": 2.4,
+    "propInertia": 1.45,
+    "propInertiaSource": "Propeller + spinner + the crank's rotating parts, kg.m2. From the OWNER'S BLADE RULE (2026-11-09, tools/aircraft_builder/prop_inertia.py): each blade is 15 % of the net propeller weight with its centre of mass at 25 % of the DIAMETER from the axis, the rest being hub near the axis - because a heavy constant-speed hub contributes almost nothing to sum(m r^2), so a mass-weighted estimate overstates the couple. M 20.0 kg, D 1.83 m, 2 blades: blades 1.256 + hub 0.140 (k 0.10 m) + crank 0.05 = 1.45, against 2.4 before. MASS: ESTIMATED: Sensenich 76AM-2 forged aluminium, the Super Cub metal class at 44 lb. Continental A-65/C-85, four small cylinders. VALIDATION: the rule reproduces Hartzell's published two-blade polar moment to +18 % (1.412 against 1.198) and runs +60 % high on their three-blade one, so it is applied to two-blade types only.",
     "rotationSign": 1,
     "efficiency": 0.74,
     "thrustLineZ": 0.0,
@@ -1474,7 +1493,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1491,7 +1509,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 2500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1508,7 +1525,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1525,7 +1541,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1542,7 +1557,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 2500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1559,7 +1573,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     }
   ],
@@ -1582,18 +1595,26 @@
     "beamM": 0.5358,
     "depthM": 0.4993,
     "deadriseDeg": 18.8,
+      "incidenceDeg": 6.0,
+      "incidenceDegSource": "Rigged angle, degrees, leading edge up. 6 deg chosen 2026-11-09 to satisfy BOTH of Ty's figures at once: the floats carry their own weight plus some AT STALL (115 percent at 6 deg) and the stall speed is 2-5 percent lower with floats than without (3.5 percent at 6 deg) - his own correction, the lift shows at the stall and not in cruise. Two independent claims, one model, one angle. He will test floats against wheels on the next build and this can be refined then. His friend is Wipaire's chief engineer and test pilot, so the behaviour is measured, not folklore.",
     "stepFraction": 0.5562,
     "spreadM": 1.887,
     "bowX": 1.9945,
     "keelZ": 1.4419,
     "forebodyKeelDeg": 0.57,
     "afterbodyKeelDeg": 6.9,
-    "waterRudderAreaM2": 0.043,
-    "waterRudderMaxRad": 0.4363,
-    "waterRudderX": -2.4953,
-    "waterRudderSpanM": 0.1705,
-    "waterRudderTipZ": 1.3095,
+    "waterRudderAreaM2": 0.0445,
+    "waterRudderChordM": 0.2305,
+    "waterRudderSpanM": 0.2459,
+    "waterRudderPivotX": -2.453,
+    "waterRudderPivotY": 0.943,
+    "waterRudderPivotZ": 1.160,
+    "waterRudderBladeAftM": 0.1323,
+    "waterRudderBladeBelowM": 0.1399,
     "waterRudderSides": "left",
+    "waterRudderRetractable": true,
+    "waterRudderRetractRad": 1.5708,
+    "waterRudderMaxRad": 0.4363,
     "stepX": -0.4437,
     "stations": [
       [1.9945, 0.0, 1.0696, 0.0, 1.0696, 0.0, 1.0696, 0.0, 1.0696, 0.0, 1.0696],

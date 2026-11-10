@@ -122,14 +122,22 @@ public sealed class GustyWind
     public double PeakSpeedMs { get; }
     public double LullSpeedMs { get; }
     public double FromRad { get; }
-    private readonly double _meanGap, _tMin, _tMax;
+    private readonly double _meanGap, _tMin, _tMax, _halfBandRad;
     private readonly int _seed;
-    private readonly List<(double start, double dur, double amp)> _gusts = new();
-    private const double AmpMinFrac = 0.75;
+    /// <summary>start, duration, amplitude, the fraction of the duration spent RISING, and this gust's own veer.</summary>
+    private readonly List<(double start, double dur, double amp, double rise, double veer)> _gusts = new();
+    /// <summary>Weakest gust as a fraction of the strongest. Ty 2026-11-08 wanted the intensity less predictable; at
+    /// 0.75 every gust was within a quarter of every other one.</summary>
+    private const double AmpMinFrac = 0.45;
+    /// <summary>A gust always arrives faster than it leaves; this is the range of HOW much faster, as the share of its
+    /// duration spent rising. 0.5 would be the symmetrical raised cosine every gust used to be.</summary>
+    private const double RiseMinFrac = 0.18, RiseMaxFrac = 0.46;
 
-    public GustyWind(double meanSpeedMs, double peakSpeedMs, double fromDeg, double meanGapS, double minDurS, double maxDurS, int seed)
+    public GustyWind(double meanSpeedMs, double peakSpeedMs, double fromDeg, double meanGapS, double minDurS, double maxDurS, int seed,
+                     double directionBandDeg = 3.0)
     {
         MeanSpeedMs = meanSpeedMs; PeakSpeedMs = peakSpeedMs; FromRad = fromDeg * System.Math.PI / 180;
+        _halfBandRad = System.Math.Max(0.0, directionBandDeg) * 0.5 * System.Math.PI / 180;
         _meanGap = System.Math.Max(1.0, meanGapS); _tMin = System.Math.Max(1.0, minDurS); _tMax = System.Math.Max(_tMin, maxDurS); _seed = seed;
         double eT = 0.5 * (_tMin + _tMax), duty = eT / 2.0 / (eT + _meanGap), eAfrac = 0.5 * (AmpMinFrac + 1.0);
         // mean = lull + eAfrac·(peak − lull)·duty  →  lull = (mean − eAfrac·duty·peak) / (1 − eAfrac·duty)
@@ -145,7 +153,9 @@ public sealed class GustyWind
             double gap = -_meanGap * System.Math.Log(System.Math.Max(1e-9, 1 - SeededNoise.Uniform(_seed, 21, k)));
             double dur = _tMin + (_tMax - _tMin) * SeededNoise.Uniform(_seed, 22, k);
             double amp = (PeakSpeedMs - LullSpeedMs) * (AmpMinFrac + (1 - AmpMinFrac) * SeededNoise.Uniform(_seed, 23, k));
-            _gusts.Add((t + gap, dur, amp));
+            double rise = RiseMinFrac + (RiseMaxFrac - RiseMinFrac) * SeededNoise.Uniform(_seed, 24, k);
+            double veer = _halfBandRad * (2 * SeededNoise.Uniform(_seed, 25, k) - 1);
+            _gusts.Add((t + gap, dur, amp, rise, veer));
             t += gap + dur;
         }
     }
@@ -160,11 +170,54 @@ public sealed class GustyWind
         while (lo < hi) { int mid = (lo + hi + 1) / 2; if (_gusts[mid].start <= t) lo = mid; else hi = mid - 1; }
         var g = _gusts[lo];
         if (t < g.start || t > g.start + g.dur) return 0.0;
-        return 0.5 * g.amp * (1 - System.Math.Cos(2 * System.Math.PI * (t - g.start) / g.dur));
+        return g.amp * Shape((t - g.start) / g.dur, g.rise);
+    }
+
+    /// <summary>
+    /// A gust's envelope, 0 at both ends and 1 where it tops out. It used to be a raised cosine, which is perfectly
+    /// symmetrical — every gust came up and went away at the same rate and in the same shape as every other one, and
+    /// that is what made them predictable (Ty 2026-11-08: "gusts should have a randomness built in for timing
+    /// intensity duration and onset rate and bleed off rate so they aren't too predictable"). It is now a smootherstep
+    /// up over <paramref name="rise"/> of the duration and another back down over the rest, so each gust has its own
+    /// onset and its own bleed-off, and the onset is always the quicker of the two — as a real one is.
+    ///
+    /// Both halves still average a half over their own length, so the mean-speed calibration in the constructor is
+    /// untouched by the change of shape.
+    /// </summary>
+    private static double Shape(double u, double rise)
+    {
+        if (u <= 0 || u >= 1) return 0.0;
+        double x = u < rise ? u / rise : (1 - u) / (1 - rise);
+        return x * x * x * (x * (x * 6 - 15) + 10);
     }
 
     public double SpeedAt(double timeSec) => LullSpeedMs + GustAt(timeSec);
 
-    /// <summary>Unit vector the wind blows TOWARD.</summary>
+    /// <summary>
+    /// The direction the wind blows FROM at this moment (rad). The mean direction with the running gust's own veer
+    /// faded in on the gust's own envelope, so it stays inside the band it was given and comes back to the mean
+    /// between gusts (Ty 2026-11-08: "the direction should remain within a 3 degree band"). A dead-constant direction
+    /// was the other thing that made the airfield feel mechanical.
+    /// </summary>
+    public double FromRadAt(double timeSec)
+    {
+        if (_halfBandRad <= 0) return FromRad;
+        double t = System.Math.Max(0.0, timeSec);
+        if (_gusts.Count == 0 || _gusts[^1].start < t + _tMax) Extend(t);
+        int lo = 0, hi = _gusts.Count - 1;
+        while (lo < hi) { int mid = (lo + hi + 1) / 2; if (_gusts[mid].start <= t) lo = mid; else hi = mid - 1; }
+        var g = _gusts[lo];
+        if (t < g.start || t > g.start + g.dur) return FromRad;
+        return FromRad + g.veer * Shape((t - g.start) / g.dur, g.rise);
+    }
+
+    /// <summary>Unit vector the wind blows TOWARD at this moment.</summary>
+    public MathTypes.Vec3 TowardAt(double timeSec)
+    {
+        double f = FromRadAt(timeSec);
+        return new MathTypes.Vec3(-System.Math.Cos(f), -System.Math.Sin(f), 0);
+    }
+
+    /// <summary>Unit vector the wind blows TOWARD, at the mean direction.</summary>
     public MathTypes.Vec3 Toward => new(-System.Math.Cos(FromRad), -System.Math.Sin(FromRad), 0);
 }

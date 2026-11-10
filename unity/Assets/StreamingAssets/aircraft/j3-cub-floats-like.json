@@ -2,6 +2,13 @@
   "schemaVersion": 1,
   "id": "j3-cub-floats-like",
   "displayName": "J-3 Cub-like on Floats",
+  "structureType": "steelTube",
+  "structureTypeSource": "Piper J-3 Cub: welded 4130/1025 steel-tube fuselage, fabric covered (FAA TCDS A-691; Piper J-3 parts catalogue).",
+  "wingBracing": "strut",
+  "wingBreakStationY": { "wing": 3.4 },
+  "wingBreakStationSource": "Lift-strut wing attach |y| 3.40 m (133.9 in) from the centreline: our own J-3 model (tools/own_models/build_j3_cub.py Y_ST, traced from the J-3 three-view). Checks: Piper spar drawing 14383 (J-3 to PA-18) puts the strut fitting 121.25 in from the root bolt hole, measured 123.5 front / 122.25 rear in from the spar root end on a PA-18 spar (supercub.org 'Spar Drilling', quoting drawings 14388/14453), plus ~13 in root-end offset (scaled) = 135-136.5 in; the PA-18 Information Manual three-view (p.4) scales to 129-131 in. 3.40 m sits inside that 130-136 in spread.",
+  "liftStrutFuselageAttach": [-0.24, 0.325, 0.41],
+  "liftStrutFuselageAttachSource": "As j3-cub-like (same airframe, same eye, Spec.SitHighM): build_j3_cub.py F_ST, 0.645 m aft of the wing LE, BL 0.325 m, 1.16 m below the chord line.",
   "spawnIasMs": 26,
   "mass": {
     "massKg": 589.7,
@@ -464,7 +471,7 @@
           "pos": [
             -4.256,
             -1.316,
-            0.0
+            -0.485
           ],
           "chord": 0.499,
           "area": 0.1877,
@@ -481,7 +488,7 @@
           "pos": [
             -4.266,
             -0.941,
-            0.0
+            -0.485
           ],
           "chord": 0.542,
           "area": 0.2037,
@@ -498,7 +505,7 @@
           "pos": [
             -4.277,
             -0.564,
-            0.0
+            -0.485
           ],
           "chord": 0.584,
           "area": 0.2197,
@@ -515,7 +522,7 @@
           "pos": [
             -4.288,
             -0.189,
-            0.0
+            -0.485
           ],
           "chord": 0.627,
           "area": 0.2358,
@@ -532,7 +539,7 @@
           "pos": [
             -4.288,
             0.189,
-            0.0
+            -0.485
           ],
           "chord": 0.627,
           "area": 0.2358,
@@ -549,7 +556,7 @@
           "pos": [
             -4.277,
             0.564,
-            0.0
+            -0.485
           ],
           "chord": 0.584,
           "area": 0.2197,
@@ -566,7 +573,7 @@
           "pos": [
             -4.266,
             0.941,
-            0.0
+            -0.485
           ],
           "chord": 0.542,
           "area": 0.2037,
@@ -583,7 +590,7 @@
           "pos": [
             -4.256,
             1.316,
-            0.0
+            -0.485
           ],
           "chord": 0.499,
           "area": 0.1877,
@@ -606,7 +613,7 @@
           "pos": [
             -4.694,
             -1.316,
-            0.0
+            -0.485
           ],
           "chord": 0.235,
           "area": 0.0883,
@@ -623,7 +630,7 @@
           "pos": [
             -4.741,
             -0.941,
-            0.0
+            -0.485
           ],
           "chord": 0.255,
           "area": 0.0959,
@@ -640,7 +647,7 @@
           "pos": [
             -4.788,
             -0.564,
-            0.0
+            -0.485
           ],
           "chord": 0.275,
           "area": 0.1034,
@@ -657,7 +664,7 @@
           "pos": [
             -4.836,
             -0.189,
-            0.0
+            -0.485
           ],
           "chord": 0.295,
           "area": 0.1109,
@@ -674,7 +681,7 @@
           "pos": [
             -4.836,
             0.189,
-            0.0
+            -0.485
           ],
           "chord": 0.295,
           "area": 0.1109,
@@ -691,7 +698,7 @@
           "pos": [
             -4.788,
             0.564,
-            0.0
+            -0.485
           ],
           "chord": 0.275,
           "area": 0.1034,
@@ -708,7 +715,7 @@
           "pos": [
             -4.741,
             0.941,
-            0.0
+            -0.485
           ],
           "chord": 0.255,
           "area": 0.0959,
@@ -725,7 +732,7 @@
           "pos": [
             -4.694,
             1.316,
-            0.0
+            -0.485
           ],
           "chord": 0.235,
           "area": 0.0883,
@@ -1362,14 +1369,14 @@
     }
   },
   "rig": {
-    "aileronRad": 0.00616,
-    "finOffsetRad": 0.008071,
+    "aileronRad": 0.006158,
+    "finOffsetRad": 0.008068,
     "throttleFraction": 0.75,
     "altitudeM": 1219.2,
-    "tasMs": 28.54,
-    "alphaRad": 0.076964,
-    "elevatorTrimRad": -0.031538,
-    "bankRad": 0.006724
+    "tasMs": 28.544,
+    "alphaRad": 0.076871,
+    "elevatorTrimRad": -0.031029,
+    "bankRad": 0.006723
   },
   "controls": {
     "aileron": {
@@ -1435,10 +1442,13 @@
       "lengthM": 6.83
     }
   },
-  "smoke": {"aftOfNoseM": 0.75, "downDeg": 39, "displacementCuIn": 188, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [0.947, 0.178, 0.568]},
+  "smoke": {"cylinders": 4, "compressionRatio": 6.3, "aftOfNoseM": 0.75, "downDeg": 39, "displacementCuIn": 188, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [0.947, 0.178, 0.568]},
   "propulsion": {
     "maxPowerW": 63400.0,
     "propDiameterM": 1.83,
+    "propMaterial": "metal",
+    "propMaterialSource": "Sensenich 76AM-2 forged aluminium: a seaplane flies metal, spray erodes wood",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2575,
     "propInertia": 2.4,
@@ -1469,7 +1479,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1486,7 +1495,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 2500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1503,7 +1511,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1520,7 +1527,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1537,7 +1543,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 2500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1554,7 +1559,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     }
   ],
@@ -1583,12 +1587,18 @@
     "keelZ": 1.4419,
     "forebodyKeelDeg": 0.57,
     "afterbodyKeelDeg": 6.9,
-    "waterRudderAreaM2": 0.043,
-    "waterRudderMaxRad": 0.4363,
-    "waterRudderX": -2.4953,
-    "waterRudderSpanM": 0.1705,
-    "waterRudderTipZ": 1.3095,
+    "waterRudderAreaM2": 0.0445,
+    "waterRudderChordM": 0.2305,
+    "waterRudderSpanM": 0.2459,
+    "waterRudderPivotX": -2.453,
+    "waterRudderPivotY": 0.943,
+    "waterRudderPivotZ": 1.160,
+    "waterRudderBladeAftM": 0.1323,
+    "waterRudderBladeBelowM": 0.1399,
     "waterRudderSides": "left",
+    "waterRudderRetractable": true,
+    "waterRudderRetractRad": 1.5708,
+    "waterRudderMaxRad": 0.4363,
     "stepX": -0.4437,
     "stations": [
       [1.9945, 0.0, 1.0696, 0.0, 1.0696, 0.0, 1.0696, 0.0, 1.0696, 0.0, 1.0696],

@@ -1,0 +1,472 @@
+{
+  "evidence": "Numeric checks on exported assets; visual render review pending; no gate approved",
+  "detachable": {
+    "pitts-s2b-like-own-checker-unmarked.glb": {
+      "mass_kg": 9.525444699427869,
+      "com_gltf_m": [
+        0.8469618456414749,
+        0.3003246260939916,
+        8.48364435919937e-06
+      ],
+      "inertia_tensor_gltf_kg_m2": [
+        [
+          0.8532226570826129,
+          -0.07164014446790815,
+          -0.0002548584288228539
+        ],
+        [
+          -0.07164014446790813,
+          2.3291405947800636,
+          -4.872153257539313e-05
+        ],
+        [
+          -0.0002548584288228411,
+          -4.8721532575399e-05,
+          1.8185622496556553
+        ]
+      ],
+      "principal_inertia_kg_m2": [
+        0.8497533751662403,
+        1.8185623152183232,
+        2.332609811133767
+      ],
+      "principal_axes_gltf_columns": [
+        [
+          0.9988295055295694,
+          0.0002682969793094861,
+          -0.04836886292116705
+        ],
+        [
+          0.04836888006508819,
+          -5.7778988185305815e-05,
+          0.9988295390620151
+        ],
+        [
+          0.00026518824421616625,
+          -0.999999962339159,
+          -7.06885826131747e-05
+        ]
+      ],
+      "mass_estimate": {
+        "acrylic_area_m2": 1.6325221204140243,
+        "acrylic_thickness_m": 0.003,
+        "acrylic_density_kg_m3": 1180,
+        "steel_wall_m": 0.001,
+        "steel_density_kg_m3": 7850,
+        "fittings_kg": 0.8
+      },
+      "detach_includes_opening_rig": true,
+      "rig_jettison_param": "canopy_jettison",
+      "rig_jettison_desc": "Detach this complete root, preserving current world transform; Pitts emergency pull releases at any speed"
+    },
+    "pitts-s2b-like-own-factory-unmarked.glb": {
+      "mass_kg": 9.525444699427869,
+      "com_gltf_m": [
+        0.8469618456414749,
+        0.3003246260939916,
+        8.48364435919937e-06
+      ],
+      "inertia_tensor_gltf_kg_m2": [
+        [
+          0.8532226570826129,
+          -0.07164014446790815,
+          -0.0002548584288228539
+        ],
+        [
+          -0.07164014446790813,
+          2.3291405947800636,
+          -4.872153257539313e-05
+        ],
+        [
+          -0.0002548584288228411,
+          -4.8721532575399e-05,
+          1.8185622496556553
+        ]
+      ],
+      "principal_inertia_kg_m2": [
+        0.8497533751662403,
+        1.8185623152183232,
+        2.332609811133767
+      ],
+      "principal_axes_gltf_columns": [
+        [
+          0.9988295055295694,
+          0.0002682969793094861,
+          -0.04836886292116705
+        ],
+        [
+          0.04836888006508819,
+          -5.7778988185305815e-05,
+          0.9988295390620151
+        ],
+        [
+          0.00026518824421616625,
+          -0.999999962339159,
+          -7.06885826131747e-05
+        ]
+      ],
+      "mass_estimate": {
+        "acrylic_area_m2": 1.6325221204140243,
+        "acrylic_thickness_m": 0.003,
+        "acrylic_density_kg_m3": 1180,
+        "steel_wall_m": 0.001,
+        "steel_density_kg_m3": 7850,
+        "fittings_kg": 0.8
+      },
+      "detach_includes_opening_rig": true,
+      "rig_jettison_param": "canopy_jettison",
+      "rig_jettison_desc": "Detach this complete root, preserving current world transform; Pitts emergency pull releases at any speed"
+    },
+    "pitts-s2b-like-own-n1191.glb": {
+      "mass_kg": 9.525444699427869,
+      "com_gltf_m": [
+        0.8469618456414749,
+        0.3003246260939916,
+        8.48364435919937e-06
+      ],
+      "inertia_tensor_gltf_kg_m2": [
+        [
+          0.8532226570826129,
+          -0.07164014446790815,
+          -0.0002548584288228539
+        ],
+        [
+          -0.07164014446790813,
+          2.3291405947800636,
+          -4.872153257539313e-05
+        ],
+        [
+          -0.0002548584288228411,
+          -4.8721532575399e-05,
+          1.8185622496556553
+        ]
+      ],
+      "principal_inertia_kg_m2": [
+        0.8497533751662403,
+        1.8185623152183232,
+        2.332609811133767
+      ],
+      "principal_axes_gltf_columns": [
+        [
+          0.9988295055295694,
+          0.0002682969793094861,
+          -0.04836886292116705
+        ],
+        [
+          0.04836888006508819,
+          -5.7778988185305815e-05,
+          0.9988295390620151
+        ],
+        [
+          0.00026518824421616625,
+          -0.999999962339159,
+          -7.06885826131747e-05
+        ]
+      ],
+      "mass_estimate": {
+        "acrylic_area_m2": 1.6325221204140243,
+        "acrylic_thickness_m": 0.003,
+        "acrylic_density_kg_m3": 1180,
+        "steel_wall_m": 0.001,
+        "steel_density_kg_m3": 7850,
+        "fittings_kg": 0.8
+      },
+      "detach_includes_opening_rig": true,
+      "rig_jettison_param": "canopy_jettison",
+      "rig_jettison_desc": "Detach this complete root, preserving current world transform; Pitts emergency pull releases at any speed"
+    },
+    "pitts-s2b-like-own.glb": {
+      "mass_kg": 9.525444699427869,
+      "com_gltf_m": [
+        0.8469618456414749,
+        0.3003246260939916,
+        8.48364435919937e-06
+      ],
+      "inertia_tensor_gltf_kg_m2": [
+        [
+          0.8532226570826129,
+          -0.07164014446790815,
+          -0.0002548584288228539
+        ],
+        [
+          -0.07164014446790813,
+          2.3291405947800636,
+          -4.872153257539313e-05
+        ],
+        [
+          -0.0002548584288228411,
+          -4.8721532575399e-05,
+          1.8185622496556553
+        ]
+      ],
+      "principal_inertia_kg_m2": [
+        0.8497533751662403,
+        1.8185623152183232,
+        2.332609811133767
+      ],
+      "principal_axes_gltf_columns": [
+        [
+          0.9988295055295694,
+          0.0002682969793094861,
+          -0.04836886292116705
+        ],
+        [
+          0.04836888006508819,
+          -5.7778988185305815e-05,
+          0.9988295390620151
+        ],
+        [
+          0.00026518824421616625,
+          -0.999999962339159,
+          -7.06885826131747e-05
+        ]
+      ],
+      "mass_estimate": {
+        "acrylic_area_m2": 1.6325221204140243,
+        "acrylic_thickness_m": 0.003,
+        "acrylic_density_kg_m3": 1180,
+        "steel_wall_m": 0.001,
+        "steel_density_kg_m3": 7850,
+        "fittings_kg": 0.8
+      },
+      "detach_includes_opening_rig": true,
+      "rig_jettison_param": "canopy_jettison",
+      "rig_jettison_desc": "Detach this complete root, preserving current world transform; Pitts emergency pull releases at any speed"
+    },
+    "extra-300-like-own-n300uy.glb": {
+      "mass_kg": 12.069010758502511,
+      "com_gltf_m": [
+        1.1295691917582753,
+        0.46071434879041345,
+        -0.0017178613589047334
+      ],
+      "inertia_tensor_gltf_kg_m2": [
+        [
+          1.0843555353750878,
+          -0.09502029560977869,
+          -0.013287724266305612
+        ],
+        [
+          -0.09502029560977866,
+          5.520673031996908,
+          -0.001195640774627388
+        ],
+        [
+          -0.013287724266305603,
+          -0.0011956407746273872,
+          4.902170426750971
+        ]
+      ],
+      "principal_inertia_kg_m2": [
+        1.0822748748446107,
+        4.902215468478035,
+        5.522708650800321
+      ],
+      "principal_axes_gltf_columns": [
+        [
+          0.9997648233453232,
+          0.0035150610617623607,
+          -0.021399587543379936
+        ],
+        [
+          0.021404595042539394,
+          -0.0013931919300940664,
+          0.9997699246963326
+        ],
+        [
+          0.003484438600348389,
+          -0.9999928516554394,
+          -0.001468102742453434
+        ]
+      ],
+      "mass_estimate": {
+        "acrylic_area_m2": 2.2452098345067135,
+        "acrylic_thickness_m": 0.003,
+        "acrylic_density_kg_m3": 1180,
+        "steel_wall_m": 0.001,
+        "steel_density_kg_m3": 7850,
+        "fittings_kg": 0.8
+      },
+      "detach_includes_opening_rig": true,
+      "rig_jettison_param": "canopy_jettison",
+      "rig_jettison_desc": "Detach this complete root, preserving current world transform; Pitts emergency pull releases at any speed"
+    },
+    "extra-300-like-own-unmarked.glb": {
+      "mass_kg": 12.069010758502511,
+      "com_gltf_m": [
+        1.1295691917582753,
+        0.46071434879041345,
+        -0.0017178613589047334
+      ],
+      "inertia_tensor_gltf_kg_m2": [
+        [
+          1.0843555353750878,
+          -0.09502029560977869,
+          -0.013287724266305612
+        ],
+        [
+          -0.09502029560977866,
+          5.520673031996908,
+          -0.001195640774627388
+        ],
+        [
+          -0.013287724266305603,
+          -0.0011956407746273872,
+          4.902170426750971
+        ]
+      ],
+      "principal_inertia_kg_m2": [
+        1.0822748748446107,
+        4.902215468478035,
+        5.522708650800321
+      ],
+      "principal_axes_gltf_columns": [
+        [
+          0.9997648233453232,
+          0.0035150610617623607,
+          -0.021399587543379936
+        ],
+        [
+          0.021404595042539394,
+          -0.0013931919300940664,
+          0.9997699246963326
+        ],
+        [
+          0.003484438600348389,
+          -0.9999928516554394,
+          -0.001468102742453434
+        ]
+      ],
+      "mass_estimate": {
+        "acrylic_area_m2": 2.2452098345067135,
+        "acrylic_thickness_m": 0.003,
+        "acrylic_density_kg_m3": 1180,
+        "steel_wall_m": 0.001,
+        "steel_density_kg_m3": 7850,
+        "fittings_kg": 0.8
+      },
+      "detach_includes_opening_rig": true,
+      "rig_jettison_param": "canopy_jettison",
+      "rig_jettison_desc": "Detach this complete root, preserving current world transform; Pitts emergency pull releases at any speed"
+    },
+    "extra-300-like-own.glb": {
+      "mass_kg": 12.069010758502511,
+      "com_gltf_m": [
+        1.1295691917582753,
+        0.46071434879041345,
+        -0.0017178613589047334
+      ],
+      "inertia_tensor_gltf_kg_m2": [
+        [
+          1.0843555353750878,
+          -0.09502029560977869,
+          -0.013287724266305612
+        ],
+        [
+          -0.09502029560977866,
+          5.520673031996908,
+          -0.001195640774627388
+        ],
+        [
+          -0.013287724266305603,
+          -0.0011956407746273872,
+          4.902170426750971
+        ]
+      ],
+      "principal_inertia_kg_m2": [
+        1.0822748748446107,
+        4.902215468478035,
+        5.522708650800321
+      ],
+      "principal_axes_gltf_columns": [
+        [
+          0.9997648233453232,
+          0.0035150610617623607,
+          -0.021399587543379936
+        ],
+        [
+          0.021404595042539394,
+          -0.0013931919300940664,
+          0.9997699246963326
+        ],
+        [
+          0.003484438600348389,
+          -0.9999928516554394,
+          -0.001468102742453434
+        ]
+      ],
+      "mass_estimate": {
+        "acrylic_area_m2": 2.2452098345067135,
+        "acrylic_thickness_m": 0.003,
+        "acrylic_density_kg_m3": 1180,
+        "steel_wall_m": 0.001,
+        "steel_density_kg_m3": 7850,
+        "fittings_kg": 0.8
+      },
+      "detach_includes_opening_rig": true,
+      "rig_jettison_param": "canopy_jettison",
+      "rig_jettison_desc": "Detach this complete root, preserving current world transform; Pitts emergency pull releases at any speed"
+    }
+  },
+  "front_gauge_outline_margin_mm": 108.99619033771022,
+  "pitts_open_full_stick_envelope_mm": 221.43513541187613,
+  "pitts_open_helmet_x_separation_mm": 77.39999956786636,
+  "bows": {
+    "x_m": [
+      -0.835,
+      -0.875
+    ],
+    "tube_radius_m": 0.005,
+    "normal_offset_mm": 22,
+    "pin_length_m": 0.012,
+    "panel_crowns_m": {
+      "Rear": 0.29433333333333334,
+      "Front": 0.19922222222222222
+    },
+    "min_rear_gauge_outline_margin_mm": 4.388165215436307,
+    "closed_conservative_clearance_mm": {
+      "panel": 29.716273456481765,
+      "instruments": 124.5780574936442,
+      "IAC_card": 271.33440022240285,
+      "head_helmet_sphere": 134.975984315552,
+      "both_sticks_full_control_envelope": 245.39570845262315
+    },
+    "open_sweep_panel_separating_axis_min_mm": 19.999980926513672,
+    "sweep": "continuous X separation for each panel and its bows/block/knob; aft slide increases separation"
+  },
+  "extra_latch": {
+    "handle_travel_mm": 35,
+    "pin_travel_mm": 18,
+    "pin_diameter_mm": 6,
+    "pin_count": 4,
+    "opening_sweep_sphere_clearance_mm": {
+      "rear_helmet": 46.665758983605436,
+      "front_helmet": 105.31214340633717,
+      "rear_control_hand": 280.099929197906,
+      "front_control_hand": 325.257759903139
+    },
+    "scope": "100 degree sweep, 0.5 degree samples minus arc and latch sampling bounds, latch sampled every 0.1; stated proxy spheres, excludes intentional grasp"
+  },
+  "sights": {
+    "abs_y_centre_m": 1.851791262626648,
+    "wingtip_abs_y_m": 3.046999931335449,
+    "finding": "Floating cockpit-only bars per sights-PROVENANCE; external star is projection artefact. Do not relocate to wingtip."
+  },
+  "gear": {
+    "originalGeometry": true,
+    "build": "CPU fallback; shared Blender source",
+    "triangles": 3780,
+    "cord_length_m": 1.524,
+    "cord_diameter_m": 0.004,
+    "nominal_canopy_diameter_m": 7.9248
+  },
+  "airframe_triangles": {
+    "pitts-s2b-like-own-checker-unmarked.glb": 66510,
+    "pitts-s2b-like-own-factory-unmarked.glb": 67802,
+    "pitts-s2b-like-own-n1191.glb": 67802,
+    "pitts-s2b-like-own.glb": 66510,
+    "extra-300-like-own-n300uy.glb": 126170,
+    "extra-300-like-own-unmarked.glb": 126170,
+    "extra-300-like-own.glb": 126170
+  }
+}

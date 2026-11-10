@@ -37,6 +37,26 @@ namespace FlyingGame.Bridge
             get { if (_instruments < 0) _instruments = PlayerPrefs.GetInt("clip.instruments", 0); return _instruments == 1; }
             set { _instruments = value ? 1 : 0; PlayerPrefs.SetInt("clip.instruments", _instruments); PlayerPrefs.Save(); }
         }
+        private static int _showScreen = -1;
+        /// <summary>
+        /// Record THE SCREEN rather than re-render the world: everything on the glass goes into the clip — the touch
+        /// pads, the options menus, the force vectors, the lift bubbles, the flight path vector, the HUD.
+        ///
+        /// Ty 2026-11-08, after a live recording meant for his beta testers came back with only the flight path vector
+        /// in it: "I'd like to have an option to show my screen (controls bubbles vectors fp menus/options etc) or a
+        /// clean version with nothing but the plane. All or none for live recording. I need "show my screen" to make my
+        /// tutorial videos."
+        ///
+        /// All or none is the whole point of doing it this way. The clean path below has to be TOLD about each overlay —
+        /// ForceVectorOverlay hangs off the main camera, LiftBubbles draws for Camera.main only, and IMGUI never reaches
+        /// a render texture at all — so anything added later goes missing from clips silently, as the bubbles did.
+        /// Grabbing the composited frame cannot miss anything by construction.
+        /// </summary>
+        public static bool ShowMyScreen
+        {
+            get { if (_showScreen < 0) _showScreen = PlayerPrefs.GetInt("clip.screen", 0); return _showScreen == 1; }
+            set { _showScreen = value ? 1 : 0; PlayerPrefs.SetInt("clip.screen", _showScreen); PlayerPrefs.Save(); }
+        }
         public static string Length(int sec) => sec < 60 ? $"{sec} s" : $"{sec / 60}:{sec % 60:00}";
 
 #if UNITY_IOS && !UNITY_EDITOR
@@ -102,6 +122,7 @@ namespace FlyingGame.Bridge
 
         private Camera _main, _clip;
         private RenderTexture _rt;
+        private RenderTexture _screenRt;   // screen-sized, for ShowMyScreen's grab before it is scaled into _rt
         private double _next;
         private bool _captureThisFrame;
         private double _framePts;
@@ -121,17 +142,22 @@ namespace FlyingGame.Bridge
             StartCoroutine(ReadbackAtEndOfFrame());
         }
 
-        private void OnDestroy() { if (_rt != null) _rt.Release(); }
+        private void OnDestroy() { if (_rt != null) _rt.Release(); if (_screenRt != null) _screenRt.Release(); }
 
         private void LateUpdate()
         {
-            bool live = Native && !Suspended && !SessionSettings.MenuOpen && _main != null;
+            // A menu normally stops the clip — there is nothing to film in the clean view while the world is frozen. In
+            // ShowMyScreen the menu IS the subject: stopping there is exactly why Ty's tutorial take had no options
+            // screens in it.
+            bool screen = ShowMyScreen;
+            bool live = Native && !Suspended && (screen || !SessionSettings.MenuOpen) && _main != null;
             _audioOn = live;
             CE_SetPaused(live ? 0 : 1);
             if (!live) return;
 
-            // The clip is the camera's view (portrait: the area above the control tray), at most 1920 px on its long side.
-            Rect px = _main.pixelRect;
+            // The clip is the camera's view (portrait: the area above the control tray), at most 1920 px on its long
+            // side — or the WHOLE screen when that is what is being filmed, tray and all.
+            Rect px = screen ? new Rect(0, 0, Screen.width, Screen.height) : _main.pixelRect;
             float k = Mathf.Min(1f, MaxDim / Mathf.Max(px.width, px.height));
             int w = Mathf.Max(64, Mathf.RoundToInt(px.width * k / 2f) * 2), h = Mathf.Max(64, Mathf.RoundToInt(px.height * k / 2f) * 2);
             if (_rt == null || _rt.width != w || _rt.height != h)
@@ -146,12 +172,26 @@ namespace FlyingGame.Bridge
             if (now < _next) return;
             _next = now - _next > 0.25 ? now + 1.0 / Fps : _next + 1.0 / Fps;
 
-            _clip.CopyFrom(_main);
-            _clip.rect = new Rect(0, 0, 1, 1);
-            _clip.targetTexture = _rt;
-            _clip.enabled = false;
             _framePts = CE_Now();
-            _clip.Render();
+            if (screen)
+            {
+                // Nothing to render: the frame is grabbed whole at the end of it, once everything has drawn.
+                int sw = Mathf.Max(64, Screen.width), sh = Mathf.Max(64, Screen.height);
+                if (_screenRt == null || _screenRt.width != sw || _screenRt.height != sh)
+                {
+                    if (_screenRt != null) _screenRt.Release();
+                    _screenRt = new RenderTexture(sw, sh, 0, RenderTextureFormat.ARGB32) { name = "ClipScreenRT" };
+                    _screenRt.Create();
+                }
+            }
+            else
+            {
+                _clip.CopyFrom(_main);
+                _clip.rect = new Rect(0, 0, 1, 1);
+                _clip.targetTexture = _rt;
+                _clip.enabled = false;
+                _clip.Render();
+            }
             _captureThisFrame = true;
         }
 
@@ -171,7 +211,7 @@ namespace FlyingGame.Bridge
         {
             // Instruments drawn by IMGUI (the dials, the HUD's numbers) go into the clip image: same drawing code, the
             // clip texture as the target and GUI.matrix mapping the screen's view area onto it.
-            if (!_captureThisFrame || !IncludeInstruments || Event.current.type != EventType.Repaint || _rt == null) return;
+            if (!_captureThisFrame || !IncludeInstruments || ShowMyScreen || Event.current.type != EventType.Repaint || _rt == null) return;
             bool analog = SessionSettings.Instruments == SessionSettings.InstrumentMode.Analog && Gauges != null;
             bool hud = SessionSettings.Instruments == SessionSettings.InstrumentMode.Hud && Hud != null;
             if (!analog && !hud) return;
@@ -217,6 +257,14 @@ namespace FlyingGame.Bridge
                 yield return _eof;
                 if (!_captureThisFrame || _rt == null) continue;
                 _captureThisFrame = false;
+                if (ShowMyScreen && _screenRt != null)
+                {
+                    // Everything has drawn by now, IMGUI included, so this is the glass exactly as he saw it. The grab
+                    // comes back with a top-left origin while a render texture reads bottom-left, so the blit that
+                    // scales it into the clip size flips it as well.
+                    ScreenCapture.CaptureScreenshotIntoRenderTexture(_screenRt);
+                    Graphics.Blit(_screenRt, _rt, new Vector2(1f, -1f), new Vector2(0f, 1f));
+                }
                 double pts = _framePts;
                 int w = _rt.width, h = _rt.height;
                 AsyncGPUReadback.Request(_rt, 0, TextureFormat.BGRA32, req => OnFrame(req, w, h, pts));

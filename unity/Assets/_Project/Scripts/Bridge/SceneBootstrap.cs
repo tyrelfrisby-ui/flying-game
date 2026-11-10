@@ -24,12 +24,21 @@ namespace FlyingGame.Bridge
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
             // The Aero Widget build (owner 2026-10-07): no world, no game — two transparent scenarios for Glass Overlay.
             if (FlyingGame.Bridge.Widget.AeroWidget.IsWidget) { FlyingGame.Bridge.Widget.AeroWidget.Create(); return; }
+            // The first frame on the Quest is one 3.5–7.4 s SLOW FRAME, and the log could only bracket it by the
+            // timestamps of unrelated lines (docs/quest-performance.md, *The startup frame*): say where it goes.
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             WorldBuilder.BuildAll();   // terrain (valley + 3 canyon steps), water, 4 airports, ridge lift
+            double tWorld = sw.Elapsed.TotalMilliseconds;
             new GameObject("Soaring").AddComponent<SoaringScenery>();
             BuildCardinalLetters();
             BuildSun();
+            double tScenery = sw.Elapsed.TotalMilliseconds;
             GameObject aircraft = BuildAircraft();
+            double tAircraft = sw.Elapsed.TotalMilliseconds;
             BuildCameraAndHud(aircraft);
+            double tAll = sw.Elapsed.TotalMilliseconds;
+            Debug.Log($"[Startup] scene built in {tAll:F0} ms: world {tWorld:F0}, soaring + sun {tScenery - tWorld:F0}, "
+                    + $"aircraft {tAircraft - tScenery:F0} (its airframe: see [Airframe] … model ready), camera + HUD {tAll - tAircraft:F0}");
         }
 
         private static void BuildCardinalLetters()
@@ -131,6 +140,14 @@ namespace FlyingGame.Bridge
             cam.clearFlags = RenderSettings.skybox != null ? CameraClearFlags.Skybox : CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.45f, 0.66f, 0.95f); // clear sky
             var chase = cam.gameObject.AddComponent<ChaseCamera>();
+            // The stereo rig rides the same camera and only wakes up when VR is switched on; off, it
+            // costs one disabled component and the mono view is untouched.
+            cam.gameObject.AddComponent<VrRig>();
+            // And the native-headset rig (Meta Quest through OpenXR): inert unless an XR runtime is up, which only an
+            // Android build with the OpenXR loader can start. It makes this same camera the XR camera.
+            cam.gameObject.AddComponent<QuestRig>();
+            // The pilot's hands on the aeroplane's own controls, and his visible body: inert unless the headset is on.
+            cam.gameObject.AddComponent<VrCockpitHands>();
             cam.gameObject.AddComponent<AudioListener>();
             chase.Target = aircraft.transform;
             chase.Driver = aircraft.GetComponent<FlightSimDriver>();
@@ -152,6 +169,7 @@ namespace FlyingGame.Bridge
             cam.gameObject.AddComponent<TracerOverlay>().Combat = aircraft.GetComponent<CombatController>();
             var reflection = cam.gameObject.AddComponent<WaterReflection>();   // glassy water: aircraft mirrored in the lake
             reflection.Driver = aircraft.GetComponent<FlightSimDriver>();
+            cam.gameObject.AddComponent<PilotUnderwater>();   // the seat view with the head in the lake (Ty t922u)
             // Instruments: round analog dials (default), the green conformal HUD, or none — SessionSettings.Instruments.
             var gauges = cam.gameObject.AddComponent<AnalogGauges>();
             gauges.Driver = aircraft.GetComponent<FlightSimDriver>();
@@ -208,6 +226,10 @@ namespace FlyingGame.Bridge
             pHud.Driver = aircraft.GetComponent<FlightSimDriver>();
             pHud.Debrief = aircraft.GetComponent<Practice.LessonDebrief>();
 
+            // LOCAL 2-PLAYER, split screen (off by default: with it off this object builds nothing).
+            var coop = new GameObject("LocalCoop").AddComponent<LocalCoop>();
+            coop.P1 = aircraft.GetComponent<FlightSimDriver>(); coop.P1Camera = cam;
+
             var weather = aircraft.AddComponent<WeatherController>();
             weather.Bubbles = bubbles;
 
@@ -253,7 +275,7 @@ namespace FlyingGame.Bridge
         {
             Application.runInBackground = true;
             yield return new WaitForSecondsRealtime(2f);
-            SessionSettings.Multiplayer = room == SessionSettings.FfaRoom ? SessionSettings.MultiplayerMode.FreeForAll : SessionSettings.MultiplayerMode.PrivateRoom;
+            SessionSettings.Multiplayer = room == SessionSettings.FfaRoom ? SessionSettings.MultiplayerMode.FreeForAll : SessionSettings.MultiplayerMode.CodeRoom;
             if (room != SessionSettings.FfaRoom) SessionSettings.RoomCode = room.ToUpperInvariant();
             if (string.IsNullOrEmpty(SessionSettings.PilotName)) SessionSettings.PilotName = "MacTest";
             Debug.Log($"[MpTest] flying in {SessionSettings.EffectiveRoom}");

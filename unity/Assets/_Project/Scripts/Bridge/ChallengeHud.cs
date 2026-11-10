@@ -18,6 +18,7 @@ namespace FlyingGame.Bridge
         private void OnGUI()
         {
             if (SessionSettings.MenuOpen) return;   // owner 2026-10-03: no HUD text over the landing page
+            if (XrHeadset.Active) return;           // a Quest never shows OnGUI; challenges are not offered there
             Init();
             // Top-centre, below FlightHud's lines; sized off the short screen edge like the rest of the GUI.
             float lh = _fs * 1.5f;
@@ -63,7 +64,7 @@ namespace FlyingGame.Bridge
         {
             // From scratch (no GUI.skin base): the built-in skin/font is stripped on iOS and NREs.
             // OnGUI uses native pixels, so scale off min(w,h) (a fixed 15 px is microscopic on Retina).
-            int fs = Mathf.RoundToInt(Mathf.Min(Screen.width, Screen.height) * 0.024f);
+            int fs = Mathf.RoundToInt(UiLayout.Unit * 0.024f);
             if (_label != null && fs == _fs) return;
             _fs = fs;
             _label = new GUIStyle { fontSize = fs, font = UiFont.Get(), alignment = TextAnchor.UpperCenter, normal = { textColor = new Color(1, 1, 1, 0.8f) } };

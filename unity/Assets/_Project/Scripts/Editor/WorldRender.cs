@@ -427,7 +427,9 @@ namespace FlyingGame.EditorTools
                 ("14-frank-church-south-face", S(0.2, -4.6, 2700), S(0, -0.2, 2100), 50),
                 ("15-sierra-north-face", S(-1.6, 3.4, 2500), S(-1.6, -0.2, 1900), 50),
                 ("16-sierra-south-face", S(-1.6, -4.0, 2500), S(-1.6, -0.4, 1900), 50),
-                ("17-knik-ski-zone", S(-8.6, 1.6, 900), S(-6.2, 0.1, 335), 50),
+                // The Knik's landing is the Knik River bar strip on the C4 floor below the glacier (Ty 2026-11-04), not
+                // the old ski zone at (-6.2, 0.1); this is the same far view, aimed at the strip.
+                ("17-knik-river-strip-far", S(-8.6, 1.6, 900), S(-5.15, -0.74, 31), 50),
                 ("18-knik-valley-overview", S(-9.5, -3.5, 2000), S(-5, -0.5, 700), 50),
                 ("19-ruth-ski-zone", S(-6.2, 6.6, 1100), S(-3.9, 4.7, 400), 50),
                 ("20-ruth-valley-overview", S(-7.0, 8.0, 2400), S(-2.5, 5.2, 1000), 50),
@@ -459,24 +461,30 @@ namespace FlyingGame.EditorTools
                 ("44-moraines-lateral-and-medial", A(-3.4, 3.45, 420), A(-3.4, 4.3, 0), 50),
                 ("45-boulders-on-the-ice", A(0.06, 7.29, 45), A(-0.06, 7.42, 3), 50),
                 // The sites from their low (downhill) ends, looking up the landing direction (§12.4).
-                ("46-high-snow-patch-SP1", A(-3.15, 6.39, 60), A(-3.15, 6.55, 0), 45),
-                ("47-steep-snow-patch-SP4", A(-5.37, -5.6, 50), A(-5.2, -5.6, 0), 45),
+                // (Sites re-picked 2026-11-04 when the Knik change regenerated the relief: IslandSurfaceTests.Patches/Ledges.)
+                ("46-high-snow-patch-SP1", A(-3.35, 7.01, 60), A(-3.35, 6.85, 0), 45),
+                ("47-steep-snow-patch-SP3", A(-5.37, -5.6, 50), A(-5.2, -5.6, 0), 45),
                 ("48-ledge-LD1-flat", A(4.49, -0.85, 45), A(4.65, -0.85, 0), 45),
                 ("49-ledge-LD4-sloped", A(4.7, -2.88, 55), A(4.7, -3.05, 0), 45),
                 ("50-1000ft-agl-fairweather-glacier", A(-0.6, 4.2, 305), A(-0.6, 6.4, 0), 60),
                 ("51-1000ft-agl-central-icefield", A(0.3, -1.0, 305), A(-1.0, 1.5, 0), 60),
                 ("52-1000ft-agl-southern-glacier", A(-4.5, -1.6, 305), A(-4.8, -4.5, 0), 60),
                 ("53-1000ft-agl-knik-face", A(-7.2, -0.6, 305), A(-4.6, -1.0, 0), 60),
-                ("54-ledge-LD6-rounded", A(-0.05, -6.07, 50), A(-0.05, -5.9, 0), 45),
-                ("55-snow-patches-SP1-SP3-fairweather-shoulder", A(-2.4, 5.6, 450), A(-3.15, 6.6, 0), 50),
+                ("54-ledge-LD6-rounded", A(2.25, -1.42, 50), A(2.25, -1.25, 0), 45),
+                ("55-snow-patches-SP1-SP2-fairweather-shoulder", A(-2.4, 5.6, 450), A(-3.2, 6.7, 0), 50),
                 // Every glacier landing site, before/after Ty's 2026-11-03 "glacier landings are just on snow":
                 // a low approach along the landing direction and an overview from the side.
-                ("60-lz-knik-approach-from-west", A(-7.6, 0.2, 120), A(-6.2, 0.1, 0), 45),
-                ("61-lz-knik-overview", A(-6.9, -0.9, 450), A(-6.2, 0.1, 0), 50),
+                // The Knik River bar strip (Ty 2026-11-04: "really a gravel strip in the valley, not on the glacier"):
+                // 1,200 x 60 ft gravel at 103 ft, centre (-5.15, -0.74) km, landing 108 true. A pilot on final 1 NM out on
+                // a 3 degree glidepath (threshold (-5.3239, -0.6835), 97 m above it), aiming 60 m in; then from the
+                // threshold at eye height, and an overview from the north-west over the valley.
+                ("60-knik-river-final-1nm-3deg", S(-7.0853, -0.1112, 31.39 + 97.06), S(-5.2669, -0.7020, 31.39), 45),
+                ("61-knik-river-overview", A(-6.0, 0.2, 450), S(-5.15, -0.74, 31.4), 50),
+                ("66-knik-river-from-threshold", S(-5.3239, -0.6835, 31.39 + 2.0), S(-4.9761, -0.7965, 31.39 + .5), 30),
                 ("62-lz-fairweather-approach-from-nw", A(-4.9, 5.3, 150), A(-3.9, 4.7, 0), 45),
                 ("63-lz-fairweather-overview", A(-3.0, 3.6, 500), A(-3.9, 4.7, 0), 50),
-                ("64-lz-SP3-approach", A(-2.8, 5.85, 60), A(-2.8, 6.25, 0), 45),
-                ("65-lz-SP2-approach", A(-3.25, 6.6, 60), A(-3.25, 7.0, 0), 45),
+                ("64-lz-SP2-approach", A(-2.895, 6.459, 60), A(-3.05, 6.5, 0), 45),
+                ("65-lz-SP1-approach", A(-3.35, 7.05, 60), A(-3.35, 6.85, 0), 45),
                 // Grass strips lying naturally (Ty 2026-11-03): from a pilot's eye at the threshold, and from the side.
                 ("70-strip-AP8-crest-from-threshold", A(-8.248, 3.207, 2.0), A(-8.152, 3.993, .5), 30),
                 ("71-strip-AP8-crest-from-the-side", A(-7.853, 3.557, 60), A(-8.2, 3.6, 0), 45),
@@ -490,7 +498,35 @@ namespace FlyingGame.EditorTools
                 ("fairweather", -4.4, 1.6, 4.0, 7.9), ("knik", -7.6, -2.6, -2.4, 1.4), ("sitka", -11.6, -5.4, 0.7, 4.7),
                 ("grandcanyon", 3.0, 8.4, -4.9, -0.2), ("dillingham", 2.8, 8.6, 2.4, 6.9), ("johnsoncreek", -0.2, 3.1, -2.7, 1.3),
             };
+            // ISLAND_VIEWS=a,b renders only the views and plates whose names contain one of the given parts (a
+            // one-site check need not render all seventy).
+            string[] only = (System.Environment.GetEnvironmentVariable("ISLAND_VIEWS") ?? "").Split(',', System.StringSplitOptions.RemoveEmptyEntries);
+            bool Wanted(string name) => only.Length == 0 || System.Array.Exists(only, o => name.Contains(o));
+            views = System.Array.FindAll(views, v => Wanted(v.name));
+            areas = System.Array.FindAll(areas, a => Wanted("plate-" + a.name));
+            // Close straight-down plates of one site, north up (centre e, n km; camera height above the site m; fov).
+            (string name, double e, double n, double z, double up, float fov)[] sitePlates =
+            {
+                ("62-knik-river-topdown", -5.15, -0.74, 31.4, 1400, 38),
+                ("63-knik-river-topdown-wide", -5.75, -0.55, 31.4, 4200, 40),
+            };
+            sitePlates = System.Array.FindAll(sitePlates, s => Wanted(s.name));
             var viewStats = new System.Text.StringBuilder();
+            foreach (var (name, ce, cn, cz, up, fov) in sitePlates)
+            {
+                cam.fieldOfView = fov;
+                cam.transform.position = S(ce, cn, cz + up);
+                cam.transform.rotation = Quaternion.LookRotation(S(ce, cn, cz) - S(ce, cn, cz + up), (S(ce, cn + 1, cz) - S(ce, cn, cz)).normalized);
+                var forest = new GameObject("ForestView");
+                ForestBuilder.BuildAround(FlyingGame.Core.WorldTerrain.Active, forest.transform, cn * 1000, ce * 1000, 2600, 800);
+                cam.Render();
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0); tex.Apply();
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+                Object.DestroyImmediate(tex); Object.DestroyImmediate(forest);
+                viewStats.AppendLine($"{name}\t{TerrainDrawn(world, cam)}");
+            }
             foreach (var (name, eye, look, fov) in views)
             {
                 cam.fieldOfView = fov;

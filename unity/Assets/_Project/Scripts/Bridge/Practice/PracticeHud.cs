@@ -23,7 +23,7 @@ namespace FlyingGame.Bridge.Practice
 
         private void Init()
         {
-            int fs = Mathf.RoundToInt(Mathf.Min(Screen.width, Screen.height) * 0.028f);
+            int fs = Mathf.RoundToInt(UiLayout.Unit * 0.028f);
             if (_title != null && fs == _fs) return;
             _fs = fs;
             Font f = UiFont.Get();

@@ -133,23 +133,53 @@ public class LandingGearTests
         return new Aircraft(c, new RigidBodyState(pos, att, vel, Vec3.Zero), new ControlDeflections(0, 0, 0, 0));
     }
 
+    /// <summary>
+    /// Mains AHEAD of the CG: the touchdown's normal force pitches nose-UP → AoA/lift rise → the classic wheel-landing
+    /// bounce (the pilot must ease forward). Since 2026-11-04 the wheels also have to be SPUN UP, and that drag at the
+    /// patch, ~1.1 m below the CG, pitches the other way: ΣI·V/r²·h/I_yy ≈ 15 deg/s on the PA-18 (two 9.7 kg 8.00-6
+    /// assemblies at 25 m/s), most of the bounce's rate at this 1.5 m/s arrival. The two are measured SEPARATELY
+    /// (CLAUDE.md: never trust a matching total): the bounce with the wheels already turning, and the spin-up as the
+    /// difference against a cold-wheel arrival, against its own impulse. Ty's call whether that feels right (AGENT-LOG).
+    /// </summary>
     [Fact]
     public void TaildraggerMainTouchdownPitchesNoseUp()
     {
-        // Mains AHEAD of the CG: the touchdown reaction pitches nose-UP -> AoA/lift rise -> bounce
-        // tendency (the classic wheel-landing bounce; the pilot must ease forward).
-        var ac = MainsAboutToTouch("pa18-cub-like", 6, 1.5, 25);
-        var sim = new SimLoop(ac);
-        double aoaBefore = 0, maxQ = -9;
-        for (int i = 0; i < 20; i++)
+        (double maxQ, double minQ, Aircraft ac, double[] q) Run(bool prespun)
         {
-            bool wasAir = !LandingGear.OnGround(ac.Config, ac.State);
-            sim.RunFor(0.02, new ControlInputs(0, 0, 0, 0));
-            if (wasAir && LandingGear.OnGround(ac.Config, ac.State))
-                aoaBefore = System.Math.Atan2(ac.State.Velocity.Z, ac.State.Velocity.X) * 57.3;
-            maxQ = System.Math.Max(maxQ, ac.State.Rates.Y);
+            var ac = MainsAboutToTouch("pa18-cub-like", 6, 1.5, 25);
+            var sim = new SimLoop(ac);
+            sim.RunFor(0.005, new ControlInputs(0, 0, 0, 0));
+            if (prespun) for (int g = 0; g < ac.Config.Gear.Count; g++) ac.Wheels[g].OmegaRadS = 25 / ac.Wheels[g].RadiusM;
+            double maxQ = -9, minQ = 9; var q = new double[80];
+            for (int i = 0; i < 80; i++)
+            {
+                sim.RunFor(0.005, new ControlInputs(0, 0, 0, 0));
+                maxQ = System.Math.Max(maxQ, ac.State.Rates.Y);
+                minQ = System.Math.Min(minQ, ac.State.Rates.Y);
+                q[i] = ac.State.Rates.Y;
+            }
+            return (maxQ, minQ, ac, q);
         }
-        Assert.True(maxQ > 0.05, $"Taildragger main touchdown must pitch nose-UP (q>0); maxQ={maxQ:F2}");
+        var warm = Run(true);
+        var cold = Run(false);
+        Assert.True(warm.maxQ > 0.05, $"Taildragger main touchdown must pitch nose-UP (q>0); maxQ={warm.maxQ:F2}");
+        // The spin-up's own pitch impulse: ΣI·V/r² at the patch, h below the CG.
+        var c = cold.ac.Config;
+        double h = 0, imp = 0; int n = 0;
+        for (int g = 0; g < c.Gear.Count; g++)
+        {
+            if (c.Gear[g].IsTailwheel) continue;
+            h += (c.Gear[g].PosVec() - c.Mass.CgVec()).Z; n++;
+            imp += WheelSpin.InertiaOf(c, c.Gear[g]) / System.Math.Pow(cold.ac.Wheels[g].RollingRadiusM, 2) * 25;
+        }
+        double dqWant = imp * (h / n) / cold.ac.MassProperties.Iyy;
+        // The spin-up's pitch is the largest gap between the two arrivals' pitch rates over the same instants. (It was
+        // the gap between their PEAKS, which is the same thing while the spin-up is over before the bounce peaks; since
+        // 2026-11-04 the tyre is in series with the bungee, the load and so the spin-up take ~50 ms rather than ~25, and
+        // the two overlap.)
+        double dqGot = 0;
+        for (int i = 0; i < warm.q.Length; i++) dqGot = System.Math.Max(dqGot, warm.q[i] - cold.q[i]);
+        Assert.InRange(dqGot, 0.5 * dqWant, 1.5 * dqWant);
     }
 
     [Fact]

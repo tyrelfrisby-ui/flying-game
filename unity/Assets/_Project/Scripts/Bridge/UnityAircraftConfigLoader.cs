@@ -20,8 +20,8 @@ namespace FlyingGame.Bridge
 
         public static AircraftConfig LoadFromStreamingAssets(string aircraftId)
         {
-            string path = Path.Combine(Application.streamingAssetsPath, "aircraft", aircraftId + ".json");
-            string json = File.ReadAllText(path);
+            string path = "aircraft/" + aircraftId + ".json";
+            string json = StreamingFiles.ReadAllText(path);   // not File: on Android StreamingAssets is inside the APK
             AircraftConfig config = JsonConvert.DeserializeObject<AircraftConfig>(json, Settings)
                 ?? throw new InvalidDataException($"AircraftConfig at {path} deserialized to null.");
             // The bushwheel option belongs to the SESSION, not to the type: any aeroplane can be put on big

@@ -2,6 +2,11 @@
   "schemaVersion": 1,
   "id": "pa18-bush-like",
   "displayName": "Super Cub-like, Bushwheels",
+  "structureType": "steelTube",
+  "structureTypeSource": "Piper PA-18 Super Cub: welded 4130 steel-tube fuselage, fabric covered (FAA TCDS 1A2; Piper PA-18 service manual).",
+  "wingBracing": "strut",
+  "wingBreakStationY": { "wing": 3.4 },
+  "wingBreakStationSource": "Lift-strut wing attach |y| 3.40 m (133.9 in): the J-3/PA-18 wing shares Piper spar drawing 14383 and its strut fittings, so the J-3 model's station (build_j3_cub.py Y_ST) is used. Sources: strut fitting 123.5 in (front) / 122.25 in (rear) from the spar root end, measured on a PA-18 spar, drawing 14388/14453 figure 121.25 in from the root bolt hole (supercub.org 'Spar Drilling'); root end ~13 in from the centreline (scaled) -> 135-136.5 in; PA-18 Information Manual three-view p.4 scales to 129-131 in. Not to better than +/-4 in.",
   "spawnIasMs": 32,
   "mass": {
     "massKg": 819,
@@ -550,7 +555,7 @@
           "pos": [
             -4.287,
             -1.312,
-            0.0
+            -0.485
           ],
           "chord": 0.497,
           "area": 0.1865,
@@ -567,7 +572,7 @@
           "pos": [
             -4.297,
             -0.938,
-            0.0
+            -0.485
           ],
           "chord": 0.54,
           "area": 0.2024,
@@ -584,7 +589,7 @@
           "pos": [
             -4.308,
             -0.562,
-            0.0
+            -0.485
           ],
           "chord": 0.582,
           "area": 0.2183,
@@ -601,7 +606,7 @@
           "pos": [
             -4.319,
             -0.188,
-            0.0
+            -0.485
           ],
           "chord": 0.625,
           "area": 0.2343,
@@ -618,7 +623,7 @@
           "pos": [
             -4.319,
             0.188,
-            0.0
+            -0.485
           ],
           "chord": 0.625,
           "area": 0.2343,
@@ -635,7 +640,7 @@
           "pos": [
             -4.308,
             0.562,
-            0.0
+            -0.485
           ],
           "chord": 0.582,
           "area": 0.2183,
@@ -652,7 +657,7 @@
           "pos": [
             -4.297,
             0.938,
-            0.0
+            -0.485
           ],
           "chord": 0.54,
           "area": 0.2024,
@@ -669,7 +674,7 @@
           "pos": [
             -4.287,
             1.312,
-            0.0
+            -0.485
           ],
           "chord": 0.497,
           "area": 0.1865,
@@ -692,7 +697,7 @@
           "pos": [
             -4.728,
             -1.312,
-            0.0
+            -0.485
           ],
           "chord": 0.3126,
           "area": 0.1172,
@@ -709,7 +714,7 @@
           "pos": [
             -4.776,
             -0.938,
-            0.0
+            -0.485
           ],
           "chord": 0.3393,
           "area": 0.1273,
@@ -726,7 +731,7 @@
           "pos": [
             -4.823,
             -0.562,
-            0.0
+            -0.485
           ],
           "chord": 0.3661,
           "area": 0.1372,
@@ -743,7 +748,7 @@
           "pos": [
             -4.871,
             -0.188,
-            0.0
+            -0.485
           ],
           "chord": 0.3928,
           "area": 0.1472,
@@ -760,7 +765,7 @@
           "pos": [
             -4.871,
             0.188,
-            0.0
+            -0.485
           ],
           "chord": 0.3928,
           "area": 0.1472,
@@ -777,7 +782,7 @@
           "pos": [
             -4.823,
             0.562,
-            0.0
+            -0.485
           ],
           "chord": 0.3661,
           "area": 0.1372,
@@ -794,7 +799,7 @@
           "pos": [
             -4.776,
             0.938,
-            0.0
+            -0.485
           ],
           "chord": 0.3393,
           "area": 0.1273,
@@ -811,7 +816,7 @@
           "pos": [
             -4.728,
             1.312,
-            0.0
+            -0.485
           ],
           "chord": 0.3126,
           "area": 0.1172,
@@ -1449,13 +1454,13 @@
   },
   "rig": {
     "aileronRad": 0.003706,
-    "finOffsetRad": 0.004197,
+    "finOffsetRad": 0.004196,
     "throttleFraction": 0.75,
     "altitudeM": 1219.2,
-    "tasMs": 47.566,
-    "alphaRad": -0.007914,
-    "elevatorTrimRad": 0.015758,
-    "bankRad": 0.005402
+    "tasMs": 47.57,
+    "alphaRad": -0.007966,
+    "elevatorTrimRad": 0.016216,
+    "bankRad": 0.005401
   },
   "controls": {
     "aileron": {
@@ -1520,10 +1525,13 @@
       "lengthM": 6.88
     }
   },
-  "smoke": {"aftOfNoseM": 0.87, "downDeg": 90, "displacementCuIn": 320, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [0.995, 0.249, 0.467]},
+  "smoke": {"cylinders": 4, "compressionRatio": 7.0, "aftOfNoseM": 0.87, "downDeg": 90, "displacementCuIn": 320, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [0.995, 0.249, 0.467]},
   "propulsion": {
     "maxPowerW": 112000,
     "propDiameterM": 1.88,
+    "propMaterial": "metal",
+    "propMaterialSource": "Sensenich / McCauley forged aluminium",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 3.5,
@@ -1555,8 +1563,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.9,
       "corneringStiffnessN": 8000,
-      "rollResistN": 90,
-      "tireRadiusM": 0.445,
+      "tire": "351510.R1", "tirePressurePsi": 8,
       "gearType": "bushwheel"
     },
     {
@@ -1573,8 +1580,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.9,
       "corneringStiffnessN": 8000,
-      "rollResistN": 90,
-      "tireRadiusM": 0.445,
+      "tire": "351510.R1", "tirePressurePsi": 8,
       "gearType": "bushwheel"
     },
     {
@@ -1591,8 +1597,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
-      "rollResistN": 20,
-      "tireRadiusM": 0.2,
+      "tire": "legacy-pa18bush-tail", "tirePressurePsi": 8,
       "steerSpringNmPerRad": 7
     }
   ],

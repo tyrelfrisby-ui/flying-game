@@ -58,6 +58,65 @@ namespace FlyingGame.Bridge
         public const float TumbleRestitution = 0.32f, TumbleFrictionKeep = 0.72f, TumbleLyingHalfM = 0.45f;
         private float _tumbleT, _lastHitT = -1f;
         public Parachute Chute { get; private set; }
+        /// <summary>Seconds of uncontrolled tumble left after a hands-on exit (Core JumperAero): the drag area is
+        /// <see cref="CdATumbling"/> until it runs out, then whatever his body position makes it.</summary>
+        public float TumbleSec;
+        /// <summary>First person (headset, hands-on exit): the camera is his head, so the figure is not drawn. The
+        /// parachute (its own object) still is.</summary>
+        public bool FirstPerson
+        {
+            get => _firstPerson;
+            set
+            {
+                _firstPerson = value;
+                foreach (Renderer r in _root.GetComponentsInChildren<Renderer>(true)) r.forceRenderingOff = value;
+            }
+        }
+        private bool _firstPerson;
+        /// <summary>The crash killed him (Core PilotOutRules.GhostAscends): drawn translucent, lifted at
+        /// <see cref="FlyingGame.Core.PilotOutRules.GhostLiftG"/> against his weight, and he never lands — he goes up.</summary>
+        public bool Ghost { get; private set; }
+
+        /// <summary>Make him (and his canopy, when it comes) a ghost. Every renderer under him gets a translucent copy of
+        /// its own colour, paled toward a blue-white; the materials are his own, so nothing shared is touched.</summary>
+        public void SetGhost()
+        {
+            if (Ghost) return;
+            Ghost = true;
+            GhostRenderers(_root);
+            if (Chute != null) Chute.SetGhost();
+        }
+
+        /// <summary>Swap every renderer's materials under <paramref name="root"/> for translucent ghosts of them.</summary>
+        internal static void GhostRenderers(GameObject root)
+        {
+            if (root == null) return;
+            var made = new System.Collections.Generic.Dictionary<Material, Material>();
+            float alpha = (float)FlyingGame.Core.PilotOutRules.GhostAlpha;
+            var pale = new Color(0.85f, 0.92f, 1f);
+            foreach (Renderer r in root.GetComponentsInChildren<Renderer>(true))
+            {
+                Material[] mats = r.sharedMaterials;
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    Material m = mats[i];
+                    if (m == null) continue;
+                    if (!made.TryGetValue(m, out Material g))
+                    {
+                        Color c = m.HasProperty("_Color") ? m.color : m.HasProperty("_BaseColor") ? m.GetColor("_BaseColor") : Color.white;
+                        c = Color.Lerp(c, pale, 0.55f);
+                        c.a = alpha;
+                        made[m] = g = EgressAir.Transparent(c);
+                    }
+                    mats[i] = g;
+                }
+                r.sharedMaterials = mats;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+        }
+
+        /// <summary>Non-gravitational acceleration last step (drag, the opening shock), in g.</summary>
+        public float AeroAccelG => _lastAero.magnitude / EgressAir.G;
         public Transform Transform => _root.transform;
         public float AltitudeM => Position.y;
         public float HeightAglM => Position.y - HalfHeightM - EgressAir.SurfaceHeight(Position);
@@ -72,7 +131,6 @@ namespace FlyingGame.Bridge
         private float _rocketT = float.MaxValue;   // < RocketBurn2Sec while the seat rocket burns
         private Vector3 _seatUp = Vector3.up;      // rail direction frozen at ejection
         private Vector3 _hang = Vector3.up, _hangVel;   // pendulum: direction harness → canopy, and its rate
-        private float _airspeedAtDeploy;
         private Vector3 _lastAero;                 // non-gravity acceleration last step (drives the pendulum)
 
         public PilotBody(Vector3 position, Vector3 velocity, Vector3 angularVelocityRad, float headingDeg,
@@ -133,11 +191,12 @@ namespace FlyingGame.Bridge
         {
             if (Chute != null || Landed) return;
             Chute = new Parachute();
+            if (Ghost) Chute.SetGhost();
             Vector3 vRel = Velocity - EgressAir.Wind(Position);
-            _airspeedAtDeploy = vRel.magnitude;
             // The bag streams straight downstream of the pilot; the pendulum then brings the canopy overhead
             // as the pilot decelerates and the flight path turns vertical.
-            _hang = vRel.magnitude > 1f ? -vRel.normalized : Vector3.up;
+            _hang = Ghost ? Vector3.up : vRel.magnitude > 1f ? -vRel.normalized : Vector3.up;   // a ghost's goes up first
+
             _hangVel = Vector3.zero;
             Vector3 vh = new Vector3(Velocity.x, 0f, Velocity.z);
             if (vh.magnitude > 2f) HeadingDeg = Mathf.Atan2(vh.x, vh.z) * Mathf.Rad2Deg;
@@ -161,8 +220,10 @@ namespace FlyingGame.Bridge
             float m = MassKg + (HasSeat ? SeatMassKg : 0f);
             Vector3 v0 = Velocity;
 
-            // Gravity + seat rocket (frozen rail direction).
+            // Gravity + seat rocket (frozen rail direction). A ghost is lifted against his weight (net up): the drag of
+            // his canopy, the same drag that would have let him down at 5 m/s, now sets how fast he rises.
             Velocity += Vector3.down * (EgressAir.G * dt);
+            if (Ghost) Velocity += Vector3.up * ((float)FlyingGame.Core.PilotOutRules.GhostLiftG * EgressAir.G * dt);
             if (_rocketT < RocketBurn2Sec)
             {
                 float g = _rocketT < RocketBurn1Sec ? RocketG1 : RocketG2;
@@ -181,6 +242,7 @@ namespace FlyingGame.Bridge
             // filling canopy he straightens out and hangs.
             float fill = Chute?.Fill ?? 0f;
             float freeCdA = (float)FlyingGame.Core.SkydiverAero.CdA(_bodyPos);
+            if (TumbleSec > 0f) { TumbleSec -= dt; freeCdA = CdATumbling; }
             float cdA = HasSeat ? CdATumbling + CdASeat
                       : Tumbling ? Mathf.Lerp(CdATumbling, CdAHanging, fill)
                       : Mathf.Lerp(freeCdA, CdAHanging, fill);
@@ -189,7 +251,7 @@ namespace FlyingGame.Bridge
             // Tracking: leaning into the fall turns some of it into forward travel, up to about 0.7 across
             // for 1 down at the best body angle. It is a LIFT, so it acts across the relative wind, in
             // whichever direction he has turned himself -- and it goes away as the canopy takes over.
-            if (!HasSeat && !Tumbling && fill < 0.999f)
+            if (!HasSeat && !Tumbling && TumbleSec <= 0f && fill < 0.999f)
             {
                 float glide = (float)FlyingGame.Core.SkydiverAero.GlideRatio(_bodyPos) * (1f - fill);
                 Vector3 rel = Velocity - wind;
@@ -204,7 +266,7 @@ namespace FlyingGame.Bridge
             // Canopy: deployment model, steering, drive, drag on the drive-relative airflow.
             if (Chute != null)
             {
-                Chute.Tick(dt, _airspeedAtDeploy);
+                Chute.Tick(dt, (Velocity - wind).magnitude, rho);
                 HeadingDeg += Steer * Parachute.TurnRateDegPerSec * fill * dt;
                 Vector3 drive = HeadingDir * (Parachute.DriveMs * fill);
                 Velocity += EgressAir.ImplicitDragDelta(Velocity - wind - drive, rho, Chute.CdS, m, dt);
@@ -232,9 +294,9 @@ namespace FlyingGame.Bridge
                 return;
             }
 
-            // Ground / water.
+            // Ground / water. A ghost passes through the wreck and the ground he climbs out of: he does not land.
             float surf = EgressAir.SurfaceHeight(Position);
-            if (Position.y - HalfHeightM <= surf)
+            if (!Ghost && Position.y - HalfHeightM <= surf)
             {
                 Land(surf, wind);
                 return;

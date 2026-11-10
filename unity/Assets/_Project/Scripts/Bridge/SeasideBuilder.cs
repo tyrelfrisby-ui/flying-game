@@ -22,6 +22,9 @@ namespace FlyingGame.Bridge
             private readonly List<Vector3> _v = new(); private readonly List<Vector3> _n = new(); private readonly List<Color> _c = new(); private readonly List<int> _t = new();
             public int Count => _v.Count;
 
+            /// <summary>Empty it for another mesh, keeping the lists' capacity (the forest streamer reuses one).</summary>
+            public void Clear() { _v.Clear(); _n.Clear(); _c.Clear(); _t.Clear(); }
+
             public void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Color col)
             {
                 Vector3 n = Vector3.Cross(b - a, d - a).normalized;
@@ -177,6 +180,10 @@ namespace FlyingGame.Bridge
                 }
                 mesh.RecalculateBounds();
                 var go = new GameObject(name);
+                // Water must never be drawn into its own planar reflection (Ty 2026-11-05: magenta grid on the island's
+                // water): the mirror pass would sample _ReflectionTex while rendering into it. WorldBuilder.Spawn does
+                // the same; IslandWorldBuilder's "Ocean-lakes-water-lanes" comes through here.
+                if (m.shader.name == "FlyingGame/Water") go.layer = WaterReflection.WaterLayer;
                 go.transform.SetParent(parent, false);
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
                 var mr = go.AddComponent<MeshRenderer>(); mr.sharedMaterial = m;

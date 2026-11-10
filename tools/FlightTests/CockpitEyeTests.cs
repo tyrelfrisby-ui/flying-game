@@ -33,7 +33,7 @@ public sealed class CockpitEyeTests
     /// with the aeroplane 0.223 m low and sat in the tub.</summary>
     public static TheoryData<string, string, double, double, double> ApprovedEyes => new()
     {
-        { "glider-2-33-like",   "front",   0.971,  0.000, -0.111 },
+        { "glider-2-33-like",   "front",   0.971,  0.000, -0.2122 },
         { "glider-2-33-like",   "rear",    0.164,  0.000, -0.060 },
         { "c172-like",          "pilot",  -0.346, -0.337, -0.548 },
         { "c172-like",          "copilot",-0.346,  0.332, -0.548 },
@@ -47,6 +47,9 @@ public sealed class CockpitEyeTests
         { "pitts-s2b-like",     "front",  -0.564,  0.000, -0.308 },
         { "extra-300-like",     "rear",   -1.597,  0.000, -0.518 },
         { "extra-300-like",     "front",  -0.687,  0.000, -0.529 },
+        // Ty 2026-11-03 (the Blanc model's Pilot_Eye nodes), carried through Place's 90 mm drop onto the wheels.
+        { "glider-grob103-acro-like", "front", 1.150, 0.000, -0.070 },
+        { "glider-grob103-acro-like", "rear", -0.040, 0.000, -0.130 },
     };
 
     /// <summary>Every approved eye is in the config, to the millimetre the camera test also works to.</summary>
@@ -66,6 +69,7 @@ public sealed class CockpitEyeTests
     /// every tandem, the front on the 2-33, the left on the 172. Reordering the list silently moves the pilot.</summary>
     [Theory]
     [InlineData("glider-2-33-like", "front")]
+    [InlineData("glider-grob103-acro-like", "front")]   // flown solo from the front ([POH])
     [InlineData("c172-like", "pilot")]
     [InlineData("j3-cub-like", "rear")]
     [InlineData("j3-cub-floats-like", "rear")]

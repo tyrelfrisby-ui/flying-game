@@ -91,7 +91,7 @@ public class OwnPittsModelTests
     }
 
     /// <summary>A node's transform all the way up to the scene root, column-major like glTF's own.</summary>
-    private static double[] World(JsonElement nodes, int[] parent, int i)
+    internal static double[] World(JsonElement nodes, int[] parent, int i)
     {
         double[] m = Local(nodes[i]);
         for (int p = parent[i]; p >= 0; p = parent[p]) m = Mul(Local(nodes[p]), m);
@@ -251,7 +251,9 @@ public class OwnPittsModelTests
                 Assert.True(m.Success, $"Livery.For has no scheme for {model} {livery}");
                 Assert.Matches($@"{m.Groups[1].Value} = new\(""{livery}"", ""{name}""\)", liveries);
             }
-        Assert.Matches(@"PickOwn\(string modelId\) =>[\s\S]*?modelId == ""pitts-s2b-like""", models);
+        // The Pitts is ours for every livery: PickOwn reads LiveryChoice.OwnModelAlways (2026-11-04), which must list it.
+        Assert.Matches(@"PickOwn\(string modelId\) =>[\s\S]*?FlyingGame\.Core\.LiveryChoice\.OwnModelAlways\(modelId\)", models);
+        Assert.True(FlyingGame.Core.LiveryChoice.OwnModelAlways("pitts-s2b-like"));
         Assert.Matches(@"OwnSpecs[\s\S]*?\{ ""pitts-s2b-like"", new Spec\(", models);
     }
 

@@ -37,7 +37,86 @@ public sealed class AirframeFlow
 
     /// <summary>The fuselage as measured on the model: at stations <paramref name="x"/> (descending, nose first), its radius
     /// and the height of its axis (body z).</summary>
-    public void SetFuselage(double[] x, double[] radius, double[] axisZ) { if (x != null && x.Length >= 2) { _px = Rev(x); _pr = Rev(radius); _pz = Rev(axisZ); ClipPlatesToSkin(); } }   // (kept tail first: ascending x)
+    public void SetFuselage(double[] x, double[] radius, double[] axisZ) { if (x != null && x.Length >= 2) { _px = Rev(x); _pr = Rev(radius); _pz = Rev(axisZ); ClipPlatesToSkin(); Bound(); } }   // (kept tail first: ascending x)
+
+    /// <summary>THE FUSELAGE AS DRAWN, for every type (Ty t914u): station by station along the model's vertices (body axes,
+    /// m from the CG), the run of the centreline (|y| &lt; 0.1 m) that is the body — its skins joined across the walled
+    /// gap between them, so a biplane's upper centre section over its cabane, or a tailwheel under its spring, is not
+    /// taken for fuselage (a strut with vertices at mid-gap would join them: the keep-out is then too big, never too small) — its
+    /// half-depth, widened to the body's half-width across the middle of that run (capped at 1.3 × the half-depth, so a
+    /// mid-set wing root is not taken for it), and the height of its middle. The fin's root caps the run over the fin's
+    /// chord. Returns false (and the analytic shape stays) when the points cannot give four stations. Shared by the game's
+    /// smoke and the Aero Widget, so both keep smoke out of the airframe that is actually on screen.</summary>
+    public static bool MeasureFuselage(IReadOnlyList<Vec3> pts, AircraftConfig cfg, out double[] xs, out double[] radius, out double[] axisZ)
+    {
+        xs = radius = axisZ = System.Array.Empty<double>();
+        if (pts == null || pts.Count < 100) return false;
+        double finRoot = double.NaN, finLe = double.MinValue, finTe = double.MaxValue;
+        if (cfg != null)
+        {
+            Vec3 cg = cfg.Mass.CgVec();
+            foreach (var sf in cfg.Surfaces)
+            {
+                bool vert = false; foreach (var st in sf.Strips) if (System.Math.Abs(st.Pos[2] - sf.Strips[0].Pos[2]) > 0.2) vert = true;
+                if (!vert) continue;
+                foreach (var st in sf.Strips) { double z = st.Pos[2] - cg.Z; if (double.IsNaN(finRoot) || z > finRoot) finRoot = z; finLe = System.Math.Max(finLe, st.Pos[0] - cg.X + 0.25 * st.Chord); finTe = System.Math.Min(finTe, st.Pos[0] - cg.X - 0.75 * st.Chord); }
+            }
+        }
+        double nose = double.MinValue, tail = double.MaxValue;
+        foreach (var p in pts) { nose = System.Math.Max(nose, p.X); tail = System.Math.Min(tail, p.X); }
+        // Bin the points by station once (10 cm bins), so the scan is O(n), not O(n × stations).
+        int nb = (int)System.Math.Ceiling((nose - tail) / 0.1) + 2;
+        if (nb < 4 || nb > 2000) return false;
+        var bins = new List<Vec3>[nb];
+        foreach (var p in pts) { int b = (int)((nose - p.X) / 0.1); if (b >= 0 && b < nb) (bins[b] ??= new List<Vec3>()).Add(p); }
+        var ox = new List<double>(); var orad = new List<double>(); var oz = new List<double>();
+        var zc = new List<double>();
+        for (int b = 0; b < nb; b++)
+        {
+            if (bins[b] == null) continue;
+            double x = nose - 0.1 * (b + 0.5);
+            zc.Clear();
+            foreach (var p in bins[b]) if (System.Math.Abs(p.Y) < 0.1) zc.Add(p.Z);
+            if (zc.Count < 2) continue;
+            zc.Sort();
+            // A model is a SHELL: on the centreline there are only skins (the top, the belly, an upper wing's two faces, a
+            // tailwheel). Skins are joined into one body across a gap when the gap is small (< 0.25 m) or WALLED — the body's
+            // own sides have points beside the centreline at mid-gap height; the air between a fuselage and the upper wing
+            // over its cabane, or under it down to a tailwheel, has none. The longest joined run is the body.
+            var runs = new List<(double lo, double hi)>();
+            double lo = zc[0];
+            for (int i = 1; i <= zc.Count; i++)
+                if (i == zc.Count || zc[i] - zc[i - 1] > 0.06) { runs.Add((lo, zc[i - 1])); if (i < zc.Count) lo = zc[i]; }
+            double bestLo = runs[0].lo, bestHi = runs[0].hi, curLo = runs[0].lo, curHi = runs[0].hi;
+            for (int r = 1; r <= runs.Count; r++)
+            {
+                bool join = false;
+                if (r < runs.Count)
+                {
+                    double g0 = curHi, g1 = runs[r].lo;
+                    if (g1 - g0 < 0.25) join = true;
+                    else
+                    {
+                        double m0 = g0 + (g1 - g0) / 3, m1 = g1 - (g1 - g0) / 3, wallMax = System.Math.Max(0.3, 0.75 * (g1 - curLo));
+                        bool left = false, right = false;
+                        foreach (var p in bins[b]) if (p.Z > m0 && p.Z < m1 && System.Math.Abs(p.Y) > 0.1 && System.Math.Abs(p.Y) < wallMax) { if (p.Y < 0) left = true; else right = true; }
+                        join = left && right;
+                    }
+                }
+                if (join) { curHi = runs[r].hi; continue; }
+                if (curHi - curLo > bestHi - bestLo) { bestLo = curLo; bestHi = curHi; }
+                if (r < runs.Count) { curLo = runs[r].lo; curHi = runs[r].hi; }
+            }
+            if (!double.IsNaN(finRoot) && x <= finLe + 0.1 && x >= finTe - 0.1) bestLo = System.Math.Max(bestLo, finRoot - 0.05);
+            if (bestHi - bestLo < 0.02) continue;
+            double hd = 0.5 * (bestHi - bestLo), mid = 0.5 * (bestHi + bestLo), hw = 0;
+            foreach (var p in bins[b]) if (System.Math.Abs(p.Z - mid) < 0.5 * hd && System.Math.Abs(p.Y) < 1.3 * hd) hw = System.Math.Max(hw, System.Math.Abs(p.Y));
+            ox.Add(x); orad.Add(System.Math.Max(hd, hw)); oz.Add(mid);
+        }
+        if (ox.Count < 4) return false;
+        xs = ox.ToArray(); radius = orad.ToArray(); axisZ = oz.ToArray();
+        return true;
+    }
 
     private double AxisAt(double x)
     {
@@ -102,6 +181,7 @@ public sealed class AirframeFlow
         }
         // (a pair of plates the same surface's two halves listed apart stay two plates: each covers its own span)
         ClipPlatesToSkin();
+        Bound();
     }
 
     private const double Eta = 0.03;   // how far off a plate's face KeepOut stands a point
@@ -187,8 +267,12 @@ public sealed class AirframeFlow
     private static double Lerp(double[] s, double[] v, double at)
     {
         if (s.Length == 1 || at <= s[0]) return v[0];
-        for (int i = 1; i < s.Length; i++) if (at <= s[i]) { double t = (at - s[i - 1]) / System.Math.Max(1e-9, s[i] - s[i - 1]); return v[i - 1] + t * (v[i] - v[i - 1]); }
-        return v[v.Length - 1];
+        if (at >= s[s.Length - 1]) return v[v.Length - 1];
+        // (binary search: a measured fuselage has ~50-100 stations and this runs for every puff near the airframe)
+        int lo = 0, hi = s.Length - 1;
+        while (hi - lo > 1) { int mid = (lo + hi) >> 1; if (s[mid] < at) lo = mid; else hi = mid; }
+        double t = (at - s[lo]) / System.Math.Max(1e-9, s[hi] - s[lo]);
+        return v[lo] + t * (v[hi] - v[lo]);
     }
 
     /// <summary>The air's velocity relative to the airframe at body point r, given the onset (the undisturbed air at r,
@@ -313,6 +397,145 @@ public sealed class AirframeFlow
             }
         }
         return to;
+    }
+
+    /// <summary>How far from the CG any part of this airframe reaches (m): a point farther than this cannot touch it.</summary>
+    public double Reach
+    {
+        get
+        {
+            double r = System.Math.Max(System.Math.Abs(_noseX), System.Math.Abs(_tailX)) + _r0;
+            if (_px != null) for (int i = 0; i < _px.Length; i++) r = System.Math.Max(r, System.Math.Abs(_px[i]) + _pr[i] + System.Math.Abs(_pz[i]));
+            foreach (var p in _plates)
+            {
+                double s = System.Math.Max(System.Math.Abs(p.SMin), System.Math.Abs(p.SMax)), x = 0, pl = 0;
+                foreach (double v in p.Le) x = System.Math.Max(x, System.Math.Abs(v));
+                foreach (double v in p.Te) x = System.Math.Max(x, System.Math.Abs(v));
+                foreach (double v in p.Plane) pl = System.Math.Max(pl, System.Math.Abs(v));
+                r = System.Math.Max(r, System.Math.Sqrt(s * s + x * x + pl * pl));
+            }
+            return r;
+        }
+    }
+
+    /// <summary>A point held outside every body: out of the fuselage to its surface, off a plate to the side it is on.</summary>
+    public Vec3 PushOut(Vec3 p) { Vec3 q = KeepOut(p, p); return KeepOut(q, q); }
+
+    /// <summary>A DRAWN piece of smoke (a puff or a pulse tube: a soft blob stretched along a segment), body axes, made to
+    /// stay out of the airframe (Ty t914u: "no smoke may pass through any portion of any airplane"). The marker paths
+    /// themselves already go round (<see cref="Deflection"/>, <see cref="KeepOut"/>); what did not was the DRAWING laid
+    /// between and around them: a young puff is stretched back along the flight path over one frame of travel, and in a
+    /// flat spin the flight path is straight down, so the stretch ran from the belly exhaust UP through the cowling and
+    /// out of its top (the Pitts report). Here the centre is held outside, and each half of the segment is cut where it
+    /// first enters a body: what is drawn is the part of it that is in the air, on the centre's side. Returns the new
+    /// centre and half-length; <paramref name="trimmed"/> says whether anything changed.</summary>
+    public (Vec3 centre, double half) ClearSegment(Vec3 centre, Vec3 axisUnit, double half, out bool trimmed)
+    {
+        trimmed = false;
+        Vec3 c = centre;
+        if (Inside(c, 0.02)) { c = PushOut(c); trimmed = true; }
+        if (half <= 1e-4) return (c, half);
+        double fwd = Clearance(c, axisUnit, half), back = Clearance(c, -1.0 * axisUnit, half);
+        if (fwd >= half && back >= half) return (c, half);
+        trimmed = true;
+        // The kept part runs from c − back to c + fwd: its middle, and half its length.
+        return (c + axisUnit * (0.5 * (fwd - back)), 0.5 * (fwd + back));
+    }
+
+    /// <summary>How far from <paramref name="c"/> (outside every body) along <paramref name="dir"/> the spine stays in the
+    /// air, up to <paramref name="max"/>. Each plate: the stretch of the spine inside its face's keep-out band (|η| &lt; 2 cm,
+    /// linear along the spine, so found exactly), searched at 1 cm for where it is over the plate. The fuselage: only the
+    /// stretch of the spine within the body's bounding tube, sampled every 3 cm against the skin plus 0.5 % (a chord that
+    /// grazes a 0.3 m section dips under it by 0.4 mm in 3 cm; the centre is held at 2 %).</summary>
+    private double Clearance(Vec3 c, Vec3 dir, double max)
+    {
+        double best = max;
+        const double Tol = 0.02;
+        foreach (var p in _plates)
+        {
+            double s0 = p.Vertical ? -c.Z : c.Y, ds = p.Vertical ? -dir.Z : dir.Y;
+            // Quick reject: the spine's span range misses the plate's span.
+            double sA = s0, sB = s0 + ds * best;
+            if (System.Math.Max(sA, sB) < p.SMin - 0.05 || System.Math.Min(sA, sB) > p.SMax + 0.05) continue;
+            double e0 = (p.Vertical ? c.Y : c.Z) - Lerp(p.S, p.Plane, s0), de = p.Vertical ? dir.Y : dir.Z;
+            // (the plane's height changes along the span — a dihedral — so the band is widened by that change over the spine)
+            double slope = System.Math.Abs(Lerp(p.S, p.Plane, sB) - Lerp(p.S, p.Plane, sA)) + 0.01;
+            double d1, d2;
+            if (System.Math.Abs(de) < 1e-9) { if (System.Math.Abs(e0) > Tol + slope) continue; d1 = 0; d2 = best; }
+            else
+            {
+                d1 = (-(Tol + slope) - e0) / de; d2 = ((Tol + slope) - e0) / de;
+                if (d1 > d2) (d1, d2) = (d2, d1);
+                d1 = System.Math.Max(0, d1); d2 = System.Math.Min(best, d2);
+                if (d1 > d2) continue;
+            }
+            int n = System.Math.Clamp((int)System.Math.Ceiling((d2 - d1) / 0.01), 1, 200);
+            for (int i = 0; i <= n; i++)
+            {
+                double d = d1 + (d2 - d1) * i / n;
+                if (InsidePlate(p, c + dir * d, Tol)) { best = System.Math.Max(0, d - 0.01); break; }
+            }
+        }
+        // The fuselage, within its bounding tube only.
+        if (_fRmax > 0.02)
+        {
+            double xa = c.X, xb = c.X + dir.X * best, lo = 0, hi = best;
+            if (System.Math.Abs(dir.X) > 1e-9)
+            {
+                double t1 = (_fxMin - c.X) / dir.X, t2 = (_fxMax - c.X) / dir.X;
+                if (t1 > t2) (t1, t2) = (t2, t1);
+                lo = System.Math.Max(lo, t1); hi = System.Math.Min(hi, t2);
+            }
+            else if (xa < _fxMin || xa > _fxMax) hi = -1;
+            if (hi >= lo)
+            {
+                // ... and only if the spine comes within the tube's radius of its axis line at all
+                Vec3 a0 = new(0, c.Y, c.Z - _fzMid), ad = new(0, dir.Y, dir.Z);
+                double add = Vec3.Dot(ad, ad), tc = add > 1e-12 ? System.Math.Clamp(-Vec3.Dot(a0, ad) / add, lo, hi) : lo;
+                double closest = (a0 + ad * tc).Length;
+                if (closest < _fRmax + _fzHalf + 0.01)
+                {
+                    // (every 3 cm, and 2 mm inside each end of the tube: a body that ends square — the analytic tail's last
+                    // 2 % — is thinner than a step)
+                    int n = System.Math.Clamp((int)System.Math.Ceiling((hi - lo) / 0.03), 1, 96);
+                    double prev = lo;   // (clear up to where the spine enters the tube)
+                    for (int i = 0; i <= n + 1; i++)
+                    {
+                        // the grid, with one extra sample 2 mm short of the far end in its place order
+                        double d = i == 0 ? lo + 0.002 : i <= n ? lo + (hi - lo) * i / n : hi;
+                        if (i == n) d = System.Math.Max(prev, hi - 0.002);
+                        if (d <= 0) continue;
+                        Vec3 q = c + dir * d;
+                        double R = RadiusAt(q.X);
+                        if (R > 0.02 && new Vec3(0, q.Y, q.Z - AxisAt(q.X)).Length < R * 1.005) { best = System.Math.Max(0, prev - 0.005); break; }
+                        prev = d;
+                    }
+                }
+            }
+        }
+        return best;
+    }
+
+    private static bool InsidePlate(Plate p, Vec3 r, double tol)
+    {
+        double s = p.Vertical ? -r.Z : r.Y;
+        if (!Occupies(p, s)) return false;
+        double le = Lerp(p.S, p.Le, s), te = Lerp(p.S, p.Te, s), plane = Lerp(p.S, p.Plane, s);
+        return r.X <= le && r.X >= te && System.Math.Abs((p.Vertical ? r.Y : r.Z) - plane) < tol;
+    }
+
+    // The fuselage's bounding tube, for the quick rejects above (set with the shape).
+    private double _fxMin, _fxMax, _fRmax, _fzMid, _fzHalf;
+    private void Bound()
+    {
+        if (_px != null)
+        {
+            _fxMin = _px[0]; _fxMax = _px[_px.Length - 1]; _fRmax = 0; double zl = double.MaxValue, zh = double.MinValue;
+            for (int i = 0; i < _px.Length; i++) { _fRmax = System.Math.Max(_fRmax, _pr[i]); zl = System.Math.Min(zl, _pz[i]); zh = System.Math.Max(zh, _pz[i]); }
+            _fzMid = 0.5 * (zl + zh); _fzHalf = 0.5 * (zh - zl);
+        }
+        else { _fxMin = _noseX - 1.02 * System.Math.Max(0, _noseX - _tailX) + 1e-6; _fxMax = _noseX;   // (RadiusAt's own ends: the tail is cut square 2 % past it)
+                _fRmax = _r0; _fzMid = _axisZ; _fzHalf = 0; }
     }
 
     /// <summary>Inside a body (for the tests): in the fuselage, or within <paramref name="tol"/> of a plate's face.

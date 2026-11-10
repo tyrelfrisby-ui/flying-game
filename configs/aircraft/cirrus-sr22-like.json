@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "cirrus-sr22-like",
   "displayName": "SR22-like",
+  "structureType": "composite",
+  "structureTypeSource": "Cirrus SR22: glass/carbon composite monocoque fuselage (FAA TCDS A00009CH; Cirrus POH Section 7).",
   "spawnIasMs": 75,
   "mass": {
     "massKg": 1500,
@@ -1462,8 +1464,7 @@
       "hingeChDelta": -0.45,
       "centeringSpringKt": 50,
       "trimType": "spring",
-      "freeTauS": 0.12,
-      "saturationDeg": 7.9
+      "freeTauS": 0.12
     },
     "rudder": {
       "maxDeflRad": 0.4,
@@ -1505,6 +1506,9 @@
   "propulsion": {
     "maxPowerW": 231000,
     "propDiameterM": 1.98,
+    "propMaterial": "metal",
+    "propMaterialSource": "Hartzell three-blade aluminium constant-speed (PHC-J3YF)",
+    "propBladeCount": 3,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 4.5,
@@ -1537,7 +1541,7 @@
       "maxSteerRad": 0.5,
       "tireMu": 0.8,
       "corneringStiffnessN": 5000,
-      "rollResistN": 30
+      "tire": "5.00-5", "tirePressurePsi": 26.5
     },
     {
       "pos": [
@@ -1553,7 +1557,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 12000,
-      "rollResistN": 40
+      "tire": "legacy-sr22-main", "tirePressurePsi": 33.1
     },
     {
       "pos": [
@@ -1569,7 +1573,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 12000,
-      "rollResistN": 40
+      "tire": "legacy-sr22-main", "tirePressurePsi": 33.1
     }
   ],
   "limits": {

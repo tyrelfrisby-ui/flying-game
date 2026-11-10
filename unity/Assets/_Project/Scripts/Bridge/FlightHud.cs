@@ -17,10 +17,18 @@ namespace FlyingGame.Bridge
 
         private void OnGUI()
         {
+            if (LocalPlayerHud.CompactActive) return;
+            // In a headset a screen-space overlay smears across both eyes at the wrong depth. Codex's
+            // VR HUD replaces these; the MENUS deliberately keep drawing, or there would be no way to
+            // switch VR back off.
+            if (VrMode.SuppressFlatOverlays) return;
             if (Driver == null || SessionSettings.MenuOpen)
             {
                 return;
             }
+            // Nothing about the aeroplane once the pilot is leaving or has left it (PilotOutRules.ShowHud): its spin
+            // line over a man under a canopy is noise. The egress status line is PilotEgress's own.
+            if (!PilotEgress.HudAllowed(Driver)) return;
 
             // Scale text to the device: OnGUI uses native pixels, so a fixed 16 px is invisible on a
             // ~2600 px Retina phone. Size off the short screen edge (matches the touch buttons).

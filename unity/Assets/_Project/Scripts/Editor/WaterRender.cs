@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using FlyingGame.Bridge;
 using FlyingGame.Core;
@@ -23,9 +24,15 @@ namespace FlyingGame.EditorTools
                 .Invoke(null, new object[] { name, vertices, triangles, material, parent, true });
         // A controlled visual stage, not replacement terrain or a new simulated lake.
         // Uses the real harbour's surface and real FloatHydro/wake signals.
+        static WorldTerrain.Lake CaptureLake()
+        {
+            var lane = IslandSites.Fields.First(f => f.Surface == "water");
+            double surface = WorldTerrain.Active.WaterSurfaceAt(lane.Centre.X, lane.Centre.Y) ?? lane.Elevation;
+            return new WorldTerrain.Lake(lane.Centre.X, lane.Centre.Y, 600, 600, surface);
+        }
         static void BuildSunsetShore()
         {
-            var lake = WorldTerrain.Harbor;
+            var lake = CaptureLake();
             Vector3 origin = CoordinateMap.ToUnity(new Vec3(lake.Cx, lake.Cy, -lake.SurfaceM));
             var parent = new GameObject("Sunset comparison stage").transform;
             var water = WorldBuilder.Mat("FlyingGame/Water", new Color(.035f,.065f,.08f,1));
@@ -124,9 +131,15 @@ namespace FlyingGame.EditorTools
                 // Explicit tow speed wins; zero throttle alone represents slow displacement taxi.
                 float speed = float.Parse(Read("-speed", calm ? "0" : throttle <= 0 ? "2.5" : "18"), System.Globalization.CultureInfo.InvariantCulture);
                 bool displacement = speed < 4;
+                bool touchdown = Array.IndexOf(args, "-touchdown") >= 0;
+                double fixturePitch = double.Parse(Read("-pitch", displacement ? "0" : "3"), System.Globalization.CultureInfo.InvariantCulture);
+                double fixtureImmersion = double.Parse(Read("-immersion", ".13"), System.Globalization.CultureInfo.InvariantCulture);
                 Debug.Log($"WaterRender fixture: speed={speed} m/s throttle={throttle} displacement={displacement}");
                 float lift = float.Parse(Read("-lift", "0"), System.Globalization.CultureInfo.InvariantCulture);
                 Directory.CreateDirectory(output);
+                string captureSource = Read("-sourceSha", "UNLABELLED");
+                string captureLabel = $"PRESCRIBED TOW {speed:F4} m/s | {speed / .44704:F2} mph | {speed / .514444444:F2} kt | source {captureSource}";
+                File.WriteAllText(Path.Combine(output, "capture.txt"), captureLabel + "\nStatic pose/tow fixture with real sampled hydro and stepped spray/wake. Not live flight; no measured ASI.\n");
                 EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
                 WorldTerrain.Active = new WorldTerrain();
                 Shader.SetGlobalFloat("_SunsetOn", 0); Shader.SetGlobalFloat("_WaterCalm", calm ? 1 : 0);
@@ -142,24 +155,36 @@ namespace FlyingGame.EditorTools
                 if (sunset) SunsetLighting.Apply(sun, calm);
                 var cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(id);
                 if (cfg.Floats == null) throw new ArgumentException("Water render requires a floatplane.");
-                var lake = WorldTerrain.Harbor;
+                var lake = CaptureLake();
                 var root = new GameObject("Water render " + id);
                 var driver = root.AddComponent<FlightSimDriver>(); driver.enabled = false;
                 var builder = new AirframeBuilder(); builder.Build(root.transform, cfg);
                 foreach (var child in root.GetComponentsInChildren<Transform>(true)) child.gameObject.layer = WaterReflection.AircraftLayer;
+                var shadow = root.AddComponent<GroundShadow>(); Call(shadow, "Start");
                 var spray = root.AddComponent<FloatSplash>(); spray.Driver = driver;
                 var wake = root.AddComponent<WakeWaves>(); wake.Driver = driver; Call(wake, "Start");
-                Call(wake, "Allocate", WorldTerrain.Lakes.Length - 1);
+                Call(wake, "AllocateLake", lake);
+                var lane = IslandSites.Fields.First(f => f.Surface == "water");
+                double heading = lane.Heading * Math.PI / 180;
+                var yaw = new Quat(0,0,Math.Sin(heading/2),Math.Cos(heading/2));
+                var cameraYaw = Quaternion.Euler(0, (float)lane.Heading, 0);
                 for (int frame = 0; frame < 960; frame++)
                 {
-                    double north = lake.Cx + (frame - 959) * speed / 60;
-                    var attitude = new Quat(0, Math.Sin((displacement ? 0 : 3) * Math.PI / 360), 0, Math.Cos((displacement ? 0 : 3) * Math.PI / 360));
-                    var state = new RigidBodyState(new Vec3(north, lake.Cy, -lake.SurfaceM - cfg.Floats.KeelZ + .13 - lift), attitude, new Vec3(speed, 0, 0), Vec3.Zero);
+                    double travel = (frame - 959) * speed / 60;
+                    double north = lake.Cx + travel * Math.Cos(heading), east = lake.Cy + travel * Math.Sin(heading);
+                    var attitude = new Quat(0, Math.Sin(fixturePitch * Math.PI / 360), 0, Math.Cos(fixturePitch * Math.PI / 360));
+                    attitude = Quat.Multiply(yaw, attitude);
+                    // Optional prescribed 0.8 m/s arrival, not a free-running flight or a physics change.
+                    double aboveContact = touchdown ? Math.Min(.8, (959 - frame) * .8 / 60) : 0;
+                    Vec3 velocity = touchdown
+                        ? attitude.Conjugate().Rotate(new Vec3(speed * Math.Cos(heading), speed * Math.Sin(heading), .8))
+                        : attitude.Conjugate().Rotate(new Vec3(speed * Math.Cos(heading), speed * Math.Sin(heading), 0));
+                    var state = new RigidBodyState(new Vec3(north, east, -lake.SurfaceM - cfg.Floats.KeelZ + fixtureImmersion - lift - aboveContact), attitude, velocity, Vec3.Zero);
                     var ac = new Aircraft(cfg, state, ControlDeflections.Neutral);
                     ac.SetReplayPose(state, ControlDeflections.Neutral, throttle, 0, 1, 1);
                     driver.AdoptSim(new SimLoop(ac));
                     FloatHydro.Compute(cfg, state, 0);
-                    Call(spray, "LateUpdate");
+                    Call(spray, "Step", 1f / 60f);
                     var particles = new System.Collections.Generic.List<ParticleSystem>();
                     foreach (var field in typeof(FloatSplash).GetFields(BindingFlags.NonPublic | BindingFlags.Instance))
                         if (field.FieldType == typeof(ParticleSystem[])) particles.AddRange((ParticleSystem[])field.GetValue(spray));
@@ -171,7 +196,78 @@ namespace FlyingGame.EditorTools
                     }
                     if (frame % 3 == 0) Call(wake, "Step", (int)Call(wake, "Sources", ac));
                 }
+                if (!FloatHydro.Floats[0].Wet && lift <= 0) throw new Exception("Water fixture is dry; cannot certify a water capture.");
                 Debug.Log($"WaterRender: wet={FloatHydro.Floats[0].Wet}, lift={FloatHydro.Floats[0].PlaningLiftN}, buoyancy={FloatHydro.Floats[0].BuoyancyN}, drag={FloatHydro.Floats[0].DragN}");
+                var hydroReport = new System.Text.StringBuilder();
+                bool allOnStep = true, allPlow = true;
+                for (int i = 0; i < 2; i++)
+                {
+                    var f = FloatHydro.Floats[i];
+                    bool step = FloatSprayVisual.IsOnStep(f);
+                    bool plow = f.Wet && !step && f.SternDraftM >= .005;
+                    allOnStep &= step; allPlow &= plow;
+                    hydroReport.AppendLine($"float={i} wet={f.Wet} ON_STEP={step} heelDraggingPlow={plow} stepBlend={FloatSprayVisual.StepFraction(f):F4} sampledWaterRelativeSpeed={f.SpeedMs:F4}m/s ({f.SpeedMs/.44704:F2}mph, {f.SpeedMs/.514444444:F2}kt) lift={f.PlaningLiftN:F3}N buoyancy={f.BuoyancyN:F3}N ventilation={f.VentilatedFraction:F4} stepDraft={f.StepDraftM:F4}m sternDraft={f.SternDraftM:F4}m trim={f.TrimDeg:F3}deg lambda={f.Lambda:F3}");
+                }
+                string actualRegime = allOnStep ? "ON_STEP" : allPlow ? "PLOW" : "TRANSITION_OR_MIXED";
+                string requiredRegime = Read("-requireRegime", "");
+                if (requiredRegime.Length > 0 && requiredRegime != actualRegime)
+                    throw new Exception($"Fixture regime {actualRegime}, expected {requiredRegime}: {hydroReport}");
+                string regimeLabel = $"Verified regime={actualRegime}; fixture pitch={fixturePitch}deg immersionOffset={fixtureImmersion}m. Sampled hydro speed below comes from prescribed state, NOT live measured ASI.";
+                File.WriteAllText(Path.Combine(output, "hydro-regime.txt"), regimeLabel + "\n" + hydroReport);
+                File.AppendAllText(Path.Combine(output, "capture.txt"), regimeLabel + "\n" + hydroReport);
+                Debug.Log(regimeLabel + "\n" + hydroReport);
+                if (Array.IndexOf(args, "-requireFloatVs") >= 0)
+                {
+                    object GetSprayField(string name) => typeof(FloatSplash).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(spray);
+                    var field = (SprayField)GetSprayField("_field");
+                    var selected = new int[FloatSprayVisual.MaxArms];
+                    FloatSprayVisual.SelectRoots(field.LastRoots, driver.Sim.Aircraft.State.Attitude, selected);
+                    var mesh = (Mesh)GetSprayField("_sheets");
+                    var vertices = mesh.vertices;
+                    var report = new System.Text.StringBuilder();
+                    for (int arm = 0; arm < 4; arm++)
+                    {
+                        if (selected[arm] < 0) throw new Exception($"Float V missing arm {arm}");
+                        var contact = field.LastRoots[selected[arm]];
+                        int vertex = arm * FloatSprayVisual.Samples * 2;
+                        Vector3 origin = (vertices[vertex] + vertices[vertex + 1]) * .5f;
+                        if (Vector3.Distance(origin, CoordinateMap.ToUnity(contact.Position)) > .002f)
+                            throw new Exception($"Float V arm {arm} detached from its contact root");
+                        report.AppendLine($"arm={arm} float={contact.Slot} contact={contact.Position} meshOrigin={origin}");
+                    }
+                    var ps = (ParticleSystem)GetSprayField("_spray");
+                    var drops = new ParticleSystem.Particle[SprayField.MaxParcels];
+                    int count = ps.GetParticles(drops);
+                    if (count == 0) throw new Exception("No airborne spray in review fixture");
+                    for (int i = 0; i < count; i++)
+                    {
+                        Color c = drops[i].startColor;
+                        if (c.r < .99f || c.r != c.g || c.g != c.b) throw new Exception("Spray particle is not neutral white");
+                    }
+                    if (Array.IndexOf(args, "-requireFineSpray") >= 0)
+                    {
+                        if (ps.GetComponent<ParticleSystemRenderer>().renderMode != ParticleSystemRenderMode.Billboard)
+                            throw new Exception("Airborne spray still stretches clouds into large droplets");
+                        Vec3 forward = driver.Sim.Aircraft.State.Attitude.Rotate(new Vec3(1, 0, 0));
+                        for (int i = 0; i < count; i++)
+                        {
+                            if (drops[i].startSize > .025f) throw new Exception("Oversized airborne spray footprint");
+                            Vec3 point = CoordinateMap.ToSim(drops[i].position);
+                            bool inside = actualRegime != "ON_STEP";
+                            for (int f = 0; f < 2; f++)
+                                inside |= FloatSprayVisual.InsideWake(point, FloatHydro.Floats[f].StepWorld, forward, cfg.Floats.BeamM, .011);
+                            if (!inside) throw new Exception("Airborne spray outside both float wake envelopes");
+                        }
+                        report.AppendLine("Fine-spray bounds PASS: no velocity stretch, <=25 mm footprints, step parcels inside float wake envelopes (plow intentionally broad). Appearance still requires visual review.");
+                    }
+                    var material = (Material)GetSprayField("_mat");
+                    if (material.color != Color.white) throw new Exception("Spray material tints white droplets");
+                    foreach (var prop in (ParticleSystem[])GetSprayField("_prop"))
+                        if (prop.emission.rateOverTime.constant > 0) throw new Exception("Central prop mist masks active float spray");
+                    report.AppendLine($"PASS: four independent contact arms; {count} neutral-white particles; white material; central mist emission zero.");
+                    File.WriteAllText(Path.Combine(output, "geometry-check.txt"), report.ToString());
+                    Debug.Log(report.ToString());
+                }
                 // Publish the final ping-pong texture, as Update does in play mode.
                 Shader.SetGlobalTexture("_WakeTex", (RenderTexture)typeof(WakeWaves).GetField("_curr", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(wake));
                 var foamField = typeof(WakeWaves).GetField("_foam", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -187,17 +283,23 @@ namespace FlyingGame.EditorTools
                 camera.nearClipPlane = .15f; camera.farClipPlane = 12000; camera.fieldOfView = 48;
                 var rt = new RenderTexture(1600, 1000, 24); camera.targetTexture = rt;
                 Vector3 at = root.transform.position;
-                var offsets = new[] { new Vector3(15, 5, 15), new Vector3(30, 40, -45), new Vector3(7, 2, 6) };
+                var offsets = new[] { new Vector3(0, 5, -22), new Vector3(-12, 7, -24), new Vector3(7, 2, 6) };
                 if (displacement && !calm)
                 {
-                    offsets[0] = new Vector3(12, 3, 13);
-                    offsets[1] = new Vector3(-10, 6, -13);
+                    offsets[0] = new Vector3(0, 5, -22);
+                    offsets[1] = new Vector3(-12, 7, -24);
                     offsets[2] = new Vector3(7, 2, 6);
                 }
-                var names = new[] { "spray", "wake", "bow" };
+                var names = new[] { "tail", "chase", "bow" };
+                if (Array.IndexOf(args, "-sprayReview") >= 0)
+                {
+                    offsets = new[] { new Vector3(0, 5, -14), new Vector3(0, 9, -3), new Vector3(5, 1.5f, 5) };
+                    names = new[] { "water-run-tail", "dual-float-top", "spray-close" };
+                }
                 for (int i = 0; i < offsets.Length; i++)
                 {
-                    camera.transform.position = at + offsets[i]; camera.transform.LookAt(at + new Vector3(0, -1, i == 1 ? (displacement ? -3 : -24) : 0));
+                    camera.transform.position = at + cameraYaw * offsets[i]; camera.transform.LookAt(at + new Vector3(0, -1, 0));
+                    Call(shadow, "LateUpdate");
                     Call(reflection, "OnPreCull");
                     camera.Render(); RenderTexture.active = rt;
                     var tex = new Texture2D(1600, 1000, TextureFormat.RGB24, false);
@@ -332,6 +434,7 @@ namespace FlyingGame.EditorTools
                         if (message.severity == UnityEditor.Rendering.ShaderCompilerMessageSeverity.Error) throw new Exception(name + ": " + message.message);
                 }
                 Debug.Log("WaterRender: wrote " + output);
+                EditorApplication.Exit(0);
             }
             catch (Exception e) { Debug.LogException(e); EditorApplication.Exit(1); }
         }

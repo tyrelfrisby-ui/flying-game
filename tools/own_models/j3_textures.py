@@ -1,15 +1,19 @@
 """J-3 own model v5 textures (Pillow + DejaVu fonts; generated, nothing traced or copied).
   python3 j3_textures.py OUTDIR    -> j3_panel_atlas.png (gauge faces + placard), j3_prop_wood.png (grain, red tips, sheath)
 Gauge layout / colours read by eye off Ty's cockpit photo (refs/j3-cub/ty-panel.png): cream faces, black markings, no
-maker names.  Prop: laminated-birch look, varnish tint, red tip band (Ty) on both faces, brass LE sheath + rivet line
+maker names.
+Ty t934u: Cub exception — remove ALL colored bands/arcs; red limit lines ONLY for max oil temp, min AND max oil
+pressure, max RPM, max airspeed. Ty chose KEEP 85-hp C-85 physics/config; match instrument redlines to C-85 (TCDS E-233),
+not A-65/E-205. Airframe ASI max from A-691 glide/dive 122 mph CAS (mph face). Never dial scale ends.
+t935: oil mid-line removed; otherwise J3 face styling approved (visual only).  Prop: laminated-birch look, varnish tint, red tip band (Ty) on both faces, brass LE sheath + rivet line
 (Ty's Sensenich-type photo refs/j3-cub/ty-prop.png; the maker's decal is a trademark and is NOT reproduced)."""
 import sys, os, math, numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 OUT = sys.argv[1] if len(sys.argv) > 1 else '.'; os.makedirs(OUT, exist_ok=True)
 FD = '/usr/share/fonts/truetype/dejavu/'
-def F(sz, bold=True): return ImageFont.truetype(FD + ('DejaVuSans-Bold.ttf' if bold else 'DejaVuSans.ttf'), sz)
-def FC(sz): return ImageFont.truetype(FD + 'DejaVuSans-Bold.ttf', sz)
-CREAM, INK, RED, GRN = (232, 212, 160), (22, 20, 18), (196, 36, 26), (40, 150, 60)
+from instrument_face_style import font as F, finish
+def FC(sz): return F(sz)
+CREAM, INK, RED, GRN = (245, 232, 195), (5, 5, 5), (196, 36, 26), (40, 150, 60)
 S = 512                                   # one gauge cell (face disc fills the cell); atlas 5 cells + placard row
 A = Image.new('RGB', (S * 5, S + 128), (20, 20, 20)); D = ImageDraw.Draw(A)
 def polar(cx, cy, r, deg):                 # deg clockwise from 12 o'clock
@@ -31,23 +35,27 @@ PAINT_NEEDLES = os.environ.get('PAINT_NEEDLES') == '1'
 def needle(cx, cy, a, L, col=RED, w=9, tail=40):
     if not PAINT_NEEDLES: return
     D.line([polar(cx, cy, -tail, a), polar(cx, cy, L, a)], fill=col, width=w); D.ellipse((cx - 16, cy - 16, cx + 16, cy + 16), fill=(30, 30, 30))
+# Rear-seat lettering: radial/text offsets clear the original ticks; scale angles and arcs stay fixed.
 # 0 tachometer (x100 RPM): 5..35 over 270 deg
 cx, cy = face(0); a0, a1 = -135, 135
-ticks(cx, cy, 200, 238, a0, a1, 30, 4); ticks(cx, cy, 185, 238, a0, a1, 6, 8)
-for k, v in enumerate(range(5, 40, 5)): label(cx, cy, 150, a0 + 270 * k / 6, str(v), F(54))
-arc(cx, cy, 226, a0 + 270 * (22.8 - 5) / 30, a0 + 270 * (23.2 - 5) / 30, 26, RED)             # A-65 red line 2300
-arc(cx, cy, 226, a0 + 270 * (14 - 5) / 30, a0 + 270 * (22.8 - 5) / 30, 12, GRN)
-D.text((cx, cy - 70), 'R P M', font=F(40), fill=INK, anchor='mm'); D.text((cx, cy + 150), 'X 100', font=F(26, False), fill=INK, anchor='mm')
+ticks(cx, cy, 200, 238, a0, a1, 30, 4); ticks(cx, cy, 185, 238, a0, a1, 6, 11)
+for k, v in enumerate(range(5, 40, 5)): label(cx, cy, 138, a0 + 270 * k / 6, str(v), F(72))
+# Max RPM: Continental C-85 TCDS E-233 — max continuous 85 hp at 2575 rpm (matches config propulsion.maxRpm).
+# (Ty: keep 85-hp C-85; match instrument limits to it — not A-65 2350.)
+arc(cx, cy, 226, a0 + 270 * (25.75 - 5) / 30 - 1.5, a0 + 270 * (25.75 - 5) / 30 + 1.5, 26, RED)
+D.text((cx, cy - 30), 'R P M', font=F(52), fill=INK, anchor='mm'); D.text((cx, cy + 150), 'X 100', font=F(36), fill=INK, anchor='mm')
 needle(cx, cy, a0 + 270 * (18 - 5) / 30, 200, (200, 70, 30))
 # 1 airspeed (MPH): 40 at 1 o'clock clockwise to 140 at ~11 o'clock
 cx, cy = face(1)
 def asd(v): return 30 + (v - 40) * 300 / 100.0
 arc(cx, cy, 214, asd(38), asd(122) , 0, INK)
-arc(cx, cy, 226, asd(42), asd(100), 24, GRN)
+# t934u: no color band. Max airspeed red = FAA Spec A-691 Airspeed Limits (CAS) "Glide or dive 122 mph (106 knots)".
+# (Level flight or climb 90 mph is a separate limit — not painted as green here per t934.)
+# config limits.vneMs 54.5 = 122 mph matches A-691 glide/dive; build_j3.py had flagged secondary until TCDS check.
 D.line([polar(cx, cy, 196, asd(122)), polar(cx, cy, 250, asd(122))], fill=RED, width=12)
-ticks(cx, cy, 205, 238, asd(40), asd(140), 20, 4); ticks(cx, cy, 190, 238, asd(40), asd(140), 5, 8)
-for v in range(40, 160, 20): label(cx, cy, 152, asd(v), str(v), F(52))
-D.text((cx, cy - 72), 'AIR SPEED', font=F(30), fill=INK, anchor='mm'); D.text((cx, cy + 92), 'M P H', font=F(26, False), fill=INK, anchor='mm')
+ticks(cx, cy, 205, 238, asd(40), asd(140), 20, 4); ticks(cx, cy, 190, 238, asd(40), asd(140), 5, 11)
+for v in range(40, 160, 20): label(cx, cy, 128, asd(v), str(v), F(68))
+D.text((cx, cy - 44), 'AIR SPEED', font=F(40), fill=INK, anchor='mm'); D.text((cx, cy + 160), 'M P H', font=F(36), fill=INK, anchor='mm')
 needle(cx, cy, asd(40) - 12, 205)
 # 2 compass ball: black window; v15: the card is a separate drum mesh (Compass_Card) textured from the strip below,
 # the lubber line is a white bar in front of it (Cabin mesh)
@@ -71,19 +79,20 @@ for deg in range(0, 360, 5):
     D.line([(x, S + CSH - 6), (x, S + CSH - (34 if tall else 24 if mid else 15))], fill=(235, 235, 230), width=3)
 NAMES = {0: 'N', 90: 'E', 180: 'S', 270: 'W'}
 for deg in range(0, 360, 30):
-    t = NAMES.get(deg, str(deg // 10)); f = F(50 if deg in NAMES else 36)
-    tw = int(D.textlength(t, font=f)) + 8; L = Image.new('RGB', (tw, 72), (26, 26, 30)); LD = ImageDraw.Draw(L)
-    LD.text((tw / 2, 36), t, font=f, fill=(240, 240, 236), anchor='mm')
-    L = L.resize((max(1, int(tw * KX)), 72), Image.LANCZOS)
+    t = NAMES.get(deg, str(deg // 10)); f = F(66 if deg in NAMES else 50)
+    tw = int(D.textlength(t, font=f)) + 8; L = Image.new('RGB', (tw, 82), (26, 26, 30)); LD = ImageDraw.Draw(L)
+    LD.text((tw / 2, 41), t, font=f, fill=(255, 255, 250), anchor='mm')
+    L = L.resize((max(1, int(tw * KX)), 82), Image.LANCZOS)
     L = L.transpose(Image.FLIP_LEFT_RIGHT)                       # strip u runs right-to-left on the drum face seen from the seat
     for xo in (0, -CSW, CSW):                                     # wrap at 0/360
         x = int(CS0 + CSW * deg / 360.0 - L.width / 2) + xo
         if x + L.width > CS0 and x < CS0 + CSW:
-            cl = max(0, CS0 - x); cr = min(L.width, CS0 + CSW - x); A.paste(L.crop((cl, 0, cr, 72)), (x + cl, S + 10))
+            cl = max(0, CS0 - x); cr = min(L.width, CS0 + CSW - x); A.paste(L.crop((cl, 0, cr, 82)), (x + cl, S + 10))
 # 3 altimeter: 0..9 x 1000 ft, one long + one short hand
-cx, cy = face(3); ticks(cx, cy, 205, 238, 0, 360, 50, 4); ticks(cx, cy, 185, 238, 0, 360, 10, 8)
-for v in range(10): label(cx, cy, 152, v * 36, str(v), F(56))
-D.text((cx, cy - 72), 'ALTITUDE', font=F(28), fill=INK, anchor='mm'); D.text((cx, cy + 80), 'FEET', font=F(22, False), fill=INK, anchor='mm')
+cx, cy = face(3); ticks(cx, cy, 205, 238, 0, 360, 50, 4); ticks(cx, cy, 185, 238, 0, 360, 10, 11)
+# Pull only the bottom numeral inward to clear the existing setting-window oval.
+for v in range(10): label(cx, cy, 94 if v == 5 else 152, v * 36, str(v), F(76))
+D.text((cx, cy - 72), 'ALTITUDE', font=F(38), fill=INK, anchor='mm'); D.text((cx, cy + 40), 'FEET', font=F(32), fill=INK, anchor='mm')
 if PAINT_NEEDLES: D.line([(cx, cy), polar(cx, cy, 120, 10)], fill=INK, width=16)
 needle(cx, cy, 3, 210, INK, 8)
 D.ellipse((cx - 46, cy + 128, cx + 46, cy + 160), outline=INK, width=3)
@@ -93,20 +102,30 @@ for yo, lab, vals, red_at in ((-95, 'TEMPERATURE', ['100', '150', '200', '250'],
     oc = cy + yo + 60; D.arc((cx - 190, oc - 190, cx + 190, oc + 190), -150, -30, fill=INK, width=5)
     n = len(vals) - 1
     for k, v in enumerate(vals):
-        a = -60 + 120 * k / n; D.line([polar(cx, oc, 175, a), polar(cx, oc, 200, a)], fill=INK, width=6)
-        label(cx, oc, 150, a, v, F(30))
-    arc(cx, oc, 205, -60 + 120 * (0.25 if red_at is None else 0.0), -60 + 120 * (0.75 if red_at is None else 0.85), 12, GRN)
-    D.line([polar(cx, oc, 170, 60 if red_at else -60 + 120 * 0.125), polar(cx, oc, 215, 60 if red_at else -60 + 120 * 0.125)], fill=RED, width=10)
-    D.text((cx, oc - 95), lab, font=F(22), fill=INK, anchor='mm')
+        a = -60 + 120 * k / n; D.line([polar(cx, oc, 175, a), polar(cx, oc, 200, a)], fill=INK, width=9)
+        label(cx, oc, 120, a, v, F(40))
+    # t934/t935: no color bands; no mid-line. Red lines = C-85 certified limits (TCDS E-233), NOT dial scale ends.
+    # Oil temp max 225 F: E-233 NOTE 1 C85 series max oil inlet temperature 225 F (dial to 250 ≠ limit).
+    # Oil press min 30 / max 40 psig: E-233 NOTE 1 "oil pressure limits 30 to 40 p.s.i." (not scale-end 80; not A-65 30-60).
+    if red_at is not None:
+        a_tmax = -60 + 120 * (225 - 100) / (250 - 100)
+        D.line([polar(cx, oc, 170, a_tmax), polar(cx, oc, 215, a_tmax)], fill=RED, width=10)
+    else:
+        a_pmin = -60 + 120 * (30 / 80.0)
+        a_pmax = -60 + 120 * (40 / 80.0)
+        D.line([polar(cx, oc, 170, a_pmin), polar(cx, oc, 215, a_pmin)], fill=RED, width=10)
+        D.line([polar(cx, oc, 170, a_pmax), polar(cx, oc, 215, a_pmax)], fill=RED, width=10)
+    D.text((cx, oc - 25), lab, font=F(30), fill=INK, anchor='mm')
     if PAINT_NEEDLES: D.line([(cx, oc), polar(cx, oc, 190, -10 if red_at else 8)], fill=INK, width=8)
-D.line([(cx - 230, cy + 8), (cx + 230, cy + 8)], fill=(120, 112, 96), width=3)
+# t935u: Remove the mid line on the oil temp pressure otherwise approved for j3.
+# (horizontal divider across dual oil temp/pressure face ONLY — do not remove scales/ticks/fonts/redlines)
 # placard (aluminium, black letters)
 P0 = (0, S, 640, S + 128); D.rectangle(P0, fill=(178, 182, 186)); D.rectangle((8, S + 8, 632, S + 120), outline=INK, width=5)
 D.text((320, S + 42), 'REAR SEAT FOR', font=FC(46), fill=INK, anchor='mm'); D.text((320, S + 90), 'SOLO FLYING', font=FC(46), fill=INK, anchor='mm')
 # subtle face grain / ageing so the cream is not flat
 arr = np.asarray(A).astype(np.float32); rng = np.random.default_rng(3)
 arr += rng.normal(0, 2.5, arr.shape[:2])[..., None]; A = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
-A.save(os.path.join(OUT, 'j3_panel_atlas.png'))
+finish(A, cream=True).save(os.path.join(OUT, 'j3_panel_atlas.png'))
 # ---- prop wood: u = blade radial coordinate y in [-R, R], v = chordwise z in [-ZH, ZH] (planar projection, both faces) ----
 R, ZH, IN = 36 * 0.0254, 0.10, 0.0254
 W, H = 4096, 512

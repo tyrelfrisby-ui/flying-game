@@ -11,6 +11,12 @@ namespace FlyingGame.Core.DataContracts;
 /// </summary>
 public sealed class AtmosphereFieldConfig
 {
+    /// <summary>Depth of the surface layer (m): the height over which a vertical wind builds from nothing at the
+    /// ground to its full value above. Air cannot come out of the earth — rising air gets its vertical speed by being
+    /// pushed ALONG the surface and then up — so every updraught and every downdraught is faded to zero at the ground
+    /// across this depth (Ty 2026-11-08, on final at 3U2). 50 m leaves a ridge soarable at soaring height while a
+    /// flare is unaffected: ~6 % of the lift survives 10 m up, ~68 % at 30 m.</summary>
+    public double SurfaceLayerM { get; set; } = 50.0;
     public int SchemaVersion { get; set; } = 1;
     public string Id { get; set; } = "regional-atmosphere";
     /// <summary>The air mass the whole map sits in. The session menu's wind and hot/cold day overwrite these.</summary>
@@ -116,6 +122,9 @@ public sealed class RegionWindConfig
     public double MeanGustIntervalS { get; set; } = 18; // gusty: mean quiet time between gusts
     public double MinGustDurationS { get; set; } = 4;
     public double MaxGustDurationS { get; set; } = 10;
+    /// <summary>gusty: how wide a band the direction may wander in while gusting (deg, total). Ty 2026-11-08: "the
+    /// direction should remain within a 3 degree band". 0 pins it to FromDeg exactly, as it used to be.</summary>
+    public double DirectionBandDeg { get; set; } = 3.0;
     public double SpeedJitterKt { get; set; } = 0.8;   // variable: slow speed wander (1σ)
     public double TurnRateSigmaDegS { get; set; } = 2.5; // variable: 1σ of the direction's rate of change
     public double TurnRateMaxDegS { get; set; } = 6;   // variable: hard cap on the rate of change

@@ -1122,7 +1122,8 @@ for k_, (nm_, col_) in CK_COL.items():
         if _nd.type == 'BSDF_PRINCIPLED':
             for _k in ('Specular IOR Level', 'Specular'):
                 if _k in _nd.inputs: _nd.inputs[_k].default_value = 0.0
-for k_ in ('asi', 'alt', 'vsi', 'tach', 'mp', 'oil', 'oilpress', 'cht', 'g', 'tc', 'hobbs', 'mag'):
+# asi / alt / vsi / tc / g: the shared instrument library's (tools/own_models/instruments), not this aeroplane's art.
+for k_ in ('tach', 'mp', 'oil', 'oilpress', 'cht', 'hobbs', 'mag'):
     M['dial_' + k_] = paint.mat_image('Dial_' + k_.upper(), _img('gl-dial-%s.png' % k_), 0.5)
 M['compass'] = paint.mat_image('Compass_Card', _img('gl-compass-band.png'), 0.5)
 # Front wet compass (2026-11-01, Ty's photo): its own band and a static case/window overlay with the lubber

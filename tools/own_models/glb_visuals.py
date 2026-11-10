@@ -102,20 +102,23 @@ class Glb:
         self.doc['scenes'][self.doc.get('scene',0)]['nodes'].append(len(self.doc['nodes'])-1)
 
     def save(self, path):
+        from instrument_face_style import apply_glb
+        apply_glb(self, cream=Path(path).parent.name.startswith(('j3-', 'pa18-')))
         self.doc['buffers'][0]['byteLength'] = len(self.bin)
         js = json.dumps(self.doc,separators=(',',':')).encode(); js += b' ' * (-len(js)%4)
         buf = bytes(self.bin); buf += b'\0' * (-len(buf)%4)
         raw = struct.pack('<4sII',b'glTF',2,28+len(js)+len(buf))+struct.pack('<I4s',len(js),b'JSON')+js+struct.pack('<I4s',len(buf),b'BIN\0')+buf
         Path(path).write_bytes(raw)
 
-    def image(self, texture):
+    def image(self, texture, mode="RGB"):
         from PIL import Image
         im = self.doc['images'][self.doc['textures'][texture]['source']]
         v = self.doc['bufferViews'][im['bufferView']]
-        return Image.open(io.BytesIO(self.bin[v.get('byteOffset',0):v.get('byteOffset',0)+v['byteLength']])).convert('RGB')
+        return Image.open(io.BytesIO(self.bin[v.get('byteOffset',0):v.get('byteOffset',0)+v['byteLength']])).convert(mode)
 
 
 def checker_update(path):
+    from PIL import Image
     """Same projections as build_pitts_s2b.py; only replace previously plain red undersides."""
     from PIL import Image
     glb = Glb(path)

@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "c172-like",
   "displayName": "172-like Trainer",
+  "structureType": "aluminumMonocoque",
+  "structureTypeSource": "Cessna 172: all-metal 2024 aluminium semi-monocoque (Cessna 172 Service Manual, Section 2).",
   "wingBracing": "strut",
   "wingBreakStationY": { "wing": 2.553 },
   "wingBreakStationSource": "Wing-strut attach at WS 100.50 in = 2.553 m from the fuselage centreline (Cessna wing stations are measured from BL 0). Cessna Model 172 Series 1969-1976 Service Manual, Fig. 1-2 Reference Stations p.1-3 (wing stations 23.62 root rib ... 100.50 ... 208.00 tip). 100.50 is the heavy rib at the strut fitting: the SRM wing-twist check uses WS 39.00/100.50/207.00 and the sibling 182 strut-attach doubler sits 'between WS 90 and WS 110' with its strap at WS 100.50 (CASA AD/CESSNA 180/79). A 1956 172 three-view scales to ~91 in but its views disagree in scale; WS 100.50 chosen.",
@@ -1465,8 +1467,7 @@
       "hingeChDelta": -0.4,
       "centeringSpringKt": 0,
       "trimType": "tab",
-      "freeTauS": 0.12,
-      "saturationDeg": 32
+      "freeTauS": 0.12
     },
     "rudder": {
       "maxDeflRad": 0.28,
@@ -1505,13 +1506,17 @@
       "lengthM": 5.8
     }
   },
-  "smoke": {"aftOfNoseM": 1.01, "downDeg": 63, "displacementCuIn": 361, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [1.282, -0.203, 0.644]},
+  "smoke": {"cylinders": 4, "compressionRatio": 8.5, "aftOfNoseM": 1.01, "downDeg": 63, "displacementCuIn": 361, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [1.282, -0.203, 0.644]},
   "propulsion": {
     "maxPowerW": 134000,
     "propDiameterM": 1.9,
+    "propMaterial": "metal",
+    "propMaterialSource": "McCauley 1C160 fixed-pitch forged aluminium",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2700,
-    "propInertia": 1.7,
+    "propInertia": 1.38,
+    "propInertiaSource": "Propeller + spinner + the crank's rotating parts, kg.m2. From the OWNER'S BLADE RULE (2026-11-09, tools/aircraft_builder/prop_inertia.py): each blade is 15 % of the net propeller weight with its centre of mass at 25 % of the DIAMETER from the axis, the rest being hub near the axis - because a heavy constant-speed hub contributes almost nothing to sum(m r^2), so a mass-weighted estimate overstates the couple. M 17.5 kg, D 1.90 m, 2 blades: blades 1.185 + hub 0.123 (k 0.10 m) + crank 0.07 = 1.38, against 1.7 before. MASS: ESTIMATED: McCauley 1C160 fixed-pitch two-blade, ~38 lb. O-320/O-360, four cylinders. VALIDATION: the rule reproduces Hartzell's published two-blade polar moment to +18 % (1.412 against 1.198) and runs +60 % high on their three-blade one, so it is applied to two-blade types only.",
     "rotationSign": 1,
     "efficiency": 0.8,
     "thrustLineZ": 0.05,
@@ -1540,7 +1545,7 @@
       "maxSteerRad": 0.5,
       "tireMu": 0.8,
       "corneringStiffnessN": 5000,
-      "rollResistN": 30
+      "tire": "5.00-5", "tirePressurePsi": 29
     },
     {
       "pos": [
@@ -1556,7 +1561,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 12000,
-      "rollResistN": 40
+      "tire": "6.00-6", "tirePressurePsi": 38
     },
     {
       "pos": [
@@ -1572,7 +1577,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 12000,
-      "rollResistN": 40
+      "tire": "6.00-6", "tirePressurePsi": 38
     }
   ],
   "limits": {
@@ -1693,5 +1698,28 @@
       }
     ],
     "_armSource": "docs/pending/loading-arm-estimates.md (and .json), lane/codex-loading-arms ee088db"
+  },
+  "instruments": {
+    "airspeed": {
+      "units": "mph",
+      "scaleMin": 40,
+      "scaleMax": 200,
+      "arcs": {
+        "white": [
+          49,
+          100
+        ],
+        "green": [
+          57,
+          128
+        ],
+        "yellow": [
+          128,
+          164
+        ]
+      },
+      "redline": 164
+    },
+    "_source": "shared instrument library (tools/own_models/instruments): the arcs the old c172_cockpit.py face drew, copied unchanged"
   }
 }

@@ -160,6 +160,33 @@ void UpdateRoute() {
 }
 
 #if TARGET_OS_IPHONE
+// Use the MICROPHONE IN THE HEADSET when there is one, rather than the one in the phone.
+//
+// Ty 2026-11-08, flying with Shokz on Bluetooth: "the mic is using the apple mic so I get a lot of mechanical noise
+// as I [hold] the phone and my fingers rub on it as I fly". The session asked for AllowBluetoothA2DP, which is the
+// option for high-quality PLAYBACK to a Bluetooth device and says nothing about input, so the only microphone iOS
+// had to offer was the built-in one — pressed against the hands flying the aeroplane.
+//
+// AllowBluetooth (HFP) is the one that makes the headset's own microphone an available input, and the preferred
+// input is then set explicitly rather than left to iOS, which otherwise keeps the built-in one.
+//
+// THE TRADE. A Bluetooth headset cannot carry high-quality audio out and a microphone in at the same time: taking
+// the microphone moves the whole route from A2DP to HFP, which is mono and narrow-band, so what he HEARS while the
+// microphone is live is telephone quality. What is RECORDED is not affected — ClipRecorder takes the game's mix
+// inside the app, before it ever reaches the headset — so a tutorial made this way has full-quality game audio with
+// a clean voice over it, which is the point. Nothing changes while the microphone is off.
+static void PreferHeadsetMic() {
+    AVAudioSession *s = AVAudioSession.sharedInstance;
+    AVAudioSessionPortDescription *best = nil;
+    for (AVAudioSessionPortDescription *p in s.availableInputs) {
+        NSString *t = p.portType;
+        if ([t isEqualToString:AVAudioSessionPortBluetoothHFP]) { best = p; break; }          // the headset: first choice
+        if (!best && ([t isEqualToString:AVAudioSessionPortHeadsetMic] ||
+                      [t isEqualToString:AVAudioSessionPortUSBAudio])) best = p;              // wired, still off the hands
+    }
+    if (best) [s setPreferredInput:best error:nil];
+}
+
 extern "C" void FlyingGame_SetPlaybackAudioSession(void);   // AudioSessionPlayback.mm
 
 /// The session the voice needs right now (main thread). With the mic running, or with voice in use and a TV connected,
@@ -170,12 +197,13 @@ void ApplySession() {
     bool keepOff = gKeepOffTv.load(), engine = gEngine != nil;
     NSError *err = nil;
     if (engine || keepOff) {
-        AVAudioSessionCategoryOptions o = AVAudioSessionCategoryOptionDefaultToSpeaker | AVAudioSessionCategoryOptionAllowBluetoothA2DP |
-                                          AVAudioSessionCategoryOptionMixWithOthers;
+        AVAudioSessionCategoryOptions o = AVAudioSessionCategoryOptionDefaultToSpeaker | AVAudioSessionCategoryOptionAllowBluetooth |
+                                          AVAudioSessionCategoryOptionAllowBluetoothA2DP | AVAudioSessionCategoryOptionMixWithOthers;
         if (!keepOff) o |= AVAudioSessionCategoryOptionAllowAirPlay;
         if (![s.category isEqualToString:AVAudioSessionCategoryPlayAndRecord] || s.categoryOptions != o)
             [s setCategory:AVAudioSessionCategoryPlayAndRecord withOptions:o error:&err];
         [s overrideOutputAudioPort:gForceSpeaker.load() ? AVAudioSessionPortOverrideSpeaker : AVAudioSessionPortOverrideNone error:nil];
+        if (engine) PreferHeadsetMic();   // the headset's own microphone, not the one under his fingers
     } else if (![s.category isEqualToString:AVAudioSessionCategoryPlayback]) {
         FlyingGame_SetPlaybackAudioSession();
     }
@@ -194,6 +222,7 @@ void StartEngine() {
     ApplySession();
     [s setPreferredIOBufferDuration:0.005 error:nil];
     [s setActive:YES error:nil];
+    PreferHeadsetMic();
 #endif
     if (gEngine == nil) gEngine = [AVAudioEngine new];
     AVAudioInputNode *in = gEngine.inputNode;
@@ -224,6 +253,12 @@ void StartEngine() {
     [gEngine connect:gSide to:gEngine.mainMixerNode format:mono];
     [gEngine prepare];
     if (![gEngine startAndReturnError:&err]) { gState = -2; gEngine = nil; NSLog(@"[VoiceIO] engine start failed: %@", err); return; }
+    if (![gEngine startAndReturnError:&err]) { gState = -2; NSLog(@"[VoiceIO] engine start failed: %@", err); return; }
+#if TARGET_OS_IPHONE
+    // A headset connected or dropped mid-flight: take its microphone, or hand the input back to the phone.
+    [[NSNotificationCenter defaultCenter] addObserverForName:AVAudioSessionRouteChangeNotification object:nil queue:nil
+                                                  usingBlock:^(NSNotification *n) { PreferHeadsetMic(); UpdateRoute(); }];
+#endif
     // A device change (Mac: headphones plugged in / output switched) reconfigures the engine: restart it and re-check.
     [[NSNotificationCenter defaultCenter] addObserverForName:AVAudioEngineConfigurationChangeNotification object:gEngine queue:NSOperationQueue.mainQueue
                                                   usingBlock:^(NSNotification *n) { NSError *e = nil; if (!gEngine.isRunning) [gEngine startAndReturnError:&e]; UpdateRoute(); }];

@@ -43,7 +43,7 @@ for a in W['airparks']:
  FIELDS.append(dict(a,field=a['id'],key=a['id'],start_group=None))
  if a.get('float_pond'):
   q=a['float_pond'];FIELDS.append(dict(q,id=q.get('numbers_magnetic','35W/17W'),field=a['id'],key=a['id']+' float pond',start_group=None,elevation_ft=q['elevation_ft'],shore_class=a['shore_class']))
-for a in W['backcountry_strips']+W.get('landable_beaches',[]):FIELDS.append(dict(a,field=a['id'],key=a['id'],start_group=None))
+for a in W['backcountry_strips']+W.get('landable_beaches',[])+W.get('bush_strips',[]):FIELDS.append(dict(a,field=a['id'],key=a['id'],start_group=None))
 
 # Natural lie of unbuilt landing surfaces (Ty 2026-11-03), mirrored term for term from NaturalShapeParams and
 # IslandHeightIndex.NaturalShape/StripShape (src/FlyingGame.Core): grass/turf strips and the ski zones.
@@ -73,6 +73,8 @@ def strip_shape(r,along,cross):
 def ski_shape(p):
  h=0
  for i,gl in enumerate(W['glaciers']):
+  # The order index stays the glacier's own (Fairweather keeps its crest with the Knik zone gone, Ty 2026-11-04).
+  if 'ski_zone' not in gl:continue
   z=gl['ski_zone'];c=z['centre'];a0,a1=gl['path'][-2],gl['path'][-1];ax=(a1[0]-a0[0],a1[1]-a0[1]);n=math.hypot(*ax);ax=(ax[0]/n,ax[1]/n)
   d=(p[0]-c[0],p[1]-c[1]);al=(d[0]*ax[0]+d[1]*ax[1])*1000;ac=(d[0]*ax[1]-d[1]*ax[0])*1000
   s=shape_params('ski:'+gl['id'],z['length_m'],z['width_m'],i%3)
@@ -122,6 +124,7 @@ def height(x,y):
   rx,ry=lake['radii_km'];cx,cy=lake['centre'];u=vec(lake.get('long_axis_true_deg',90));dx=x-cx;dy=y-cy;rr=math.hypot((dx*u[0]+dy*u[1])/rx,(dx*u[1]-dy*u[0])/ry);a=1-smooth((rr-.85)/.45)
   h=h*(1-a)+min(h,lake['elevation_ft']*FT-lake['depth_m'])*a
  for g in W['glaciers']:
+  if 'ski_zone' not in g:continue
   q=g['ski_zone'];a=1-smooth((dist(p,q['centre'])-.15)/.25);h=h*(1-a)+q['elevation_ft']*FT*a
  for c in W['canyons']:
   lengths=[dist(a,b) for a,b in zip(c['path'],c['path'][1:])];total=sum(lengths);run=0
@@ -177,7 +180,7 @@ def height(x,y):
   if e['kind']=='airway':
    dd,_=seg(p,e['a'],e['b']);alpha=1-smooth((dd-e['width'])/e['blend']);cap=e['cap_m']
   else:
-   u=e['u'];v=(u[1],-u[0]);dx=x-e['a'][0];dy=y-e['a'][1];ad=-(dx*u[0]+dy*u[1]);cross=abs(dx*v[0]+dy*v[1]);width=.15+.05*max(0,ad);g0=e.get('guard_km',.25)
+   u=e['u'];v=(u[1],-u[0]);dx=x-e['a'][0];dy=y-e['a'][1];ad=-(dx*u[0]+dy*u[1]);cross=abs(dx*v[0]+dy*v[1]);width=e.get('half_width_km',.15)+e.get('widen',.05)*max(0,ad);g0=e.get('guard_km',.25)
    dd=max(-ad-g0,ad-e['length']-g0,cross-width-g0,0);alpha=1-smooth(dd/e['blend']);cap=e['elevation_m']+max(0,ad)*1000/e['ratio']-e.get('margin_m',30)
   if alpha>0:h=h*(1-alpha)+min(h,cap)*alpha
  # Restore finite box-canyon floors and headwalls; real clearance conflicts are reported.
@@ -242,7 +245,7 @@ def height(x,y):
    if protected_volcano:continue
    if e['kind']=='airway':
     d0,_=seg(p,e['a'],e['b']);alpha=(1-smooth((d0-e['width'])/e['blend']))*smooth(dd/.03)*clipweight;h=h*(1-alpha)+min(h,e['cap_m'])*alpha;continue
-   u=e['u'];v=(u[1],-u[0]);dx=x-e['a'][0];dy=y-e['a'][1];ad=-(dx*u[0]+dy*u[1]);cr=abs(dx*v[0]+dy*v[1]);ww=.15+.05*max(0,ad);g0=e.get('guard_km',.25)
+   u=e['u'];v=(u[1],-u[0]);dx=x-e['a'][0];dy=y-e['a'][1];ad=-(dx*u[0]+dy*u[1]);cr=abs(dx*v[0]+dy*v[1]);ww=e.get('half_width_km',.15)+e.get('widen',.05)*max(0,ad);g0=e.get('guard_km',.25)
    d0=max(-ad-g0,ad-e['length']-g0,cr-ww-g0,0);alpha=1-smooth(d0/e['blend']);cap=e['elevation_m']+ad*1000/e['ratio']
    alpha*=smooth(dd/.03)*clipweight;h=h*(1-alpha)+min(h,cap)*alpha
  # Airway budget is a continuous global layer, not conditional on a pad claim.
@@ -303,14 +306,22 @@ def runway_finals():
   l,b=dimensions(r);u=vec(r['heading_true_deg'])
   for sign in [-1,1]:
    if r['field']=='DRAKE' and sign==1:continue  # Ty: single portal, no reverse final.
-   c=(r['heading_true_deg']+(180 if sign==1 else 0))%360;th=[r['centre'][0]+sign*u[0]*l/2,r['centre'][1]+sign*u[1]*l/2]
+   c=(r['heading_true_deg']+(180 if sign==1 else 0))%360
+   # A one-way bush strip (Knik River, 2026-11-04) has a visual surface on its landing approach only: past its far
+   # end the valley closes at the glacier face, and a 20:1 fan there would plane the canyon head away.
+   if r.get('one_way_true_deg') is not None and abs((c-r['one_way_true_deg']+180)%360-180)>1:continue
+   # A field may say where its surface starts: Part 77 begins the approach surface at the END of the primary
+   # surface, at runway elevation. The Knik River strip lies on a canyon floor level with it, and a surface at the
+   # runway end 10 m down cut a 10 m trench across the floor just short of the threshold (2026-11-04).
+   vs=r.get('visual_surface',{});start=vs.get('start_beyond_end_m',0)/1000
+   th=[r['centre'][0]+sign*u[0]*(l/2+start),r['centre'][1]+sign*u[1]*(l/2+start)]
    z=r['elevation_ft']+sign*l*500*r.get('slope_percent',0)/100/FT;v=vec(c)
-   out.append(dict(airport=r['field'],title=r['key']+(' end A' if sign==-1 else ' end B'),threshold=th,outer=[th[0]-v[0]*VFR_SURFACE_KM,th[1]-v[1]*VFR_SURFACE_KM],length_km=VFR_SURFACE_KM,course_true_deg=c,elevation_ft=z,precision=False,source='FAA Part 77 visual runway approach surface, 20:1 for 5,000 ft'))
+   out.append(dict(airport=r['field'],title=r['key']+(' end A' if sign==-1 else ' end B'),threshold=th,outer=[th[0]-v[0]*VFR_SURFACE_KM,th[1]-v[1]*VFR_SURFACE_KM],length_km=VFR_SURFACE_KM,course_true_deg=c,elevation_ft=z,precision=False,margin_m=vs.get('margin_m',VFR_MARGIN_M),**({'half_width_km':vs['inner_half_width_m']/1000,'widen':vs['widen']} if 'inner_half_width_m' in vs else {}),source='FAA Part 77 visual runway approach surface, 20:1 for 5,000 ft'))
  return out
 
 def finalpoly(f):
- u=vec(f['course_true_deg']);v=(u[1],-u[0]);a=f['threshold'];b=f['outer'];w=.15+.05*f.get('length_km',7.408)
- return [[a[0]-v[0]*.15,a[1]-v[1]*.15],[a[0]+v[0]*.15,a[1]+v[1]*.15],[b[0]+v[0]*w,b[1]+v[1]*w],[b[0]-v[0]*w,b[1]-v[1]*w]]
+ u=vec(f['course_true_deg']);v=(u[1],-u[0]);a=f['threshold'];b=f['outer'];h0=f.get('half_width_km',.15);w=h0+f.get('widen',.05)*f.get('length_km',7.408)
+ return [[a[0]-v[0]*h0,a[1]-v[1]*h0],[a[0]+v[0]*h0,a[1]+v[1]*h0],[b[0]+v[0]*w,b[1]+v[1]*w],[b[0]-v[0]*w,b[1]-v[1]*w]]
 
 # World-shaping reservations derive from unchanged supplied IFR and runway geometry.
 def airway_segments():
@@ -334,7 +345,7 @@ if W['height_field'].get('clearance_envelopes'):
  # approach surface -- 20:1 for 5,000 ft (1.524 km) from the runway end, at the runway end's own elevation,
  # no constant guard, and a 10 m margin instead of the instrument finals' 30 m. The former 7.408 km fans
  # on every runway end covered most of the island interior and cut it into flat-floored trenches.
- for f in runway_finals():CLEARANCE_ENVELOPES.append(dict(kind='final',a=f['threshold'],u=vec(f['course_true_deg']),length=VFR_SURFACE_KM,blend=.1,elevation_m=f['elevation_ft']*FT,ratio=20,guard_km=0,margin_m=VFR_MARGIN_M))
+ for f in runway_finals():CLEARANCE_ENVELOPES.append(dict(kind='final',a=f['threshold'],u=vec(f['course_true_deg']),length=VFR_SURFACE_KM,blend=.1,elevation_m=f['elevation_ft']*FT,ratio=20,guard_km=0,margin_m=f['margin_m'],**{k:f[k] for k in ('half_width_km','widen') if k in f}))
 
 def measure():
  from fit_revision import measure_revision
@@ -389,6 +400,7 @@ def map_svg():
  for water in W['water']:poly(ellipse(water['centre'],water['radii_km'],water.get('long_axis_true_deg',90),40),'#80b6d3','#397b9c',.6)
  for g in W['glaciers']:
   for a,b in zip(g['path'],g['path'][1:]):line(a,b,'#f4fcff',9)
+  if 'ski_zone' not in g:continue
   c=g['ski_zone']['centre'];circle(c,4,'white','#4b7a94');text([c[0]+.15,c[1]+.12],g['id']+' ski '+str(g['ski_zone']['elevation_ft'])+' ft',11)
  for peak in W['height_field']['peaks']:
   x,y=peak['centre'];poly([[x,y+.16],[x-.14,y-.12],[x+.14,y-.12]],'#6b6153');text([x+.15,y+.15],peak['id']+' '+str(peak['top_ft']),11)

@@ -75,6 +75,10 @@ prune_conflicts unity build -maxdepth 2
 # because this is the script that actually gets run. Read-only, and `|| true` because `set -e` is on above --
 # a stale backup must never stop a deploy.
 tools/backup-assets.sh || true
+# PARITY (Ty 2026-11-04: "ios/mac and quest must stay in sync at all times"; docs/PARITY.md). Printed so whoever
+# deploys sees what the Quest lane is missing, NEVER a block: an iOS build goes ahead whatever it says. The Quest
+# deploy is the one that refuses (tools/deploy/deploy-quest.sh on the Quest lane, PARITY_OVERRIDE=1 to force).
+tools/check-parity.sh --brief || echo "== parity is RED (above): merge island-nav into the Quest lane the same day. This iOS build goes ahead."
 echo "== unity export $(date)"
 FLYINGGAME_IOS_OUT=/private/tmp/flyinggame-ios \
   /Applications/Unity/Hub/Editor/6000.3.23f1/Unity.app/Contents/MacOS/Unity \
@@ -91,6 +95,12 @@ xcodebuild -project Unity-iPhone.xcodeproj -scheme Unity-iPhone -configuration R
 # lines above the summary, and `tail -5` showed only "(2 failures)". pipefail still carries xcodebuild's
 # own exit status past the grep, so a failed build still stops the script.)
 APP="$(ls -d /private/tmp/flyinggame-dd/Build/Products/Release-iphoneos/*.app | head -1)"
+# Explicit build-only mode: never enter device discovery/install/launch for NOINSTALL.
+if (( ${#DEVICES} == 1 )) && [[ "$DEVICES[1]" == NOINSTALL ]]; then
+  echo "== NOINSTALL — build only: $APP"
+  echo "== DONE $(date)"
+  exit 0
+fi
 if (( ${#DEVICES} == 0 )); then
   echo "== no device reachable — the build is at $APP; re-run with a UDID, or wake a device and run again"
   echo "== DONE $(date)"

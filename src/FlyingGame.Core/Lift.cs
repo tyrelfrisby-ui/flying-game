@@ -190,14 +190,28 @@ public sealed class Ridge
 public static class SlopeLift
 {
     public const double MaxSlope = 0.84;           // tan 40°
-    public const double DecayHeightM = 520.0;      // e-fold of the deflection with height above ground (owner: wider band)
+    // e-fold of the deflection with height above ground. Ty asked for a wide band (2026-09-09) and then for it back
+    // down 2026-11-08: "too wide and too strong ... like 50% in width and 25% in strength". This is the knob that does
+    // it, because it works by HEIGHT: 520 → 300 costs only 17 % at 100 m above the slope, where he needs the lift to
+    // reach out in front of a cliff, and 57 % at 600 m, where he was complaining. A flat strength cut is not available
+    // — see Strength.
+    public const double DecayHeightM = 300.0;
     public const double StreamlineTilt = 1.0;      // upwind sample distance per metre of height (45° tilt)
     public const double SampleStepM = 25.0;
     // Blocking (owner 2026-09-09: "I keep hitting the cliff getting into the lift"): a wall pushes the air up well
     // before the face — the flow starts rising about a wall height upwind of the toe. The slope the air feels is a
     // blend of the local slope and the mean slope over a window reaching UpwindReachM behind and DownwindReachM
     // ahead of the point, so the band of lift extends ~300 m out in front of the wall instead of hugging it.
+    // These two reaches are NOT the width to tune down. Halving them for Ty's 2026-11-08 "50% in width" took the lift
+    // in front of the bluff from 0.3 m/s to 0.01 and broke WindStrengthensAndSlopeLiftGrowsTowardTheBluff — i.e. it
+    // undid the 2026-09-09 request above. They stay; the width came out of DecayHeightM instead, which is where
+    // essentially all of the measured effect was anyway (these moved the lifting share of the sky by 8 %).
     public const double UpwindReachM = 300.0, DownwindReachM = 500.0, WideWeight = 0.55;
+    /// <summary>Fraction of the kinematic deflection actually applied (owner tuning, not physics). Cannot go below
+    /// about 0.83 at DecayHeightM 520, nor be combined with much of a depth cut: the lift 500 m in front of the test
+    /// bluff is only 0.242 m/s at 100 m AGL against the 0.2 m/s that RegionalAtmosphereTests demands, so a global 25 %
+    /// cut puts it under the gate that keeps Ty from having to fly at the cliff face to find the lift.</summary>
+    public const double Strength = 1.0;
 
     public static Vec3 WindAt(WorldTerrain t, Vec3 pos, Vec3 meanWind) => WindAt(t.HeightAt, pos, meanWind);
 
@@ -219,7 +233,7 @@ public static class SlopeLift
         local = System.Math.Clamp(local, -MaxSlope, MaxSlope);
         double wide = (height(sx + dx * DownwindReachM, sy + dy * DownwindReachM) - height(sx - dx * UpwindReachM, sy - dy * UpwindReachM)) / (UpwindReachM + DownwindReachM);
         double dhds = System.Math.Clamp(WideWeight * wide + (1 - WideWeight) * local, -MaxSlope, MaxSlope);
-        double w = u * dhds * System.Math.Exp(-agl / DecayHeightM);   // + = upward
+        double w = u * dhds * Strength * System.Math.Exp(-agl / DecayHeightM);   // + = upward
         return new Vec3(0, 0, -w);
     }
 }

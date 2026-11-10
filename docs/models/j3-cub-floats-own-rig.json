@@ -439,9 +439,9 @@
     -1.0
    ],
    "pivot_gltf": [
-    -0.252,
+    0.048,
     -0.087,
-    0.3066
+    0.3071
    ],
    "map": [
     [
@@ -706,20 +706,52 @@
    "extra": {}
   },
   {
+   "node": "Primer_Plunger",
+   "parent": "Instruments",
+   "param": "primer",
+   "unit": "0 in .. 1 out",
+   "kind": "move",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -0.56,
+    0.189,
+    -0.244
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.05
+    ]
+   ],
+   "model": 0.0,
+   "desc": "primer plunger pulls straight aft 50 mm (judgement)",
+   "link": "",
+   "note": "",
+   "extra": {}
+  },
+  {
    "node": "MagSwitch_Knob",
    "parent": "Cockpit",
    "param": "magneto",
    "unit": "0 OFF 1 L 2 R 3 BOTH (integer detents)",
    "kind": "rot",
    "axis_gltf": [
-    -0.08196,
-    -0.99664,
-    -0.0
+    0.34202,
+    0.0,
+    -0.93969
    ],
    "pivot_gltf": [
-    -0.259,
-    0.6609,
-    0.215
+    0.313,
+    0.7122,
+    0.281
    ],
    "map": [
     [
@@ -740,7 +772,7 @@
     ]
    ],
    "model": 0.0,
-   "desc": "rotary mag switch, detents at the plate labels OFF/L/R/BOTH (clockwise seen from below)",
+   "desc": "rotary mag switch on the left root-rib wall, detents at the plate labels OFF/L/R/BOTH (clockwise seen from the cabin)",
    "link": "",
    "note": "map re-ordered for the sim (0 OFF, 1 R, 2 L, 3 BOTH) onto the plate OFF / L / R / BOTH",
    "extra": {
@@ -751,6 +783,38 @@
      3.0
     ]
    }
+  },
+  {
+   "node": "WaterRudder_Handle",
+   "parent": "Cockpit",
+   "param": "water_rudder_up",
+   "unit": "0 down (let go, on the floor) .. 1 up (hung on the hook)",
+   "kind": "move",
+   "axis_gltf": [
+    -0.42437,
+    0.90031,
+    0.09671
+   ],
+   "pivot_gltf": [
+    0.453,
+    -0.4008,
+    0.09
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.2584958920671742
+    ]
+   ],
+   "model": 0.0,
+   "desc": "water-rudder retract handle: straight up and forward 0.258 m from the floor fairlead to the front-seat-back hook",
+   "link": "WaterRudder_Blade_L retract (same param); the cable WaterRudder_Cable runs from the fairlead to this node",
+   "note": "",
+   "extra": {}
   },
   {
    "node": "Rudder",
@@ -897,6 +961,42 @@
    "extra": {}
   },
   {
+   "node": "WaterRudder_Blade_L",
+   "parent": "WaterRudder_L",
+   "param": "water_rudder_up",
+   "unit": "",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    2.3551,
+    -1.1584,
+    0.9525
+   ],
+   "map": [
+    [
+     -1.0,
+     -0.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     90.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "",
+   "link": "WaterRudder_Handle (same param): handle on the floor = down, hung on the front-seat-back hook = up",
+   "note": "rotate about retract_axis by retract_deg to pull the blade up (retracted); 0 = down (water). Driven by water_rudder_up (cockpit handle on the hook)",
+   "extra": {}
+  },
+  {
    "node": "WaterRudder_L",
    "parent": null,
    "param": "rudder",
@@ -931,28 +1031,50 @@
    "link": "air rudder via cables: water rudder deg = rudder param * 25 (limit +/-25; air rudder 30 at the same pedal)",
    "note": "LH water rudder only (60-1320 Fig.1: RH float less water rudder). Steers about steer_axis, linked to the air rudder",
    "extra": {}
+  },
+  {
+   "node": "FuelGauge_Wire",
+   "parent": "",
+   "param": "fuel",
+   "unit": "0 empty .. 1 full (nose tank)",
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    -0.967,
+    0.3937,
+    0.0
+   ],
+   "map": [
+    [
+     0.0,
+     -0.221
+    ],
+    [
+     1.0,
+     0.0
+    ]
+   ],
+   "model": 1.0,
+   "desc": "nose-tank cork float wire, modelled at FULL (10 in showing above the cap crown); it slides down through the guide as the tank empties until only the hook rests on the guide (0.221 m of travel, build_j3_cub.py FUEL_TRAVEL)",
+   "link": "RigInputs.Fuel = the nose tank's fuel / its capacity, live from AircraftLoad (Ty 2026-11-05 ADDENDUM)",
+   "note": "",
+   "extra": {}
   }
  ],
  "static": [
-  {
-   "node": "CarbHeat_Knob_Rear",
-   "param": "carb_heat",
-   "why": "no carburettor heat in the sim"
-  },
   {
    "node": "CarbHeat_Lever",
    "param": "carb_heat",
    "why": "no carburettor heat in the sim"
   },
   {
-   "node": "FuelValve_Lever",
+   "node": "FuelValve_Knob",
    "param": "fuel_valve",
    "why": "the sim has no J-3 fuel shut-off; drawn ON"
-  },
-  {
-   "node": "Primer_Plunger",
-   "param": "primer",
-   "why": "no primer in the sim"
   },
   {
    "node": "DoorLower_R",
@@ -965,19 +1087,75 @@
    "why": "no door control in the sim; drawn closed"
   },
   {
-   "node": "FuelGauge_Wire",
-   "param": "fuel",
-   "why": "nose-tank float wire: no per-tank gauge feed for the J-3; drawn FULL"
-  },
-  {
    "node": "Prop",
    "param": "prop_rpm",
    "why": "the propeller is spun by AirframeVisual.BindModelProp, not by the rig"
+  }
+ ],
+ "controls": [
+  {
+   "node": "Primer_Plunger",
+   "param": "primer",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -0.56,
+    0.189,
+    -0.244
+   ],
+   "travel": 50,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "",
+   "grip": "Grip_Primer",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
   },
   {
-   "node": "WaterRudder_Blade_L",
+   "node": "WaterRudder_Handle",
    "param": "water_rudder_up",
-   "why": "no water-rudder retract in the sim; drawn down"
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    -0.42437,
+    0.90031,
+    0.09671
+   ],
+   "pivot_gltf": [
+    0.453,
+    -0.4008,
+    0.09
+   ],
+   "travel": 258,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "",
+   "grip": "Grip_WaterRudder",
+   "position_status": "E",
+   "sweep_radius_m": 0.06,
+   "semantics": "absolute"
   }
  ]
 }

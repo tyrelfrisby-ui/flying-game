@@ -115,27 +115,20 @@ public class StallAuthorityTests
             }
             else if (calibrate && c.Id != "pa28-archer-like" && !ManualElevator.Contains(c.Id))   // every type (2026-10-06: with real pitch stability the unverified types pulled far past the stall)   // (the Archer and SR22 are set by their builder: the Archer by stabilator travel; the SR22 auto-calibrates to a non-physical 4.7°, so its tail is due a protocol rework)
             {
-                // Bisection on the saturation (balance rises with it); 120° ≈ no saturation.
-                double lo = 3, hi = 120;
-                c.Controls.Elevator.SaturationDeg = hi;
+                // Nothing to solve when the elevator already carries full aft past the target: it is the right size,
+                // and there is no longer a knob to trim it back with (that was the point of removing the saturation).
                 if (FullAftBalanceDeg(c) >= target)
                 {
-                    for (int i = 0; i < 30; i++) { double mid = 0.5 * (lo + hi); c.Controls.Elevator.SaturationDeg = mid; if (FullAftBalanceDeg(c) >= target) hi = mid; else lo = mid; }
-                    double sat = Math.Round(hi, 1);
-                    var node = JsonNode.Parse(File.ReadAllText(file))!;
-                    node["controls"]!["elevator"]!["saturationDeg"] = sat;
-                    File.WriteAllText(file, node.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
-                    c.Controls.Elevator.SaturationDeg = sat;
+                    _o.WriteLine($"  {c.Id}: reaches {target:F1}° on its own, elevator left alone");
                 }
                 else
                 {
                     // The elevator itself is too small for the stall: grow its strips' chord (area with it) until full aft
-                    // reaches the target, unsaturated; then the same saturation solve.
+                    // reaches the target. The only lever there is, now that the stick is not cut back.
                     double kLo = 1, kHi = 4;
                     AircraftConfig Scaled(double k)
                     {
                         AircraftConfig cc = AircraftConfigLoader.LoadFromFile(file);
-                        cc.Controls.Elevator.SaturationDeg = 120;
                         foreach (var sf in cc.Surfaces) if (sf.Id == "elevator") foreach (var st in sf.Strips) { st.Chord *= k; st.Area *= k; }
                         return cc;
                     }
@@ -150,18 +143,12 @@ public class StallAuthorityTests
                                 foreach (var stn in sfn["strips"]!.AsArray()) { stn!["chord"] = Math.Round((double)stn["chord"]! * k, 4); stn["area"] = Math.Round((double)stn["area"]! * k, 4); }
                         File.WriteAllText(file, node.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
                         c = AircraftConfigLoader.LoadFromFile(file);
-                        double lo2 = 3, hi2 = 120;
-                        for (int i = 0; i < 30; i++) { double mid = 0.5 * (lo2 + hi2); c.Controls.Elevator.SaturationDeg = mid; if (FullAftBalanceDeg(c) >= target) hi2 = mid; else lo2 = mid; }
-                        node = JsonNode.Parse(File.ReadAllText(file))!;
-                        node["controls"]!["elevator"]!["saturationDeg"] = Math.Round(hi2, 1);
-                        File.WriteAllText(file, node.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
-                            c = AircraftConfigLoader.LoadFromFile(file);
                         _o.WriteLine($"  {c.Id}: elevator chord x{k:F2} (it was too small to stall the wing)");
                     }
                 }
             }
             double bal = FullAftBalanceDeg(c);
-            _o.WriteLine($"{c.Id,-26} stall {stall,4:F1}°  full-aft balance {bal,4:F1}°  (target {target:F1}°)  saturation {c.Controls.Elevator.SaturationDeg:F1}°");
+            _o.WriteLine($"{c.Id,-26} stall {stall,4:F1}°  full-aft balance {bal,4:F1}°  (target {target:F1}°)");
             bool ok = bal >= Math.Min(stall, target) - 1.0 && bal <= Math.Max(stall, target) + 2.0;
             if (!ok && Verified.Contains(c.Id)) bad.Add($"{c.Id}: {bal:F1}° vs stall {stall:F1}° (target {target:F1}°)");
             else if (!ok) _o.WriteLine($"   PENDING protocol rework: {c.Id} (full aft {bal:F1}° vs stall {stall:F1}°)");

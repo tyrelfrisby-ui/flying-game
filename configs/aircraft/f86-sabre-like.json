@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "f86-sabre-like",
   "displayName": "F-86-like Jet Fighter",
+  "structureType": "aluminumMonocoque",
+  "structureTypeSource": "North American F-86: aluminium semi-monocoque fuselage.",
   "spawnIasMs": 180,
   "mass": {
     "massKg": 6900,
@@ -1794,8 +1796,7 @@
       "rateRadPerSec": 3.0,
       "expo": 0.1,
       "deadZone": 0.03,
-      "reversible": false,
-      "saturationDeg": 3
+      "reversible": false
     },
     "rudder": {
       "maxDeflRad": 0.3,
@@ -1867,8 +1868,7 @@
       "maxSteerRad": 0.6,
       "tireMu": 0.8,
       "corneringStiffnessN": 15000,
-      "rollResistN": 40,
-      "tireRadiusM": 0.3
+      "tire": "legacy-f86-nose", "tirePressurePsi": 121.7
     },
     {
       "pos": [
@@ -1884,8 +1884,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 25000,
-      "rollResistN": 50,
-      "tireRadiusM": 0.33
+      "tire": "legacy-f86-main", "tirePressurePsi": 152.1
     },
     {
       "pos": [
@@ -1901,8 +1900,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 25000,
-      "rollResistN": 50,
-      "tireRadiusM": 0.33
+      "tire": "legacy-f86-main", "tirePressurePsi": 152.1
     }
   ],
   "limits": {

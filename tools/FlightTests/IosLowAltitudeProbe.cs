@@ -17,7 +17,9 @@ namespace FlyingGame.FlightTests;
 [Collection("WorldTerrainActive")]
 public sealed class IosLowAltitudeProbe : IDisposable
 {
-    public void Dispose() => WorldTerrain.Active = null;
+    // Builds the island's solids and decks: put them back, or every class after this one flies among them (t971u).
+    private readonly IslandWorldScope _world = new();
+    public void Dispose() => _world.Dispose();
     private readonly ITestOutputHelper _o;
     public IosLowAltitudeProbe(ITestOutputHelper o) { _o = o; }
 

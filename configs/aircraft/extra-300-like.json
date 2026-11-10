@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "extra-300-like",
   "displayName": "Extra 300-like Aerobat",
+  "structureType": "steelTube",
+  "structureTypeSource": "Extra 300: welded 4130 chrome-moly steel-tube fuselage with aluminium/composite fairings; carbon wing (FAA TCDS A67EU; Extra 300 maintenance manual).",
+  "wingSpar": "composite",
+  "wingSparSource": "Extra 300: carbon-fibre wing spar and glass/carbon shell (FAA TCDS A67EU; Extra 300 maintenance manual).",
   "spawnIasMs": 70,
   "mass": {
     "massKg": 820,
@@ -10,12 +14,8 @@
       0,
       0
     ],
-    "inertia": {
-      "ixx": 800,
-      "iyy": 1100,
-      "izz": 1800,
-      "ixz": 30
-    }
+    "inertia": { "ixx": 701, "iyy": 2038, "izz": 2575, "ixz": 80 },
+    "inertiaSource": "Ixx/Iyy/Izz/Ixz kg.m2 about the CG. DERIVED 2026-11-02, docs/aircraft/extra-300-inertia-DERIVATION.md: a part-by-part build-up (engine from FAA TCDS 1E4 Note 5, propeller, occupants, fuel, structure) solved against the certificated CG, replacing 800/1100/1800/30 which had no derivation behind them. The PITCH inertia nearly doubles (1100 -> 2038, ky 1.16 -> 1.58 m): the old number was a light-aircraft rule of thumb for an aeroplane whose payload sits near the CG, which an Extra's does not. Izz - Ixx, which is what the inertial couple (Izz-Ixx).p.r uses to hold a spin flat, goes from 1000 to 1874 - Ty 2026-11-09, flying it: the Extra \"is too stable... it doesn't spin flat enough and can't tumble\"."
   },
   "surfaces": [
     {
@@ -1664,14 +1664,14 @@
     }
   },
   "rig": {
-    "aileronRad": 0.003548,
-    "finOffsetRad": 0.002976,
+    "aileronRad": 0.002172,
+    "finOffsetRad": 0.020701,
     "throttleFraction": 0.75,
     "altitudeM": 1219.2,
-    "tasMs": 82.279,
-    "alphaRad": 0.033154,
-    "elevatorTrimRad": -0.019165,
-    "bankRad": 0.007235
+    "tasMs": 75.599,
+    "alphaRad": 0.038815,
+    "elevatorTrimRad": -0.023516,
+    "bankRad": -0.006494
   },
   "controls": {
     "aileron": {
@@ -1696,8 +1696,7 @@
       "hingeChDelta": -0.4,
       "centeringSpringKt": 0,
       "trimType": "tab",
-      "freeTauS": 0.12,
-      "saturationDeg": 48.7
+      "freeTauS": 0.12
     },
     "rudder": {
       "maxDeflRad": 0.5236,
@@ -1745,9 +1744,14 @@
     }
   },
   "spinAero": {
-    "rollDueToSideslip": "monoplane"
+      "controlSpoilerK": 0.6,
+      "controlSpoilerKSource": "A deflected control on a BROADSIDE surface acts as a spoiler on the separated wake, not as a flap: k*sin(delta)*|sin(alpha_chord)|*q*S normal to the FIXED surface, on hinged tail strips, ramped in over 30-50 deg of the strip's own flow angle. SAME VALUE AND SAME MECHANISM AS THE PITTS, which Ty flew and confirmed on 2026-11-10 (\"That is it! Now it behaves like a Pitts really does\"), applied here on his \"The extra was lacking both rudder and elevator power at high alpha\". MEASURED: the Extra was worse off than the Pitts had been - elevator 1.9/1.7/0.1 deg/s2 at alpha 90/80/70 and rudder 0.0/1.0/1.4, at the spin's own rates (SpinAuthorityProbe, SPIN_AUTH=1 SPIN_AUTH_ID=extra-300-like). At 0.6: elevator 15.0/14.5/12.1 and rudder 5.7/6.7/4.8, with the spin itself unchanged (226 deg/s at 50 kt against 220 at 50). FINSIDEWASHK IS DELIBERATELY NOT SET HERE, and it was measured first: the Extra's fin stands too far off a body with no measured stations for the crossflow amplification to reach, so 0.5 bought its rudder only 1.0 -> 1.4 deg/s2 at alpha 80 while slowing the spin 220 -> 196 deg/s, and 0.7 stopped it spinning at all (102 kt). The Pitts needed both because its fin sits low against a deep fuselage; this one needs only the spoiler. DOES NOT CHANGE THE ENDO: measured across ExtraEndoProbe's six entries at k 0, 0.6 and 1.0, every one is identical to the turn - the endo runs at alpha -8..41, below where this ramps in, and it was already turning 1.9-2.0 pitch turns at a sustained 113 deg/s.",
+    "rollDueToSideslip": "monoplane",
+    "shadowK": 0.5,
+    "shadowKSource": "Geometric helical shadow depth (TailWake.GeometricShadow): the share of dynamic pressure a fully shadowed strip loses. Replaces the Report 648 wake correlation for EVERY surface of this type, and brings in the fuselage's own shadow on the tail and the wings (TailWake.BodyStation). Ty 2026-11-08: \"expand the shadow work to all 6 shipping aircraft include the shadow effects of the fuselage on the tail and wing's too\". 0.5 is the depth fitted on the Pitts against the owner's spin attitudes on 2026-11-08, and it is a PHYSICAL statement - half the q is gone where a wake fully covers a section - rather than a per-type fudge, so the six carry the same number until a type's own evidence moves it. What differs between types is the geometry, which is the point: the Pitts' cellule shadows itself, the Extra's stabiliser spans well outside its fuselage and is barely shadowed at all (measured in a tumble: tail q 1.00 -> 0.96), and the fuselage's own shadow is what takes the fin in an upright flat spin while leaving it in clear air inverted."
   },
   "smoke": {
+    "cylinders": 6,
     "aftOfNoseM": 1.22,
     "downDeg": 30,
     "displacementCuIn": 540,
@@ -1757,9 +1761,18 @@
   "propulsion": {
     "maxPowerW": 224000,
     "propDiameterM": 2.0,
+    "hubXM": 1.921,
+    "hubXMSource": "Propeller disc station, body x, m. MEASURED: docs/aircraft/extra-300-inertia-DERIVATION.md's build-up puts the MT MTV-9-B-C at +1.921 (engine +1.372, starter/alternator +1.697). The derived fallback gave +1.708 - 0.213 m too far aft, from anchoring a spinner-to-tail-post length at the rudder's trailing edge. See HubXM.",
+    "fineStopDeg": 12.72,
+    "coarseStopDeg": 31.12,
+    "pitchStopSource": "Derived 2026-11-09 from Ty\u0027s two rules, not chosen: the FINE stop is the blade angle that lets the engine make rated rpm standing still on 26 inHg (the run-up check), and the COARSE stop is the angle needed to hold rated rpm at Vd = 1.1 x Vne (242 kt) at full power, so the governor cannot run out of blade before Vd. Power at 26 inHg is the naturally aspirated line through its friction intercept, (26-10)/(29.92-10) = 0.80 of rated. Computed by BladeElement.GovernorStops and cached here because the governor reads them every step.",
+    "propMaterial": "composite",
+    "propMaterialSource": "MT-Propeller MTV-9 three-blade natural-composite (wood core, glass/carbon skin)",
+    "propBladeCount": 3,
     "idleRpm": 700,
     "maxRpm": 2700,
-    "propInertia": 2.5,
+    "propInertia": 2.1,
+    "propInertiaSource": "Propeller + spinner + the crank's rotating parts, kg.m2. DERIVED 2026-11-02 (lane/claude-inertia run 3, docs/aircraft/prop-gyro-DERIVATION.md): prop+spinner 1.95 +/- 0.15 from Hartzell's PUBLISHED polar moment for the same-class HC-C3YR (17.4 in.lb.s2 = 1.966 kg.m2, 3 composite blades on an IO-540 at 78 in), scaled to the MT MTV-9-B-C by m.D2; plus 0.14 for the AEIO-540's crank, counterweights and rod big ends. MT publishes no polar moment for the MTV-9 (EASA P.096 gives only 'approx. 24 kg'). The 2.5 this replaces was 20 % above anything the propeller and engine can have.",
     "rotationSign": 1,
     "efficiency": 0.8,
     "thrustLineZ": 0.0,
@@ -1789,8 +1802,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "rollResistN": 40,
-      "tireRadiusM": 0.155
+      "tire": "legacy-extra-main", "tirePressurePsi": 18.1
     },
     {
       "pos": [
@@ -1806,8 +1818,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "rollResistN": 40,
-      "tireRadiusM": 0.155
+      "tire": "legacy-extra-main", "tirePressurePsi": 18.1
     },
     {
       "pos": [
@@ -1823,9 +1834,8 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
-      "rollResistN": 20,
       "steerSpringNmPerRad": 60,
-      "tireRadiusM": 0.071
+      "tire": "legacy-extra-tail", "tirePressurePsi": 14.5
     }
   ],
   "limits": {
@@ -1909,5 +1919,27 @@
       }
     ],
     "_armSource": "docs/pending/loading-arm-estimates.md (and .json), lane/codex-loading-arms ee088db"
+  },
+  "instruments": {
+    "gMeter": {
+      "_note": "the shared library g-meter (-10..+10 g, 0 g at 9 o'clock); its red lines are limits.gMax / gMin"
+    },
+    "airspeed": {
+      "units": "kt",
+      "scaleMin": 40,
+      "scaleMax": 260,
+      "arcs": {
+        "green": [
+          60,
+          158
+        ],
+        "yellow": [
+          158,
+          220
+        ]
+      },
+      "redline": 220
+    },
+    "_source": "shared instrument library: POH section 2 markings as ea_dialmaps.py had them (VS0 60, VNO 158, VNE 220 KIAS)"
   }
 }

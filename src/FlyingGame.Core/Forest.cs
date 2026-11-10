@@ -202,7 +202,7 @@ public static class Forest
         // Nothing stands outside the built world: the height field answers everywhere, but the mesh stops,
         // and a render from the north edge showed a line of conifers standing in mid-air over the sea.
         if (!WorldTerrain.OnBuiltGround(x, y)) return false;
-        WorldTerrain.Surface sfc = WorldTerrain.SurfaceAt(x, y);
+        WorldTerrain.Surface sfc = WorldTerrain.Coarse(WorldTerrain.SurfaceAt(x, y));
         // ROUGH is pasture and rolling country, which is where the timber has always been allowed. The
         // ALPINE range is reported Gravel over its whole block — "granite and scree, not pasture" — and that
         // one line kept every conifer off the Cascades: render after render came back with bare rock down to
@@ -294,8 +294,33 @@ public static class Forest
 
     public static int CellOf(double v) => (int)System.Math.Floor(v / CellM);
 
+    /// <summary>
+    /// <see cref="TryTreeInCell"/> remembered per cell. The answer is a pure function of the cell (the island's height
+    /// field and its description, both fixed), so the cache cannot change it. Each call costs five height queries, a
+    /// slope, the cover and tree-line sums and half a dozen lookups by name into the island description; the forest's
+    /// solid asks it for the four to nine cells round EVERY hard point at every RK4 stage near the ground (Quest,
+    /// 2026-11-02: the bulk of the 771 height queries a step the 2-33 made sitting at (5854, 3825)). Per thread, like
+    /// the height memo, so the forest builders' workers never share it with the sim.
+    /// </summary>
+    private struct CellEntry { public int I, J; public bool Used, Has; public Tree Tree; }
+    [System.ThreadStatic] private static CellEntry[]? _cells;
+    private const int CellCacheSize = 4096;
+
     /// <summary>The tree in cell (i, j), if that cell has one. The whole forest comes out of here.</summary>
     public static bool TryTreeInCell(int i, int j, out Tree tree)
+    {
+        if (WorldTerrain.Active is null) { tree = default; return false; }
+        var cache = _cells ??= new CellEntry[CellCacheSize];
+        int slot = (int)((uint)(i * 73856093 ^ j * 19349663) % CellCacheSize);
+        ref CellEntry e = ref cache[slot];
+        if (e.Used && e.I == i && e.J == j) { tree = e.Tree; return e.Has; }
+        bool has = TreeInCellUncached(i, j, out tree);
+        e = new CellEntry { I = i, J = j, Used = true, Has = has, Tree = tree };
+        return has;
+    }
+
+    /// <summary>The tree in cell (i, j), worked out from scratch (what <see cref="TryTreeInCell"/> remembers; tests).</summary>
+    public static bool TreeInCellUncached(int i, int j, out Tree tree)
     {
         tree = default;
         double key = i * 2147.31 + j * 7919.17;
@@ -335,9 +360,9 @@ public static class Forest
     // ---- hitting them ----------------------------------------------------------------------------------
 
     /// <summary>
-    /// The forest as a solid, for <see cref="WorldSolids"/>. The cheap path is the one that matters: above the
-    /// tallest tree that could stand here there is nothing to test, and that costs one height query — the same
-    /// query the contact code has already made every step since the beginning.
+    /// The forest as a solid, for <see cref="WorldSolids"/>. Near the ground it is asked by every hard point at every
+    /// RK4 stage, so the trees round a point come from the per-cell memo (<see cref="TryTreeInCell"/>) and the ground
+    /// under the point is read only when a tree holds it.
     /// </summary>
     public sealed class Solids : WorldSolids.IShape, WorldSolids.IRegional, WorldSolids.IFrangible
     {
@@ -346,7 +371,10 @@ public static class Forest
             normalNed = Vec3.Zero; depth = 0;
             WorldTerrain? t = WorldTerrain.Active;
             if (t is null) return false;
-            if (up > t.HeightAt(x, y) + SkyClearM) return false;         // the whole sky, in one query
+            // "Above the tallest tree that could stand here" (up > ground + SkyClearM) is still the rule, but it is
+            // asked LAST, only of a point some tree actually holds: the trees are remembered per cell, and the ground
+            // under the point was a height evaluation at a fresh coordinate for every hard point at every RK4 stage.
+            // Same answer: the scan below finds nothing, or the rule turns what it found back into nothing.
             int i0 = CellOf(x - ReachM), i1 = CellOf(x + ReachM);
             int j0 = CellOf(y - ReachM), j1 = CellOf(y + ReachM);
             double best = 0; Vec3 bestN = Vec3.Zero;
@@ -354,6 +382,7 @@ public static class Forest
                 for (int j = j0; j <= j1; j++)
                     if (TryTreeInCell(i, j, out Tree tr)) Test(in tr, x, y, up, ref best, ref bestN);
             if (best <= 0) return false;
+            if (up > t.HeightAt(x, y) + SkyClearM) return false;         // the whole sky
             normalNed = bestN; depth = best;
             return true;
         }
@@ -419,7 +448,6 @@ public static class Forest
             if (up > _highestTop) return false;                          // above every tree that could be asked about
             WorldTerrain? t = WorldTerrain.Active;
             if (t is null) return false;
-            if (up > t.HeightAt(x, y) + SkyClearM) return false;         // as the full shape does, so the answers match
             int w = _j1 - _j0 + 1;
             double best = 0; Vec3 bestN = Vec3.Zero;
             for (int i = i0; i <= i1; i++)
@@ -429,6 +457,7 @@ public static class Forest
                     if (_has[k]) Test(in _tree[k], x, y, up, ref best, ref bestN);
                 }
             if (best <= 0) return false;
+            if (up > t.HeightAt(x, y) + SkyClearM) return false;         // the whole sky
             normalNed = bestN; depth = best;
             return true;
         }

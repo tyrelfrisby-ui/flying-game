@@ -30,7 +30,7 @@ namespace FlyingGame.Bridge
             public int W, H, Scale;
         }
 
-        private Lcd _com, _xpdr;
+        private Lcd _com, _xpdr, _fuel;
         private bool _looked;
 
         /// <summary>The LCD's own colour: the greenish white of a backlit segment display.</summary>
@@ -39,52 +39,80 @@ namespace FlyingGame.Bridge
         /// <summary>Find the display quads inside the placed model. Safe to call every frame; it looks once per
         /// aeroplane and does nothing at all for a model without them. Takes a LOOKUP rather than the visual, so
         /// the editor check can bind the same two displays on a model it built itself.</summary>
-        public void Bind(System.Func<string, Transform> find)
+        public void Bind(System.Func<string, Transform> find) => Bind(find, null);
+
+        /// <summary><paramref name="aircraft"/> (x right, y up, z to the nose) says which way the panel faces when the
+        /// model has no eye point to look from — the Pitts has none.</summary>
+        public void Bind(System.Func<string, Transform> find, Transform aircraft)
         {
             if (_looked || find == null) return;
             _looked = true;
-            SeparateCoplanar(find);
+            SeparateCoplanar(find, aircraft);
             // 32 x 19 mm and 39 x 16 mm faces (the rig's size_m): the textures carry the same aspect, so a
             // glyph is square on the glass.
             _com = Make(find("Radio_Display_R"), 128, 76, 3);
             _xpdr = Make(find("Xpdr_Display_R"), 156, 64, 4);
+            // The fuel computer / totalizer of the shared Extra panel (CODEX-SPEC: a 2-1/4 in head on the lower row, its
+            // window a quad named Totalizer_Display_R with UV 0..1, 40 x 24 mm). Nothing happens on a model without one.
+            _fuel = Make(find("Totalizer_Display_R"), 128, 76, 3);
         }
 
         /// <summary>A fresh aeroplane: look the quads up again (the hierarchy was rebuilt), and let go of the
         /// material and texture this one made, which nothing else references.</summary>
+        private (double, double, bool, double, double, int, int, bool) _shown;
+        private bool _shownSet;
+
         public void Forget()
         {
             _looked = false;
-            Drop(_com); Drop(_xpdr);
-            _com = _xpdr = null;
+            _shownSet = false;
+            Drop(_com); Drop(_xpdr); Drop(_fuel);
+            _com = _xpdr = _fuel = null;
         }
 
-        /// <summary>Surfaces the Extra's GLB lays flat against another, double-sided, so the depth test decides
+        /// <summary>Surfaces the own models lay flat against another, double-sided, so the depth test decides
         /// between them pixel by pixel and the panel flickers as the eye moves (owner on device 2026-11-01: the
-        /// sequence card and the radio stack). Measured in the GLB: the card face 0.1 mm in front of its paper
-        /// stock, RearPanel_UpperExtension exactly in Cockpit_Shell's panel plane (x 1.202) behind the holder,
-        /// and both LCD quads 0.6 mm off Cockpit_Interior's Avionics_Face_COM/XPDR. Each is pulled toward the
-        /// pilot's eye by the amount given here, once per aeroplane: still inside the holder's 3 mm lip and
-        /// clear of every knob, and far more than the depth buffer can resolve at arm's length.</summary>
+        /// sequence card and the radio stack; again in the Quest, 2026-11-02). Measured in the GLBs: the card face
+        /// 0.1 mm in front of its paper stock over exactly the same area in the Pitts, the Extra and the Great Lakes;
+        /// RearPanel_UpperExtension exactly in Cockpit_Shell's panel plane (x 1.202) behind the holder; both LCD quads
+        /// 0.6 mm off Cockpit_Interior's Avionics_Face_COM/XPDR. Each is pulled toward the pilot by the amount given
+        /// here, once per aeroplane: still inside the holder's lip (1.8 mm in front of the card in the Pitts) and
+        /// clear of every knob.</summary>
         private static readonly (string Node, float Metres)[] Proud =
         {
-            ("SequenceCard_Face", 0.001f),
+            ("SequenceCard_Face", 0.0012f),
+            ("FrontPanel_SequenceCard_Face", 0.0012f),
             ("RearPanel_UpperExtension", 0.0005f),
             ("Radio_Display_R", 0.001f),
             ("Xpdr_Display_R", 0.001f),
+            ("Totalizer_Display_R", 0.001f),
         };
 
-        private static void SeparateCoplanar(System.Func<string, Transform> find)
+        /// <summary>The first fix (2026-11-01) did not reach the Quest's Pitts, for three reasons: it ran only for a
+        /// model with a rig (the Pitts has none); it took its direction from Eye_Rear (the Pitts has no eye nodes);
+        /// and it moved the node in WORLD space, where a few kilometres from the origin a float carries about half a
+        /// millimetre — a 1 mm nudge could round to nothing or to double. Now: the direction is toward the seats
+        /// (the aeroplane's aft, which is what every panel here faces), or toward the eye point where there is no
+        /// aeroplane to ask; the move is made in the node's PARENT frame from its local position; and the card's
+        /// stock, which the face covers completely from the seat, is not drawn at all, so there is nothing left
+        /// behind the face for the depth test to choose.</summary>
+        private static void SeparateCoplanar(System.Func<string, Transform> find, Transform aircraft)
         {
             Transform eye = find("Eye_Rear") ?? find("Eye_Front");
-            if (eye == null) return;
             foreach (var (node, metres) in Proud)
             {
                 Transform t = find(node);
-                if (t == null || !t.TryGetComponent(out Renderer r)) continue;
-                Vector3 toEye = eye.position - r.bounds.center;
-                if (toEye.sqrMagnitude < 1e-6f) continue;
-                t.position += toEye.normalized * metres;
+                if (t == null || t.parent == null || !t.TryGetComponent(out Renderer r)) continue;
+                Vector3 toPilot = aircraft != null ? -aircraft.forward
+                                : eye != null ? eye.position - r.bounds.center : Vector3.zero;
+                if (toPilot.sqrMagnitude < 1e-6f) continue;
+                Vector3 dirP = t.parent.InverseTransformDirection(toPilot.normalized);
+                t.localPosition += dirP * (metres / Mathf.Max(1e-4f, t.parent.lossyScale.x));
+            }
+            foreach (string pre in new[] { "", "FrontPanel_" })
+            {
+                Transform stock = find(pre + "SequenceCard_Stock");
+                if (stock != null && find(pre + "SequenceCard_Face") != null && stock.TryGetComponent(out Renderer sr)) sr.enabled = false;
             }
         }
 
@@ -114,6 +142,13 @@ namespace FlyingGame.Bridge
         /// the text changed, so a settled panel costs two string compares.</summary>
         public void Update(in RigInputs r)
         {
+            // Compare the NUMBERS first: building the strings every frame to find nothing changed was garbage for a
+            // headset's collector (docs/quest-performance.md).
+            // The fuel computer is compared at the tenth of a gallon it shows, or a flow that moves every frame would redraw it every frame.
+            var now = (r.ComFreqMhz, r.ComStandbyMhz, r.ComVolume > 0.001, r.XpdrMode, r.XpdrSquawk,
+                       (int)System.Math.Round(r.FuelFlowGph * 10.0), (int)System.Math.Round(r.FuelUsedGal * 10.0), r.Master > 0.5);
+            if (_shownSet && now.Equals(_shown)) return;
+            _shown = now; _shownSet = _com != null || _xpdr != null || _fuel != null;
             if (_com != null)
             {
                 // Active over standby, the way every COM head in a light aeroplane shows it.
@@ -125,6 +160,14 @@ namespace FlyingGame.Bridge
                 string mode = r.XpdrMode <= 0.5 ? "OFF" : r.XpdrMode <= 1.5 ? "SBY" : r.XpdrMode <= 2.5 ? "ON" : "ALT";
                 int code = Mathf.Clamp((int)(r.XpdrSquawk + 0.5), 0, 7777);
                 Draw(_xpdr, $"{code:0000} {mode}", r.XpdrMode > 0.5);
+            }
+            if (_fuel != null)
+            {
+                // Flow over used, to a tenth of a gallon, the way a fuel computer pages them; powered by the master.
+                var ci = System.Globalization.CultureInfo.InvariantCulture;
+                string text = "FF " + System.Math.Clamp(r.FuelFlowGph, 0.0, 99.9).ToString("0.0", ci)
+                            + "\nUS " + System.Math.Clamp(r.FuelUsedGal, 0.0, 999.9).ToString("0.0", ci);
+                Draw(_fuel, text, r.Master > 0.5);
             }
         }
 

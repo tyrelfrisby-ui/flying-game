@@ -31,7 +31,7 @@ namespace FlyingGame.Bridge
 
         private void EnsureStyles()
         {
-            int fs = Mathf.RoundToInt(Mathf.Min(Screen.width, Screen.height) * 0.026f);
+            int fs = Mathf.RoundToInt(UiLayout.Unit * 0.026f);
             if (_btn != null && fs == _fs) return;
             _fs = fs;
             _bg ??= Solid(new Color(0.05f, 0.08f, 0.12f, 0.92f));
@@ -78,6 +78,9 @@ namespace FlyingGame.Bridge
         private void OnGUI()
         {
             if (SessionSettings.MenuOpen || Chase == null) return;
+            // A Quest never shows OnGUI (the VR menu replaces this toolbar), and building its labels on every Layout
+            // and Repaint event was garbage for the headset's collector every frame of a flight.
+            if (XrHeadset.Active) return;
             if (OpenViewMenuRequest) { _viewMenu = true; OpenViewMenuRequest = false; }
             EnsureStyles();
             _talkRect = default;
@@ -101,6 +104,8 @@ namespace FlyingGame.Bridge
             // The shared toolbar row (owner rule 2026-10-03: no overlap): VIEW · REPLAY · CLIP · REC between MENU and
             // OPTIONS; a lesson's END takes a fifth slot. The current view's name shows on the VIEW button when it isn't the
             // default.
+            if (FlyingGame.Core.LocalMp.SplitControls.CompactToolbar(LocalPlayerHud.CompactActive)) { _viewMenu = false; DrawFlightEntry(); return; }
+            _flightOpen = false;
             _practice ??= Object.FindFirstObjectByType<FlyingGame.Bridge.Practice.PracticeController>();
             bool lesson = _practice != null && _practice.Active;
             int n = lesson ? 8 : 7;        // + CHART
@@ -129,16 +134,81 @@ namespace FlyingGame.Bridge
             if (UiLayout.Button(UiLayout.ToolbarSlot(6, n), "CHART", ChartPanel.IsOpen ? _btnOn : _btn))
             { ChartPanel.Toggle(); Options?.Close(); Widget.GameAeroPanel.Close(); }
             if (lesson && UiLayout.Button(UiLayout.ToolbarSlot(7, n), "END", _btn)) { _practice.End(); (_menu ??= Object.FindFirstObjectByType<StartMenu>())?.Open(); }
-            // Radio push-to-talk (multiplayer): a text-stack block, so it never lands on a dial or a line.
+            // Radio push-to-talk (multiplayer), bottom left (Ty 2026-11-08: "The radio is annoying just move the PTT
+            // button to the bottom left of the screen and label it PTT"). It was a centred text-stack block, which put
+            // a two-line HOLD TO TALK sign straight across the aeroplane. It sits just ABOVE the control tray rather
+            // than in the corner proper: the corner is the rudder/throttle pad, and a transmit button over the rudder
+            // is worse than one that is slightly higher up.
             if (VoiceComms.RadioAvailable)
             {
-                Rect blk = UiLayout.NextBlock(UiLayout.ButtonH * 1.4f);
-                _talkRect = new Rect(blk.center.x - UiLayout.S * 0.14f, blk.y, UiLayout.S * 0.28f, blk.height);
-                GUI.Box(_talkRect, VoiceComms.PttHeld ? $"TRANSMITTING\n{VoiceComms.Frequency}" : $"HOLD TO TALK\n{VoiceComms.Frequency}", VoiceComms.PttHeld ? _btnRec : _btn);
+                float pw = UiLayout.S * 0.15f, ph = UiLayout.ButtonH * 1.2f;
+                float trayTop = Mathf.Min(UiLayout.BottomLimit, Screen.height - UiLayout.SafeBottom);
+                _talkRect = new Rect(UiLayout.SafeLeft + UiLayout.Margin, trayTop - ph - UiLayout.Gap, pw, ph);
+                GUI.Box(_talkRect, "PTT", VoiceComms.PttHeld ? _btnRec : _btn);
             }
             else _talkRect = default;
             string radio = VoiceComms.MicProblem ?? (VoiceComms.Receiving != null ? $"RADIO: {VoiceComms.Receiving}" : null);
             if (radio != null) UiLayout.Label(UiLayout.NextLine(_fs * 1.4f), radio, _label);
+        }
+
+        // ---- LOCAL 2-PLAYER, compact split (SplitControls) -------------------------------------------------------------
+        //
+        // The full toolbar row runs across both halves and the touch tray is off (TouchFlightControls.TrayLive), so RESET
+        // and the handle would be out of reach. One FLIGHT entry takes the row's place, on the seam between the two views
+        // (landscape: the middle of the seam; portrait: the left edge of P1's half, level with its middle), clear of the
+        // compact HUD's top and bottom rows. It opens one column per player, and every button acts on that column's
+        // aeroplane only: P1's RESET resets P1, P2's resets P2 (LocalCoop.ResetP2), and the handle is P1's alone (the
+        // second aeroplane has no egress yet). MENU and OPTIONS stay where they are (OPTIONS pauses both players).
+        private bool _flightOpen;
+        private LocalCoop _coop;
+
+        private void DrawFlightEntry()
+        {
+            var views = LocalPlayerView.All;
+            if (views.Count < 2) { _flightOpen = false; return; }
+            float s = UiLayout.S, bw = s * 0.17f, bh = UiLayout.ButtonH;
+            Rect entry = ScreenLayout.Portrait
+                ? new Rect(UiLayout.SafeLeft + UiLayout.Margin, views[0].GuiRect.center.y - bh * 0.5f, bw, bh)
+                : new Rect(Screen.width * 0.5f - bw * 0.5f, Screen.height * 0.5f - bh * 0.5f, bw, bh);
+            if (!_flightOpen)
+            {
+                if (UiLayout.Button(entry, "FLIGHT", _btn)) _flightOpen = true;
+                BlockRect = entry; _blockFrame = Time.frameCount;
+                return;
+            }
+            UiLayout.ModalShown();
+            float gap = s * 0.015f, colW = Mathf.Min(s * 0.42f, (Screen.width * 0.92f - 3 * gap) / 2f), rowH = UiLayout.ButtonH * 1.1f;
+            const int rows = 4;   // header, RESET, handle, VIEW
+            float w = 2 * colW + 3 * gap, h = rows * (rowH + gap) + rowH + 2 * gap;
+            var panel = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
+            BlockRect = panel; _blockFrame = Time.frameCount;
+            GUI.DrawTexture(panel, _bg);
+            for (int i = 0; i < 2; i++)
+            {
+                var v = views[i];
+                float x = panel.x + gap + i * (colW + gap), y = panel.y + gap;
+                Rect Row(int k) => new Rect(x, y + k * (rowH + gap), colW, rowH);
+                string pad = GamepadInput.NameFor(i);
+                UiLayout.Label(Row(0), $"P{i + 1}" + (pad != null ? "" : "  (no controller)"), _label);
+                if (FlyingGame.Core.LocalMp.SplitControls.Offers(i, FlyingGame.Core.LocalMp.SplitControls.Action.Reset, false)
+                    && UiLayout.Button(Row(1), $"P{i + 1} RESET", _btn))
+                { ResetPlayer(i, v); _flightOpen = false; }
+                var touch = i == 0 && v.Driver != null ? v.Driver.GetComponent<TouchFlightControls>() : null;
+                bool handle = touch != null && touch.MenuHandleAvailable;
+                if (FlyingGame.Core.LocalMp.SplitControls.Offers(i, FlyingGame.Core.LocalMp.SplitControls.Action.Handle, handle)
+                    && UiLayout.Button(Row(2), $"P{i + 1} " + touch.MenuHandleLabel.ToUpperInvariant(), _btnRec))
+                { touch.MenuPullHandle(); _flightOpen = false; }
+                if (FlyingGame.Core.LocalMp.SplitControls.Offers(i, FlyingGame.Core.LocalMp.SplitControls.Action.View, false)
+                    && v.Chase != null && UiLayout.Button(Row(3), "VIEW: " + ChaseCamera.ViewNames[(int)v.Chase.CurrentView], _btn))
+                    v.Chase.NextView();
+            }
+            if (UiLayout.Button(new Rect(panel.x + gap, panel.yMax - gap - rowH, panel.width - 2 * gap, rowH), "CLOSE", _btn)) _flightOpen = false;
+        }
+
+        private void ResetPlayer(int player, LocalPlayerView v)
+        {
+            if (player == 0) { v.Driver?.GetComponent<TouchFlightControls>()?.MenuReset(); return; }   // marks it P1's own reset
+            (_coop != null ? _coop : _coop = Object.FindFirstObjectByType<LocalCoop>())?.ResetP2();
         }
 
         /// <summary>The view picker (owner 2026-10-05: "tapping the view button should bring up a menu of the views to choose
@@ -187,6 +257,14 @@ namespace FlyingGame.Bridge
             if (_cockpit.DeviceLook)
             {
                 if (UiLayout.Button(new Rect(x0, row, cell * 3f, b), "RECENTRE", _btn)) _cockpit.Centre();
+                row += b + m * 0.3f;
+            }
+            else if (TiltSteering.Enabled)
+            {
+                // Tilt has the phone, so the view is looked around with the pad above — which is always drawn — and
+                // this takes the place of the device RECENTRE: it re-zeroes the STICK against however the phone is
+                // being held now, which is what a pilot needs after shifting his grip (Ty 2026-11-08).
+                if (UiLayout.Button(new Rect(x0, row, cell * 3f, b), "CENTRE TILT", _btn)) TiltSteering.Centre();
                 row += b + m * 0.3f;
             }
 
@@ -259,7 +337,7 @@ namespace FlyingGame.Bridge
             float s = Mathf.Min(Screen.width, Screen.height);
             bool portrait = ScreenLayout.Portrait;
             float gap = s * 0.015f;
-            int perRow = portrait ? 4 : 8;
+            int perRow = portrait ? 6 : 11;   // (the manual SMOKE switch keeps its own slot, so nothing moves when it appears)
             int rows = portrait ? 2 : 1;
             float bh = s * (portrait ? 0.085f : 0.07f);
             float trackH = s * 0.05f, labelH = _fs * 1.6f;
@@ -294,17 +372,42 @@ namespace FlyingGame.Bridge
             y += trackH + gap;
 
             float bw = (w - (perRow - 1) * gap) / perRow;
+            // (UiLayout.Button: each label shrinks to fit its button — 10 slots a row made SMOKE / VIEW spill on an iPad,
+            // as SMOKE AS FLOWN and VIEW already did at 9)
             int i = 0;
             Rect Next() { int r = i / perRow, c = i % perRow; i++; return new Rect(x0 + c * (bw + gap), y + r * (bh + gap), bw, bh); }
-            if (GUI.Button(Next(), "-10 s", _btn)) Replay.Seek(Replay.Head - 10.0);
-            if (GUI.Button(Next(), Replay.Playing ? "PAUSE" : "PLAY", _btnOn)) Replay.TogglePlay();
-            if (GUI.Button(Next(), "+10 s", _btn)) Replay.Seek(Replay.Head + 10.0);
-            if (GUI.Button(Next(), $"SPEED ×{Replay.Speed:0.##}", _btn)) Replay.CycleSpeed();
-            if (GUI.Button(Next(), "VIEW\n" + ChaseCamera.ViewNames[(int)Chase.CurrentView], _viewMenu ? _btnOn : _btn)) _viewMenu = !_viewMenu;
-            if (GUI.Button(Next(), ClipRecorder.Busy ? "SAVING..." : "CLIP " + ClipRecorder.Length(ClipRecorder.ClipSeconds), _btn)) ClipRecorder.SaveClip();
+            if (UiLayout.Button(Next(), "-10 s", _btn)) Replay.Seek(Replay.Head - 10.0);
+            if (UiLayout.Button(Next(), Replay.Playing ? "PAUSE" : "PLAY", _btnOn)) Replay.TogglePlay();
+            if (UiLayout.Button(Next(), "+10 s", _btn)) Replay.Seek(Replay.Head + 10.0);
+            // (portrait has 5 a row: SPEED goes to the second row there, so the two smoke buttons stay side by side)
+            if (!portrait && UiLayout.Button(Next(), $"SPEED ×{Replay.Speed:0.##}", _btn)) Replay.CycleSpeed();
+            // Smoke in the replay (Ty t912u, t982u): the mode — AS FLOWN, the recorded timeline, every replay opens on it;
+            // a press takes MANUAL control, keeping what is on screen, and a press on MANUAL returns to AS FLOWN at once —
+            // and beside it, in manual only, the SMOKE switch, on / off at each press from the play head on, drawn as the
+            // live one is (lit "SMOKE ON"). A clip made from the replay records the same smoke.
+            bool manual = Replay.SmokeControl.Manual;
+            if (UiLayout.Button(Next(), manual ? "SMOKE\nMANUAL" : "SMOKE\nAS FLOWN" + (Replay.SmokeUnrecorded ? " (none)" : ""), manual ? _btnOn : _btn))
+                Replay.ToggleSmokeManual();
+            Rect sw = Next();
+            if (manual)
+            {
+                bool on = Replay.SmokeSwitchOn;
+                GUI.color = on ? new Color(1f, 0.85f, 0.3f, 1f) : Color.white;
+                if (UiLayout.Button(sw, on ? "SMOKE ON" : "SMOKE", _btn)) Replay.ToggleSmokeSwitch();
+                GUI.color = Color.white;
+            }
+            if (portrait && UiLayout.Button(Next(), $"SPEED ×{Replay.Speed:0.##}", _btn)) Replay.CycleSpeed();
+            if (UiLayout.Button(Next(), "VIEW\n" + ChaseCamera.ViewNames[(int)Chase.CurrentView], _viewMenu ? _btnOn : _btn)) _viewMenu = !_viewMenu;
+            // OPTIONS, from inside the replay (Ty 2026-11-08: "i don't see a way to deselect it either … we really need
+            // every option available and functioning correctly in replay so we can turn on/off anything"). The replay bar
+            // used to REPLACE the live column, which is where OPTIONS lives, so a flight path vector or a cloud of
+            // bubbles could not be turned off without leaving the replay first. Opening it does not disturb the replay:
+            // ApplyTimeScale leaves the clock alone while one is running, and the play head runs on unscaled time.
+            if (UiLayout.Button(Next(), "OPTIONS", Options != null && Options.IsOpen ? _btnOn : _btn)) Options?.Toggle();
+            if (UiLayout.Button(Next(), ClipRecorder.Busy ? "SAVING..." : "CLIP " + ClipRecorder.Length(ClipRecorder.ClipSeconds), _btn)) ClipRecorder.SaveClip();
             bool recOn = ClipRecorder.Recording;
-            if (GUI.Button(Next(), recOn ? "STOP REC" : "REC", recOn ? _btnRec : _btn)) ClipRecorder.ToggleRecording();
-            if (GUI.Button(Next(), "EXIT\nREPLAY", _btnOn)) Replay.Exit();
+            if (UiLayout.Button(Next(), recOn ? "STOP REC" : "REC", recOn ? _btnRec : _btn)) ClipRecorder.ToggleRecording();
+            if (UiLayout.Button(Next(), "EXIT\nREPLAY", _btnOn)) Replay.Exit();
             if (_viewMenu) DrawViewMenu(UiLayout.ToolbarBottom, bar.y);
         }
     }

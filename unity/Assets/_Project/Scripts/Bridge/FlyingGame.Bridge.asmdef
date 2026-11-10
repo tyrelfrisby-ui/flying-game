@@ -26,6 +26,11 @@
             "name": "jp.keijiro.klak.ndi",
             "expression": "0.0.0",
             "define": "KLAK_NDI"
+        },
+        {
+            "name": "com.unity.inputsystem",
+            "expression": "1.6.0",
+            "define": "AERO_INPUT_SYSTEM"
         }
     ],
     "noEngineReferences": false

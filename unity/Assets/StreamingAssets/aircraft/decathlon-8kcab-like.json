@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "decathlon-8kcab-like",
   "displayName": "Decathlon-like Aerobat",
+  "structureType": "steelTube",
+  "structureTypeSource": "American Champion 8KCAB Decathlon: welded 4130 steel-tube fuselage, fabric covered (FAA TCDS A21CE; ACAC maintenance manual).",
   "spawnIasMs": 50,
   "mass": {
     "massKg": 816,
@@ -1656,6 +1658,9 @@
   "propulsion": {
     "maxPowerW": 134000,
     "propDiameterM": 1.88,
+    "propMaterial": "metal",
+    "propMaterialSource": "Sensenich fixed-pitch forged aluminium",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 6.8,
@@ -1687,7 +1692,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "rollResistN": 40
+      "tire": "6.00-6", "tirePressurePsi": 21
     },
     {
       "pos": [
@@ -1703,7 +1708,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "rollResistN": 40
+      "tire": "6.00-6", "tirePressurePsi": 21
     },
     {
       "pos": [
@@ -1719,7 +1724,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
-      "rollResistN": 20,
+      "tire": "scott-8in", "tirePressurePsi": 28.6,
       "steerSpringNmPerRad": 15
     }
   ],

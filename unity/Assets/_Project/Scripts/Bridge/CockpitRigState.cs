@@ -1,6 +1,7 @@
 using FlyingGame.Core;
 using FlyingGame.Core.Aero;
 using FlyingGame.Core.DataContracts;
+using FlyingGame.Core.Instruments;
 using UnityEngine;
 
 namespace FlyingGame.Bridge
@@ -29,10 +30,24 @@ namespace FlyingGame.Bridge
         // ---- lagged / integrated readings --------------------------------------------------------------
         private double _energyHeightM = double.NaN, _varioMs;
         private float _headingDeg = float.NaN, _headingRawDeg = float.NaN, _turnRateDps, _vsiFpm;
-        private double _gMax, _gMin;
+        /// <summary>The accelerometer's max / min followers (Core GMeterFollowers); the push-to-reset knob is
+        /// <see cref="ResetGTellTales"/>.</summary>
+        public readonly GMeterFollowers GFollowers = new();
+        /// <summary>The altimeter's knob and Kollsman window, shared by every altimeter in this aeroplane (Core
+        /// AltimeterSetting). Set on the first frame of a flight so it reads the field's elevation, as a pilot sets QNH
+        /// before take-off; the pilot turns it from there (AltimeterPopup, the headset's menu).</summary>
+        public readonly AltimeterSetting Altimeter = new();
+        private bool _altimeterSet;
+        private string _altimeterType = "";
+        private double _gNow = 1.0;
+        /// <summary>Static pressure at the aeroplane this frame (Pa), and what the altimeter shows (ft).</summary>
+        public double StaticPa { get; private set; } = Atmosphere.SeaLevelPressurePa;
+        public double TrueAltitudeFt { get; private set; }
 
         // ---- the presentation engine gauges (P) --------------------------------------------------------
         private double _oilTempF = 180.0, _chtF = 320.0;
+        /// <summary>The fuel computer's count, US gallons burned since the aeroplane was reset.</summary>
+        private double _fuelUsedGal;
 
         // ---- avionics, as the player left them ---------------------------------------------------------
         /// <summary>COM active / standby in MHz, and the volume. Defaults: 122.800 (unicom) on 121.500.</summary>
@@ -51,6 +66,29 @@ namespace FlyingGame.Bridge
         public float CanopyPull01;
         /// <summary>Set once the canopy has left: the aeroplane stays canopy-less until it is reset.</summary>
         public bool CanopyGone;
+        /// <summary>The latch a headset hand works (the Pitts' sliding ball, the Extra's squeeze handles), or null for
+        /// a type with none. Set by VrCockpitHands; reset with the aeroplane; it drives the rig's `canopy_latch` and
+        /// <see cref="CanopyLocked"/>. Phase 2's canopy opening asks <see cref="CanopyLocked"/>.</summary>
+        public FlyingGame.Core.Vr.ICanopyLatch HandLatch;
+        /// <summary>THE HANDS-ON BAIL-OUT (headset, docs/vr-cockpit.md phase 2), set by VrCockpitHands for a type that has
+        /// them and reset with the aeroplane: the canopy on its hinge in the airload (while set it, not the menu's
+        /// open/shut command, decides <see cref="CanopyOpen01"/>, and its drag goes into the flight model), the seat's
+        /// belts, the headset cord and the climb out.</summary>
+        public FlyingGame.Core.Vr.CanopyDynamics HandCanopy;
+        /// <summary>The canopy jettison a headset hand pulls (the Pitts' red knob; the Extra's CanopyRelease where its model
+        /// has one), or null. One-way; reset with the aeroplane. It drives the rig's `canopy_jettison` with the menu's
+        /// red-handle pull, but NOT AirframeVisual's instant jettison: the canopy goes when CanopyDynamics says so.</summary>
+        public FlyingGame.Core.Vr.JettisonPull HandJettison;
+        /// <summary>THE BAIL-OUT'S CANOPY (PilotEgress, Core Vr.CanopyBailout), set from the moment it unlatches the canopy and
+        /// pulls the pins until the aeroplane is reset: the headset's own canopy where it has one, else this type's from
+        /// its part. While set the bail-out steps it and the headset's hands leave it alone, and it decides
+        /// <see cref="CanopyOpen01"/>.</summary>
+        public FlyingGame.Core.Vr.CanopyDynamics EgressCanopy;
+        public FlyingGame.Core.Vr.SeatHarness Harness;
+        public FlyingGame.Core.Vr.HeadsetCord Cord;
+        public readonly FlyingGame.Core.Vr.ClimbOut Climb = new();
+        /// <summary>Where the open canopy's drag acts, the config's body frame (VrCockpitHands sets it).</summary>
+        public FlyingGame.Core.MathTypes.Vec3 CanopyDragPointBody;
 
         /// <summary>How fast the canopy swings when the player asks for it, and how fast the release handle
         /// moves under a hand and springs back after.</summary>
@@ -75,6 +113,9 @@ namespace FlyingGame.Bridge
             _canopyTarget = Mathf.Clamp01(open01);
         }
 
+        /// <summary>How open the cockpit is to the airflow, 0 sealed .. 1 no canopy (Core Vr.CockpitWind: the wind noise).</summary>
+        public double CockpitExposure01 => HandCanopy != null ? HandCanopy.Exposure01 : CanopyGone ? 1.0 : 0.8 * CanopyOpen01;
+
         /// <summary>True where the canopy can be worked at all: there is one, and it is not jettisoned.</summary>
         public bool CanopyUsable => !CanopyGone;
 
@@ -90,19 +131,56 @@ namespace FlyingGame.Bridge
         /// bailout; the handle springs back on its own afterwards.</summary>
         public void PullCanopyRelease() => _handOnRelease = PullSec;
 
+        // ---- the 172's own panel (FlyingGame.Core.Instruments; docs/C172-INSTRUMENTS.md) ------------------
+        /// <summary>The config id whose panel is the 1970s 172's vacuum/gyro/radio stack.</summary>
+        public const string C172Id = "c172-like";
+        private C172Panel _c172;
+        /// <summary>The frame the 172 panel last stepped on. AirframeVisual.LateUpdate fills the rig once per frame;
+        /// retain this guard so another caller cannot integrate the gyros twice in that frame.</summary>
+        private int _c172Frame = -1;
+        /// <summary>The 172 panel being flown, or null for any other aeroplane. Static so the RADIOS and OPTIONS
+        /// panels can reach the knobs and the failure hooks, the way <see cref="NavRadios.Freq"/> already is.</summary>
+        public static C172Panel LiveC172 { get; private set; }
+        /// <summary>Knob turns asked for by the UI since the last frame, degrees: the DG's (push and turn) and the ADF card's.</summary>
+        public static double PendingDgKnobDeg, PendingAdfCardDeg;
+        /// <summary>Set the DG to the compass on the next frame (the pilot's push-turn-until-they-agree).</summary>
+        public static bool PendingDgToCompass;
+
         /// <summary>A fresh aeroplane: the canopy is back on, the gauges are warm and the tell-tales are clear.</summary>
         public void Reset()
         {
+            if (LiveC172 == _c172) LiveC172 = null;
+            _c172 = null;
             _energyHeightM = double.NaN; _varioMs = 0.0;
             _headingDeg = _headingRawDeg = float.NaN; _turnRateDps = 0f; _vsiFpm = 0f;
-            _gMax = _gMin = 0.0;
-            _oilTempF = 180.0; _chtF = 320.0;
+            GFollowers.Reset(1.0); _gNow = 1.0;
+            _altimeterSet = false;
+            _oilTempF = 180.0; _chtF = 320.0; _fuelUsedGal = 0.0;
             CanopyOpen01 = 0f; _canopyTarget = 0f; CanopyLocked = true;
             CanopyPull01 = 0f; _handOnRelease = 0f; CanopyGone = false;
+            EgressCanopy = null;
+            HandLatch?.Reset();
+            HandCanopy?.Reset();
+            HandJettison?.Reset();
+            Harness?.Reset();
+            Cord?.Reset();
+            Climb.Reset();
         }
 
+        /// <summary>The Pitts' blue prop lever's blade, 0 down (locked) .. 1 horizontal (released): the hand's, drawn in
+        /// both seats. It is a cockpit state, not the sim's: only the slide (Aircraft.PropLever) reaches the engine.</summary>
+        public double PropLock01;
+
         /// <summary>Clear the accelerometer's max / min tell-tales (the knob on a real one).</summary>
-        public void ResetGTellTales() { _gMax = _gMin = 0.0; }
+        public void ResetGTellTales()
+        {
+            GFollowers.Reset(_gNow);
+            Debug.Log($"[Cockpit] g-meter followers reset to {_gNow:F1} g");
+        }
+
+        /// <summary>Set the altimeter so it reads <paramref name="ft"/> here and now (field elevation, or 0 to zero it).
+        /// False when the window cannot reach it: the knob then stops at the nearest end.</summary>
+        public bool SetAltimeterToRead(double ft) => Altimeter.SetToRead(StaticPa, ft);
 
         /// <summary>Fill in everything the panel shows. <paramref name="r"/> arrives with the control positions
         /// already set from the aero model's own deflections (RigInputs.FromDeflections), which is the half that
@@ -117,7 +195,15 @@ namespace FlyingGame.Bridge
             // ---- the aeroplane's own state -----------------------------------------------------------
             r.AirspeedKias = ias * 1.9438445;
             r.AirspeedMph = ias * 2.2369363;
-            r.AltitudeFt = alt * 3.2808399;
+            // The altimeter reads the STATIC PRESSURE through its Kollsman setting (Core KollsmanAltimeter), not the
+            // sim's height: set to QNH it shows the field's elevation on the ground, zeroed it shows height above it.
+            StaticPa = Atmosphere.PressureAt(ac.State.Position);
+            TrueAltitudeFt = alt * 3.2808399;
+            string type = driver.AircraftId ?? "";
+            if (type != _altimeterType) { _altimeterType = type; Altimeter.ForType(type); _altimeterSet = false; }
+            if (!_altimeterSet) { _altimeterSet = true; Altimeter.SetToRead(StaticPa, TrueAltitudeFt); }
+            r.AltitudeFt = Altimeter.IndicatedFt(StaticPa);
+            r.KollsmanInHg = Altimeter.InHg;
             r.GLoad = ac.LoadFactorZ;
             r.Throttle = Mathf.Clamp01((float)ac.Throttle01);
             r.Rpm = ac.EngineStopped ? 0.0 : ac.EngineRpm;
@@ -130,13 +216,24 @@ namespace FlyingGame.Bridge
 
             // The verniers, the key and the switches. The sim flies with the engine running, the fuel on and
             // both magnetos live, so that is where the cockpit's levers sit; a type without an engine shows
-            // the key off rather than pretending.
+            // the key off rather than pretending. The prop lever and the electrical switches are the sim's own
+            // (Aircraft.PropLever, Aircraft.Electrics), so the front seat's and the rear's read the same state.
             bool engine = cfg != null && cfg.Propulsion != null && cfg.Propulsion.MaxPowerW > 0.0;
-            r.PropLever = 1.0;
-            r.Mixture = engine && !ac.EngineStopped ? 1.0 : 0.0;
+            // The prop and mixture levers are the sim's own now (Aircraft.PropLever / MixtureLever, Ty 2026-11-04): drawn
+            // where the pilot left them, whatever the engine is doing.
+            r.PropLever = ac.HasPropLever ? ac.PropLever : 1.0;
+            r.Mixture = engine ? ac.MixtureLever : 0.0;
             r.FuelSelector = 1.0;
-            r.Magneto = engine && !ac.EngineStopped ? 3.0 : 0.0;
-            r.Master = 1.0;
+            r.FuelValve = ac.FuelValveOpen ? 1.0 : 0.0;   // the valve's one shaft: both cockpits' levers read it
+            r.CowlFlap = ac.CowlFlap01;
+            r.PropLock = PropLock01;
+            r.Magneto = engine && !ac.EngineStopped ? FlyingGame.Core.Engine.Magnetos.KeyPosition(ac.MagLeft, ac.MagRight) : 0.0;
+            r.MagLeft = ac.MagLeft ? 1.0 : 0.0;     // the Great Lakes' two mag toggles (Ty 2026-11-05): both seats read the sim's
+            r.MagRight = ac.MagRight ? 1.0 : 0.0;
+            FlyingGame.Core.Engine.ElectricalSystem el = ac.Electrics;
+            r.Master = el.Master ? 1.0 : 0.0;
+            r.Alternator = el.Alternator ? 1.0 : 0.0;
+            r.FuelPump = el.FuelPump ? 1.0 : 0.0;
 
             // ---- read the way an instrument reads ----------------------------------------------------
             // Vertical speed, lagged like the leak on a real VSI (2 s; a certificated one is nearer 6, which
@@ -172,18 +269,29 @@ namespace FlyingGame.Bridge
             r.HeadingDeg = _headingDeg;
             r.TurnRateDps = _turnRateDps;
 
+            // Bank and pitch, the ZYX Euler angles of the body in NED: bank from the body's right (y) and down (z)
+            // axes, pitch from the nose's climb. Exact at any pitch (the cos θ cancels in the atan2).
+            var rightAx = ac.State.Attitude.Rotate(new FlyingGame.Core.MathTypes.Vec3(0, 1, 0));
+            var downAx = ac.State.Attitude.Rotate(new FlyingGame.Core.MathTypes.Vec3(0, 0, 1));
+            r.BankDeg = System.Math.Atan2(rightAx.Z, downAx.Z) * (180.0 / System.Math.PI);
+            r.PitchDeg = System.Math.Asin(System.Math.Clamp(-fwd.Z, -1.0, 1.0)) * (180.0 / System.Math.PI);
+
             // The inclinometer ball. In steady flight the ball IS a sideslip indicator: the side force opposes
             // β, and the ball hangs away from the force, so a relative wind from the right puts it to the
             // right. Full deflection at 10 deg of slip (E — a 2-1/4 in tube is about two ball widths).
             r.SlipBall = System.Math.Clamp(driver.BetaDeg / 10.0, -1.0, 1.0);
 
             // The accelerometer's tell-tales: they follow the needle out and stay.
-            if (r.GLoad > _gMax) _gMax = r.GLoad;
-            if (r.GLoad < _gMin) _gMin = r.GLoad;
-            r.GMaxSeen = _gMax; r.GMinSeen = _gMin;
+            _gNow = r.GLoad;
+            GFollowers.Step(r.GLoad);
+            r.GMaxSeen = GFollowers.Max; r.GMinSeen = GFollowers.Min;
 
             // ---- the presentation gauges (P): no sim behind them -------------------------------------
             FillEngineGauges(ref r, ac, alt, dt);
+
+            // ---- the 172's instruments: modelled, not presented ----------------------------------------
+            if (cfg != null && cfg.Id == C172Id) FillC172(ref r, ac, dt);
+            else if (_c172 != null) { if (LiveC172 == _c172) LiveC172 = null; _c172 = null; }
 
             // ---- avionics and canopy, as the player left them ----------------------------------------
             r.ComFreqMhz = ComActiveMhz; r.ComStandbyMhz = ComStandbyMhz;
@@ -192,16 +300,85 @@ namespace FlyingGame.Bridge
 
             _iasKt = (float)r.AirspeedKias;
             StepCanopy(dt);
-            r.CanopyOpen = CanopyOpen01;
+            // The canopy's own physics where it is running (the headset's, or the bail-out's on any platform), else the command.
+            FlyingGame.Core.Vr.CanopyDynamics physical = EgressCanopy ?? HandCanopy;
+            if (physical != null) { r.CanopyOpen = physical.Open01; r.CanopySlide = physical.Slide01; }
+            else (r.CanopySlide, r.CanopyOpen) = FlyingGame.Core.Vr.CanopyDynamics.ScriptedRig(ScriptedCanopy(cfg?.Id), CanopyOpen01);
             r.CanopyLock = CanopyLocked ? 1.0 : 0.0;
-            r.CanopyJettison = CanopyPull01;
+            r.CanopyJettison = System.Math.Max(CanopyPull01, HandJettison?.Pulled01 ?? 0.0);
+            r.CanopyLatch = FlyingGame.Core.RigInputs.CanopyLatchFor(CanopyLocked, HandLatch != null ? HandLatch.Latch01 : null);
+            r.HarnessLatch = Harness != null ? Harness.Harness01 : 0.0;
+            // An open canopy's drag, or the open cockpit's once it has gone, into the flight model (Aircraft.ExtraDragAreaM2);
+            // nothing unless the headset's hands-on canopy is in use.
+            ac.ExtraDragAreaM2 = HandCanopy != null ? HandCanopy.DragAreaM2 : 0.0;
+            ac.ExtraDragPointBody = CanopyDragPointBody;
+        }
+
+        private string _scriptedId;
+        private FlyingGame.Core.Vr.CanopySpec _scripted;
+
+        /// <summary>The type's canopy, for the scripted (no-hands) open/shut's rig params; cached per type (the Pitts'
+        /// rest angle is a geometry search).</summary>
+        private FlyingGame.Core.Vr.CanopySpec ScriptedCanopy(string id)
+        {
+            if (_scriptedId != id || (_scriptedId == null && _scripted.LengthM <= 0.0))
+            {
+                _scriptedId = id;
+                _scripted = (id ?? "").StartsWith("pitts") ? FlyingGame.Core.Vr.CanopySpec.For(id) : default;
+            }
+            return _scripted;
         }
 
         /// <summary>Shared cockpit/HUD presentation pressure; the sim has no independent manifold state.</summary>
         public static double ManifoldPressureInHg(FlyingGame.Sim.Aircraft ac, double altM)
         {
             double ambient = Atmosphere.PressureAtAltitude(altM) / 3386.389;
-            return ac.EngineRpm > 50.0 ? ambient * (0.33 + 0.62 * ac.Throttle01) : ambient;
+            // A dead engine pumps nothing: the gauge reads the air outside, whatever the throttle says.
+            return ac.EngineRunning && ac.EngineRpm > 50.0 ? ambient * (0.33 + 0.62 * ac.Throttle01) : ambient;
+        }
+
+        /// <summary>
+        /// The 172's vacuum system, gyros, compass, turn coordinator and radios, stepped on the sim's own state.
+        /// Tuning comes from the RADIOS panel (<see cref="NavRadios"/>); the bus is 14.2 V on the alternator with
+        /// the engine turning and 12.4 V on the battery without it. The failure hooks live on
+        /// <see cref="C172Panel.Failures"/>.
+        /// </summary>
+        private void FillC172(ref RigInputs r, FlyingGame.Sim.Aircraft ac, float dt)
+        {
+            var s = ac.State;
+            bool turning = r.Rpm > 50.0;
+            var x = new PanelInputs
+            {
+                Attitude = s.Attitude,
+                RatesBody = s.Rates,
+                SpecificForceBody = ac.SpecificForceBody,
+                PositionWorld = s.Position,
+                EngineRpm = r.Rpm,
+                AmbientPressurePa = Atmosphere.PressureAt(s.Position),
+                AmbientTempK = Atmosphere.TemperatureAtPosition(s.Position),
+                BusVolts = ac.Electrics.BusVolts,
+            };
+            WorldTerrain t = WorldTerrain.Active;
+            bool fresh = _c172 == null;
+            _c172 ??= new C172Panel();
+            LiveC172 = _c172;
+            _c172.Nav1.FreqMhz = NavRadios.Freq[0]; _c172.Nav1.ObsDeg = NavRadios.Obs[0];
+            _c172.Nav2.FreqMhz = NavRadios.Freq[1]; _c172.Nav2.ObsDeg = NavRadios.Obs[1];
+            _c172.Adf.FreqKhz = NavRadios.AdfKhz;
+            if (fresh)
+            {
+                // A flight starts with the engine running in every mode this game has, so the gyros have had
+                // their five minutes and the DG has been set; a cold aeroplane starts with them stopped.
+                _c172.Start(x, gyrosRunning: turning, t);
+                PendingDgKnobDeg = PendingAdfCardDeg = 0; PendingDgToCompass = false;
+            }
+            else if (dt > 1e-4f && Time.frameCount != _c172Frame) _c172.Step(x, dt, t);
+            _c172Frame = Time.frameCount;
+
+            if (PendingDgToCompass) { _c172.Dg.SetTo(s.Attitude, _c172.Compass.ReadingDeg); PendingDgToCompass = false; }
+            if (PendingDgKnobDeg != 0) { _c172.Dg.TurnKnob(s.Attitude, PendingDgKnobDeg); PendingDgKnobDeg = 0; }
+            if (PendingAdfCardDeg != 0) { _c172.Adf.CardDeg = Mathf.Repeat((float)(_c172.Adf.CardDeg + PendingAdfCardDeg), 360f); PendingAdfCardDeg = 0; }
+            _c172.WriteRig(ref r);
         }
 
         /// <summary>The four gauges with no sim behind them (P), from throttle, rpm and ambient pressure. The
@@ -210,16 +387,20 @@ namespace FlyingGame.Bridge
         /// healthy engine's do, and the time constants are the minutes an air-cooled six takes to get there.</summary>
         private void FillEngineGauges(ref RigInputs r, FlyingGame.Sim.Aircraft ac, double altM, float dt)
         {
-            double thr = r.Throttle, rpm = r.Rpm;
+            // The engine's real power, not the lever: a dead engine with the throttle open cools (Ty 2026-11-04). Oil
+            // pressure still follows rpm below, so a windmilling engine keeps a little.
+            double thr = ac.ShaftPower01, rpm = r.Rpm;
             bool running = rpm > 50.0;
+            bool firing = running && ac.EngineRunning;
 
             // Manifold pressure: ambient, less the throttle plate. Wide open takes about 95 % of ambient; a
             // closed throttle holds about a third of it. inHg = Pa / 3386.389.
             r.ManifoldInHg = ManifoldPressureInHg(ac, altM);
 
             // Oil and cylinder-head temperature: first-order, toward what the power setting holds.
-            double oilTarget = running ? 150.0 + 60.0 * thr : 100.0;
-            double chtTarget = running ? 260.0 + 160.0 * thr : 200.0;
+            double oilTarget = firing ? 150.0 + 60.0 * thr : 100.0;
+            // An open cowl flap (Aircraft.CowlFlap01) takes (E) 60 F off the heads at any power.
+            double chtTarget = FlyingGame.Core.Engine.EngineTemperatures.ChtTargetF(firing, thr, ac.CowlFlap01);
             if (dt > 1e-4f)
             {
                 _oilTempF += (oilTarget - _oilTempF) * (1.0 - System.Math.Exp(-dt / 150.0));
@@ -234,9 +415,33 @@ namespace FlyingGame.Bridge
                 ? System.Math.Clamp(20.0 + 65.0 * System.Math.Min(1.0, rpm / (0.85 * maxRpm)) - 0.08 * (_oilTempF - 180.0), 0.0, 115.0)
                 : 0.0;
 
-            // No fuel quantity anywhere in the sim: the gauge reads full rather than lying about an engine
-            // that cannot run dry.
-            r.FuelCentreFrac = 1.0;
+            // Fuel: the loading's own tanks where it has fuel in them (the loading page), by tank id. The reference
+            // loading carries NO fuel on most types (the open W&B decision in AGENT-LOG) and the engine runs anyway,
+            // so an empty loading reads FULL rather than showing empty tanks under a running engine.
+            const double KgPerUsGal = RigInputs.KgPerUsGal;       // avgas, 6.0 lb per US gallon
+            AircraftLoad load = ac.Load;
+            bool loaded = load != null && load.FuelKg > 1e-6;
+            double Gal(string id)
+            {
+                AircraftLoad.Slot s = load?.Find(id);
+                if (s == null) return 0.0;
+                return (loaded ? s.Kg : s.MaxKg) / KgPerUsGal;
+            }
+            r.FuelCentreFrac = loaded && load.FuelCapacityKg > 0.0 ? load.FuelKg / load.FuelCapacityKg : 1.0;
+            r.FuelTopWingFrac = RigInputs.TankFraction(load, "topWing");   // the Great Lakes' sight gauge (Ty 2026-11-05)
+            r.Fuel = FuelGauges.TankFraction(load);     // a float gauge in the (first) tank: the J-3's cork wire
+            r.FuelWingGal = Gal("wingLeft") + Gal("wingRight");
+            r.FuelAkroGal = Gal("centre");
+            // The fuel computer and the three-in-one's FUEL FLOW needle: the sim's own burn (BSFC x shaft power,
+            // Aircraft.FuelFlowKgPerSec), and its total.
+            r.FuelFlowGph = running ? RigInputs.GphFromKgPerSec(ac.FuelFlowKgPerSec) : 0.0;
+            if (dt > 1e-4f) _fuelUsedGal += r.FuelFlowGph * dt / 3600.0;
+            r.FuelUsedGal = _fuelUsedGal;
+
+            // The ammeter is the bus's (ElectricalSystem: + charging, − the battery carrying the load); EGT is
+            // presentation (P), aimed at the middle of the markings the shared panel's dial is drawn with.
+            r.Amps = ac.Electrics.Amps;
+            r.EgtF = running ? 1200.0 + 250.0 * thr : 100.0;
         }
 
         /// <summary>The canopy's own motion: it swings to where it was commanded, and the emergency handle
@@ -246,7 +451,11 @@ namespace FlyingGame.Bridge
             if (dt <= 0f) return;
             // Speed shuts it: leave it open and accelerate, and it comes down and locks rather than flying off.
             if (_iasKt > CanopyMaxOpenKt && _canopyTarget > 0f) { _canopyTarget = 0f; CanopyLocked = true; }
-            if (!CanopyGone)
+            // A hand on a headset's canopy: its own physics set CanopyOpen01 (it flips open in the airload, which the
+            // 60 kt rule above would contradict), so the menu's command stands down.
+            FlyingGame.Core.Vr.CanopyDynamics physical = EgressCanopy ?? HandCanopy;
+            if (physical != null) { if (!CanopyGone) CanopyOpen01 = (float)physical.Open01; }
+            else if (!CanopyGone)
                 CanopyOpen01 = Mathf.MoveTowards(CanopyOpen01, _canopyTarget, dt / CanopySec);
             if (_handOnRelease > 0f)
             {

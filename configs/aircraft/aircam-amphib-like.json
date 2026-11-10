@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "aircam-amphib-like",
   "displayName": "AirCam-like (amphib)",
+  "structureType": "aluminumMonocoque",
+  "structureTypeSource": "Lockwood AirCam: riveted 6061 aluminium sheet and tube airframe (Lockwood Aircraft AirCam builder manual); no steel truss.",
   "wingBracing": "strut",
   "spawnIasMs": 31.0,
   "mass": {
@@ -1463,8 +1465,7 @@
       "hingeChDelta": -0.4,
       "centeringSpringKt": 30,
       "trimType": "spring",
-      "freeTauS": 0.12,
-      "saturationDeg": 72.8
+      "freeTauS": 0.12
     },
     "rudder": {
       "maxDeflRad": 0.44,
@@ -1506,6 +1507,9 @@
   "propulsion": {
     "maxPowerW": 74600,
     "propDiameterM": 1.73,
+    "propMaterial": "composite",
+    "propMaterialSource": "Warp Drive ground-adjustable carbon blades, three per Rotax 912",
+    "propBladeCount": 3,
     "idleRpm": 700,
     "maxRpm": 2400,
     "propInertia": 1.2,
@@ -1538,7 +1542,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1555,7 +1558,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 2500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1572,7 +1574,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1589,7 +1590,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1606,7 +1606,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 2500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1623,7 +1622,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1640,7 +1638,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 3000,
-      "rollResistN": 35
+      "tire": "legacy-aircam-amphib-main", "tirePressurePsi": 19.4
     },
     {
       "pos": [
@@ -1656,7 +1654,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 3000,
-      "rollResistN": 35
+      "tire": "legacy-aircam-amphib-main", "tirePressurePsi": 19.4
     },
     {
       "pos": [
@@ -1672,7 +1670,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 9000,
-      "rollResistN": 40
+      "tire": "legacy-aircam-main", "tirePressurePsi": 19.4
     },
     {
       "pos": [
@@ -1688,7 +1686,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 9000,
-      "rollResistN": 40
+      "tire": "legacy-aircam-main", "tirePressurePsi": 19.4
     }
   ],
   "limits": {

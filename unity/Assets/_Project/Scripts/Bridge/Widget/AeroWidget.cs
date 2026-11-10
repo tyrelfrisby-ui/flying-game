@@ -555,7 +555,7 @@ namespace FlyingGame.Bridge.Widget
             double xmin = double.MaxValue, xmax = double.MinValue;
             foreach (var sf in Config.Surfaces) foreach (var st in sf.Strips) { xmin = System.Math.Min(xmin, st.Pos[0] - st.Chord * 0.75); xmax = System.Math.Max(xmax, st.Pos[0] + st.Chord * 0.25); }
             LengthM = xmax > xmin ? (float)(xmax - xmin) : SpanM * 0.8f;
-            _smoke ??= new SmokeTrail(transform, _visualRoot.gameObject.layer);
+            _smoke ??= new SmokeTrail(transform, _visualRoot.gameObject.layer, alphaCapture: true);
             var ex = SmokeTrail.ExhaustsFor(Config, AircraftId, _builder.PropHubsBody(), LengthM, (float)(Config.Fuselage?.Crossflow?.BodyRadiusM ?? 0.5), out var jet);
             // A config'd exhaust is measured on the MODEL itself (owner 2026-10-12: "4 ft after the spinner … out of the belly
             // just ahead of the landing gear"): so far aft of the model's spinner tip, on its belly surface at the centreline.
@@ -727,7 +727,7 @@ namespace FlyingGame.Bridge.Widget
         public int Flight;
         /// <summary>The smoke oil's flow now: none with no engine turning; more with power (the exhaust carries it).</summary>
         public float SmokeFlow => Ac == null ? 0f : Config.Propulsion == null ? 1f   // a glider's wingtip canisters: always full
-            : Controls.Spec.Engines <= 0 || Ac.EngineRpm < 100 ? 0f : (float)(0.25 + 0.75 * System.Math.Clamp(Ac.Throttle01, 0, 1));
+            : Controls.Spec.Engines <= 0 || !Ac.EngineRunning || Ac.EngineRpm < 100 ? 0f : (float)(0.25 + 0.75 * System.Math.Clamp(Ac.ShaftPower01, 0, 1));
         private SmokeTrail.Sample? SmokeSample(WidgetHistory.Snap f) => f == null ? null : new SmokeTrail.Sample
             { T = f.SimTime, Pos = f.State.Position - new Vec3(0, 0, f.AltShift), Att = f.State.Attitude, VelBody = f.State.Velocity, Rates = f.State.Rates, Flow = f.SmokeFlow,
               JetU0 = JetU0(f.Rpm, f.AcThrottle, -(f.State.Position.Z - f.AltShift)), AirDensity = Atmosphere.DensityAtAltitude(-(f.State.Position.Z - f.AltShift)) };
@@ -740,7 +740,7 @@ namespace FlyingGame.Bridge.Widget
             WidgetHistory.Snap at = index < 0 ? null : H.Get(index);
             int flight = at?.Flight ?? Flight;
             double shift = at?.AltShift ?? AltShiftM, now = at?.SimTime ?? Review.SimTimeNow;
-            var live = index < 0 ? new SmokeTrail.Sample { T = now, Pos = Ac.State.Position - new Vec3(0, 0, AltShiftM), Att = Ac.State.Attitude, VelBody = Ac.State.Velocity, Rates = Ac.State.Rates, Flow = SmokeFlow, JetU0 = JetU0(Ac.EngineRpm, Ac.Throttle01, -(Ac.State.Position.Z - AltShiftM)), AirDensity = Atmosphere.DensityAtAltitude(-(Ac.State.Position.Z - AltShiftM)) } : (SmokeTrail.Sample?)null;
+            var live = index < 0 ? new SmokeTrail.Sample { T = now, Pos = Ac.State.Position - new Vec3(0, 0, AltShiftM), Att = Ac.State.Attitude, VelBody = Ac.State.Velocity, Rates = Ac.State.Rates, Flow = SmokeFlow, JetU0 = JetU0(Ac.EngineRunning ? Ac.EngineRpm : 0.0, Ac.ShaftPower01, -(Ac.State.Position.Z - AltShiftM)), AirDensity = Atmosphere.DensityAtAltitude(-(Ac.State.Position.Z - AltShiftM)) } : (SmokeTrail.Sample?)null;
             int first = index < 0 ? 0 : index;
             _smoke.Build(k =>
             {

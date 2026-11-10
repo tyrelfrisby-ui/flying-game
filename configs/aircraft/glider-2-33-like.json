@@ -2,10 +2,20 @@
   "schemaVersion": 1,
   "id": "glider-2-33-like",
   "displayName": "2-33-like Trainer Glider",
+  "structureType": "steelTube",
+  "structureTypeSource": "Schweizer SGS 2-33: welded steel-tube fuselage, fabric covered; aluminium wing (FAA TCDS G16EA; Schweizer 2-33 maintenance manual).",
+  "wingSpar": "aluminum",
+  "wingSparSource": "Schweizer SGS 2-33: all-metal aluminium wing (FAA TCDS G16EA; Schweizer 2-33 maintenance manual).",
   "wingBracing": "strut",
-  "wingBreakStationY": { "wing": 3.13 },
+  "wingBreakStationY": {
+    "wing": 3.13
+  },
   "wingBreakStationSource": "Lift-strut wing attach |y| 3.13 m (123.2 in) from the centreline: our own SGS 2-33 model (tools/own_models/build_sgs233.py, single strut per side, at 30 % chord). Check: a 2019 three-view (Wikimedia Commons, scaled to the 51 ft span) gives ~125 in (+/-6). The Schweizer 2-33 Flight-Erection-Maintenance Manual gives the strut bolts (AN7) but no station.",
-  "liftStrutFuselageAttach": [-0.07, 0.336, 0.754],
+  "liftStrutFuselageAttach": [
+    -0.07,
+    0.336,
+    0.754
+  ],
   "liftStrutFuselageAttachSource": "Own 2-33 model (build_sgs233.py STRUT_FUS): lower fuselage side, 0.519 m (20.4 in) aft of the root wing LE, BL 0.336 m (13.2 in), 1.054 m (41.5 in) below the root chord line; put in this config's frame from its root wing LE (x 0.450) and chord line (z -0.30).",
   "spawnIasMs": 22,
   "mass": {
@@ -1506,7 +1516,7 @@
     "altitudeM": 1219.2,
     "tasMs": 21.572,
     "alphaRad": 0.067024,
-    "elevatorTrimRad": 0.013494,
+    "elevatorTrimRad": 0.013488,
     "bankRad": 0
   },
   "controls": {
@@ -1532,8 +1542,7 @@
       "hingeChDelta": -0.45,
       "centeringSpringKt": 40,
       "trimType": "spring",
-      "freeTauS": 0.12,
-      "saturationDeg": 20.0
+      "freeTauS": 0.12
     },
     "rudder": {
       "maxDeflRad": 0.5,
@@ -1554,7 +1563,10 @@
       "axisMap": "aftOnly",
       "plateAreaM2": 1.2,
       "wheelBrakeFromSpoiler": 0.9,
-      "wheelBrakeFullSpoiler": 1.0
+      "wheelBrakeFullSpoiler": 1.0,
+      "_soundComment": "Ty 2026-11-05 16:06: the dive-brake noise 'a little too loud' with 'a bit more rumble'. No level was given: roar 0.6 (-4.4 dB) with a 140 Hz wake rumble at half the stock roar's RMS, -2.1 dB overall, 17 % of the voice under 250 Hz against 1 % (tools/SpoilerAudio). A first step for Ty to fly, not an approved level.",
+      "soundLevel": 0.6,
+      "soundRumble": 1.0
     }
   },
   "fuselage": {
@@ -1575,6 +1587,10 @@
       "lengthM": 5.5
     }
   },
+  "spinAero": {
+    "shadowK": 0.5,
+    "shadowKSource": "Geometric helical shadow depth (TailWake.GeometricShadow): the share of dynamic pressure a fully shadowed strip loses. Replaces the Report 648 wake correlation for EVERY surface of this type, and brings in the fuselage's own shadow on the tail and the wings (TailWake.BodyStation). Ty 2026-11-08: \"expand the shadow work to all 6 shipping aircraft include the shadow effects of the fuselage on the tail and wing's too\". 0.5 is the depth fitted on the Pitts against the owner's spin attitudes on 2026-11-08, and it is a PHYSICAL statement - half the q is gone where a wake fully covers a section - rather than a per-type fudge, so the six carry the same number until a type's own evidence moves it. What differs between types is the geometry, which is the point: the Pitts' cellule shadows itself, the Extra's stabiliser spans well outside its fuselage and is barely shadowed at all (measured in a tumble: tail q 1.00 -> 0.96), and the fuselage's own shadow is what takes the fin in an upright flat spin while leaving it in clear air inverted."
+  },
   "propulsion": null,
   "gear": [
     {
@@ -1591,7 +1607,8 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 5000,
-      "rollResistN": 40
+      "tire": "5.00-5",
+      "tirePressurePsi": 28.7
     },
     {
       "pos": [
@@ -1607,7 +1624,8 @@
       "maxSteerRad": 0,
       "tireMu": 0.5,
       "corneringStiffnessN": 800,
-      "rollResistN": 30
+      "tire": "legacy-233-tail",
+      "tirePressurePsi": 6.2
     },
     {
       "pos": [
@@ -1623,7 +1641,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.4,
       "corneringStiffnessN": 400,
-      "rollResistN": 60,
       "gearType": "tip-skid"
     },
     {
@@ -1640,7 +1657,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.4,
       "corneringStiffnessN": 400,
-      "rollResistN": 60,
       "gearType": "tip-skid"
     },
     {
@@ -1657,7 +1673,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.5,
       "corneringStiffnessN": 600,
-      "rollResistN": 250,
       "gearType": "nose-skid",
       "tireRadiusM": 0.06
     }
@@ -1697,7 +1712,7 @@
         "eye": [
           0.971,
           0,
-          -0.111
+          -0.2122
         ]
       },
       {

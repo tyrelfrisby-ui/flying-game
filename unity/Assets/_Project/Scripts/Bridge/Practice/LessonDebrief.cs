@@ -110,7 +110,7 @@ namespace FlyingGame.Bridge.Practice
         private void OnGUI()
         {
             if (!Commentary || string.IsNullOrEmpty(Caption) || Replay == null || !Replay.Active) return;
-            int fs = Mathf.RoundToInt(Mathf.Min(Screen.width, Screen.height) * 0.026f);
+            int fs = Mathf.RoundToInt(UiLayout.Unit * 0.026f);
             var st = new GUIStyle { font = UiFont.Get(), fontSize = fs, wordWrap = true, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
             Rect r = UiLayout.NextBlock(fs * 4.2f);
             GUI.color = new Color(0f, 0f, 0f, 0.6f); GUI.DrawTexture(r, Texture2D.whiteTexture);

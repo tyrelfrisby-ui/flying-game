@@ -1,0 +1,584 @@
+{
+ "model": "unity/Assets/_Project/Resources/Models/c172-like/c172-like-own.glb",
+ "mannequin": "Codex round-3 rigid-segment 1.778 m (lane/codex-eyepoints f05f1511 eyepoints_v3.py)",
+ "eye_blender": [
+  -0.34599998593330383,
+  0.3370000123977661,
+  0.5479999780654907
+ ],
+ "joints": {
+  "h_point": [
+   -0.2993,
+   0.337,
+   -0.1561
+  ],
+  "waist": [
+   -0.3337,
+   0.337,
+   0.0056
+  ],
+  "shoulder": [
+   -0.4102,
+   0.337,
+   0.3656
+  ],
+  "skull_base": [
+   -0.4235,
+   0.337,
+   0.428
+  ],
+  "head_center": [
+   -0.4235,
+   0.337,
+   0.548
+  ],
+  "left_hip": [
+   -0.2993,
+   0.4375,
+   -0.1561
+  ],
+  "left_knee": [
+   0.1132,
+   0.4375,
+   -0.1561
+  ],
+  "right_hip": [
+   -0.2993,
+   0.2365,
+   -0.1561
+  ],
+  "right_knee": [
+   0.1132,
+   0.2365,
+   -0.1561
+  ]
+ },
+ "poses": {
+  "0": {
+   "rudder": 0,
+   "legs": {
+    "left": {
+     "reach": true,
+     "floor_admissible": true,
+     "residual_m": 0.0005,
+     "knee_deg": 132.3,
+     "foot_pitch_deg": 57,
+     "thigh_lift_deg": 0,
+     "ball": [
+      0.497,
+      0.444,
+      -0.346
+     ],
+     "heel": [
+      0.376,
+      0.444,
+      -0.531
+     ],
+     "heel_above_carpet_m": 0.0162,
+     "clearance_m": {
+      "floor": {
+       "min": 0.0002,
+       "part": "left_foot",
+       "against": "floor",
+       "at": [
+        0.347,
+        0.444,
+        -0.548
+       ]
+      },
+      "panel": {
+       "min": 0.1208,
+       "part": "left_thigh",
+       "against": "panel",
+       "at": [
+        0.278,
+        0.437,
+        -0.07
+       ]
+      },
+      "other": {
+       "min": -0.023,
+       "part": "left_thigh",
+       "against": "other",
+       "at": [
+        -0.136,
+        0.479,
+        -0.156
+       ]
+      },
+      "pedals": {
+       "min": 0.0741,
+       "part": "left_shank",
+       "against": "pedal:C172_Pedal_L_L",
+       "at": [
+        0.47,
+        0.441,
+        -0.387
+       ]
+      },
+      "own_pedal": {
+       "min": -0.002,
+       "part": "left_foot",
+       "against": "pedal:C172_Pedal_L_L",
+       "at": [
+        0.47,
+        0.441,
+        -0.382
+       ]
+      }
+     }
+    },
+    "right": {
+     "reach": true,
+     "floor_admissible": true,
+     "residual_m": 0.0008,
+     "knee_deg": 132.0,
+     "foot_pitch_deg": 58,
+     "thigh_lift_deg": 0,
+     "ball": [
+      0.492,
+      0.238,
+      -0.346
+     ],
+     "heel": [
+      0.375,
+      0.238,
+      -0.534
+     ],
+     "heel_above_carpet_m": 0.0139,
+     "clearance_m": {
+      "floor": {
+       "min": -0.0025,
+       "part": "right_foot",
+       "against": "floor",
+       "at": [
+        0.345,
+        0.238,
+        -0.548
+       ]
+      },
+      "panel": {
+       "min": 0.1208,
+       "part": "right_thigh",
+       "against": "panel",
+       "at": [
+        0.278,
+        0.237,
+        -0.07
+       ]
+      },
+      "other": {
+       "min": 0.0783,
+       "part": "right_thigh",
+       "against": "other",
+       "at": [
+        -0.04,
+        0.094,
+        -0.167
+       ]
+      },
+      "pedals": {
+       "min": 0.056,
+       "part": "right_foot",
+       "against": "pedal:C172_Pedal_L_L",
+       "at": [
+        0.472,
+        0.321,
+        -0.384
+       ]
+      },
+      "own_pedal": {
+       "min": -0.0023,
+       "part": "right_foot",
+       "against": "pedal:C172_Pedal_L_R",
+       "at": [
+        0.47,
+        0.238,
+        -0.378
+       ]
+      }
+     }
+    }
+   },
+   "torso_yoke": {
+    "min": 0.0766,
+    "column": -1,
+    "wheel": 0
+   },
+   "wheel_deg_clearing_legs_at_any_column": 35,
+   "yoke_legs": {
+    "min": -0.0171,
+    "part": "right_thigh",
+    "column": -1,
+    "wheel": 1,
+    "at": [
+     -0.1,
+     0.245,
+     -0.109
+    ]
+   },
+   "lowest_pedal_above_carpet": {
+    "min": 0.0387,
+    "part": "C172_Pedal_L_L"
+   }
+  },
+  "-1": {
+   "rudder": -1,
+   "legs": {
+    "left": {
+     "reach": true,
+     "floor_admissible": true,
+     "residual_m": 0.0001,
+     "knee_deg": 131.4,
+     "foot_pitch_deg": 48,
+     "thigh_lift_deg": 0,
+     "ball": [
+      0.511,
+      0.442,
+      -0.366
+     ],
+     "heel": [
+      0.363,
+      0.442,
+      -0.53
+     ],
+     "heel_above_carpet_m": 0.017,
+     "clearance_m": {
+      "floor": {
+       "min": 0.0055,
+       "part": "left_foot",
+       "against": "floor",
+       "at": [
+        0.337,
+        0.442,
+        -0.547
+       ]
+      },
+      "panel": {
+       "min": 0.1208,
+       "part": "left_thigh",
+       "against": "panel",
+       "at": [
+        0.278,
+        0.437,
+        -0.07
+       ]
+      },
+      "other": {
+       "min": -0.023,
+       "part": "left_thigh",
+       "against": "other",
+       "at": [
+        -0.136,
+        0.479,
+        -0.156
+       ]
+      },
+      "pedals": {
+       "min": 0.1185,
+       "part": "left_shank",
+       "against": "pedal:C172_Pedal_L_L",
+       "at": [
+        0.511,
+        0.441,
+        -0.371
+       ]
+      },
+      "own_pedal": {
+       "min": -0.0003,
+       "part": "left_foot",
+       "against": "pedal:C172_Pedal_L_L",
+       "at": [
+        0.512,
+        0.441,
+        -0.365
+       ]
+      }
+     }
+    },
+    "right": {
+     "reach": true,
+     "floor_admissible": true,
+     "residual_m": 0.0001,
+     "knee_deg": 129.7,
+     "foot_pitch_deg": 69,
+     "thigh_lift_deg": 2,
+     "ball": [
+      0.463,
+      0.235,
+      -0.319
+     ],
+     "heel": [
+      0.383,
+      0.235,
+      -0.526
+     ],
+     "heel_above_carpet_m": 0.0216,
+     "clearance_m": {
+      "floor": {
+       "min": -0.0009,
+       "part": "right_foot",
+       "against": "floor",
+       "at": [
+        0.351,
+        0.235,
+        -0.548
+       ]
+      },
+      "panel": {
+       "min": 0.1145,
+       "part": "right_thigh",
+       "against": "panel",
+       "at": [
+        0.254,
+        0.232,
+        -0.03
+       ]
+      },
+      "other": {
+       "min": 0.0793,
+       "part": "right_thigh",
+       "against": "other",
+       "at": [
+        -0.04,
+        0.094,
+        -0.167
+       ]
+      },
+      "pedals": {
+       "min": 0.0332,
+       "part": "right_shank",
+       "against": "pedal:C172_Pedal_L_R",
+       "at": [
+        0.437,
+        0.235,
+        -0.416
+       ]
+      },
+      "own_pedal": {
+       "min": -0.0002,
+       "part": "right_foot",
+       "against": "pedal:C172_Toe_brake_L_R",
+       "at": [
+        0.462,
+        0.235,
+        -0.32
+       ]
+      }
+     }
+    }
+   },
+   "torso_yoke": {
+    "min": 0.0766,
+    "column": -1,
+    "wheel": 0
+   },
+   "yoke_legs": {
+    "min": -0.0287,
+    "part": "right_thigh",
+    "column": 1,
+    "wheel": 1,
+    "at": [
+     0.04,
+     0.245,
+     -0.109
+    ]
+   },
+   "lowest_pedal_above_carpet": {
+    "min": 0.0364,
+    "part": "C172_Pedal_L_R"
+   }
+  },
+  "1": {
+   "rudder": 1,
+   "legs": {
+    "left": {
+     "reach": true,
+     "floor_admissible": true,
+     "residual_m": 0.0003,
+     "knee_deg": 132.0,
+     "foot_pitch_deg": 70,
+     "thigh_lift_deg": 0,
+     "ball": [
+      0.462,
+      0.351,
+      -0.319
+     ],
+     "heel": [
+      0.387,
+      0.351,
+      -0.527
+     ],
+     "heel_above_carpet_m": 0.0201,
+     "clearance_m": {
+      "floor": {
+       "min": -0.0029,
+       "part": "left_foot",
+       "against": "floor",
+       "at": [
+        0.354,
+        0.351,
+        -0.548
+       ]
+      },
+      "panel": {
+       "min": 0.1208,
+       "part": "left_thigh",
+       "against": "panel",
+       "at": [
+        0.278,
+        0.437,
+        -0.07
+       ]
+      },
+      "other": {
+       "min": -0.023,
+       "part": "left_thigh",
+       "against": "other",
+       "at": [
+        -0.136,
+        0.479,
+        -0.156
+       ]
+      },
+      "pedals": {
+       "min": 0.0325,
+       "part": "left_shank",
+       "against": "pedal:C172_Pedal_L_L",
+       "at": [
+        0.437,
+        0.351,
+        -0.416
+       ]
+      },
+      "own_pedal": {
+       "min": 0.0002,
+       "part": "left_foot",
+       "against": "pedal:C172_Toe_brake_L_L",
+       "at": [
+        0.462,
+        0.351,
+        -0.32
+       ]
+      }
+     }
+    },
+    "right": {
+     "reach": true,
+     "floor_admissible": true,
+     "residual_m": 0.0002,
+     "knee_deg": 132.1,
+     "foot_pitch_deg": 49,
+     "thigh_lift_deg": 0,
+     "ball": [
+      0.513,
+      0.238,
+      -0.361
+     ],
+     "heel": [
+      0.368,
+      0.238,
+      -0.528
+     ],
+     "heel_above_carpet_m": 0.0197,
+     "clearance_m": {
+      "floor": {
+       "min": 0.0077,
+       "part": "right_foot",
+       "against": "floor",
+       "at": [
+        0.341,
+        0.238,
+        -0.548
+       ]
+      },
+      "panel": {
+       "min": 0.1208,
+       "part": "right_thigh",
+       "against": "panel",
+       "at": [
+        0.278,
+        0.237,
+        -0.07
+       ]
+      },
+      "other": {
+       "min": 0.0783,
+       "part": "right_thigh",
+       "against": "other",
+       "at": [
+        -0.04,
+        0.094,
+        -0.167
+       ]
+      },
+      "pedals": {
+       "min": 0.0471,
+       "part": "right_foot",
+       "against": "pedal:C172_Pedal_L_L",
+       "at": [
+        0.45,
+        0.32,
+        -0.38
+       ]
+      },
+      "own_pedal": {
+       "min": -0.0003,
+       "part": "right_foot",
+       "against": "pedal:C172_Pedal_L_R",
+       "at": [
+        0.513,
+        0.238,
+        -0.36
+       ]
+      }
+     }
+    }
+   },
+   "torso_yoke": {
+    "min": 0.0766,
+    "column": -1,
+    "wheel": 0
+   },
+   "yoke_legs": {
+    "min": -0.0171,
+    "part": "right_thigh",
+    "column": -1,
+    "wheel": 1,
+    "at": [
+     -0.1,
+     0.245,
+     -0.109
+    ]
+   },
+   "lowest_pedal_above_carpet": {
+    "min": 0.0364,
+    "part": "C172_Pedal_L_L"
+   }
+  }
+ },
+ "failures": [
+  "rudder neutral: yoke -17.1 mm from right_thigh at column -1 wheel +1",
+  "rudder full left: yoke -28.7 mm from right_thigh at column +1 wheel +1",
+  "rudder full right: yoke -17.1 mm from right_thigh at column -1 wheel +1"
+ ],
+ "carpet_top_z": -0.5475,
+ "pilot_left_pedal": {
+  "centre": [
+   0.5118,
+   0.383,
+   -0.4212
+  ],
+  "bottom_above_carpet_m": 0.0387
+ },
+ "cushion": {
+  "top_z": -0.195,
+  "buttock_contact_z": -0.2517,
+  "compression_m": 0.0567
+ },
+ "warnings": [
+  "rudder neutral: left left_thigh 23.0 mm into other cabin structure at [-0.136, 0.479, -0.156]",
+  "rudder full left: left left_thigh 23.0 mm into other cabin structure at [-0.136, 0.479, -0.156]",
+  "rudder full right: left left_thigh 23.0 mm into other cabin structure at [-0.136, 0.479, -0.156]"
+ ]
+}

@@ -50,10 +50,12 @@ internal static class PittsRoll
     private const double MphToMs = 0.44704;
 
     /// <summary>Steady roll rate (deg/s, magnitude), seconds to reach 90% of it, and the peak seen.</summary>
-    internal static (double SteadyDps, double SecondsTo90, double PeakDps) Measure(string id, double iasMph)
+    internal static (double SteadyDps, double SecondsTo90, double PeakDps) Measure(string id, double iasMph,
+                                                                               Action<AircraftConfig>? edit = null)
     {
         AircraftConfig cfg = AircraftConfigLoader.LoadFromFile(
             Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));
+        edit?.Invoke(cfg);
         double v = iasMph * MphToMs;
         // Low enough that indicated is close to true, high enough to be out of ground effect: an aerobatic box
         // entry. Wings level, a shade of alpha to carry the weight, full left-to-right aileron, power on.

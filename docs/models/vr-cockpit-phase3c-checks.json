@@ -1,0 +1,494 @@
+[
+ {
+  "file": "great-lakes-like-own-red-sunburst.glb",
+  "cabane": [
+   {
+    "node": "Cabane_Leg_Fwd_L",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.19392444660184083,
+    "before_endpoint_skin_gap_mm": 16.019423086549697,
+    "after_endpoint_skin_gap_mm": 11.07612024142276
+   },
+   {
+    "node": "Cabane_Leg_Aft_L",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.023303445972818696,
+    "before_endpoint_skin_gap_mm": 40.14115457243824,
+    "after_endpoint_skin_gap_mm": 9.110331928376944
+   },
+   {
+    "node": "Cabane_Leg_Diagonal_L",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.023303445972818696,
+    "before_endpoint_skin_gap_mm": 40.14115457243824,
+    "after_endpoint_skin_gap_mm": 9.110331928376944
+   },
+   {
+    "node": "Cabane_Leg_Fwd_R",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.32124067101081516,
+    "before_endpoint_skin_gap_mm": 16.36283099037622,
+    "after_endpoint_skin_gap_mm": 11.078924549862917
+   },
+   {
+    "node": "Cabane_Leg_Aft_R",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.022319671613340784,
+    "before_endpoint_skin_gap_mm": 40.083497872039864,
+    "after_endpoint_skin_gap_mm": 9.129142030578258
+   },
+   {
+    "node": "Cabane_Leg_Diagonal_R",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.022319671613340784,
+    "before_endpoint_skin_gap_mm": 40.083497872039864,
+    "after_endpoint_skin_gap_mm": 9.129142030578258
+   }
+  ],
+  "gear": [
+   {
+    "node": "Gear_Support_Fwd_L",
+    "endpoint_fitting_mm": 0.0,
+    "axle_contact_mm": 0.0,
+    "elevation_deg": 40.22324420894371,
+    "belly_endpoint_m": [
+     0.1,
+     0.1,
+     -0.742379918525309
+    ],
+    "axle_endpoint_m": [
+     -0.37699994444847107,
+     0.8400000520050526,
+     -1.4869999885559082
+    ],
+    "fitting_skin_mm": 2.8054522861738792e-05
+   },
+   {
+    "node": "Gear_Support_Aft_L",
+    "endpoint_fitting_mm": 0.0,
+    "axle_contact_mm": 0.0,
+    "elevation_deg": 39.045683942108276,
+    "belly_endpoint_m": [
+     -0.7,
+     0.1,
+     -0.8320964965131082
+    ],
+    "axle_endpoint_m": [
+     -0.37699994444847107,
+     0.8400000520050526,
+     -1.4869999885559082
+    ],
+    "fitting_skin_mm": 2.825369020778939e-05
+   },
+   {
+    "node": "Gear_Pivot_Sleeve_L",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 2.98418288505297e-05
+   },
+   {
+    "node": "Gear_Compression_Sleeve_L",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.1973672513424007
+   },
+   {
+    "node": "Gear_Support_Fwd_R",
+    "endpoint_fitting_mm": 0.0,
+    "axle_contact_mm": 0.0,
+    "elevation_deg": 40.22324552138385,
+    "belly_endpoint_m": [
+     0.1,
+     -0.1,
+     -0.7423799140504399
+    ],
+    "axle_endpoint_m": [
+     -0.3770000636577606,
+     -0.839999932795763,
+     -1.4869999885559082
+    ],
+    "fitting_skin_mm": 2.9352173054514633e-05
+   },
+   {
+    "node": "Gear_Support_Aft_R",
+    "endpoint_fitting_mm": 0.0,
+    "axle_contact_mm": 0.0,
+    "elevation_deg": 39.0456894859464,
+    "belly_endpoint_m": [
+     -0.7,
+     -0.1,
+     -0.8320964942885655
+    ],
+    "axle_endpoint_m": [
+     -0.3770000636577606,
+     -0.839999932795763,
+     -1.4869999885559082
+    ],
+    "fitting_skin_mm": 3.812549053533906e-05
+   },
+   {
+    "node": "Gear_Pivot_Sleeve_R",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.002668862579774908
+   },
+   {
+    "node": "Gear_Compression_Sleeve_R",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.1962058894880055
+   }
+  ],
+  "screens": [
+   {
+    "node": "Windscreen_Front",
+    "top_height_m": 0.3729020953178406,
+    "thickness_mm": 4.700000730120918,
+    "closed_manifold": true,
+    "components": 1,
+    "primitives": 1,
+    "base_centre_ahead_of_opening_mm": 235.0,
+    "centre_rake_deg": 58.20108717570559,
+    "top_exponent": 4.0,
+    "trim_node": "GL_Windshield_Base_Trim_Front"
+   },
+   {
+    "node": "Windscreen_Rear",
+    "top_height_m": 0.3977382183074951,
+    "thickness_mm": 4.699997339321617,
+    "closed_manifold": true,
+    "components": 1,
+    "primitives": 1,
+    "base_centre_ahead_of_opening_mm": 169.99999999999994,
+    "centre_rake_deg": 62.52556837372287,
+    "top_exponent": 2.2,
+    "trim_node": "GL_Windshield_Base_Trim_Rear"
+   }
+  ],
+  "clearance": "PASS: new triangles clipped against cockpit aperture extrusion; exact triangle/segment eye-to-panel test both seats. Not a VR gate."
+ },
+ {
+  "file": "great-lakes-like-own-white-stripes.glb",
+  "cabane": [
+   {
+    "node": "Cabane_Leg_Fwd_L",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.19392444660184083,
+    "before_endpoint_skin_gap_mm": 16.019423086549697,
+    "after_endpoint_skin_gap_mm": 11.07612024142276
+   },
+   {
+    "node": "Cabane_Leg_Aft_L",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.023303445972818696,
+    "before_endpoint_skin_gap_mm": 40.14115457243824,
+    "after_endpoint_skin_gap_mm": 9.110331928376944
+   },
+   {
+    "node": "Cabane_Leg_Diagonal_L",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.023303445972818696,
+    "before_endpoint_skin_gap_mm": 40.14115457243824,
+    "after_endpoint_skin_gap_mm": 9.110331928376944
+   },
+   {
+    "node": "Cabane_Leg_Fwd_R",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.32124067101081516,
+    "before_endpoint_skin_gap_mm": 16.36283099037622,
+    "after_endpoint_skin_gap_mm": 11.078924549862917
+   },
+   {
+    "node": "Cabane_Leg_Aft_R",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.022319671613340784,
+    "before_endpoint_skin_gap_mm": 40.083497872039864,
+    "after_endpoint_skin_gap_mm": 9.129142030578258
+   },
+   {
+    "node": "Cabane_Leg_Diagonal_R",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.022319671613340784,
+    "before_endpoint_skin_gap_mm": 40.083497872039864,
+    "after_endpoint_skin_gap_mm": 9.129142030578258
+   }
+  ],
+  "gear": [
+   {
+    "node": "Gear_Support_Fwd_L",
+    "endpoint_fitting_mm": 0.0,
+    "axle_contact_mm": 0.0,
+    "elevation_deg": 40.22324420894371,
+    "belly_endpoint_m": [
+     0.1,
+     0.1,
+     -0.742379918525309
+    ],
+    "axle_endpoint_m": [
+     -0.37699994444847107,
+     0.8400000520050526,
+     -1.4869999885559082
+    ],
+    "fitting_skin_mm": 2.8054522861738792e-05
+   },
+   {
+    "node": "Gear_Support_Aft_L",
+    "endpoint_fitting_mm": 0.0,
+    "axle_contact_mm": 0.0,
+    "elevation_deg": 39.045683942108276,
+    "belly_endpoint_m": [
+     -0.7,
+     0.1,
+     -0.8320964965131082
+    ],
+    "axle_endpoint_m": [
+     -0.37699994444847107,
+     0.8400000520050526,
+     -1.4869999885559082
+    ],
+    "fitting_skin_mm": 2.825369020778939e-05
+   },
+   {
+    "node": "Gear_Pivot_Sleeve_L",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 2.98418288505297e-05
+   },
+   {
+    "node": "Gear_Compression_Sleeve_L",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.1973672513424007
+   },
+   {
+    "node": "Gear_Support_Fwd_R",
+    "endpoint_fitting_mm": 0.0,
+    "axle_contact_mm": 0.0,
+    "elevation_deg": 40.22324552138385,
+    "belly_endpoint_m": [
+     0.1,
+     -0.1,
+     -0.7423799140504399
+    ],
+    "axle_endpoint_m": [
+     -0.3770000636577606,
+     -0.839999932795763,
+     -1.4869999885559082
+    ],
+    "fitting_skin_mm": 2.9352173054514633e-05
+   },
+   {
+    "node": "Gear_Support_Aft_R",
+    "endpoint_fitting_mm": 0.0,
+    "axle_contact_mm": 0.0,
+    "elevation_deg": 39.0456894859464,
+    "belly_endpoint_m": [
+     -0.7,
+     -0.1,
+     -0.8320964942885655
+    ],
+    "axle_endpoint_m": [
+     -0.3770000636577606,
+     -0.839999932795763,
+     -1.4869999885559082
+    ],
+    "fitting_skin_mm": 3.812549053533906e-05
+   },
+   {
+    "node": "Gear_Pivot_Sleeve_R",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.002668862579774908
+   },
+   {
+    "node": "Gear_Compression_Sleeve_R",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.1962058894880055
+   }
+  ],
+  "screens": [
+   {
+    "node": "Windscreen_Front",
+    "top_height_m": 0.3729020953178406,
+    "thickness_mm": 4.700000730120918,
+    "closed_manifold": true,
+    "components": 1,
+    "primitives": 1,
+    "base_centre_ahead_of_opening_mm": 235.0,
+    "centre_rake_deg": 58.20108717570559,
+    "top_exponent": 4.0,
+    "trim_node": "GL_Windshield_Base_Trim_Front"
+   },
+   {
+    "node": "Windscreen_Rear",
+    "top_height_m": 0.3977382183074951,
+    "thickness_mm": 4.699997339321617,
+    "closed_manifold": true,
+    "components": 1,
+    "primitives": 1,
+    "base_centre_ahead_of_opening_mm": 169.99999999999994,
+    "centre_rake_deg": 62.52556837372287,
+    "top_exponent": 2.2,
+    "trim_node": "GL_Windshield_Base_Trim_Rear"
+   }
+  ],
+  "clearance": "PASS: new triangles clipped against cockpit aperture extrusion; exact triangle/segment eye-to-panel test both seats. Not a VR gate."
+ },
+ {
+  "file": "great-lakes-like-own.glb",
+  "cabane": [
+   {
+    "node": "Cabane_Leg_Fwd_L",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.16116687885639322,
+    "before_endpoint_skin_gap_mm": 15.726942294964852,
+    "after_endpoint_skin_gap_mm": 11.073336050448642
+   },
+   {
+    "node": "Cabane_Leg_Aft_L",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.023303445972818696,
+    "before_endpoint_skin_gap_mm": 40.14115457243824,
+    "after_endpoint_skin_gap_mm": 9.110331928376944
+   },
+   {
+    "node": "Cabane_Leg_Diagonal_L",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.023303445972818696,
+    "before_endpoint_skin_gap_mm": 40.14115457243824,
+    "after_endpoint_skin_gap_mm": 9.110331928376944
+   },
+   {
+    "node": "Cabane_Leg_Fwd_R",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.34534935562252345,
+    "before_endpoint_skin_gap_mm": 16.21803629544816,
+    "after_endpoint_skin_gap_mm": 11.077803533681516
+   },
+   {
+    "node": "Cabane_Leg_Aft_R",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.022319671613340784,
+    "before_endpoint_skin_gap_mm": 40.083497872039864,
+    "after_endpoint_skin_gap_mm": 9.129142030578258
+   },
+   {
+    "node": "Cabane_Leg_Diagonal_R",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.022319671613340784,
+    "before_endpoint_skin_gap_mm": 40.083497872039864,
+    "after_endpoint_skin_gap_mm": 9.129142030578258
+   }
+  ],
+  "gear": [
+   {
+    "node": "Gear_Support_Fwd_L",
+    "endpoint_fitting_mm": 0.0,
+    "axle_contact_mm": 4.529536535277226e-06,
+    "elevation_deg": 31.985140862937072,
+    "belly_endpoint_m": [
+     0.1,
+     0.1,
+     -0.7024481514055361
+    ],
+    "axle_endpoint_m": [
+     -0.26777398586273193,
+     0.9646672196686268,
+     -1.28925621509552
+    ],
+    "fitting_skin_mm": 2.724292807784984e-05
+   },
+   {
+    "node": "Gear_Support_Aft_L",
+    "endpoint_fitting_mm": 0.0,
+    "axle_contact_mm": 4.529536535277226e-06,
+    "elevation_deg": 25.310295867130748,
+    "belly_endpoint_m": [
+     -0.7,
+     0.1,
+     -0.8320964965131082
+    ],
+    "axle_endpoint_m": [
+     -0.26777398586273193,
+     0.9646672196686268,
+     -1.28925621509552
+    ],
+    "fitting_skin_mm": 2.825369020778939e-05
+   },
+   {
+    "node": "Gear_Pivot_Sleeve_L",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 2.98418288505297e-05
+   },
+   {
+    "node": "Gear_Compression_Sleeve_L",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.19680036911285462
+   },
+   {
+    "node": "Gear_Support_Fwd_R",
+    "endpoint_fitting_mm": 0.0,
+    "axle_contact_mm": 0.0,
+    "elevation_deg": 31.985139228688794,
+    "belly_endpoint_m": [
+     0.1,
+     -0.1,
+     -0.7024481449511338
+    ],
+    "axle_endpoint_m": [
+     -0.26777416467666626,
+     -0.9646672196686268,
+     -1.28925621509552
+    ],
+    "fitting_skin_mm": 2.820615464073388e-05
+   },
+   {
+    "node": "Gear_Support_Aft_R",
+    "endpoint_fitting_mm": 0.0,
+    "axle_contact_mm": 0.0,
+    "elevation_deg": 25.310297806344746,
+    "belly_endpoint_m": [
+     -0.7,
+     -0.1,
+     -0.8320964942885655
+    ],
+    "axle_endpoint_m": [
+     -0.26777416467666626,
+     -0.9646672196686268,
+     -1.28925621509552
+    ],
+    "fitting_skin_mm": 3.812549053533906e-05
+   },
+   {
+    "node": "Gear_Pivot_Sleeve_R",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.002668862579774908
+   },
+   {
+    "node": "Gear_Compression_Sleeve_R",
+    "endpoint_fitting_mm": 0.0,
+    "fitting_skin_mm": 0.19620160847878784
+   }
+  ],
+  "screens": [
+   {
+    "node": "Windscreen_Front",
+    "top_height_m": 0.3728991448879242,
+    "thickness_mm": 4.699999822600663,
+    "closed_manifold": true,
+    "components": 1,
+    "primitives": 1,
+    "base_centre_ahead_of_opening_mm": 235.0,
+    "centre_rake_deg": 58.201087175705574,
+    "top_exponent": 4.0,
+    "trim_node": "GL_Windshield_Base_Trim_Front"
+   },
+   {
+    "node": "Windscreen_Rear",
+    "top_height_m": 0.3977382183074951,
+    "thickness_mm": 4.699999846527571,
+    "closed_manifold": true,
+    "components": 1,
+    "primitives": 1,
+    "base_centre_ahead_of_opening_mm": 264.9999999999999,
+    "centre_rake_deg": 62.52556837372287,
+    "top_exponent": 2.2,
+    "trim_node": "GL_Windshield_Base_Trim_Rear"
+   }
+  ],
+  "clearance": "PASS: new triangles clipped against cockpit aperture extrusion; exact triangle/segment eye-to-panel test both seats. Not a VR gate."
+ }
+]

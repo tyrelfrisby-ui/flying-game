@@ -57,9 +57,14 @@ namespace FlyingGame.Bridge
             Shader.SetGlobalFloat(ReflOnId, 0f);
         }
 
+        /// <summary>LOCAL 2-PLAYER: off while the screen is split. The reflection is one texture, mirrored from the first
+        /// player's camera and read by the water shader in screen space, so the second view would show the first view's
+        /// mirror image; and a second planar camera is the most expensive thing that could be doubled on a phone.</summary>
+        public static bool SuppressedForSplit;
+
         private void OnPreCull()
         {
-            if (Driver == null || _refl == null) { Shader.SetGlobalFloat(ReflOnId, 0f); return; }
+            if (Driver == null || _refl == null || SuppressedForSplit) { Shader.SetGlobalFloat(ReflOnId, 0f); return; }
             // Water plane under the aircraft (nearest lake / river surface); none → no reflection.
             var simPos = CoordinateMap.ToSim(Driver.transform.position);
             double? water = FlyingGame.Core.FloatHydro.WaterSurfaceAt(simPos.X, simPos.Y);
@@ -114,6 +119,7 @@ namespace FlyingGame.Bridge
                         && renderer.gameObject.layer != AircraftLayer) found.Add(renderer);
                 }
                 _zonePanes = found.ToArray();
+                ExcludeStrayWater();
             }
             _hiddenPanes.Clear();
             foreach (var pane in _zonePanes)
@@ -131,6 +137,100 @@ namespace FlyingGame.Bridge
             Shader.SetGlobalTexture(ReflTexId, _rt);
             Shader.SetGlobalFloat(ReflPlaneId, planeY);
             Shader.SetGlobalFloat(ReflOnId, 1f);
+            if (Application.isPlaying && Time.unscaledTime >= _nextAudit) Audit();
+        }
+
+        // ---- the mirror's own health check (Ty 2026-11-05: magenta over the water after a crash) ------------------------
+        // Every AuditSec (30 s) while reflecting: read the mirror target back (async, one frame late, ~1.5 MB) and count texels
+        // that are Unity's error / missing-material pink; when there are any, name every reflected renderer whose material
+        // is missing, destroyed or has a shader this GPU cannot run. Costs nothing between audits.
+        private const float AuditSec = 30f;
+        private float _nextAudit, _nextWaterScan = 60f;
+        private void Audit()
+        {
+            _nextAudit = Time.unscaledTime + AuditSec;
+            // Water built after the first frame (a region, an event) gets the same check, once a minute: a scan of every
+            // renderer is a millisecond or two, too much for each audit on a headset.
+            if (Time.unscaledTime >= _nextWaterScan) { _nextWaterScan = Time.unscaledTime + 60f; ExcludeStrayWater(); }
+            if (!SystemInfo.supportsAsyncGPUReadback) return;
+            int mask = _refl.cullingMask;
+            Vector3 eye = _refl.transform.position;
+            UnityEngine.Rendering.AsyncGPUReadback.Request(_rt, 0, TextureFormat.RGBA32, req =>
+            {
+                if (req.hasError) return;
+                var px = req.GetData<Color32>();
+                int pink = 0;
+                for (int i = 0; i < px.Length; i++) if (IsErrorPink(px[i])) pink++;
+                if (pink == 0) return;
+                var sb = new System.Text.StringBuilder();
+                sb.Append($"[WaterReflection] MIRROR PINK: {pink} of {px.Length} texels ({100f * pink / px.Length:F1} %), mirror eye {eye}. Suspects:");
+                int n = 0;
+                foreach (var r in Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+                {
+                    if (r == null || !r.enabled || !r.gameObject.activeInHierarchy || ((1 << r.gameObject.layer) & mask) == 0) continue;
+                    string why = Suspect(r);
+                    if (why == null) continue;
+                    if (n++ < 12) sb.Append($"\n  {Path(r.transform)} [{r.GetType().Name}, layer {r.gameObject.layer}, {r.bounds.size.magnitude:F0} m]: {why}");
+                }
+                sb.Append($"\n  ({n} suspect renderers)");
+                Debug.LogWarning(sb.ToString());
+            });
+        }
+
+        /// <summary>
+        /// Water must not be drawn into its own reflection. Ty 2026-11-05 (iPad mini A17, 2026.1105.0804): magenta blocks
+        /// over the island's water. The island builder (SeasideBuilder.B.Build) left "Ocean-lakes-water-lanes" on the
+        /// default layer, so this camera drew the water, and the water's shader then sampled _ReflectionTex — the target
+        /// being rendered — and _CameraDepthTexture, which this camera does not make. Reading the bound colour target is
+        /// undefined: on the A17 it came back magenta, on a Mac it came back stale and looked right. The builders now set
+        /// the layer; this puts anything that slips through on it, and says so, so it cannot come back silently.
+        /// </summary>
+        public static int ExcludeStrayWater()
+        {
+            int moved = 0;
+            foreach (var r in Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+            {
+                if (r.gameObject.layer == WaterLayer) continue;
+                foreach (var m in r.sharedMaterials)
+                {
+                    if (m == null || m.shader == null || m.shader.name != "FlyingGame/Water") continue;
+                    Debug.LogError($"[WaterReflection] '{Path(r.transform)}' draws FlyingGame/Water on layer {r.gameObject.layer}, " +
+                                   $"so the mirror camera would draw it into its own reflection. Moved to layer {WaterLayer}; fix its builder.");
+                    r.gameObject.layer = WaterLayer; moved++;
+                    break;
+                }
+            }
+            return moved;
+        }
+
+        /// <summary>Unity's error and missing-material colour is (1, 0, 1); anything near it, with green well below both.</summary>
+        public static bool IsErrorPink(Color32 c) => c.r > 200 && c.b > 200 && c.g < 60;
+
+        /// <summary>Why this renderer would draw pink, or null.</summary>
+        public static string Suspect(Renderer r)
+        {
+            var mats = r.sharedMaterials;
+            if (mats.Length == 0) return "no materials";
+            for (int i = 0; i < mats.Length; i++)
+            {
+                Material m = mats[i];
+                if (ReferenceEquals(m, null)) return $"material {i} missing";
+                if (m == null) return $"material {i} destroyed";
+                if (m.shader == null) return $"material {i} '{m.name}' has no shader";
+                if (!m.shader.isSupported) return $"material {i} '{m.name}': shader '{m.shader.name}' not supported";
+                if (m.shader.name.Contains("InternalErrorShader")) return $"material {i} '{m.name}': error shader";
+                if (m.shader.name == "FlyingGame/Water") return $"material {i} '{m.name}': water drawn into its own reflection";
+            }
+            if (r is MeshRenderer && r.TryGetComponent(out MeshFilter f) && f.sharedMesh != null && f.sharedMesh.subMeshCount > mats.Length)
+                return $"{f.sharedMesh.subMeshCount} submeshes, {mats.Length} materials";
+            return null;
+        }
+
+        private static string Path(Transform t)
+        {
+            string p = t.name;
+            for (int i = 0; i < 3 && t.parent != null; i++) { t = t.parent; p = t.name + "/" + p; }
+            return p;
         }
 
         private static void Dispose(Object obj)

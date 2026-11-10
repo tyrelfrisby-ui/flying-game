@@ -1,6 +1,4 @@
 using UnityEngine;
-using System.Collections.Generic;
-using UnityEngine.SceneManagement;
 
 namespace FlyingGame.Bridge
 {
@@ -26,45 +24,27 @@ namespace FlyingGame.Bridge
         public enum View { RelativeWind, Cockpit, Tail, SideLeft, SideRight, Top, Bottom, Front, Flyby, RelativeWindAhead, Locked }
         public static readonly string[] ViewNames = { "Relative wind", "Cockpit", "Tail", "Left side", "Right side", "Top", "Bottom", "Front", "Fly-by", "Relative wind, ahead", "Direction lock" };
         /// <summary>The camera is in the cockpit this frame (instruments become a panel, nothing is "kept out" of the view).</summary>
+        /// The FIRST player's camera (the only one, unless split screen is on): a second player's camera never writes it.
         public static bool InCockpit { get; private set; }
+        /// <summary>THIS camera is in the cockpit this frame. For the first player's camera the same as <see cref="InCockpit"/>.</summary>
+        public bool IsInCockpit => _inCockpit;
+        private bool _inCockpit;
+        /// <summary>LOCAL 2-PLAYER: 0 = the first player's camera; 1 = the second player's (split screen).</summary>
+        public int PlayerIndex;
+        private void SetInCockpit(bool v) { _inCockpit = v; if (PlayerIndex == 0) InCockpit = v; }
         /// <summary>Re-evaluated per camera render: stale InCockpit cannot leak sights after a view change.</summary>
         public bool CockpitSightsAllowed(FlightSimDriver owner) => isActiveAndEnabled && owner != null
             && Driver == owner && Target == owner.transform && OverrideTarget == null
             && !SideView && CurrentView == View.Cockpit && !SessionSettings.ReplayActive && !owner.Replaying;
 
-        private bool _waterCrash, _crashStarted;
-        private object _crashAircraft;
-        private Vector3 _crashFocus, _focusVelocity, _crashVelocity, _crashBearing;
-        private float _crashRange, _rangeVelocity, _largestRange;
-        // Two seconds filters bobbing and membership changes without a sudden zoom on a phone.
-        private const float CrashSmoothSeconds = 2f;
-        private readonly List<Renderer> _crashRenderers = new(128);
-        private readonly List<GameObject> _roots = new(256);
-        private readonly List<WingDebris> _wings = new(128);
-        private readonly List<DebrisBody> _bodies = new(128);
-        // Discovery walks every scene object, so it runs every DiscoverySeconds, not every frame; positions are read each frame.
-        private readonly List<WingDebris> _liveWings = new(128);
-        private readonly List<DebrisBody> _liveBodies = new(128);
-        private readonly List<float> _wingRadii = new(128), _bodyRadii = new(128);
-        private float _nextDiscovery;
-        private const float DiscoverySeconds = .5f;   // debris leaves within one physics step; 0.5 s lag is under the 2 s smoothing
-        private readonly List<Vector3> _points = new(256);
-        private readonly List<float> _masses = new(256), _radii = new(256), _distances = new(256);
-        private void OnEnable() => FlyingGame.Core.CrashEvents.Impact += CrashImpact;
-        private void CrashImpact(FlyingGame.Core.CrashImpact hit)
-        {
-            if (hit.Surface != FlyingGame.Core.ImpactSurface.Water || Target == null) return;
-            // Contract is process-wide; piece events belong to the player's wreck, intact events can be remote.
-            if (hit.PieceId == -1 && Vector3.Distance(Target.position, CoordinateMap.ToUnity(hit.Position)) > SpanM + LengthM) return;
-            _waterCrash = true;
-            _crashAircraft = Driver?.Sim?.Aircraft;
-        }
-
+        // No crash view (Ty 2026-11-05 15:21, pt813u): "The feature where it zooms out to capture the whole crash is a bug
+        // because it is deciding when it is a crash but pieces can fall off well before a crash ... just follow the main
+        // fuselage with the seats." The camera never changes because a piece broke off or landed: Target is the sim's own
+        // Aircraft (the cabin always stays with it, Aircraft.LoseComponent), and a shed part is an object of its own that
+        // it never looks at. Only the pilot's own view choice and the bail-out (OverrideTarget) move it.
         private void OnDisable()
         {
-            FlyingGame.Core.CrashEvents.Impact -= CrashImpact;
-            _waterCrash = _crashStarted = false;
-            InCockpit = false;
+            SetInCockpit(false);
             SetCockpitExtras(false);
         }
 
@@ -162,6 +142,12 @@ namespace FlyingGame.Bridge
             if (v == View.Locked && CurrentView != View.Locked)
             {
                 Vector3 d = Target != null ? transform.position - Target.position : -transform.forward;
+                // From the cockpit the camera is AT the aeroplane: lock behind and a little above it instead.
+                if (CurrentView == View.Cockpit && Target != null)
+                {
+                    Vector3 back = Vector3.ProjectOnPlane(-Target.forward, Vector3.up);
+                    d = (back.sqrMagnitude > 1e-4f ? back.normalized : Vector3.back) + Vector3.up * 0.25f;
+                }
                 _lockDir = d.sqrMagnitude > 1e-4f ? d.normalized : -transform.forward;
                 _beforeLock = CurrentView;
             }
@@ -213,6 +199,24 @@ namespace FlyingGame.Bridge
         }
 
         public void NextView() => SetView((View)(((int)CurrentView + 1) % ViewNames.Length));
+
+        /// <summary>EDITOR TOOLS ONLY (QuestViewShots): place the camera as LateUpdate does, with no player loop.</summary>
+        public void PlaceForTesting() => LateUpdate();
+
+        /// <summary>In a headset there is no zoom (the runtime owns the field of view), so the fly-by parks much closer:
+        /// at the desktop's 5 s ahead a 9 m aeroplane would be a speck. Set by <see cref="QuestRig"/> while it runs.</summary>
+        public static bool CompactFlyby;
+
+        /// <summary>The lowest a camera may sit at <paramref name="pos"/>: <see cref="MinAboveSurfaceM"/> over the ground
+        /// or the water, whichever is higher.</summary>
+        public static float SurfaceFloorAt(Vector3 pos)
+        {
+            double simX = pos.z, simY = pos.x;
+            double floor = FlyingGame.Core.WorldTerrain.GroundHeightAt(simX, simY);
+            double? water = FlyingGame.Core.FloatHydro.WaterSurfaceAt(simX, simY, pos.y);
+            if (water.HasValue) floor = System.Math.Max(floor, water.Value);
+            return (float)floor + MinAboveSurfaceM;
+        }
 
         /// <summary>Fixed views: the camera is bolted to the airframe — position and "up" both in body axes, so it rolls,
         /// pitches and yaws with the aircraft and the world moves around it.</summary>
@@ -279,7 +283,19 @@ namespace FlyingGame.Bridge
             Vector3 p = t.position;
             Vector3 v = Driver != null ? Driver.WorldVelocityUnity : Vector3.zero;
             float speed = v.magnitude;
-            Vector3 vhat = speed >= MinTrackSpeed ? v / speed : t.forward;
+            // A moving aeroplane is flown by along its track. A STATIONARY one has no track, and its own nose may be
+            // pointing anywhere at all once it has crashed — straight up, or over on its back. Using it put the camera
+            // the full stand-off distance along that nose, i.e. 75 m into the sky off to one side, staring back down at
+            // the wreck (Ty 2026-11-07: "it chooses to look at some random place in the sky after a wreck"). Flatten it,
+            // so a wreck is flown by from somewhere a camera operator could stand.
+            Vector3 vhat;
+            if (speed >= MinTrackSpeed) vhat = v / speed;
+            else
+            {
+                Vector3 flat = Vector3.ProjectOnPlane(t.forward, Vector3.up);
+                if (flat.sqrMagnitude < 1e-4f) flat = Vector3.ProjectOnPlane(t.up, Vector3.up);   // nose straight up or down
+                vhat = flat.sqrMagnitude > 1e-4f ? flat.normalized : Vector3.forward;
+            }
             if (_flyValid)
             {
                 Vector3 rel = p - _flyPos;
@@ -289,7 +305,9 @@ namespace FlyingGame.Bridge
             }
             if (!_flyValid)
             {
-                float ahead = Mathf.Clamp(Mathf.Max(speed, 15f) * 5f, Mathf.Max(60f, SpanM * 5f), 450f);
+                float ahead = CompactFlyby
+                    ? Mathf.Clamp(Mathf.Max(speed, 15f) * 2.5f, Mathf.Max(30f, SpanM * 3f), 150f)
+                    : Mathf.Clamp(Mathf.Max(speed, 15f) * 5f, Mathf.Max(60f, SpanM * 5f), 450f);
                 Vector3 side = Vector3.Cross(Vector3.up, vhat);
                 if (side.sqrMagnitude < 0.01f) side = t.right;
                 side.Normalize();
@@ -328,7 +346,11 @@ namespace FlyingGame.Bridge
                 // 500 ft the old automatic switch put the chase view off at 7:30 on a crosswind final. A runway lesson
                 // can still force Track (CameraReference.Effective).
                 FlyingGame.Core.CameraReference.Mode mode = FlyingGame.Core.CameraReference.Effective(SessionSettings.CameraReferenceMode, Driver.GroundReferenceForced);
-                Vector3 a = Driver.AirVelocityUnity, g = Driver.WorldVelocityUnity;
+                // The same damped air mass the marker uses, so the view and the vector agree and neither rides the
+                // swirl (RelativeWindReference; Ty 2026-11-09, "damp it for the flight path vector and for the
+                // viewpoints"). ExactFlightPath still holds: exactly the path through the air MASS.
+                Vector3 g = Driver.WorldVelocityUnity;
+                Vector3 a = RelativeWindReference.AirVelocity(g, Driver.AirVelocityUnity);
                 FlyingGame.Core.MathTypes.Vec3? d = FlyingGame.Core.CameraReference.Direction(mode,
                     new FlyingGame.Core.MathTypes.Vec3(a.x, a.y, a.z), new FlyingGame.Core.MathTypes.Vec3(g.x, g.y, g.z), MinTrackSpeed);
                 if (d.HasValue) return new Vector3((float)d.Value.X, (float)d.Value.Y, (float)d.Value.Z);
@@ -372,7 +394,26 @@ namespace FlyingGame.Bridge
         private void LateUpdate()
         {
             PlaceCamera();
+            PropShake();
             KeepAboveSurface();
+        }
+
+        /// <summary>A bent prop shakes the airframe once a revolution (Aircraft.PropVibrationG, Ty 2026-11-05: "a bent prop
+        /// ... comes with reduced thrust and a vibration"), and the pilot's head with it. The real shake is 12-45 Hz, faster
+        /// than the frame rate, so each frame takes a fresh random offset of that amplitude: the blur of a vibrating seat,
+        /// not a slow wobble. Cockpit view only (it is placed afresh every frame, so nothing accumulates). The size follows
+        /// how strongly a pilot FEELS it (PropBladeDamage.Felt01, the log scale of ISO 2631), not the rigid airframe's few
+        /// micrometres: up to 12 mm and 0.6° at the top. Not in a headset: shaking the world there is a comfort risk, so the
+        /// Quest gets it through the sound.</summary>
+        private void PropShake()
+        {
+#if !UNITY_ANDROID
+            if (CurrentView != View.Cockpit || Driver == null || Driver.Sim == null) return;
+            float felt = (float)FlyingGame.Core.PropBladeDamage.Felt01(Driver.Sim.Aircraft.PropVibrationG());
+            if (felt <= 0f) return;
+            transform.position += transform.rotation * (Random.insideUnitSphere * (0.012f * felt));
+            transform.rotation *= Quaternion.Euler(Random.Range(-0.6f, 0.6f) * felt, Random.Range(-0.6f, 0.6f) * felt, 0f);
+#endif
         }
 
         /// <summary>
@@ -385,7 +426,7 @@ namespace FlyingGame.Bridge
         /// </summary>
         private void KeepAboveSurface()
         {
-            if (InCockpit) return;
+            if (_inCockpit) return;
             Vector3 pos = transform.position;
             // Unity (east, up, north) → sim (north, east, up).
             double simX = pos.z, simY = pos.x;
@@ -400,7 +441,7 @@ namespace FlyingGame.Bridge
             Transform tgt = OverrideTarget != null ? OverrideTarget : Target;
             if (tgt != null)
             {
-                Vector3 look = (_crashStarted && !InCockpit && OverrideTarget == null ? _crashFocus : tgt.position) - pos;
+                Vector3 look = tgt.position - pos;
                 if (look.sqrMagnitude > 1e-4f) transform.rotation = Quaternion.LookRotation(look, Vector3.up);
             }
         }
@@ -413,7 +454,8 @@ namespace FlyingGame.Bridge
             _cam ??= GetComponent<Camera>();
             if (_cam != null)
             {
-                Rect vp = ScreenLayout.CameraViewport;
+                // Split screen (LocalSplit): each player's half; the touch tray is the first player's and is hidden with pads.
+                Rect vp = LocalSplit.Active ? LocalSplit.ViewportFor(PlayerIndex) : ScreenLayout.CameraViewport;
                 if (_cam.rect != vp) _cam.rect = vp;
             }
 
@@ -423,17 +465,22 @@ namespace FlyingGame.Bridge
             Transform tgt = ovr ? OverrideTarget : Target;
             if (tgt == null)
             {
-                InCockpit = false;
+                SetInCockpit(false);
                 SetCockpitExtras(false);
                 return;
             }
             bool cockpit = !ovr && !SideView && CurrentView == View.Cockpit;
-            InCockpit = cockpit;
+            SetInCockpit(cockpit);
             SetCockpitExtras(cockpit);
-            if (_cam != null && CurrentView != View.Flyby && !cockpit && _baseFov > 0f && _cam.fieldOfView != _baseFov) _cam.fieldOfView = _baseFov;
-            if (_waterCrash && !ReferenceEquals(_crashAircraft, Driver?.Sim?.Aircraft)) _waterCrash = _crashStarted = false;
-            if (_waterCrash && !cockpit && !ovr) { WaterCrashView(); return; }
-            if (!ovr && !SideView && CurrentView == View.Flyby) { FlybyView(tgt); return; }
+            // Only restore the FOV when the fly-by is not the view being DRAWN. Fly-by zooms to as little as 6 deg to
+            // frame an aeroplane 450 m away, and the restore used to be gated on the view alone: bail out of a fly-by and
+            // the pilot-follow camera inherited that telephoto, so 8 m from the pilot it framed 0.8 m of sky 3 m over his
+            // head (Ty 2026-11-08: "bailing out in fly by mode doesn't show parachutes before or after a crash it looks up
+            // into the sky"). The override and the side view take the placement away from FlybyView, so they take the FOV
+            // back too.
+            bool flybyDrawn = !ovr && !SideView && CurrentView == View.Flyby;
+            if (_cam != null && !flybyDrawn && !cockpit && _baseFov > 0f && _cam.fieldOfView != _baseFov) _cam.fieldOfView = _baseFov;
+            if (flybyDrawn) { FlybyView(tgt); return; }
             if (!ovr && !SideView && CurrentView == View.Locked) { LockedView(tgt); return; }   // side-view lessons keep their camera
             if (!ovr && !SideView && CurrentView != View.RelativeWind && CurrentView != View.RelativeWindAhead) { FixedView(tgt); return; }
             if (SideView && !ovr)
@@ -471,103 +518,18 @@ namespace FlyingGame.Bridge
             transform.position = tgt.position + _offset;
             // With a backdrop the look-at sits between the pilot and the aircraft's direction, nudged the same way, so the
             // pilot hangs left of centre with the canopy above him and the aircraft shows clear to the right.
-            Vector3 lookAt = tgt.position + (ahead ? -_dir : _dir) * (backdrop ? 12f : 4f) + (ovr ? Vector3.up * OverrideLookUp * (backdrop ? 0.5f : 1f) : Vector3.zero) + side * 0.35f;
+            // How far past the target the camera aims. With a backdrop that lead is what turns the camera from the pilot
+            // toward the abandoned aeroplane, so it also decides how far DOWN the frame the pilot sits: a fixed 12 m
+            // against a 16 m stand-off put him 26 deg below centre, on the bottom edge of the frame, and further out
+            // whenever the aeroplane climbed away (Ty 2026-11-08, on the fly-by bail-out). Holding it to a fraction of
+            // the stand-off keeps the pilot in the lower third whatever the aeroplane does.
+            float lead = backdrop ? Mathf.Min(12f, 0.35f * dist) : 4f;
+            // The pilot hangs below the aim point with his canopy above it, so the aim point is what decides whether BOTH
+            // are in the frame. It used to be halved when a backdrop was in play, back when the lead toward the abandoned
+            // aeroplane was a fixed 12 m and did the lifting; with the lead capped, halving it just pushed the pilot onto
+            // the bottom edge (measured: viewport y 0.07 of a 60 deg frame). Full height either way now.
+            Vector3 lookAt = tgt.position + (ahead ? -_dir : _dir) * lead + (ovr ? Vector3.up * OverrideLookUp : Vector3.zero) + side * 0.35f;
             transform.rotation = Quaternion.LookRotation(lookAt - transform.position, up);
-        }
-
-        private float CrashRadius(Transform body, Vector3 centre)
-        {
-            body.GetComponentsInChildren(false, _crashRenderers);
-            float radius = 0;
-            foreach (var renderer in _crashRenderers)
-                if (renderer.enabled) radius = Mathf.Max(radius, Vector3.Distance(centre, renderer.bounds.center) + renderer.bounds.extents.magnitude);
-            return radius;
-        }
-
-        private void AddCrashPoint(Vector3 point, float mass, float radius)
-        {
-            _points.Add(point); _masses.Add(Mathf.Max(.01f, mass)); _radii.Add(radius);
-        }
-
-        private void WaterCrashView()
-        {
-            _points.Clear(); _masses.Clear(); _radii.Clear(); _distances.Clear();
-            AddCrashPoint(Target.position, (float)(Driver?.Sim?.Aircraft?.MassProperties.MassKg ?? 800), CrashRadius(Target, Target.position));
-            if (!_crashStarted || Time.unscaledTime >= _nextDiscovery)
-            {
-                _nextDiscovery = Time.unscaledTime + DiscoverySeconds;
-                _liveWings.Clear(); _liveBodies.Clear(); _wingRadii.Clear(); _bodyRadii.Clear();
-                for (int sceneIndex = 0; sceneIndex < SceneManager.sceneCount; sceneIndex++)
-                {
-                    var scene = SceneManager.GetSceneAt(sceneIndex);
-                    if (!scene.isLoaded) continue;
-                    // Unity allocates an intermediate array unless capacity is strictly greater than rootCount.
-                    if (_roots.Capacity <= scene.rootCount) _roots.Capacity = scene.rootCount + 1;
-                    scene.GetRootGameObjects(_roots);
-                    foreach (var root in _roots)
-                    {
-                        root.GetComponentsInChildren(false, _wings);
-                        foreach (var wing in _wings) if (wing.isActiveAndEnabled)
-                        { _liveWings.Add(wing); _wingRadii.Add(CrashRadius(wing.transform, wing.transform.position)); }
-                        root.GetComponentsInChildren(false, _bodies);
-                        foreach (var body in _bodies) if (body.isActiveAndEnabled) { _liveBodies.Add(body); _bodyRadii.Add(body.RestHeightM); }
-                    }
-                }
-            }
-            for (int i = 0; i < _liveWings.Count; i++)
-            {
-                var wing = _liveWings[i];
-                if (wing == null || !wing.isActiveAndEnabled) continue;
-                var rb = wing.GetComponent<Rigidbody>();
-                // Unbound ballistic fragments have no sim mass: 15 kg matches the canopy estimate.
-                AddCrashPoint(wing.Piece != null ? CoordinateMap.ToUnity(wing.Piece.State.Position) : wing.transform.position,
-                    wing.Piece != null ? (float)wing.Piece.MassKg : rb != null ? rb.mass : 15f, _wingRadii[i]);
-            }
-            for (int i = 0; i < _liveBodies.Count; i++)
-            {
-                var body = _liveBodies[i];
-                if (body != null && body.isActiveAndEnabled) AddCrashPoint(body.transform.position, body.MassKg, _bodyRadii[i]);
-            }
-            Vector3 centre = Vector3.zero; float mass = 0;
-            for (int i = 0; i < _points.Count; i++) { centre += _points[i] * _masses[i]; mass += _masses[i]; }
-            centre /= mass;
-            for (int i = 0; i < _points.Count; i++) _distances.Add(Vector3.Distance(centre, _points[i]));
-            _distances.Sort();
-            int middle = _distances.Count / 2;
-            float median = _distances.Count % 2 == 0 ? (_distances[middle - 1] + _distances[middle]) * .5f : _distances[middle];
-            float cutoff = 2.5f * median; // Ty's robust-cluster rule.
-            Vector3 focus = Vector3.zero; mass = 0;
-            for (int i = 0; i < _points.Count; i++) if (Vector3.Distance(centre, _points[i]) <= cutoff)
-            { focus += _points[i] * _masses[i]; mass += _masses[i]; }
-            focus = mass > 0 ? focus / mass : centre;
-            float radius = 0;
-            for (int i = 0; i < _points.Count; i++) if (Vector3.Distance(centre, _points[i]) <= cutoff)
-                radius = Mathf.Max(radius, Vector3.Distance(focus, _points[i]) + _radii[i]);
-            float dt = Time.unscaledDeltaTime;
-            if (!_crashStarted)
-            {
-                _crashStarted = true;
-                _crashRange = Vector3.Distance(transform.position, Target.position); _largestRange = _crashRange;
-                // Start on the existing sightline, so entering crash view does not snap the aim.
-                _crashFocus = transform.position + transform.forward * _crashRange;
-                _crashBearing = Vector3.ProjectOnPlane(transform.position - _crashFocus, Vector3.up).normalized;
-                if (_crashBearing.sqrMagnitude < .01f) _crashBearing = Vector3.back;
-                _focusVelocity = _crashVelocity = Vector3.zero; _rangeVelocity = 0;
-            }
-            _crashFocus = Vector3.SmoothDamp(_crashFocus, focus, ref _focusVelocity, CrashSmoothSeconds, Mathf.Infinity, dt);
-            float half = (_cam != null ? _cam.fieldOfView : 60f) * Mathf.Deg2Rad * .5f;
-            if (_cam != null) half = Mathf.Min(half, Mathf.Atan(Mathf.Tan(half) * _cam.aspect));
-            // 15% breathing room; account for centre smoothing so the fitted sphere stays in frame as it drifts.
-            float fit = (radius + Vector3.Distance(focus, _crashFocus)) * 1.15f / Mathf.Sin(half);
-            // Keep the largest requested range for this wreck: no pumping inward when a piece sinks/disappears.
-            // A minimum 50% retreat makes an intact ditching open into an overview as well.
-            _largestRange = Mathf.Max(_largestRange, Mathf.Max(Distance * 1.5f, fit));
-            _crashRange = Mathf.SmoothDamp(_crashRange, _largestRange, ref _rangeVelocity, CrashSmoothSeconds, Mathf.Infinity, dt);
-            // 30 degrees above the horizon exposes the field; increasing range raises and retreats together.
-            Vector3 desired = _crashFocus + (_crashBearing * .8660254f + Vector3.up * .5f) * _crashRange;
-            transform.position = Vector3.SmoothDamp(transform.position, desired, ref _crashVelocity, CrashSmoothSeconds, Mathf.Infinity, dt);
-            Vector3 look = _crashFocus - transform.position;
-            if (look.sqrMagnitude > .0001f) transform.rotation = Quaternion.LookRotation(look, Vector3.up);
         }
 
         public void SnapBehind()

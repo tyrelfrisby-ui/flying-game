@@ -54,6 +54,13 @@ namespace FlyingGame.Bridge
         public static bool LiftMarkersVisible(string aircraftId) => LiftMarkers == Tri.On || (LiftMarkers == Tri.Auto && aircraftId != null && aircraftId.StartsWith("glider"));
         public static InstrumentMode Instruments = InstrumentMode.Hud;      // round dials / green HUD / nothing; owner 2026-10-28: the HUD is the default display
         public static Start StartMode = Start.InTheAir;
+        /// <summary>How high an "in the air" start begins above the ground beneath it, in feet. Selectable since
+        /// 2026-11-10: the owner was testing spins from a fixed ~2,000 ft ("In the air puts me at 2,000 making
+        /// testing difficult"), then "Make the altitude selectable not fixed". Only the "in the air" start uses it;
+        /// every other start has its own meaning (on the runway, 300 ft on final, the box, the combat zone).</summary>
+        public static int StartAltitudeFt = 10000;
+        /// <summary>The offered heights, feet above the ground. 2,000 is what it always was.</summary>
+        public static readonly int[] StartAltitudesFt = { 2000, 5000, 10000, 15000 };
         /// <summary>Dense bubble field drawn with GPU instancing (thousands of bubbles). Off = the old per-bubble draws
         /// with a sparser field — the escape hatch if instancing fails to place instances on a device.</summary>
         public static bool BubbleInstancing = true;
@@ -107,6 +114,43 @@ namespace FlyingGame.Bridge
         public enum CockpitSeat { Rear, Front }
         public static CockpitSeat Seat = CockpitSeat.Rear;
         public static string SeatLabel => Seat == CockpitSeat.Rear ? "REAR (PIC)" : "FRONT";
+
+        // ---- the seat the pilot chose, per aeroplane, by seat ID ----
+        // What CockpitView sits the eye in (and so the Quest's head). Kept by the seat's ID ("rear", "front",
+        // "pilot") per aircraft type, never as an index into whatever aeroplane is loaded: an index chosen on the
+        // landing page's glider became the Pitts' FRONT seat on FLY (owner Ty, 2026-11-02, "i chose the back seat
+        // and it put me in the front seat"). Nothing chosen = the primary seat (SeatChoice). Persisted at once.
+
+        private const string PrefSeatIdFor = "set.seatId.";
+        private static readonly System.Collections.Generic.Dictionary<string, string> _seatIds = new();
+
+        /// <summary>Bumped on every choice, so a CockpitView can follow a choice made from a menu.</summary>
+        public static int SeatChoiceVersion { get; private set; }
+
+        /// <summary>The seat ID chosen for this aircraft type, or null for "its primary seat". In a headset a seat
+        /// QuestFleet does not clear (the J-3's front: a cabin tube 9 cm from the eye) reads as the primary seat, so a
+        /// choice saved before, or made on another screen, cannot put the pilot's head in it.</summary>
+        public static string SeatIdFor(string aircraftId)
+        {
+            if (string.IsNullOrEmpty(aircraftId)) return null;
+            if (!_seatIds.TryGetValue(aircraftId, out string id))
+                _seatIds[aircraftId] = id = PlayerPrefs.GetString(PrefSeatIdFor + aircraftId, "");
+            if (string.IsNullOrEmpty(id)) return null;
+            if (XrHeadset.Active && !FlyingGame.Core.Vr.QuestFleet.SeatCleared(aircraftId, id)) return null;
+            return id;
+        }
+
+        /// <summary>Choose a seat for this aircraft type (and remember it).</summary>
+        public static void ChooseSeat(string aircraftId, string seatId)
+        {
+            if (string.IsNullOrEmpty(aircraftId)) return;
+            seatId ??= "";
+            if (SeatIdFor(aircraftId) == (seatId.Length == 0 ? null : seatId)) return;
+            _seatIds[aircraftId] = seatId;
+            PlayerPrefs.SetString(PrefSeatIdFor + aircraftId, seatId);
+            PlayerPrefs.Save();
+            SeatChoiceVersion++;
+        }
 
         /// <summary>The paint scheme OVERRIDE (Livery.cs), for every type: AERO_LIVERY at launch, which is how a capture
         /// instance is told to wear Talk Flying for a recorded shot, and the editor renders' -livery. null = none, and
@@ -237,13 +281,14 @@ namespace FlyingGame.Bridge
 
         // ---- multiplayer (free play only: challenges/events force Solo) ----
         /// <summary>Lan is appended, never inserted: the chosen mode is kept in PlayerPrefs as its number.</summary>
-        public enum MultiplayerMode { Solo, FreeForAll, PrivateRoom, Lan }
+        public enum MultiplayerMode { Solo, FreeForAll, CodeRoom, Lan }   // CodeRoom was PrivateRoom before 2026-11-01; same number
         public static MultiplayerMode Multiplayer = MultiplayerMode.Solo;
-        public static string RoomCode = "";                // 6 × [A-Z0-9] for PrivateRoom; "ffa" is the well-known free-for-all
+        public static string RoomCode = "";                // 6 × [A-Z0-9] for CodeRoom; "ffa" is the well-known free-for-all
         public static string PilotName = "";               // shown on the name tag over your aircraft
 
-        /// <summary>BUSHWHEELS (owner 2026-10-16): any aeroplane can go on big soft tyres — twice the tyre,
-        /// no wheel pants, half the pressure, and it will skim water a Cub on hard tyres could not.</summary>
+        /// <summary>BUSHWHEELS (owner 2026-10-16): any aeroplane can go on big soft tyres — since 2026-11-04 a real
+        /// Alaskan Bushwheel from the tyre catalog on each main wheel, at its own pressure (TireFit) — and it will skim
+        /// water a Cub on hard tyres could not.</summary>
         public static bool Bushwheels;
 
         /// <summary>WHEEL-SKIS (owner 2026-10-16: "a Super Cub, a Beaver and an Aircam that can land on the
@@ -312,7 +357,7 @@ namespace FlyingGame.Bridge
                 return Multiplayer switch
                 {
                     MultiplayerMode.FreeForAll => FfaRoom,
-                    MultiplayerMode.PrivateRoom => IsValidRoomCode(RoomCode) ? RoomCode : null,
+                    MultiplayerMode.CodeRoom => IsValidRoomCode(RoomCode) ? RoomCode : null,
                     // A code splits one network into separate rooms; without one everybody shares "LAN".
                     MultiplayerMode.Lan => LanPrefix + (IsValidRoomCode(RoomCode) ? RoomCode : LanRoom),
                     _ => null,
@@ -339,21 +384,39 @@ namespace FlyingGame.Bridge
 
         public static WorldTerrain.Airport Airport => WorldTerrain.Airports[Mathf.Clamp(AirportIndex, 0, WorldTerrain.Airports.Length - 1)];
 
+        /// <summary>
+        /// Every aeroplane a picker offers. RETIRED types (the 737-800, owner 2026-11-01) and PLACEHOLDERS (types the
+        /// progression names that are not built yet) are deliberately NOT here — see FlyingGame.Sim.Ratings.Hangar —
+        /// and `ProgressionTests` fails if one comes back. Their configs, models and liveries stay on disk. A saved
+        /// AircraftId that is no longer on this list falls back to the first entry when the settings load.
+        /// </summary>
         public static readonly (string id, string name)[] Fleet =
         {
             ("paraglider-en-b-like", "Paraglider-like (EN-B)"), ("hang-glider-like", "Hang Glider-like"),
-            ("glider-2-33-like", "2-33-like Glider"), ("glider-eb29r-like", "EB29R-like Open Class"), ("glider-swift-s1-like", "Swift S-1-like"), ("c172-like", "172-like"), ("pa28-archer-like", "Archer-like"), ("cirrus-sr22-like", "SR22-like"), ("pa18-cub-like", "Super Cub-like"),
+            ("glider-2-33-like", "2-33-like Glider"), ("glider-eb29r-like", "EB29R-like Open Class"), ("glider-swift-s1-like", "Swift S-1-like"), ("glider-grob103-acro-like", "Twin III Acro-like"), ("c172-like", "172-like"), ("pa28-archer-like", "Archer-like"), ("cirrus-sr22-like", "SR22-like"), ("pa18-cub-like", "Super Cub-like"),
             ("pa18-bush-like", "Super Cub-like, Bushwheels"), ("pa18-floats-like", "Super Cub-like on Floats"),
             ("j3-cub-like", "J-3 Cub-like, 85 hp"), ("j3-cub-floats-like", "J-3 Cub-like on Floats"), ("dhc2-beaver-like", "Beaver-like"), ("dhc2-beaver-floats-like", "Beaver-like on Floats"), ("pa25-pawnee-like", "Pawnee-like"),
             ("decathlon-8kcab-like", "Decathlon-like"), ("extra-300-like", "Extra 300-like"), ("pitts-s2b-like", "Pitts S-2-like"), ("great-lakes-like", "Great Lakes-like"),
             ("jn4-jenny-like", "JN-4D-like Jenny"), ("stearman-pt17-like", "Stearman-like"), ("p51d-like", "P-51D-like"), ("f86-sabre-like", "F-86-like"),
-            ("seminole-like", "Seminole-like"), ("dc3-like", "DC-3-like"), ("boeing-737-like", "737-like"), ("hughes-h4-like", "H-4-like"),
+            ("seminole-like", "Seminole-like"), ("dc3-like", "DC-3-like"), ("hughes-h4-like", "H-4-like"),
             ("cassutt-f1-like", "Cassutt-like Racer"), ("geebee-r2-like", "Gee Bee R-2-like"), ("glasair3-like", "Glasair III-like"),
             ("aircam-like", "AirCam-like"), ("aircam-amphib-like", "AirCam-like Amphib"),
         };
 
+#if FG_TF_SLIM
+        /// <summary>THE TESTFLIGHT SLIM PACKAGE (Ty 2026-11-05; FlyingGame.Core.TestFlightFleet): only the 2-33, both J-3s,
+        /// the Pitts, the Extra and the Great Lakes are offered, and the other types' models are left out of the build. A
+        /// saved aircraft that is not listed falls back to Fleet[0], the 2-33. Compiled only into that package
+        /// (FLYINGGAME_TF_SLIM=1 tools/deploy/deploy.sh); every other build offers the whole list above.</summary>
+        static SessionSettings() { Fleet = FlyingGame.Core.TestFlightFleet.Filter(Fleet); }
+#endif
+
         /// <summary>Dogfight 1 v 1 (owner 2026-10-01): the opponent's aircraft and skill (0 easy, 1 moderate, 2 difficult).</summary>
+#if FG_TF_SLIM
+        public static string DogfightOpponentId = "pitts-s2b-like";   // the slim package has no P-51 (TestFlightFleet)
+#else
         public static string DogfightOpponentId = "p51d-like";
+#endif
         public static int DogfightSkill = 1;
         public static readonly string[] SkillNames = { "Easy", "Moderate", "Difficult" };
 
@@ -494,6 +557,7 @@ namespace FlyingGame.Bridge
             AircraftId         = PlayerPrefs.GetString("set.aircraft", AircraftId);
             TugId              = PlayerPrefs.GetString("set.tug", TugId);
             StartMode          = (Start)PlayerPrefs.GetInt("set.startMode", (int)StartMode);
+            StartAltitudeFt    = PlayerPrefs.GetInt("set.startAltFt", StartAltitudeFt);
             AirportIndex       = PlayerPrefs.GetInt("set.airport", AirportIndex);
             Runway             = (RunwayPick)PlayerPrefs.GetInt("set.runway", (int)Runway);
             WindFromDeg        = PlayerPrefs.GetFloat("set.windFrom", WindFromDeg);
@@ -532,6 +596,7 @@ namespace FlyingGame.Bridge
             PlayerPrefs.SetString("set.aircraft", AircraftId ?? "");
             PlayerPrefs.SetString("set.tug", TugId ?? "");
             PlayerPrefs.SetInt("set.startMode", (int)StartMode);
+            PlayerPrefs.SetInt("set.startAltFt", StartAltitudeFt);
             PlayerPrefs.SetInt("set.airport", AirportIndex);
             PlayerPrefs.SetInt("set.runway", (int)Runway);
             PlayerPrefs.SetFloat("set.windFrom", WindFromDeg);
@@ -571,18 +636,41 @@ namespace FlyingGame.Bridge
             for (int i = 0; i < 3; i++) { PlayerPrefs.SetFloat("feel.expo." + i, FeelExpo[i]); PlayerPrefs.SetFloat("feel.dz." + i, FeelDeadZone[i]); }
             PlayerPrefs.Save();
         }
-        /// <summary>Push the user's feel settings into a loaded config (the aircraft's own values stay where a setting is off).</summary>
+        /// <summary>The headset's stick feel applies (FlyingGame.Core.Vr.QuestStickFeel): a headset is up, or this is
+        /// the Quest's APK (the only Android build), where the landing page's aeroplane can load before XR reports in.</summary>
+        public static bool HeadsetFeel => XrHeadset.Active || Application.platform == RuntimePlatform.Android;
+
+        /// <summary>Push the user's feel settings into a loaded config (the aircraft's own values stay where a setting is
+        /// off). In a headset an unset setting means the headset's own feel instead — heavy expo, no extra dead zone
+        /// (Ty 2026-11-02, "far too sensitive"); phones and the Mac are unchanged.</summary>
         public static void ApplyFeel(FlyingGame.Core.DataContracts.AircraftConfig cfg)
         {
             LoadFeel();
             if (cfg?.Controls == null) return;
+            bool headset = HeadsetFeel;
             var axes = new[] { cfg.Controls.Aileron, cfg.Controls.Elevator, cfg.Controls.Rudder };
             for (int i = 0; i < 3; i++)
             {
                 if (axes[i] == null) continue;
-                if (FeelExpo[i] >= 0f) axes[i].Expo = FeelExpo[i];
-                if (FeelDeadZone[i] >= 0f) axes[i].DeadZone = FeelDeadZone[i];
+                axes[i].Expo = FlyingGame.Core.Vr.QuestStickFeel.Resolve(FeelExpo[i], axes[i].Expo, headset, FlyingGame.Core.Vr.QuestStickFeel.DefaultExpo);
+                axes[i].DeadZone = FlyingGame.Core.Vr.QuestStickFeel.Resolve(FeelDeadZone[i], axes[i].DeadZone, headset, FlyingGame.Core.Vr.QuestStickFeel.DefaultExtraDeadZone);
             }
+        }
+
+        /// <summary>Apply the feel to the aeroplane in flight now: the type's own values first (so a setting put back
+        /// to "unset" restores them), then <see cref="ApplyFeel"/>. Options and the VR menu both call this.</summary>
+        public static void ReapplyFeel(FlyingGame.Core.DataContracts.AircraftConfig cfg)
+        {
+            if (cfg?.Controls == null) return;
+            try
+            {
+                var fresh = UnityAircraftConfigLoader.LoadFromStreamingAssets(cfg.Id);
+                cfg.Controls.Aileron.Expo = fresh.Controls.Aileron.Expo; cfg.Controls.Aileron.DeadZone = fresh.Controls.Aileron.DeadZone;
+                cfg.Controls.Elevator.Expo = fresh.Controls.Elevator.Expo; cfg.Controls.Elevator.DeadZone = fresh.Controls.Elevator.DeadZone;
+                cfg.Controls.Rudder.Expo = fresh.Controls.Rudder.Expo; cfg.Controls.Rudder.DeadZone = fresh.Controls.Rudder.DeadZone;
+            }
+            catch (System.Exception) { }
+            ApplyFeel(cfg);
         }
 
         // ---- regional air (owner 2026-10-27: "atmospheric conditions should vary by region across the landscape") ----

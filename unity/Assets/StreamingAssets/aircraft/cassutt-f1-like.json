@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "cassutt-f1-like",
   "displayName": "Cassutt-like Racer",
+  "structureType": "steelTube",
+  "structureTypeSource": "Cassutt IIIM: welded 4130 steel-tube fuselage, fabric covered; wooden wing (Cassutt plans / EAA Formula One notes).",
   "spawnIasMs": 70,
   "mass": {
     "massKg": 340,
@@ -1339,6 +1341,9 @@
   "propulsion": {
     "maxPowerW": 75000,
     "propDiameterM": 1.5,
+    "propMaterial": "wood",
+    "propMaterialSource": "Formula One racers fly carved wooden props (Sensenich / Culver wood)",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2750,
     "propInertia": 1.5,
@@ -1370,7 +1375,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "rollResistN": 40,
+      "tire": "legacy-cassutt-main", "tirePressurePsi": 7.5,
       "gearType": "spring-steel"
     },
     {
@@ -1387,7 +1392,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "rollResistN": 40,
+      "tire": "legacy-cassutt-main", "tirePressurePsi": 7.5,
       "gearType": "spring-steel"
     },
     {
@@ -1404,7 +1409,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 1500,
-      "rollResistN": 20,
+      "tire": "legacy-cassutt-tail", "tirePressurePsi": 6,
       "steerSpringNmPerRad": 20
     }
   ],

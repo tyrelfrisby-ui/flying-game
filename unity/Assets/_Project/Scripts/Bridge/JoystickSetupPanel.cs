@@ -53,7 +53,8 @@ namespace FlyingGame.Bridge
         {
             if (!_wiz.Active) return;
             float s = Mathf.Min(Screen.width, Screen.height);
-            int fs = Mathf.RoundToInt(Mathf.Clamp(s * 0.022f, 12f, 30f));
+            // The ceiling rides the scale with it, or a phone's text is capped back to the size being complained about.
+            int fs = Mathf.RoundToInt(Mathf.Clamp(UiLayout.PanelUnit * 0.022f, 12f, 30f * UiLayout.Scale));
             Styles(fs);
             GUI.depth = -100;
             float w = Mathf.Min(Screen.width * 0.9f, s * 1.1f), h = s * 0.62f;

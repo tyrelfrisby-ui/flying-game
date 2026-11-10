@@ -2,6 +2,11 @@
   "schemaVersion": 1,
   "id": "pa18-floats-like",
   "displayName": "Super Cub-like on Floats",
+  "structureType": "steelTube",
+  "structureTypeSource": "Piper PA-18 Super Cub: welded 4130 steel-tube fuselage, fabric covered (FAA TCDS 1A2; Piper PA-18 service manual).",
+  "wingBracing": "strut",
+  "wingBreakStationY": { "wing": 3.4 },
+  "wingBreakStationSource": "Lift-strut wing attach |y| 3.40 m (133.9 in): the J-3/PA-18 wing shares Piper spar drawing 14383 and its strut fittings, so the J-3 model's station (build_j3_cub.py Y_ST) is used. Sources: strut fitting 123.5 in (front) / 122.25 in (rear) from the spar root end, measured on a PA-18 spar, drawing 14388/14453 figure 121.25 in from the root bolt hole (supercub.org 'Spar Drilling'); root end ~13 in from the centreline (scaled) -> 135-136.5 in; PA-18 Information Manual three-view p.4 scales to 129-131 in. Not to better than +/-4 in.",
   "spawnIasMs": 33,
   "mass": {
     "massKg": 909,
@@ -494,7 +499,7 @@
           "pos": [
             -4.287,
             -1.312,
-            0.0
+            -0.485
           ],
           "chord": 0.497,
           "area": 0.1865,
@@ -511,7 +516,7 @@
           "pos": [
             -4.297,
             -0.938,
-            0.0
+            -0.485
           ],
           "chord": 0.54,
           "area": 0.2024,
@@ -528,7 +533,7 @@
           "pos": [
             -4.308,
             -0.562,
-            0.0
+            -0.485
           ],
           "chord": 0.582,
           "area": 0.2183,
@@ -545,7 +550,7 @@
           "pos": [
             -4.319,
             -0.188,
-            0.0
+            -0.485
           ],
           "chord": 0.625,
           "area": 0.2343,
@@ -562,7 +567,7 @@
           "pos": [
             -4.319,
             0.188,
-            0.0
+            -0.485
           ],
           "chord": 0.625,
           "area": 0.2343,
@@ -579,7 +584,7 @@
           "pos": [
             -4.308,
             0.562,
-            0.0
+            -0.485
           ],
           "chord": 0.582,
           "area": 0.2183,
@@ -596,7 +601,7 @@
           "pos": [
             -4.297,
             0.938,
-            0.0
+            -0.485
           ],
           "chord": 0.54,
           "area": 0.2024,
@@ -613,7 +618,7 @@
           "pos": [
             -4.287,
             1.312,
-            0.0
+            -0.485
           ],
           "chord": 0.497,
           "area": 0.1865,
@@ -636,7 +641,7 @@
           "pos": [
             -4.728,
             -1.312,
-            0.0
+            -0.485
           ],
           "chord": 0.234,
           "area": 0.0877,
@@ -653,7 +658,7 @@
           "pos": [
             -4.776,
             -0.938,
-            0.0
+            -0.485
           ],
           "chord": 0.254,
           "area": 0.0953,
@@ -670,7 +675,7 @@
           "pos": [
             -4.823,
             -0.562,
-            0.0
+            -0.485
           ],
           "chord": 0.274,
           "area": 0.1027,
@@ -687,7 +692,7 @@
           "pos": [
             -4.871,
             -0.188,
-            0.0
+            -0.485
           ],
           "chord": 0.294,
           "area": 0.1102,
@@ -704,7 +709,7 @@
           "pos": [
             -4.871,
             0.188,
-            0.0
+            -0.485
           ],
           "chord": 0.294,
           "area": 0.1102,
@@ -721,7 +726,7 @@
           "pos": [
             -4.823,
             0.562,
-            0.0
+            -0.485
           ],
           "chord": 0.274,
           "area": 0.1027,
@@ -738,7 +743,7 @@
           "pos": [
             -4.776,
             0.938,
-            0.0
+            -0.485
           ],
           "chord": 0.254,
           "area": 0.0953,
@@ -755,7 +760,7 @@
           "pos": [
             -4.728,
             1.312,
-            0.0
+            -0.485
           ],
           "chord": 0.234,
           "area": 0.0877,
@@ -1392,13 +1397,13 @@
     }
   },
   "rig": {
-    "aileronRad": 0.00408,
-    "finOffsetRad": 0.004602,
+    "aileronRad": 0.004079,
+    "finOffsetRad": 0.004601,
     "throttleFraction": 0.75,
     "altitudeM": 1219.2,
-    "tasMs": 45.399,
-    "alphaRad": 0.010698,
-    "elevatorTrimRad": 0.007444,
+    "tasMs": 45.402,
+    "alphaRad": 0.010644,
+    "elevatorTrimRad": 0.007941,
     "bankRad": 0.005091
   },
   "controls": {
@@ -1464,10 +1469,13 @@
       "lengthM": 6.88
     }
   },
-  "smoke": {"aftOfNoseM": 0.87, "downDeg": 90, "displacementCuIn": 320, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [0.995, 0.249, 0.467]},
+  "smoke": {"cylinders": 4, "compressionRatio": 7.0, "aftOfNoseM": 0.87, "downDeg": 90, "displacementCuIn": 320, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [0.995, 0.249, 0.467]},
   "propulsion": {
     "maxPowerW": 112000,
     "propDiameterM": 1.88,
+    "propMaterial": "metal",
+    "propMaterialSource": "Sensenich forged aluminium (seaplane)",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 3.5,
@@ -1499,7 +1507,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1516,7 +1523,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 2500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1533,7 +1539,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1550,7 +1555,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1567,7 +1571,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 2500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1584,7 +1587,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     }
   ],

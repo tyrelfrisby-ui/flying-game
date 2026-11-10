@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "pa28-archer-like",
   "displayName": "Archer-like",
+  "structureType": "aluminumMonocoque",
+  "structureTypeSource": "Piper PA-28 Archer: all-metal aluminium semi-monocoque (Piper PA-28 service manual).",
   "spawnIasMs": 55,
   "mass": {
     "massKg": 1090,
@@ -1462,8 +1464,7 @@
       "hingeChDelta": -0.45,
       "centeringSpringKt": 0,
       "trimType": "tab",
-      "freeTauS": 0.12,
-      "saturationDeg": 120.0
+      "freeTauS": 0.12
     },
     "rudder": {
       "maxDeflRad": 0.49,
@@ -1505,9 +1506,13 @@
   "propulsion": {
     "maxPowerW": 134000,
     "propDiameterM": 1.93,
+    "propMaterial": "metal",
+    "propMaterialSource": "Sensenich 76EM8 forged aluminium",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2700,
-    "propInertia": 1.7,
+    "propInertia": 1.41,
+    "propInertiaSource": "Propeller + spinner + the crank's rotating parts, kg.m2. From the OWNER'S BLADE RULE (2026-11-09, tools/aircraft_builder/prop_inertia.py): each blade is 15 % of the net propeller weight with its centre of mass at 25 % of the DIAMETER from the axis, the rest being hub near the axis - because a heavy constant-speed hub contributes almost nothing to sum(m r^2), so a mass-weighted estimate overstates the couple. M 17.5 kg, D 1.93 m, 2 blades: blades 1.222 + hub 0.123 (k 0.10 m) + crank 0.07 = 1.41, against 1.7 before. MASS: ESTIMATED: Sensenich 76EM8 forged aluminium fixed-pitch, ~38 lb. O-360, four cylinders. VALIDATION: the rule reproduces Hartzell's published two-blade polar moment to +18 % (1.412 against 1.198) and runs +60 % high on their three-blade one, so it is applied to two-blade types only.",
     "rotationSign": 1,
     "efficiency": 0.72,
     "thrustLineZ": 0.05,
@@ -1536,7 +1541,7 @@
       "maxSteerRad": 0.5,
       "tireMu": 0.8,
       "corneringStiffnessN": 5000,
-      "rollResistN": 30
+      "tire": "5.00-5", "tirePressurePsi": 18
     },
     {
       "pos": [
@@ -1552,7 +1557,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 12000,
-      "rollResistN": 40
+      "tire": "6.00-6", "tirePressurePsi": 24
     },
     {
       "pos": [
@@ -1568,7 +1573,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 12000,
-      "rollResistN": 40
+      "tire": "6.00-6", "tirePressurePsi": 24
     }
   ],
   "limits": {

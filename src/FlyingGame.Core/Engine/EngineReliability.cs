@@ -31,6 +31,11 @@ public enum FailureCause
 
     // Accessory
     PropGovernorFailure,        // constant-speed prop runs away fine or sticks coarse
+
+    /// <summary>The crankshaft lets go and the propeller departs with it. NOT drawn from this pool: it has its own
+    /// hazard, from the gyroscopic load the pilot has actually put through it — see <see cref="CrankshaftFatigue"/>.
+    /// Listed here so the effects layer has one vocabulary for what broke.</summary>
+    CrankshaftFailure,
 }
 
 /// <summary>How a failure expresses itself, which is what the engine model and the effects layer act on.</summary>

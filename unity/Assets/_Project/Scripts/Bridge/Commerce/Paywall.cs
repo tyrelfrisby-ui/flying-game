@@ -36,7 +36,7 @@ namespace FlyingGame.Bridge.Commerce
 
         private void EnsureStyles()
         {
-            int fs = Mathf.RoundToInt(Mathf.Min(Screen.width, Screen.height) * 0.026f);
+            int fs = Mathf.RoundToInt(UiLayout.PanelUnit * 0.026f);
             if (_btn != null && fs == _fs) return;
             _fs = fs;
             _bg ??= Solid(new Color(0.05f, 0.08f, 0.12f, 0.96f));

@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "dc3-like",
   "displayName": "DC-3-like Airliner",
+  "structureType": "aluminumMonocoque",
+  "structureTypeSource": "Douglas DC-3: aluminium stressed-skin semi-monocoque.",
   "spawnIasMs": 75,
   "mass": {
     "massKg": 11591,
@@ -1734,8 +1736,7 @@
       "hingeChDelta": -0.4,
       "centeringSpringKt": 0,
       "trimType": "tab",
-      "freeTauS": 0.25,
-      "saturationDeg": 85.2
+      "freeTauS": 0.25
     },
     "rudder": {
       "maxDeflRad": 0.3,
@@ -1777,6 +1778,9 @@
   "propulsion": {
     "maxPowerW": 895000,
     "propDiameterM": 3.53,
+    "propMaterial": "metal",
+    "propMaterialSource": "Hamilton Standard 23E50 three-blade aluminium Hydromatic",
+    "propBladeCount": 3,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 16.0,
@@ -1809,8 +1813,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 20000,
-      "rollResistN": 60,
-      "tireRadiusM": 0.58
+      "tire": "legacy-dc3-main", "tirePressurePsi": 255.5
     },
     {
       "pos": [
@@ -1826,8 +1829,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 20000,
-      "rollResistN": 60,
-      "tireRadiusM": 0.58
+      "tire": "legacy-dc3-main", "tirePressurePsi": 255.5
     },
     {
       "pos": [
@@ -1843,8 +1845,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.6,
       "corneringStiffnessN": 6000,
-      "rollResistN": 30,
-      "tireRadiusM": 0.25
+      "tire": "legacy-dc3-tail", "tirePressurePsi": 204.4
     }
   ],
   "limits": {

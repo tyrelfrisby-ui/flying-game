@@ -114,6 +114,16 @@ public static partial class IslandTerrain
         return IslandWater.WaterAt(p);
     }
     public static string WaterIndexWorkBounds => IslandWater.WorkBounds;
+    /// <summary>What a WHEEL finds: <see cref="SurfaceAt"/>, with a dirt or hard-sand field rolled as what it is
+    /// (<see cref="StripFinish.Wheels"/>). The terrain paint keeps calling SurfaceAt, whose classes it was drawn
+    /// against, so this changes nothing anyone sees.</summary>
+    public static WorldTerrain.Surface WheelSurfaceAt(double x, double y)
+    {
+        var p = new IslandPoint(y / 1000, x / 1000);
+        foreach (var f in Fields) if (f.Contains(p)) return StripFinish.Wheels(f.Surface);
+        return SurfaceAt(x, y);
+    }
+
     public static WorldTerrain.Surface SurfaceAt(double x, double y)
     {
         var p = new IslandPoint(y / 1000, x / 1000);
@@ -153,7 +163,9 @@ internal static class SurfaceTables
         public readonly IslandPoint Centre, U; public readonly double HalfLengthKm, HalfWidthKm;
         public MesaPad(IslandValue q) { Centre = q["centre"].Point; U = IslandPoint.Heading(q.N("heading_true_deg")); HalfLengthKm = q.N("length_m") / 2000; HalfWidthKm = q.N("width_m") / 2000; }
     }
-    public static readonly Glacier[] Glaciers = IslandTerrain.World["glaciers"].Items.Select(q => new Glacier(q)).ToArray();
+    // Only the glaciers that still carry a ski zone: the Knik's was removed (Ty 2026-11-04 — its landing site is the
+    // Knik River bar strip on the valley floor), Fairweather's stays.
+    public static readonly Glacier[] Glaciers = IslandTerrain.World["glaciers"].Items.Where(q => q.Has("ski_zone")).Select(q => new Glacier(q)).ToArray();
     public static readonly MesaPad[] MesaPads = IslandTerrain.World["mesa_pads"].Items.Select(q => new MesaPad(q)).ToArray();
 }
 

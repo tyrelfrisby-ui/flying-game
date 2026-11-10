@@ -42,8 +42,12 @@ namespace FlyingGame.Bridge
             for (int i = 0; i < data.Length; i++) { y = 0.97f * y + 0.25f * (float)(rng.NextDouble() * 2 - 1); data[i] = Mathf.Clamp(y, -1f, 1f); }
             _noise = AudioClip.Create("ScrapeNoise", rate, 1, rate, false);
             _noise.SetData(data, 0);
-            Shader sh = Shader.Find("FlyingGame/UnlitTransparent");
-            _dustMat = sh != null ? new Material(sh) { color = new Color(0.55f, 0.47f, 0.36f, 0.45f) } : null;
+            // The particle's own colour is the surface's (CrashDust): the shader must multiply it in. UnlitTransparent drew
+            // only its tint, so every puff was this material's brown whatever it was scraping (Ty 2026-11-04: brown dust on
+            // snow). Spray multiplies vertex colour by a white tint; _Mist 1 is its soft round puff.
+            Shader sh = Shader.Find("FlyingGame/Spray") ?? Shader.Find("FlyingGame/UnlitTransparent");
+            _dustMat = sh != null ? new Material(sh) { color = Color.white } : null;
+            if (_dustMat != null && _dustMat.HasProperty("_Mist")) _dustMat.SetFloat("_Mist", 1f);
             for (int i = 0; i < Voices; i++)
             {
                 var a = new GameObject("ScrapeVoice" + i).AddComponent<AudioSource>();
@@ -68,16 +72,12 @@ namespace FlyingGame.Bridge
 
         private static float Level(double powerW) => Mathf.Clamp01((float)((System.Math.Log10(System.Math.Max(1.0, powerW)) - 2.0) / 4.0));
 
-        /// <summary>Grit pitch and dust colour by what is being scraped.</summary>
-        private static (float pitch, Color dust) Look(int surface) => surface switch
+        /// <summary>Grit pitch and dust colour by what is being scraped (the shared table: <see cref="CrashDust"/>).</summary>
+        private static (float pitch, Color dust) Look(int surface)
         {
-            (int)WorldTerrain.Surface.Paved => (1.15f, new Color(0.62f, 0.60f, 0.58f, 0.35f)),
-            (int)WorldTerrain.Surface.Gravel => (0.9f, new Color(0.58f, 0.53f, 0.46f, 0.45f)),
-            (int)WorldTerrain.Surface.Grass => (0.65f, new Color(0.40f, 0.42f, 0.25f, 0.40f)),
-            (int)WorldTerrain.Surface.Snow or (int)WorldTerrain.Surface.PackedGlacierSnow => (0.5f, new Color(0.95f, 0.97f, 1f, 0.55f)),
-            FlyingGame.Core.ContactPoint.SurfaceSolid => (1.35f, new Color(0.6f, 0.6f, 0.6f, 0.3f)),
-            _ => (0.8f, new Color(0.50f, 0.42f, 0.30f, 0.5f)),
-        };
+            CrashDust.Look l = CrashDust.For(surface);
+            return (l.Pitch, new Color(l.R, l.G, l.B, l.A));
+        }
 
         private void LateUpdate()
         {
@@ -111,7 +111,7 @@ namespace FlyingGame.Bridge
                 float level = Level(s.PowerW);
                 (float pitch, Color dust) = Look(s.SurfaceCode);
                 _audio[i].transform.position = at;
-                _audio[i].volume = level * FlightAudio.MasterVolume;
+                _audio[i].volume = level * FlightAudio.MasterVolume * FlyingGame.Core.GroundSoundMix.OutputGain;   // the ground bus
                 _audio[i].pitch = pitch * (0.85f + 0.3f * Mathf.Clamp01((float)s.SlipMs / 40f));
                 if (!_audio[i].isPlaying) _audio[i].Play();
                 _dust[i].transform.position = at;

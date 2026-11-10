@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "paraglider-en-b-like",
   "displayName": "Paraglider-like (EN-B)",
+  "structureType": "composite",
+  "structureTypeSource": "Paraglider: fabric wing and lines, no fuselage (tagged with the brittle rule; nothing here can crush).",
   "spawnIasMs": 10.0,
   "mass": {
     "massKg": 100.0,
@@ -539,7 +541,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.9,
       "corneringStiffnessN": 1200,
-      "rollResistN": 900
+      "gearType": "feet"
     }
   ]
 }

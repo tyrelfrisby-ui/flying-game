@@ -99,7 +99,24 @@ namespace FlyingGame.EditorTools
                 options = BuildOptions.None,
             };
 
-            BuildReport report = BuildPipeline.BuildPlayer(options);
+            // THE TESTFLIGHT SLIM PACKAGE (Ty 2026-11-05), opt-in: FLYINGGAME_TF_SLIM=1. A normal build only makes sure
+            // no earlier slim build left models held out (RestoreHeldModels), and is otherwise untouched.
+            bool slim = System.Environment.GetEnvironmentVariable(FlyingGame.Core.TestFlightFleet.EnvVar) == "1";
+            RestoreHeldModels();
+            BuildReport report;
+            try
+            {
+                if (slim)
+                {
+                    options.extraScriptingDefines = new[] { FlyingGame.Core.TestFlightFleet.Define };
+                    HoldOutUnlistedModels();
+                }
+                report = BuildPipeline.BuildPlayer(options);
+            }
+            finally
+            {
+                if (slim) RestoreHeldModels();
+            }
             BuildSummary summary = report.summary;
             if (summary.result == BuildResult.Succeeded)
             {
@@ -114,6 +131,50 @@ namespace FlyingGame.EditorTools
                     EditorApplication.Exit(1);
                 }
             }
+        }
+
+        // ---- TestFlight slim package (FlyingGame.Core.TestFlightFleet) ------------------------------------------------
+        // Everything in a Resources folder ships, used or not, so leaving a type out of the package means taking its
+        // Resources/Models/<id> folder out of Resources for the length of the player build. AssetDatabase.MoveAsset keeps
+        // GUIDs, metas and imports, so nothing re-imports and the tree comes back byte-identical; the folders wait in
+        // SlimHoldDir, which is under no Resources folder and referenced by nothing, so the player build skips them.
+        // Nothing is deleted. If a build dies between the two moves, the next iOS build (slim or not) puts them back first.
+        private const string ModelsDir = "Assets/_Project/Resources/Models";
+        private const string SlimHoldDir = "Assets/_Project/TfSlimHold";
+
+        private static void HoldOutUnlistedModels()
+        {
+            if (!AssetDatabase.IsValidFolder(SlimHoldDir)) AssetDatabase.CreateFolder("Assets/_Project", "TfSlimHold");
+            var kept = new System.Collections.Generic.List<string>();
+            var held = new System.Collections.Generic.List<string>();
+            foreach (string dir in AssetDatabase.GetSubFolders(ModelsDir))
+            {
+                string name = Path.GetFileName(dir);
+                if (FlyingGame.Core.TestFlightFleet.KeepsModelFolder(name)) { kept.Add(name); continue; }
+                string err = AssetDatabase.MoveAsset(dir, SlimHoldDir + "/" + name);
+                if (!string.IsNullOrEmpty(err)) throw new BuildFailedException($"[TF slim] could not hold out {dir}: {err}");
+                held.Add(name);
+            }
+            foreach (string id in FlyingGame.Core.TestFlightFleet.Listed)
+                if (!kept.Contains(id)) throw new BuildFailedException($"[TF slim] listed type {id} has no {ModelsDir}/{id}");
+            Debug.Log($"[TF slim] define {FlyingGame.Core.TestFlightFleet.Define}; ships Models/ {string.Join(", ", kept)}");
+            Debug.Log($"[TF slim] held out of the build ({held.Count}): {string.Join(", ", held)}");
+        }
+
+        private static void RestoreHeldModels()
+        {
+            if (!AssetDatabase.IsValidFolder(SlimHoldDir)) return;
+            int back = 0;
+            foreach (string dir in AssetDatabase.GetSubFolders(SlimHoldDir))
+            {
+                string to = ModelsDir + "/" + Path.GetFileName(dir);
+                string err = AssetDatabase.MoveAsset(dir, to);
+                if (string.IsNullOrEmpty(err)) back++;
+                else Debug.LogError($"[TF slim] could not restore {dir} -> {to}: {err}");
+            }
+            if (AssetDatabase.GetSubFolders(SlimHoldDir).Length == 0) AssetDatabase.DeleteAsset(SlimHoldDir);
+            else Debug.LogError($"[TF slim] {SlimHoldDir} still holds folders; move them back to {ModelsDir} by hand");
+            Debug.Log($"[TF slim] restored {back} model folder(s) to {ModelsDir}");
         }
 
         /// <summary>
@@ -260,7 +321,7 @@ namespace FlyingGame.EditorTools
         // SceneBootstrap/BubbleField/SoaringScenery look up.
         private static void EnsureAlwaysIncludedShaders()
         {
-            string[] names = { "Unlit/Color", "Unlit/Texture", "FlyingGame/Bubble", "FlyingGame/PlanarShadow", "FlyingGame/UnlitTransparent", "FlyingGame/Decal", "FlyingGame/Airframe", "FlyingGame/Lit", "FlyingGame/HudLine", "FlyingGame/Terrain", "FlyingGame/PowellSandstone", "FlyingGame/Spray", "FlyingGame/Smoke", "FlyingGame/Water", "FlyingGame/FuelSlick", "FlyingGame/Waterfall", "FlyingGame/Glass", "FlyingGame/PropBlur", "GUI/3D Text Shader", "FlyingGame/WorldText", "Hidden/FlyingGame/WaveSim", "Hidden/FlyingGame/WakeFoam", "FlyingGame/SunsetSky", "FlyingGame/AirportSurface", "FlyingGame/AirportGlow", "FlyingGame/UrbanFacade" };
+            string[] names = { "Unlit/Color", "Unlit/Texture", "FlyingGame/Bubble", "FlyingGame/PlanarShadow", "FlyingGame/UnlitTransparent", "FlyingGame/Decal", "FlyingGame/Airframe", "FlyingGame/Lit", "FlyingGame/HudLine", "FlyingGame/Terrain", "FlyingGame/PowellSandstone", "FlyingGame/Spray", "FlyingGame/Smoke", "FlyingGame/Water", "Hidden/FlyingGame/PilotUnderwater", "FlyingGame/FuelSlick", "FlyingGame/Waterfall", "FlyingGame/Glass", "FlyingGame/Lexan", "FlyingGame/PropBlur", "GUI/3D Text Shader", "FlyingGame/WorldText", "Hidden/FlyingGame/WaveSim", "Hidden/FlyingGame/WakeFoam", "FlyingGame/SunsetSky", "FlyingGame/AirportSurface", "FlyingGame/AirportGlow", "FlyingGame/UrbanFacade", "FlyingGame/XrOverlay", "Hidden/FlyingGame/QuestRecordPack" };
             var so = new SerializedObject(UnityEngine.Rendering.GraphicsSettings.GetGraphicsSettings());
             SerializedProperty arr = so.FindProperty("m_AlwaysIncludedShaders");
             foreach (string name in names)
@@ -461,6 +522,18 @@ namespace FlyingGame.EditorTools
 
             proj.WriteToFile(projPath);
             Debug.Log("Xcode: linked AVFoundation, CoreMedia, CoreVideo, Photos, StoreKit; Swift 5 + embedded runtime; privacy manifest in the app target");
+        }
+
+        /// <summary>For other build tools (QuestBuild): the scene, and the shared assets every player build needs —
+        /// force-included shaders, the pinned built-in font, readable engine loops. Idempotent.</summary>
+        internal const string MainScenePath = ScenePath;
+        internal static void EnsureSceneInBuildForTools()
+        {
+            EnsureSceneInBuild();
+            EnsureAlwaysIncludedShaders();
+            EnsureBuiltinFontPreloaded();
+            EnsureEngineLoopsReadable();
+            AssetDatabase.SaveAssets();
         }
 
         private static void EnsureSceneInBuild()
