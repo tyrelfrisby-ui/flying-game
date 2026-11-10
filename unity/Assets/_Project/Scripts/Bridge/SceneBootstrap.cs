@@ -158,6 +158,14 @@ namespace FlyingGame.Bridge
             // already be being written when it happens.
             cam.gameObject.AddComponent<FreezeWatch>().Driver = aircraft.GetComponent<FlightSimDriver>();
 
+            // Says WHICH AEROPLANE the flight model is flying, and whether it is the one being drawn (Ty 2026-11-09:
+            // the Pitts flew with a Cub's dihedral effect for a minute and then went back to normal — "make the build
+            // log or display which config the flight model is actually using, so the next time it happens we know for
+            // certain rather than inferring"). One line on screen, the full record on a tap and in the log at every
+            // aircraft change. Like FreezeWatch above it stays in: a transient nobody can reproduce on demand needs
+            // the evidence to already be being written when it happens.
+            cam.gameObject.AddComponent<ModelIdentityBadge>().Driver = aircraft.GetComponent<FlightSimDriver>();
+
             var hud = cam.gameObject.AddComponent<FlightHud>();
             hud.Driver = aircraft.GetComponent<FlightSimDriver>();
             hud.Race = aircraft.GetComponent<RaceController>();
