@@ -144,6 +144,10 @@ public class JumperTumbleTests
     /// lines he averages over the last two seconds — collapses as the tension rises. With no canopy he goes on
     /// tumbling. There is no flag and no slerp anywhere in it: one force, one lever, read out at four tensions.
     ///
+    /// WHY "full" IS HIS WEIGHT: at a steady descent the risers carry exactly mg, because nothing is accelerating.
+    /// PilotBody computes the tension the honest way round — the canopy's own drag, ½ρ·CdS·v² on the air it is
+    /// actually meeting — and at terminal that IS mg, so the number used here is the one the bridge arrives at.
+    ///
     /// He is NOT left perfectly still under load, and should not be: a restoring moment with nothing to damp it is a
     /// pendulum, ω = √(T·r/I) = 6.1 rad/s at full load, and a parachutist under a fresh canopy does swing. The swing
     /// of the HARNESS — the pilot under the canopy on 7 m of line — is PilotBody's own damped pendulum and a

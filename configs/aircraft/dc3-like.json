@@ -1789,7 +1789,9 @@
     "thrustLineZ": 0.0,
     "pFactorK": 0.35,
     "slipstreamK": 0.12,
-    "constantSpeed": true,
+    "coarseOnOilLoss": true,
+      "coarseOnOilLossSource": "Ty 2026-11-10: \"aerobatic aircraft with a constant speed propeller default to high pitch with loss of oil pressure like twins do (Seminole beech 18 etc) and standard single engines default to low pitch with no oil pressure\". Oil holds these blades FINE, so losing it drives them COARSE - a twin's path to feather, and on an aerobatic single what stops the prop overspeeding pointed down.",
+      "constantSpeed": true,
     "governedRpm": 2350
   },
   "stallDynamics": {
