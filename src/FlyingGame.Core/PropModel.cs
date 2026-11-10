@@ -260,6 +260,19 @@ public static class PropModel
         PropulsionConfig prop, double throttle01, Vec3 bodyVelocity, Vec3 bodyRates, double airDensity, PropDrive drive,
         out Parts parts, BladeElement.SwirlProfile? profile)
     {
+        // SimProfile only, so the propeller's share of a step is a measured number and not an argument (Ty 2026-11-09:
+        // "the j3 is noticibly slower"). Off, Begin() is one thread-static read; the body moved to ComputeInner rather
+        // than wrapping every return in a try/finally, which would have cost an EH frame in the hot path for nothing.
+        long tProp = SimProfile.Begin();
+        (Vec3 Force, Vec3 Moment) r = ComputeInner(prop, throttle01, bodyVelocity, bodyRates, airDensity, drive, out parts, profile);
+        SimProfile.End(SimProfile.Scope.Prop, tProp);
+        return r;
+    }
+
+    private static (Vec3 Force, Vec3 Moment) ComputeInner(
+        PropulsionConfig prop, double throttle01, Vec3 bodyVelocity, Vec3 bodyRates, double airDensity, PropDrive drive,
+        out Parts parts, BladeElement.SwirlProfile? profile)
+    {
         if (profile is not null) profile.Any = false;
         parts = default;
         // A dead engine: no power whatever the lever says. The windmill drag below then sees a closed throttle.
