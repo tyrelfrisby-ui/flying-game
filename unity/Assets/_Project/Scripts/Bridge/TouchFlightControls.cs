@@ -219,7 +219,9 @@ namespace FlyingGame.Bridge
             _aileronTrim = _rudderTrim = 0f;
         }
 
-        private ((int, int, bool, bool, bool, bool, bool), (bool, float, float, float, float, float, float), (bool, bool, bool, bool, bool, bool, bool)) _layoutKey;
+        // The last group carries one more bool than the mainline wrote: TvOutput.Active, because the layout differs
+        // when the game is on the TV. The VALUE and this TYPE have to be changed together or it does not compile.
+        private ((int, int, bool, bool, bool, bool, bool), (bool, float, float, float, float, float, float), (bool, bool, bool, bool, bool, bool, bool, bool)) _layoutKey;
         private bool _layoutKeySet;
 
         private void Update()
