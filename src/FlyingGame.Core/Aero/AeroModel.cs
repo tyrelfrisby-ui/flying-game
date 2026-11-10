@@ -567,6 +567,7 @@ public static class AeroModel
         // document later shows was wrong (the Pitts' entry gated at 17 deg on a 12 deg wing).
         string slipRollKind = config.SpinAero?.RollDueToSideslip ?? "";
         double stabHighAlphaK = config.SpinAero?.StabHighAlphaK ?? 1.0;
+        double finSidewashK = config.SpinAero?.FinSidewashK ?? 0.0;
         double[] wingGeom = WingGeom(config);
         double slipRollK = slipRollKind.Length > 0 && wingGeom[2] > 1e-6 ? wingGeom[0] / wingGeom[2] : 0.0;
         const double SlipRollBeta20 = 20.0 * Math.PI / 180.0;
@@ -684,6 +685,28 @@ public static class AeroModel
 
                 if (isVertical)
                 {
+                    // THE FIN SITS IN THE FLOW THE FUSELAGE ACCELERATES AROUND ITSELF (SpinAeroConfig.FinSidewashK).
+                    // Potential flow past a cylinder has surface speed 2V·sin θ, peaking 90° from the stagnation
+                    // line — and for a crossflow arriving at the SIDE of a fuselage those two points are the top
+                    // and the bottom, which is exactly where a fin stands. So the lateral component is amplified by
+                    // 1 + k·(R/r)², up to 2× at the root (4× the lateral dynamic pressure) and decaying to free
+                    // stream a body-diameter out. A strip model otherwise hands every strip the free-stream lateral
+                    // flow however close to the body it sits. Zero without crossflow, so ordinary flight, the spin
+                    // entry and the attached rudder are untouched. See the config doc for why this and not the
+                    // section, and for the geometry caveat the knob carries.
+                    if (finSidewashK > 0.0 && config.Fuselage.Crossflow is { } fcf)
+                    {
+                        double rBody = FuselageShape.HasStations(fcf)
+                            ? FuselageShape.At(fcf, stripAt.X).HalfZ
+                            : (fcf.LengthM > 1e-6 ? 0.5 * fcf.SideArea / fcf.LengthM : fcf.BodyRadiusM);
+                        double midZ = FuselageShape.HasStations(fcf) ? FuselageShape.At(fcf, stripAt.X).MidZ : 0.0;
+                        if (rBody > 1e-6)
+                        {
+                            double rStrip = Math.Max(Math.Abs(stripAt.Z - midZ), rBody);
+                            double amp = 1.0 + finSidewashK * (rBody * rBody) / (rStrip * rStrip);
+                            vLocal = new Vec3(vLocal.X, vLocal.Y * amp, vLocal.Z);
+                        }
+                    }
                     double uu = vLocal.X, vv = vLocal.Y;
                     planeSpeed = Math.Sqrt(uu * uu + vv * vv);
                     if (planeSpeed < MinSpeedMs)
