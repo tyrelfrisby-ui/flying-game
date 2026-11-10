@@ -18,11 +18,14 @@
 #   5. Cockpit/art lanes with commits in NEITHER lane (info: art waiting to be merged into both).
 #
 #   tools/check-parity.sh --hook   the parity LOCK, run by tools/githooks/pre-commit and pre-merge-commit on the commit
-#                                  being made (see the --hook block below and docs/PARITY.md, "The lock").
+#                                  being made. On a lane/* branch: keep the two lanes in sync. On a TRUNK
+#                                  ($PARITY_TRUNK_RE: main, master, split-surfaces): no shared change may ORIGINATE
+#                                  there. Anything else: no-op. See the --hook block below and docs/PARITY.md,
+#                                  "The lock" and "Trunk branches".
 #
 # Branches: arguments, else $PARITY_IOS_BRANCH / $PARITY_QUEST_BRANCH, else this worktree's own branch for the iOS
-# lane (from a Quest worktree, the lane most recently merged into it) and lane/claude-quest-islandnav for the Quest
-# lane. Art lanes: local lane/* branches matching $PARITY_ART_RE.
+# lane (from a Quest worktree OR a trunk, the lane most recently merged into the Quest lane) and
+# lane/claude-quest-islandnav for the Quest lane. Art lanes: local lane/* branches matching $PARITY_ART_RE.
 # Exit: 0 in sync (warnings allowed), 1 out of sync, 2 a branch does not exist.
 set -u
 STRICT=0; BRIEF=0; HOOK=0; ARGS=()
@@ -50,6 +53,23 @@ done
 HEAD_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
 QUEST=${ARGS[1]:-${PARITY_QUEST_BRANCH:-lane/claude-quest-islandnav}}
 
+# TRUNKS (Ty 2026-11-10, asked what to do about it: "Install enforcement on main too"). main and split-surfaces are
+# neither a lane nor a feature branch, and until this change none of this apparatus existed on them at all: no
+# docs/PARITY.md, no check-parity.sh, no tools/githooks/, so the dispatcher in the common hooks directory found nothing
+# to run and exited 0. That is worse than it sounds, because the MAIN CHECKOUT is where the iOS build and the OTA
+# publish are run from, and it sits on split-surfaces. Shared code committed there can be built, flown and installed
+# on a phone without ever having been in either lane -- which is precisely the failure the rule was written for
+# ("it seems like all of the pitts panel and canopy work did not make it to the quest build", 2026-11-04).
+#
+# A FEATURE BRANCH IS NOT A TRUNK, and the 15 codex-* branches, wip/* and the spin-* experiments are deliberately left
+# out: a feature branch's shared work meets the lock at the moment it is merged into a lane, and nobody builds from
+# it. A trunk has neither protection -- no lane merge will ever see it, and it is the thing being built. So the trunks
+# are NAMED, not guessed: a guess wide enough to catch split-surfaces catches all 15 codex branches with it, and this
+# rule is not for them. $PARITY_TRUNK_RE widens the list without editing this file.
+TRUNK_RE=${PARITY_TRUNK_RE:-'^(main|master|split-surfaces)$'}
+IS_TRUNK=0
+if [ -n "$HEAD_BRANCH" ] && printf '%s' "$HEAD_BRANCH" | grep -Eq "$TRUNK_RE"; then IS_TRUNK=1; fi
+
 # The lane most recently merged into $1: walk its merge commits newest first and take the first second parent that a
 # local non-Quest lane/* branch contains.
 parity_lane_merged_into() {
@@ -74,7 +94,26 @@ case "$HEAD_BRANCH" in
       exit 2
     fi
     ;;
-  *)  IOS_DEFAULT=${PARITY_IOS_BRANCH:-$HEAD_BRANCH} ;;
+  *)
+    # A TRUNK CANNOT NAME ITSELF EITHER, for the same reason a Quest worktree cannot: "the iOS lane" would come out
+    # split-surfaces, and the report would then list the hundreds of lane commits split-surfaces is behind and tell
+    # the reader to merge split-surfaces into the Quest lane. That is not advice, it is noise, and deploy.sh prints
+    # this on every iOS build from the main checkout. So a trunk reads the answer out of the Quest lane's history,
+    # exactly as a Quest worktree does.
+    # Not in --hook: resolving it walks 60 merges against 224 branches and measures 4.2 s on this repository, which is
+    # 4.2 s added to EVERY commit in the main checkout. The trunk lock below compares nothing against a lane, so it
+    # does not need the answer; the report does.
+    if [ "$IS_TRUNK" = 1 ] && [ "$HOOK" = 0 ] && [ -z "${PARITY_IOS_BRANCH:-}" ] && [ ${#ARGS[@]} -eq 0 ]; then
+      IOS_DEFAULT=$(parity_lane_merged_into "$QUEST" || true)
+      if [ -z "$IOS_DEFAULT" ]; then
+        echo "parity: cannot tell which lane is the iOS lane from here ($HEAD_BRANCH is a trunk, not a lane): no" >&2
+        echo "parity: lane/* branch has been merged into $QUEST. Name it: PARITY_IOS_BRANCH=lane/<name> $0 ..." >&2
+        exit 2
+      fi
+    else
+      IOS_DEFAULT=${PARITY_IOS_BRANCH:-$HEAD_BRANCH}
+    fi
+    ;;
 esac
 IOS=${ARGS[0]:-$IOS_DEFAULT}
 ART_RE=${PARITY_ART_RE:-'cockpit|instrument|pitts|greatlakes|great-lakes|grob|extra|j3|233|swift|beaver|172|eyepoint|floor-windows|front-sight|livery|model'}
@@ -84,26 +123,79 @@ QUEST_ONLY_RE='^(unity/Assets/XR/|unity/Assets/Plugins/Android/|unity/Assets/_Pr
 SHARED_RE='^(configs/|src/|unity/Assets/StreamingAssets/aircraft/|unity/Assets/_Project/Resources/Models/|tools/own_models/|docs/models/[^/]*rig[^/]*\.json$|unity/Assets/_Project/Scripts/|unity/Assets/_Project/Shaders/|unity/Assets/Plugins/iOS/|unity/Assets/Plugins/macOS/)'
 
 # ---- --hook: the parity lock (tools/githooks/pre-commit and pre-merge-commit) ----------------------------------------
-# Runs on a commit being made, against the INDEX. No-op on every branch but the two lanes. On lane X (the other lane Y):
+# Runs on a commit being made, against the INDEX. There are THREE classes of branch and two different rules.
+#
+# A LANE (any lane/* branch, or a branch named outright in $PARITY_IOS_BRANCH). On lane X, with the other lane Y:
 #   allow  the commit changes no shared path (logs, docs, renders, Quest-only files);
 #   allow  it merges Y's tip in (MERGE_HEAD == Y): that is how the lanes are synced, so it can never deadlock;
 #   allow  its shared paths come out identical to Y's;
 #   allow  X and Y were identical in shared paths before it (a lead commit: Y must merge X next);
 #   BLOCK  otherwise: X already differs from Y in shared code and this commit adds more. Merge Y into X (or X into Y)
 #          first. Never bypass with --no-verify (docs/PARITY.md).
+# This fires on ALL ~224 lane/* branches, not only the two shipping lanes, because the iOS lane defaults to the branch
+# the worktree is on. That is deliberate as of 2026-11-10: it is what stopped several agents shipping unsynced work.
+# Its surprising consequence -- a feature lane that is merely BEHIND the Quest lane is blocked -- and the remedy are
+# written up in docs/PARITY.md, "The lock".
+#
+# A TRUNK ($PARITY_TRUNK_RE: main, master, split-surfaces). A DIFFERENT rule, because the lane rule is unanswerable
+# here. The lane rule's remedy is always "sync with the other lane", and a trunk has no other lane: it is not one of
+# the pair, it is hundreds of commits behind both, and merging a trunk into a shipping lane is not a thing anyone
+# wants. What a trunk CAN be held to is the rule Ty already wrote in prose (docs/PARITY.md rule 3: "Every change lands
+# on [the iOS lane] first and is merged into [the Quest lane] the SAME DAY, or it lands on a shared lane that is
+# merged into both"): shared work does not ORIGINATE on a trunk.
+#   allow  the commit changes no shared path. This is the common case in the main checkout and it is why the rule is
+#          affordable: AGENT-LOG.md, docs, renders and tools/deploy/ are all outside SHARED_RE, so the log entry and
+#          the deploy scripts that checkout exists to run are untouched by this;
+#   allow  it is a merge (MERGE_HEAD set, whatever the other side is): the shared content is arriving from a branch
+#          that met the lock on its own way in, and a hook that can block a merge can deadlock a repository;
+#   allow  PARITY_OVERRIDE=1, which is the escape hatch deploy-quest.sh already uses for the same rule, and which
+#          like that one is supposed to come with an AGENT-LOG line saying why;
+#   BLOCK  otherwise: make the change on a lane. There is no "identical to the other lane" allowance here on purpose:
+#          a trunk is never identical to a shipping lane in shared paths, so such an allowance would be a branch that
+#          can never be taken -- a check that reads green forever, which is worse than no check (see the widget note
+#          at check 4 for the same argument made about SHARED_RE).
+#
+# ANYTHING ELSE (codex-*, wip/*, the spin-* experiments, a detached HEAD): no-op. A feature branch's shared work meets
+# the lock when it is merged into a lane, and nobody builds from one.
 if [ "$HOOK" = 1 ]; then
   branch=$(git symbolic-ref -q --short HEAD) || exit 0
-  # THE LOCK IS ABOUT THE TWO SHIPPING LANES, and the iOS lane defaults to whatever branch this worktree is on -- so
-  # without this, every scratch branch becomes "the iOS lane" and the hook tells you to merge your WIP into the Quest
-  # lane and then refuses your next shared commit. A lane is a lane/* branch, or one named outright.
+  shared() { grep -Ev "$QUEST_ONLY_RE" | grep -E "$SHARED_RE"; }
   case "$branch" in
     lane/*) ;;
-    *) if [ -z "${PARITY_IOS_BRANCH:-}" ] || [ "$branch" != "$PARITY_IOS_BRANCH" ]; then exit 0; fi ;;
+    *)
+      if [ -n "${PARITY_IOS_BRANCH:-}" ] && [ "$branch" = "$PARITY_IOS_BRANCH" ]; then
+        : # named outright as the iOS lane: it gets the lane rule below, as it always has
+      elif [ "$IS_TRUNK" = 1 ]; then
+        git rev-parse -q --verify HEAD >/dev/null || exit 0
+        trunk_changed=$(git diff --cached --name-only HEAD | shared)
+        [ -z "$trunk_changed" ] && exit 0
+        git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1 && exit 0
+        if [ "${PARITY_OVERRIDE:-}" = 1 ]; then
+          echo "parity hook: PARITY_OVERRIDE=1 — shared change committed on the trunk $branch anyway" >&2
+          echo "parity hook: ($(printf '%s\n' "$trunk_changed" | grep -c .) file(s)). Put the reason in AGENT-LOG.md, and get it onto both lanes today." >&2
+          exit 0
+        fi
+        {
+          echo "PARITY HOOK: BLOCKED — $branch is a TRUNK, not a lane, and this commit changes shared code."
+          echo "Shared work does not start here: it lands on a lane and is merged into both shipping lanes the same"
+          echo "day (docs/PARITY.md rule 3). A commit on a trunk reaches neither lane, and this checkout is the one"
+          echo "that builds and publishes — so it would fly on a phone and be in no lane at all."
+          echo "  shared files in this commit ($(printf '%s\n' "$trunk_changed" | grep -c .)):"
+          printf '%s\n' "$trunk_changed" | head -10 | sed 's/^/      /'
+          echo "  Do it on a lane instead:  git worktree add /private/tmp/<name> -b lane/<name> <the iOS lane>"
+          echo "  (tools/check-parity.sh, run with no arguments from here, names the lane pair.)"
+          echo "  Everything NOT in SHARED_RE still commits here freely: AGENT-LOG.md, docs/, renders, tools/deploy/."
+          echo "  PARITY_OVERRIDE=1 git commit ... forces it, with an AGENT-LOG line. Never --no-verify."
+        } >&2
+        exit 1
+      else
+        exit 0
+      fi
+      ;;
   esac
   if [ "$branch" = "$IOS" ]; then other=$QUEST; elif [ "$branch" = "$QUEST" ]; then other=$IOS; else exit 0; fi
   if ! git rev-parse -q --verify "$other^{commit}" >/dev/null; then echo "parity hook: $other does not exist; not checked" >&2; exit 0; fi
   git rev-parse -q --verify HEAD >/dev/null || exit 0
-  shared() { grep -Ev "$QUEST_ONLY_RE" | grep -E "$SHARED_RE"; }
   changed=$(git diff --cached --name-only HEAD | shared)
   [ -z "$changed" ] && exit 0
   mh=$(git rev-parse -q --verify MERGE_HEAD 2>/dev/null)
@@ -134,6 +226,13 @@ done
 say() { [ "$BRIEF" = 1 ] || echo "$@"; }
 
 echo "== parity: iOS $IOS ($(git rev-parse --short "$IOS")) vs Quest $QUEST ($(git rev-parse --short "$QUEST"))"
+# Printed even in --brief, which is what deploy.sh shows, because for a build out of the main checkout this is the
+# line that matters: the lane pair below can be perfectly in sync and still have nothing to do with what is about to
+# be put on a phone.
+if [ "$IS_TRUNK" = 1 ]; then
+  echo "WARN  this checkout is on $HEAD_BRANCH, a TRUNK and not a lane: whatever is built here is in NEITHER lane."
+  echo "      The pair below is the lane pair, not what you are building. docs/PARITY.md, \"Trunk branches\"."
+fi
 
 # ---- 1. iOS commits the Quest lane does not have ----------------------------------------------------------------
 MISSING_ALL=$(git rev-list --count "$QUEST..$IOS")
