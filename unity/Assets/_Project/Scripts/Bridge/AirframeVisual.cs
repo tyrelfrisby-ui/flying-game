@@ -498,11 +498,65 @@ namespace FlyingGame.Bridge
                 float sd = TipSide(comp);
                 return LaunchDebris(wrap, worldVelocityUnity + transform.right * (4f * sd) + transform.up * 3f, transform.right * sd, -sd);
             }
+            // A WHOLE WING, with a bent tip still on it: the tip's pivot hangs off the AIRFRAME ROOT, not off the wing
+            // parts, so nothing that cuts up the wing can see it — see TakeBentTips. It leaves with the wing it belongs to.
+            if (comp == FlyingGame.Core.AirframeComponent.WingLeft || comp == FlyingGame.Core.AirframeComponent.WingRight)
+            {
+                bool leftSide = comp == FlyingGame.Core.AirframeComponent.WingLeft;
+                List<Transform> tips = leftSide ? _bentTipsL : _bentTipsR;
+                TakeBentTips(leftSide ? -1f : 1f, tips);
+                GameObject whole = DetachStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, comp, worldVelocityUnity, tips);
+                HideBentTipsLeftBehind(tips);
+                return whole;
+            }
             return DetachStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, comp, worldVelocityUnity);
         }
 
         private readonly Dictionary<FlyingGame.Core.AirframeComponent, Transform> _bentPanels = new();
         private bool _fuselageBent;
+
+        // ---- a bent tip leaving with the wing it is part of (Ty 2026-11-10) ---------------------------------------
+        private readonly List<Transform> _bentTipsL = new(), _bentTipsR = new();
+        private readonly List<FlyingGame.Core.AirframeComponent> _tipsTaken = new();
+
+        /// <summary>
+        /// The BENT TIP pivots on one side (−1 left, +1 right), taken off the aeroplane's books so they can leave with
+        /// the wing.
+        ///
+        /// WHY THEY HAD TO BE HUNTED FOR AT ALL (Ty 2026-11-10: "I bent the wings then over stressed it to the point of
+        /// failure in flight and the bent wingtips were still there so that is not fixed"). <see cref="ShowPanelBend"/>
+        /// cuts a bent panel's triangles OUT of the wing parts and hangs them on a <c>Bent-&lt;component&gt;</c> pivot
+        /// parented to the AIRFRAME ROOT. Everything that breaks a wing up works from the builder's wing parts —
+        /// <c>TakeWingParts</c> in DetachWingsStatic, <c>WingParts</c> in DetachStatic — and that pivot is in neither.
+        /// So the wing was thrown without its tip and the tip was left hanging on the fuselage where the wing had been.
+        ///
+        /// WingStructure.Build only ever names the four TIP panels, so IsTipPanel/TipSide cover every panel that can
+        /// have a pivot here; the other two keys in <see cref="_bentPanels"/> are the Nose and the TailBoom, which
+        /// belong to the fuselage and must stay exactly where they are.
+        /// </summary>
+        private void TakeBentTips(float side, List<Transform> into)
+        {
+            into.Clear();
+            _tipsTaken.Clear();
+            foreach (var kv in _bentPanels)
+            {
+                if (kv.Value == null || !IsTipPanel(kv.Key) || TipSide(kv.Key) != side) continue;
+                into.Add(kv.Value);
+                _tipsTaken.Add(kv.Key);
+            }
+            // Out of the dictionary AFTER the walk, never during it. The PIECES stay in _bentPieces on purpose: they are
+            // still the handle on that geometry, and a replay reshapes them where they now ride (ShowPanelBend).
+            foreach (FlyingGame.Core.AirframeComponent c in _tipsTaken) { _bentPanels.Remove(c); DropCarried(c); }
+        }
+
+        /// <summary>A tip that found nothing to ride — a model with no wing parts to cut, so no debris object was made at
+        /// all — is HIDDEN rather than left floating where the wing used to be. The wing is gone either way; what must not
+        /// happen is a bent tip still drawn on the aeroplane.</summary>
+        private void HideBentTipsLeftBehind(List<Transform> tips)
+        {
+            foreach (Transform t in tips)
+                if (t != null && t.parent == transform && t.gameObject.activeSelf) t.gameObject.SetActive(false);
+        }
 
         /// <summary>
         /// A crushed fuselage that BENDS instead of breaking (Ty 2026-11-04, <see cref="FlyingGame.Core.FuselageStructure"/>):
@@ -967,7 +1021,11 @@ namespace FlyingGame.Bridge
         /// (<see cref="DebrisMesh"/>), so a piece is painted exactly as it was on the aeroplane, in the livery it wore.
         /// Where the placed GLB has a prebuilt debris set (<see cref="AirframeBuilder.TakePrebuiltDebris"/>) its pieces are
         /// dropped instead and the runtime split only takes the part off the aeroplane.</summary>
-        public static GameObject DetachStatic(AirframeBuilder _builder, Transform root, AircraftConfig cfg, FlyingGame.Core.AirframeComponent comp, Vector3 worldVelocityUnity)
+        /// <param name="bentTips">Bent-tip pivots to send away with this piece (<see cref="TakeBentTips"/>): a whole wing
+        /// carries the bent tip that was on it. They hang off the airframe root rather than the wing parts, so nothing in
+        /// here can find them for itself.</param>
+        public static GameObject DetachStatic(AirframeBuilder _builder, Transform root, AircraftConfig cfg, FlyingGame.Core.AirframeComponent comp, Vector3 worldVelocityUnity,
+            List<Transform> bentTips = null)
         {
             if (comp == FlyingGame.Core.AirframeComponent.Cabin || comp == FlyingGame.Core.AirframeComponent.Propeller) return null;   // the break-up arrives as Nose + TailBoom events
             _builder?.FreezeRig();   // the break-up cuts the rigid model meshes
@@ -1173,6 +1231,9 @@ namespace FlyingGame.Bridge
                     }))
                     mark.transform.SetParent(debris.transform, true);
             }
+            // And a BENT TIP goes with the wing it was bent on, keeping its shape — before the launch, so a piece whose
+            // only visible geometry is that tip is not thrown away as empty (Ty 2026-11-10).
+            if (bentTips != null) foreach (Transform t in bentTips) if (t != null) t.SetParent(debris.transform, true);
             _builder.Forget(gone);
             foreach (GameObject g in gone) if (g != null) Gone(g);
             Vector3 sideDir = (leftWing || side < 0f) ? -root.right : root.right;
@@ -1343,6 +1404,7 @@ namespace FlyingGame.Bridge
             _carried.Clear();   // the carriers went with the old airframe (Build destroys it)
             _tailPieces = null; _tailShown = 0f;
             _bentBlades.Clear(); _propDiscs.Clear(); _propBentShown = false; _propBendBuilt = false;   // the bent blades went with the old propeller
+            _bentTipsL.Clear(); _bentTipsR.Clear(); _tipsTaken.Clear();   // and the old aeroplane's bent tips are not this one's
             _rigPartGone = false;
             Cockpit.Reset();
             _displays.Forget();
@@ -1375,7 +1437,14 @@ namespace FlyingGame.Bridge
         {
             if (_wingsDetached) return (null, null);
             _wingsDetached = true;
-            var (l, r) = DetachWingsStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, worldVelocityUnity);
+            // THE G-LIMIT FAILURE IS THE CASE TY HIT: bend the tips by pulling g, then pull them off. A bent tip's
+            // geometry is on a pivot under the airframe root and not in the builder's wing parts, so the break-up could
+            // not see it — the wings went and the bent tips stayed (Ty 2026-11-10). They leave with their own side.
+            TakeBentTips(-1f, _bentTipsL);
+            TakeBentTips(1f, _bentTipsR);
+            var (l, r) = DetachWingsStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, worldVelocityUnity, _bentTipsL, _bentTipsR);
+            HideBentTipsLeftBehind(_bentTipsL);
+            HideBentTipsLeftBehind(_bentTipsR);
             ReplayActors.RegisterAirframePart(l, transform);   // on the aeroplane in the replay until now (Ty pt1001)
             ReplayActors.RegisterAirframePart(r, transform);
             return (l, r);
@@ -1383,7 +1452,11 @@ namespace FlyingGame.Bridge
 
         /// <summary><see cref="DetachWings"/> for any AirframeBuilder-built airframe (the editor's DebrisPaintCheck too).
         /// What falls is what was on screen, painted as it was (see <see cref="DetachStatic"/>).</summary>
-        public static (GameObject left, GameObject right) DetachWingsStatic(AirframeBuilder _builder, Transform root, AircraftConfig cfgM, Vector3 worldVelocityUnity)
+        /// <param name="bentLeft">Bent-tip pivots to send away with the LEFT wing, and <paramref name="bentRight"/> with
+        /// the right (<see cref="TakeBentTips"/>). They are cut out of the wing parts and parented to the airframe root,
+        /// so nothing in here can find them for itself.</param>
+        public static (GameObject left, GameObject right) DetachWingsStatic(AirframeBuilder _builder, Transform root, AircraftConfig cfgM, Vector3 worldVelocityUnity,
+            List<Transform> bentLeft = null, List<Transform> bentRight = null)
         {
             _builder.FreezeRig();
             List<GameObject> parts = _builder.TakeWingParts();
@@ -1442,6 +1515,13 @@ namespace FlyingGame.Bridge
             foreach (GameObject mark in _builder.TakeMarks(m => m.name != "Decal:fin" && m.name != "Decal:fuselage" && m.name != "Decal:sweep"
                                                               && Mathf.Abs(root.InverseTransformPoint(m.transform.position).x) > bodyHalf))
                 mark.transform.SetParent(root.InverseTransformPoint(mark.transform.position).x < 0f ? left.transform : right.transform, true);
+
+            // And a BENT TIP is part of the wing, so it goes with it, keeping the shape it was bent into (Ty 2026-11-10).
+            // World pose kept, as the markings above are: the debris object is posed at the aeroplane, so the tip does not
+            // move at the handover and then rides the wing down. Before the launch, so a wing whose only visible geometry
+            // IS the bent tip is not thrown away as empty.
+            if (bentLeft != null) foreach (Transform t in bentLeft) if (t != null) t.SetParent(left.transform, true);
+            if (bentRight != null) foreach (Transform t in bentRight) if (t != null) t.SetParent(right.transform, true);
 
             // Ballistic tumble: inherit the aircraft's velocity, kick outward and up, spin about a random axis
             // biased to the span (a freed wing pinwheels), each side its own way.
