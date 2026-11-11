@@ -62,17 +62,51 @@ public class J3FloatsWaterTests
             }
             RigidBodyState s = ac.State;
             double cgAbove = -s.Position.Z, draft = FloatHydro.LastReport.DraftAtStepM;
+            double sinkMs = s.Attitude.Rotate(s.Velocity).Z, hullDragN = FloatHydro.Floats[0].DragN + FloatHydro.Floats[1].DragN;
             _out.WriteLine($"J-3 floats at rest: CG {cgAbove:F3} m above the water, physics draft at the step {draft:F3} m, "
                            + $"pitch {Pitch(s):F1}, roll {Roll(s):F1}, buoyancy {FloatHydro.LastReport.BuoyancyN:F0} N vs weight {cfg.Mass.MassKg * 9.81:F0} N; "
-                           + $"drawn float: keel {DrawnKeelAtStepM - cgAbove:F3} m under, deck {cgAbove - DrawnDeckAtStepM:F3} m clear");
-            // The drawn EDO 60-1320 (lane/claude-hydro, 2026-11-02): at 1,300 lb the level waterline is 0.285 m above the
-            // keel at the step (hand: bisection of the drawn sections for 589.7 kg / 2 of fresh water each); it rests
-            // ~2 deg bow-up, which puts the step a centimetre deeper.
-            Assert.InRange(draft, 0.26, 0.32);
+                           + $"drawn float: keel {DrawnKeelAtStepM - cgAbove:F3} m under, deck {cgAbove - DrawnDeckAtStepM:F3} m clear; "
+                           + $"settling {sinkMs:+0.000;-0.000} m/s, idling ahead at {s.Velocity.Length:F3} m/s ({s.Velocity.Length / 0.44704:F1} mph) against {hullDragN:F0} N of hull resistance at {ac.EngineRpm:F0} rpm");
+            // THE DRAWN EDO 60-1320 AT THE WEIGHT IT IS FLOWN AT. The range used to be 0.26-0.32 around a level
+            // waterline of 0.285 m above the keel at the step, which was the bisection of the drawn sections for
+            // 589.7 kg / 2 of fresh water each -- and 589.7 kg was the PLACARD, A-691's 1,300 lb seaplane gross. On
+            // 2026-11-11 mass.massKg became the aeroplane as flown, 451.142 kg (805 lb empty, Piper Service Memo 41
+            // plus the 125 lb float exchange, one pilot in the rear seat, tanks dry), and a float that displaces
+            // 23.5 % less water floats higher. The same bisection, re-run on the same drawn sections:
+            //     589.670 kg   0.2948 m3 per float   level draft at the step 0.2851 m   (the old range's centre)
+            //     451.142 kg   0.2256 m3 per float   level draft at the step 0.2421 m
+            //     365.142 kg   0.1826 m3 per float   level draft at the step 0.2140 m   (empty, for scale)
+            // It still rests ~2 deg bow-up, which puts the step about a centimetre deeper: 0.254 m, which is what the
+            // sim reads to the millimetre. The window keeps the old one's shape about the new level figure.
+            Assert.InRange(draft, 0.22, 0.28);
             Assert.InRange(Pitch(s), -6, 6);
             Assert.InRange(Math.Abs(Roll(s)), 0, 2);
             Assert.InRange(FloatHydro.LastReport.BuoyancyN, cfg.Mass.MassKg * 9.81 * 0.9, cfg.Mass.MassKg * 9.81 * 1.1);
-            Assert.True(s.Velocity.Length < 0.3, "should be at rest");
+            // AT REST IS VERTICAL. A seaplane with its engine running is never at rest over the ground -- "you cannot
+            // stop" is the first thing about float flying -- so the old `Velocity.Length < 0.3` was asking the model to
+            // be wrong, and it has never passed: on the pristine base it read 2.33 m/s, and at the OLD 589.7 kg mass
+            // (measured, same binaries, the pre-2026-11-11 config) it read 2.01, so the weight is not what put it
+            // there. What is there is an ordinary equilibrium, and it is measured, not assumed: 192 N of hull
+            // resistance at 2.33 m/s balanced by the propeller's thrust at a 691 rpm idle -- about 2 hp at the shaft
+            // through a 1.83 m disc by momentum theory, which is what a C-65 idles at. 2.33 m/s is 5.2 mph.
+            //
+            // TY: 5.2 mph of idle taxi is the one number in this test nobody has checked against your aeroplane. It is
+            // in the band the books give for a Cub on Edo floats (4-6 mph) and it is a consequence of the hull
+            // resistance and the idle thrust rather than a tuned figure, but you are the one who idles one around a
+            // lake. If it should be slower, the idle rpm or the idle thrust is where to put it, not the hull.
+            Assert.True(Math.Abs(sinkMs) < 0.02, $"still settling at {sinkMs:F3} m/s after 15 s: it has not found its waterline");
+            // It idles ahead very slightly crabbed -- 0.066 m/s of drift on 2.33 ahead, 1.6 deg -- which is the
+            // slipstream and the P-factor on the fin, and a real one does it too. What would be wrong is a float
+            // sliding bodily sideways, so the assertion is on the drift ANGLE and not on a raw velocity.
+            double driftDeg = Math.Atan2(Math.Abs(s.Velocity.Y), Math.Max(0.1, s.Velocity.X)) * 57.3;
+            Assert.True(driftDeg < 5.0, $"idling ahead {driftDeg:F1} deg crabbed: it is sliding, not taxiing");
+            Assert.InRange(s.Velocity.Length, 1.0, 4.0);   // an idle taxi, not a standstill and not a getaway
+            // And nothing spurious is pushing it: switch the magnetos off and the water stops it.
+            ac.MagLeft = false; ac.MagRight = false;
+            for (int i = 0; i < 600; i++) sim.RunFor(0.1, new ControlInputs(0, 0, 0, Lever(0)));
+            _out.WriteLine($"magnetos off, 60 s later: {ac.State.Velocity.Length:F3} m/s, {ac.EngineRpm:F0} rpm, draft {FloatHydro.LastReport.DraftAtStepM:F3}");
+            Assert.True(ac.State.Velocity.Length < 0.35, $"dead engine and it is still doing {ac.State.Velocity.Length:F2} m/s after a minute");
+            Assert.InRange(FloatHydro.LastReport.DraftAtStepM, 0.22, 0.28);
             // The water line on the DRAWN floats: the keel at least 10 cm under (it is visibly afloat, not sitting on
             // the surface), the deck at least 10 cm clear (not awash).
             Assert.True(DrawnKeelAtStepM - cgAbove > 0.10, $"drawn keel only {DrawnKeelAtStepM - cgAbove:F3} m under the water");
