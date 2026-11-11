@@ -62,6 +62,15 @@ public class InvSpinPowerHoldProbe
             { cfg.Propulsion!.PropInertia = double.Parse(ip, System.Globalization.CultureInfo.InvariantCulture); cfg.Id += $"[Ip={ip}]"; }
             if (Environment.GetEnvironmentVariable("INVHOLD_SPOIL") is { } sp)
             { cfg.SpinAero ??= new SpinAeroConfig(); cfg.SpinAero.ControlSpoilerK = double.Parse(sp, System.Globalization.CultureInfo.InvariantCulture); cfg.Id += $"[spoil={sp}]"; }
+            // The upright flat spin's two keys, overridable here so the cost of an UPRIGHT fix can be read on the
+            // INVERTED spin in the same session. Ty 2026-11-10 on the Great Lakes: "similar overly flat and overly
+            // difficult upright flat spin recovery. Inverted is fine" — so the pair that fixes the upright side has
+            // to be measured HERE before it ships. BeggsTimingProbe (BEGGS_FINK / BEGGS_STABK) sweeps the same two
+            // keys for the upright side; this is the other half of that table.
+            if (Environment.GetEnvironmentVariable("INVHOLD_FINK") is { } fk)
+            { cfg.SpinAero ??= new SpinAeroConfig(); cfg.SpinAero.FinSidewashK = double.Parse(fk, System.Globalization.CultureInfo.InvariantCulture); cfg.Id += $"[finK={fk}]"; }
+            if (Environment.GetEnvironmentVariable("INVHOLD_STABK") is { } sk)
+            { cfg.SpinAero ??= new SpinAeroConfig(); cfg.SpinAero.StabHighAlphaK = double.Parse(sk, System.Globalization.CultureInfo.InvariantCulture); cfg.Id += $"[stabK={sk}]"; }
             if (budget) _out.WriteLine(Budget(cfg, ail, upright));
             else _out.WriteLine(Reality(cfg, ail, upright));
         }
