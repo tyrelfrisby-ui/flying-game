@@ -1,13 +1,13 @@
 ---
 name: feedback_agent_driven_async_workflow
-description: "Tyrel has limited hands-on time (kids, not his day job) — favor async agent-driven progress, capture-and-steer from phone, results pushed/logged"
+description: "the owner has limited hands-on time (kids, not his day job) — favor async agent-driven progress, capture-and-steer from phone, results pushed/logged"
 metadata: 
   node_type: memory
   type: user
   originSessionId: 3824f082-e98e-4a39-8f9e-2a4352db1380
 ---
 
-Tyrel (2026-09-06) on how he wants to work: he got into AI via agent tools ("OpenClaw" was a hassle, "Hermes" better, now "Grok bot" best) precisely because agents can "run the AI" for him. His constraint is TIME — this isn't his primary job, he has kids/a life, and the project stalls for weeks when it needs him at the keyboard. The whole point is to LOWER activation energy: drop an idea from his phone, have work happen without him, come back to shipped progress + a status log he glances at.
+the owner (2026-09-06) on how he wants to work: he got into AI via agent tools ("OpenClaw" was a hassle, "Hermes" better, now "Grok bot" best) precisely because agents can "run the AI" for him. His constraint is TIME — this isn't his primary job, he has kids/a life, and the project stalls for weeks when it needs him at the keyboard. The whole point is to LOWER activation energy: drop an idea from his phone, have work happen without him, come back to shipped progress + a status log he glances at.
 
 **Why:** the blocker was never AI capability — it was the friction of sitting down and context-switching back in.
 

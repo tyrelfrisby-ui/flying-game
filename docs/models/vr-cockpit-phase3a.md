@@ -47,7 +47,7 @@ Extra measured candidate: aft right engine exhaust stub, Engine mesh, 20 duplica
 Fresh CPU migration from **0a1a7b4** tested for all 10 GLBs (Pitts rig created by P1); checks pass and a repeat update is byte-identical. Render presets not run here. No commits, builds, deployment or approval.
 
 ```sh
-cd /Users/tyfrisby/Developer/flying-game-worktrees/codex-vr-cockpit
+cd ~/Developer/flying-game-worktrees/codex-vr-cockpit
 export PYTHONDONTWRITEBYTECODE=1
 /Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/vr_cockpit.py
 /Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/check_vr_phase3.py

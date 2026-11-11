@@ -1,6 +1,6 @@
 # Grok Prompts Log
 
-Prompts from Grok bot (relayed by Tyrel) that drive design/build work, newest first.
+Prompts from Grok bot (relayed by the owner) that drive design/build work, newest first.
 
 ## 2026-09-06 — Build the slice, steps 1–2 (Core/Sim + flight tests)
 

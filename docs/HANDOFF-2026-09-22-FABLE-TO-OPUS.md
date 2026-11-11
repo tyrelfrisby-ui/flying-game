@@ -4,7 +4,7 @@ Read this first, then `docs/memory/*.md` (verbatim copies of the previous sessio
 
 ## What this is
 iOS flight-training game "Aero Playground" (bundle `com.tyrelfrisby.aeroplayground`). Unity 6000.3.23f1 front end + an engine-agnostic C# flight sim.
-Owner: Tyrel Frisby, CFI, Cub/glider pilot, decisive, limited hands-on time — **build, don't survey**; ship every change to his phone/TestFlight and report plainly.
+Owner: the owner Frisby, CFI, Cub/glider pilot, decisive, limited hands-on time — **build, don't survey**; ship every change to his phone/TestFlight and report plainly.
 
 - Repo: `~/Documents/flying-game` (private GitHub `tyrelfrisby-ui/flying-game`), branch **`split-surfaces`**, HEAD `03e1795`. Working tree clean.
 - Sim: `src/FlyingGame.Core` (aero, gear, prop, terrain) and `src/FlyingGame.Sim` (Aircraft, TrimSolver, TugPilot, DronePilot, `Practice/PracticeScenario.cs`). Compiled into Unity from source.
@@ -15,7 +15,7 @@ Owner: Tyrel Frisby, CFI, Cub/glider pilot, decisive, limited hands-on time — 
 ## Build / ship (all tracked in `tools/deploy/`)
 - `zsh tools/deploy/deploy.sh` — clean Unity export → xcodebuild (generic iOS) → install+launch on the **iPhone** (UDID in script). Log `build/deploy.log`; C# errors in `build/ios.log` (`grep 'error CS'`).
 - `zsh tools/deploy/install-devices.sh` — installs the last build on every connected device (iPhone `757C3F5F-…`, iPad Air 11 `5BE5CD6C-…`, iPad mini `E7648C42-…`). "unable to locate device" = asleep/unplugged.
-- `zsh tools/deploy/testflight.sh` — archive → App Store Connect upload → OTA dev ipa to `build/ota/FlyingGame.ipa` (served at https://mac-studio.tail9aad2a.ts.net/ota/ over Tailscale; the iPad Air is NOT on Tailscale). Verify with `grep 'Upload succeeded' build/testflight.log` and `== OTA ipa refreshed`.
+- `zsh tools/deploy/testflight.sh` — archive → App Store Connect upload → OTA dev ipa to `build/ota/FlyingGame.ipa` (served at https://<ota-host>/ota/ over Tailscale; the iPad Air is NOT on Tailscale). Verify with `grep 'Upload succeeded' build/testflight.log` and `== OTA ipa refreshed`.
 - Version stamp = `bundleVersion` in `unity/ProjectSettings/ProjectSettings.asset` (date-time), shown in green at the top of the in-game screen.
 - Current: phone has **2026.0921.0648** (latest code). TestFlight/OTA have 2026.0916.0632 (same features) — refresh them if anything ships.
 - Commit after each shipped change; end commit messages with the Co-Authored-By / Claude-Session trailer the harness gives you.
