@@ -7,7 +7,8 @@ using UnityEngine;
 namespace FlyingGame.Bridge
 {
     /// <summary>
-    /// Aerotow gameplay: spawns a tug (PA-18) ahead of the glider on a 61 m rope, runs the tug on an
+    /// Aerotow gameplay: spawns a tug (<see cref="TugId"/>: the TOW PLANE picker's, or the Great Lakes for the 2-33 until
+    /// the Super Cub is built, FlyingGame.Core.TowPlanes) ahead of the glider on a 61 m rope, runs the tug on an
     /// AI speed/altitude hold while the PLAYER flies the glider (holding formation), applies the rope
     /// physics each fixed step, and draws the rope. Press G to release (the yellow-knob pull) — the
     /// glider drops free and the tug climbs away. Press Y to (re)hook a tow from a stable state.
@@ -28,8 +29,43 @@ namespace FlyingGame.Bridge
 
         private void Awake() => _gliderDriver = GetComponent<FlightSimDriver>();
 
-        private void Start() { if (_gliderDriver != null) _gliderDriver.AircraftChanged += EndTow; }
-        private void OnDestroy() { if (_gliderDriver != null) _gliderDriver.AircraftChanged -= EndTow; }
+        /// <summary>The tug this glider gets: the Great Lakes for the 2-33 (Ty t906u, interim until the Super Cub is
+        /// built), else the TOW PLANE picker's choice.</summary>
+        public string TugId => FlyingGame.Core.TowPlanes.TugFor(_gliderDriver != null ? _gliderDriver.AircraftId : null, SessionSettings.TugId);
+
+        /// <summary>The tug's sim aircraft while one is out (null otherwise) — for checks and the HUD.</summary>
+        public Aircraft TugAircraft => _tugAircraft;
+        /// <summary>The tug's drawn airframe while one is out.</summary>
+        public GameObject TugObject => _tugGo;
+        /// <summary>The rope's renderer, once a tow has been started.</summary>
+        public LineRenderer Rope => _rope;
+
+        private void Start()
+        {
+            if (_gliderDriver == null) return;
+            _gliderDriver.AircraftChanged += OnAircraftChanged;
+            HookUpIfOnTheRunway();
+        }
+        private void OnDestroy() { if (_gliderDriver != null) _gliderDriver.AircraftChanged -= OnAircraftChanged; }
+
+        private void OnAircraftChanged() { EndTow(); HookUpIfOnTheRunway(); }
+
+        /// <summary>A glider started on the runway is on the rope behind its tug at once (Ty 2026-11-06 t905u: "starting a
+        /// glider on the ground no longer provides a tow plane"). Before, the tug appeared only when TOW was tapped, and on the
+        /// Quest that button is drawn with OnGUI, which the headset never shows. The tug waits at idle until the glider pilot
+        /// brings its power up (the ground-tow latch below); TOW / RELEASE and the stick click still work as before. Not in a
+        /// challenge or lesson: those set up their own start.</summary>
+        public static bool WantsTowAtStart(bool groundStart, bool glider, bool onFloats, string challengeId) =>
+            groundStart && glider && !onFloats && string.IsNullOrEmpty(challengeId);
+
+        private void HookUpIfOnTheRunway()
+        {
+            var cfg = _gliderDriver.Sim?.Aircraft?.Config;
+            if (cfg == null || Tow != null) return;
+            if (!WantsTowAtStart(_gliderDriver.GroundStart, cfg.Propulsion == null, cfg.Floats != null, SessionSettings.ChallengeId)) return;
+            try { StartTow(); Debug.Log($"[Tow] runway start: {_gliderDriver.AircraftId} on the rope behind {TugId}"); }
+            catch (System.Exception e) { Debug.LogError($"[Tow] runway start: no tug for {_gliderDriver.AircraftId} ({TugId}): {e}"); EndTow(); }
+        }
 
         /// <summary>Reset / aircraft switch: the tow, the tug and the rope all belong to the PREVIOUS aircraft — drop
         /// them (owner: after a tow the rope kept drawing from the old hook as white lines on the next aircraft).</summary>
@@ -124,7 +160,8 @@ namespace FlyingGame.Bridge
         public void StartTow()
         {
             var gliderState = _gliderDriver.Sim.Aircraft.State;
-            var tugConfig = UnityAircraftConfigLoader.LoadFromStreamingAssets(SessionSettings.TugId);
+            string tugId = TugId;
+            var tugConfig = UnityAircraftConfigLoader.LoadFromStreamingAssets(tugId);
             var fwd = gliderState.Attitude.Rotate(new Vec3(1, 0, 0));
             double groundHere = FlyingGame.Core.WorldTerrain.GroundHeightAt(gliderState.Position.X, gliderState.Position.Y);
             _groundTow = (-gliderState.Position.Z - groundHere) < 3.0 && gliderState.Velocity.Length < 3.0;
@@ -151,11 +188,11 @@ namespace FlyingGame.Bridge
             var tug = new Aircraft(tugConfig, tugState, new ControlDeflections(0, 0, 0, 0));
             _tugDriver = null;
 
-            if (_tugGo != null && _tugVisualId != SessionSettings.TugId) { Destroy(_tugGo); _tugGo = null; }
+            if (_tugGo != null && _tugVisualId != tugId) { Destroy(_tugGo); _tugGo = null; }
             if (_tugGo == null)
             {
-                _tugGo = BuildTugVisual();
-                _tugVisualId = SessionSettings.TugId;
+                _tugGo = BuildTugVisual(tugId, tugConfig);
+                _tugVisualId = tugId;
                 if (_rope == null) _rope = BuildRope();
             }
             _tugGo.SetActive(true);
@@ -287,12 +324,11 @@ namespace FlyingGame.Bridge
             }
         }
 
-        private static GameObject BuildTugVisual()
+        private static GameObject BuildTugVisual(string tugId, FlyingGame.Core.DataContracts.AircraftConfig cfg)
         {
-            // The real Super Cub airframe (same builder as the flyable one) — the old primitive placeholder
+            // The tug's real airframe (same builder as the flyable one) — the old primitive placeholder
             // used the stripped Standard shader and rendered magenta on device.
-            var root = new GameObject("Tug-" + SessionSettings.TugId);
-            var cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(SessionSettings.TugId);
+            var root = new GameObject("Tug-" + tugId);
             new AirframeBuilder().Build(root.transform, cfg);
             return root;
         }

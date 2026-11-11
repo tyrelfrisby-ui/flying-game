@@ -51,6 +51,29 @@ Running record, one bullet per lane, newest last:
   **FLYING FEEL, for Ty:** centre stick on the 8BitDo will be LIVELIER than the pad he liked on 11-03 (one 30 %
   curve, not 0.65 stacked on the aeroplane's 0.1–0.3), and the Quest loses its headset-only 65 %. Both come back by
   raising "Stick expo" to 65–70 %.
+- **`lane/claude-233-launch`** — **HALF MERGED, deliberately, and the other half is a question for Ty.** The branch
+  carries two unrelated pieces:
+  **TAKEN** (`1d595817`, cherry-picked): a glider runway start is on the rope at once, and
+  `FlyingGame.Core.TowPlanes.TugFor` gives the 2-33 the Great Lakes whatever the TOW PLANE picker says — Ty's own
+  t905u and t906u: *"Use the Great Lakes as a tow plane for the 2-33 until we get the super cub built."* The tug sits
+  at rest 66.2 m ahead and waits at idle until the glider pilot brings its power up; TOW / RELEASE / stick click are
+  unchanged. The reason t905u happened at all is in the lane's own message: the tug appeared only when TOW was
+  tapped, and on the Quest that button is `OnGUI`, which the headset never draws. Self-contained — `TowPlanes.cs`,
+  `TowController.cs`, `StartMenu.cs`, `TowStartCheck.cs` and two test files — and it cherry-picked with no conflict.
+  **NOT TAKEN** (`22289144`, 2026-11-03): a PERMANENT iOS five-aircraft allow-list. It renames
+  `SessionSettings.Fleet` to `MasterFleet`, adds `FleetAllowList.cs`, makes the iPhone's selector offer only the
+  2-33, J-3, Great Lakes, Pitts and Extra with every other type hidden on iOS, and edits `NoRed233Tests` and
+  `ProgressionTests` to follow the rename. **Ty's answer is needed before that ships**: `TestFlightFleet` (11-05) is
+  the later answer to the same problem and says in its own header *"PACKAGING ONLY, OPT-IN. Nothing is deleted from
+  the tree"*, it lists six types rather than five, and tonight's ASTC 4x4 work took the whole fleet to 0.95 GB, so
+  the size pressure is gone. But his 11-03 words were about *"our proven airplanes"*, which is a quality judgement
+  and not a size one, so it may still be what he wants. **Q: does the iPhone still offer only those five in the
+  selector, or the whole fleet now that size is solved?** Nothing was deleted; the branch is intact.
+  **One stale test, fixed:** `TowPlanesTests.TheInterimTugIsAShippedConfig` asserted
+  `unity/Assets/StreamingAssets/aircraft/great-lakes-like.json` exists. That mirror is generated and untracked since
+  2026-11-10, so it is simply absent in a fresh checkout and the test failed there. Re-pinned to the source of
+  truth, `configs/aircraft/great-lakes-like.json`, found by walking up for the `configs/aircraft` directory the way
+  the other tests do.
 
 ## ASTC 4x4: the textures come out of the GLBs, and the whole fleet with every livery is 0.95 GB — Claude, 2026-11-10, lane/claude-textures
 
