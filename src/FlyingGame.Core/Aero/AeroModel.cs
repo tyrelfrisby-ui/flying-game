@@ -361,6 +361,29 @@ public static class AeroModel
     /// </summary>
     public static void ForgetFuselageMunk(AircraftConfig config) => _munk.Remove(config);
 
+    /// <summary>
+    /// THE AFT BODY, derived from the fuselage's own silhouette: the part of the side-view area that lies BEHIND the
+    /// CG, as { area m², centroid x m }. The side view is taken as a rectangle of length <c>LengthM</c> centred on
+    /// <c>SideCenterX</c> and of mean depth <c>SideArea / LengthM</c>, which is all the shape the fleet's configs
+    /// carry (only two of 35 have measured stations, and neither is the Pitts or the Extra). Zero area for a type
+    /// with no fuselage length, so the term that uses it is off for gliders and soft wings by construction.
+    ///
+    /// Checked against the two hand-authored turtledeck stations it is meant to replace the judgement of: the Pitts'
+    /// authored SectionCamberArea 2.0 at x −1.36 comes out 2.97 at −1.69 here, the Extra's 2.8 at −1.90 comes out
+    /// 4.04 at −2.33. Same aeroplane, same ballpark, no number typed in per type.
+    /// </summary>
+    public static double[] AftBody(AircraftConfig config) => _aftBody.GetValue(config, cfg =>
+    {
+        CrossflowConfig cf = cfg.Fuselage.Crossflow;
+        if (cf.LengthM <= 0.1 || cf.SideArea <= 0.0) return new[] { 0.0, 0.0 };
+        double tailX = cf.SideCenterX - 0.5 * cf.LengthM;
+        double lAft = cfg.Mass.CgVec().X - tailX;
+        if (lAft <= 0.05) return new[] { 0.0, 0.0 };
+        if (lAft > cf.LengthM) lAft = cf.LengthM;
+        return new[] { cf.SideArea / cf.LengthM * lAft, tailX + 0.5 * lAft };
+    });
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, double[]> _aftBody = new();
+
     private sealed class TailSectionMap { public string?[] Keys = System.Array.Empty<string?>(); public Dictionary<string, AirfoilTableData> Derived = new(); }
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, TailSectionMap> _tailSections = new();
     private static TailSectionMap TailSections(AircraftConfig config) => _tailSections.GetValue(config, cfg =>
@@ -1721,6 +1744,93 @@ public static class AeroModel
             totalForce += new Vec3(0, 0, fz);
             totalMoment += Vec3.Cross(new Vec3(xs, 0, 0) - config.Mass.CgVec(), new Vec3(0, 0, fz));
             ForceDebug.Add(new Vec3(xs, 0, 0), new Vec3(0, 0, fz), Vec3.Zero, "fuselage");
+        }
+        // AFT-FUSELAGE SIDESLIP CAMBER IN CROSSFLOW (CrossflowConfig.AftCamberCl / AftCamberGain). Ty 2026-11-11:
+        // "Fuselage crossflow should trigger the sideslip camber on the aft fuselage and produce a pronounced
+        // negative pitching moment on the pitts and extra which should result in flatter inverted spins than
+        // upright."
+        //
+        // The block above already models the aft body as a section cambered to SIDESLIP flow, but its dynamic
+        // pressure is the lateral velocity alone. NACA TN 4176 / NASA TR R-29 (Polhamus) gives the three-dimensional
+        // crossflow term for this effect as (C_Y)_nonpotential = c_y'(S/A)(cos²α·sin²β + sin²α); the model carries
+        // only the first half, and the half it drops is the one that matters broadside. At α 80° sin²α is 0.97
+        // against cos²α·sin²β's 0.03 — which is why the term is asleep in exactly the spin Ty is describing.
+        //
+        // Carried here weighted by the same sin²β the camber force already has, which reduces to the lateral force
+        // above multiplied by sin² of the station's OWN flow angle — Ty's sentence literally, the crossflow (wLoc)
+        // triggering the sideslip camber (vLoc²):
+        //
+        //     f_z = −½ρ·Cl·gain·A_aft·vLoc²·wLoc²/(u² + wLoc²)          (body −z = up)
+        //
+        // DEVIATION FROM THE PUBLISHED FORM, recorded not hidden: TN 4176 writes that share as a bare "+ sin²α".
+        // Taken bare it makes a pitching moment at ZERO sideslip at any α, which a sideslip camber must not do and
+        // which would move every type's stall break. The sin²β weight keeps the two limits that are forced on it —
+        // zero at β 0 because it is a sideslip effect, zero at α 0 because that is where the existing term's pinned
+        // numbers live (SideslipCamberTests). At α 5°/β 15° this is 0.8 % of the old term; at α 80°/β 40°, 32× it.
+        //
+        // The same source's φ-coefficient (sketch 13: the flat section peaks at φ 60–70° and is ZERO at φ 90°, i.e.
+        // ordinary knife-edge, where the model makes ~4.5 kN today) is NOT applied. CM-BETA §8 calls that the
+        // owner's call and not an agent's. This term is identically zero at α 0, so it leaves that decision open.
+        //
+        // EVEN IN BOTH vLoc AND wLoc, so it acts either way up and in either direction of sideslip, and it is always
+        // body-UP at a station AFT of the CG — hence always nose-DOWN in body axes. That is one term with opposite
+        // consequences: upright it steepens the spin (α falls from +90), inverted it FLATTENS it (α falls from −90
+        // toward −95). The sign is the test, and it is what makes an inverted spin flatter than an upright one.
+        //
+        // GEOMETRIC IN ITS SCALING, PER-TYPE IN ITS COEFFICIENT, and the second half is a reported finding and not a
+        // quiet fudge. A_aft and its arm come from AftBody(config) — the fuselage's own silhouette behind the CG —
+        // so no area or station is authored for any type. The camber COEFFICIENT could not be derived: the only
+        // fleet-wide shape data is lengthM/sideArea/planArea and their centroids, and side/plan area does not
+        // separate the aerobatic types (Pitts 1.33, Extra 1.30, but Great Lakes 1.31, Pawnee 1.32, and the fleet's
+        // two highest are a flying boat at 1.71 and the 737 at 1.38). The one field that could express "rounded
+        // turtledeck over flat belly" is the measured station shape, which exists on two configs and on neither of
+        // the two aeroplanes this is about. Making it derivable means measuring the Pitts' and the Extra's GLB
+        // meshes into stationX/MidZ/HalfY/HalfZ — the mesh itself, not a scaled three-view.
+        if (cfc.AftCamberCl > 0.0 && cfc.AftCamberGain > 0.0)
+        {
+            double[] aft = AftBody(config);
+            if (aft[0] > 0.0)
+            {
+                double arm = aft[1] - config.Mass.CgVec().X;
+                double u = bodyVelocity.X;
+                double vLoc = bodyVelocity.Y + bodyRates.Z * arm;
+                double wLoc = bodyVelocity.Z - bodyRates.Y * arm;
+                double axial = u * u + wLoc * wLoc;
+                if (axial > 1e-9)
+                {
+                    double fz = -0.5 * airDensity * cfc.AftCamberCl * cfc.AftCamberGain * aft[0]
+                                * vLoc * vLoc * (wLoc * wLoc / axial);   // body −z = up
+                    totalForce += new Vec3(0, 0, fz);
+                    totalMoment += Vec3.Cross(new Vec3(aft[1], 0, 0) - config.Mass.CgVec(), new Vec3(0, 0, fz));
+                    ForceDebug.Add(new Vec3(aft[1], 0, 0), new Vec3(0, 0, fz), Vec3.Zero, "fuselage");
+                }
+            }
+        }
+        // THE BROADSIDE SHARE (CrossflowConfig.AftCamberBroadsideCl), OFF AT 0.0 UNLESS THE OWNER TURNS IT ON.
+        // TN 4176 publishes the second crossflow share as a bare "+ sin²α", with no sin²β: a flat-bellied,
+        // round-topped body broadside to the crossflow makes a normal force whether or not it is sideslipping. That
+        // is the share that is large in a spin — measured crossflow q factor 0.96 of free stream against the
+        // sideslip share's 0.0002, because a developed flat spin has β of only 2–4°. It is also non-zero at zero
+        // sideslip, so it moves every type's stall break and trim: see the config field for why that is Ty's call.
+        if (cfc.AftCamberBroadsideCl > 0.0 && cfc.AftCamberGain > 0.0)
+        {
+            double[] aft = AftBody(config);
+            if (aft[0] > 0.0)
+            {
+                double arm = aft[1] - config.Mass.CgVec().X;
+                double u = bodyVelocity.X;
+                double wLoc = bodyVelocity.Z - bodyRates.Y * arm;
+                double axial = u * u + wLoc * wLoc;
+                if (axial > 1e-9)
+                {
+                    double vLoc = bodyVelocity.Y + bodyRates.Z * arm;
+                    double fz = -0.5 * airDensity * cfc.AftCamberBroadsideCl * cfc.AftCamberGain * aft[0]
+                                * (u * u + vLoc * vLoc + wLoc * wLoc) * (wLoc * wLoc / axial);   // V²·sin²(local α)
+                    totalForce += new Vec3(0, 0, fz);
+                    totalMoment += Vec3.Cross(new Vec3(aft[1], 0, 0) - config.Mass.CgVec(), new Vec3(0, 0, fz));
+                    ForceDebug.Add(new Vec3(aft[1], 0, 0), new Vec3(0, 0, fz), Vec3.Zero, "fuselage");
+                }
+            }
         }
         // The cowl's section, cambered the other way (flat top, round belly): a body-DOWN force ahead of the CG with |β|.
         if (cfc.CowlCamberCl > 0.0 && cfc.CowlCamberArea > 0.0)
