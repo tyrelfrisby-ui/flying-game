@@ -78,7 +78,14 @@ namespace FlyingGame.Bridge
         /// opaque queue long before the cloud blends over it, and no amount of depth written afterwards can undo
         /// that. So this is a switch, with its price measured, for the day a device says the fill is unaffordable.
         /// </summary>
-        public static float CoreAlpha = 2f;
+        /// ARMED 2026-11-11 at Ty's decision, after he was shown the price above and chose it anyway.
+        /// 0.94 is the measured setting: six levels of an 8-bit channel at the seam, and it keeps almost all of
+        /// the saving (+2.19 ms against +1.99 ms at 0.90, from +3.51 ms with no pre-pass). The ceiling is 0.96,
+        /// so 0.97 and above write nothing ever. THIS FIELD ONLY REACHES THE THERMAL CUMULUS -- the banks and
+        /// low patches never pass through the Cumulus=1 path and keep the material's _CoreAlpha = 2. That is
+        /// deliberate and not a half-measure: armed for the banks the pre-pass was measured at +0.10 ms for NO
+        /// saving (3.51 -> 3.61 ms) and a visible hard cut, so there is nothing there to trade.
+        public static float CoreAlpha = 0.94f;
 
         /// <summary>Off for a measurement: with the cull disabled every cloud draws, however far away.</summary>
         public static bool CullFar = true;
