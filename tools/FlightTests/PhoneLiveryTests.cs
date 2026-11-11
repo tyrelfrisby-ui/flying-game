@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using FlyingGame.Core;
 using Xunit;
@@ -87,30 +88,52 @@ public class PhoneLiveryTests
         _o.WriteLine($"{held} alternate livery GLB(s) held out of a phone build; {keptNonGlb} non-GLB files untouched");
     }
 
-    /// <summary>WHAT IT SAVES, measured off the GLBs themselves. Every texture embedded in a GLB ships as uncompressed
-    /// RGBA32 with a full mip chain (glTFast imports them as sub-assets, so Unity's platform texture pipeline never
-    /// sees them and there is no compression field in the .glb.meta at all), so in-build bytes = pixels x 4 x 4/3.
-    /// That model reproduced build 2026.1105.1550's recorded resources.assets.resS to 0.04 %, which is why it is worth
-    /// asserting against: if someone compresses the GLB textures or adds a fourth Extra livery, this number moves and
-    /// the test says by how much.</summary>
+    /// <summary>
+    /// WHAT IT SAVES — AND IT IS NO LONGER TWO GIGABYTES. When this policy landed on 2026-11-10 the alternates were
+    /// 2,133 MB of a 4,292 MB build, because every texture was embedded in its GLB, glTFast imported it as a
+    /// sub-asset where Unity's texture pipeline could not reach it, and so each alternate livery carried a FULL
+    /// DUPLICATE of its aeroplane's texture set, uncompressed at four bytes a pixel.
+    ///
+    /// <para>Later the same day the textures moved out into ordinary texture assets
+    /// (<c>tools/models/glb_textures.py</c>, Ty: <i>"Do it - 4x4, keep all liveries"</i>) and both halves of that
+    /// number collapsed: the duplicates are now ONE file that several liveries share, and what is left is ASTC 4x4
+    /// at 8 bits a pixel instead of 32. An alternate livery costs only the paint that is genuinely different.</para>
+    ///
+    /// <para>So this test now measures the thing it is actually for: a phone build with EVERY livery is far enough
+    /// under 4 GB that the restriction is a choice rather than a necessity. It is deliberately still asserted from
+    /// the files rather than from a remembered number, so that adding a fourth Extra livery moves it and says so.
+    /// Whether the restriction stays on is Ty's, not the test's.</para>
+    /// </summary>
     [Fact]
-    public void TheAlternatesAreAboutTwoGigabytesOfTheBuild()
+    public void EveryLiveryNowFitsOnThePhoneAndTheRestrictionIsAChoice()
     {
-        double keptMb = 0, heldMb = 0;
-        foreach (string dir in Directory.GetDirectories(Models))
+        using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(Repo, "docs", "models", "glb-textures.json")));
+        double everyLivery = 0, oneLiveryPerType = 0;
+        foreach (var entry in doc.RootElement.GetProperty("textures").EnumerateObject())
         {
-            string folder = Path.GetFileName(dir);
-            foreach (string path in Directory.GetFiles(dir, "*.glb"))
-            {
-                double mb = GlbTexturePixels(path) * 4.0 * 4.0 / 3.0 / 1e6;
-                if (PhoneLiveries.KeepsModelFile(folder, Path.GetFileName(path))) keptMb += mb; else heldMb += mb;
-            }
+            var t = entry.Value;
+            var usedBy = t.GetProperty("materialUsedBy").EnumerateArray().Select(e => e.GetString()!).ToArray();
+            if (usedBy.Length == 0) continue;          // in no material: outside Resources, it does not ship at all
+            // A normal map stays uncompressed (ModelTextureFormat: the pilot's twill measured 25.2 dB under ASTC);
+            // everything else is ASTC 4x4. Mip chain adds a third either way.
+            double bytesPerPixel = t.GetProperty("colourSpace").GetString() == "normal" ? 4.0 : 1.0;
+            double mb = t.GetProperty("width").GetInt32() * (double)t.GetProperty("height").GetInt32()
+                        * bytesPerPixel * 4.0 / 3.0 / 1e6;
+            everyLivery += mb;
+            // Each entry is "<model id>/<file>.glb", which is exactly what KeepsModelFile asks for.
+            if (usedBy.Any(g => PhoneLiveries.KeepsModelFile(g[..g.IndexOf('/')], g[(g.IndexOf('/') + 1)..])))
+                oneLiveryPerType += mb;
         }
-        _o.WriteLine($"GLB textures in a build: {keptMb + heldMb:F0} MB all liveries, {keptMb:F0} MB one per type, {heldMb:F0} MB held out");
-        Assert.True(heldMb > 1800 && heldMb < 2500, $"the alternates are {heldMb:F0} MB — the measurement that justified this was 2,132 MB");
-        // Plus the ~267 MB of everything that is not a GLB texture (meshes, binary, loose textures) in the same
-        // recorded build. The limit is 4 GB uncompressed.
-        Assert.True(keptMb + 267 < 4000, $"a phone build is still over 4 GB: {keptMb + 267:F0} MB");
+        _o.WriteLine($"iOS textures, ASTC 4x4: {everyLivery:F0} MB with every livery, {oneLiveryPerType:F0} MB with "
+                     + $"one per type — the restriction saves {everyLivery - oneLiveryPerType:F0} MB (it saved 2,133 MB "
+                     + "when every texture was embedded)");
+        // Plus the ~267 MB of everything that is not a texture — meshes, binary, loose files — in the recorded
+        // 2026.1105.1550 build. The limit is 4 GB uncompressed.
+        Assert.True(everyLivery + 267 < 2000,
+            $"a phone build with every livery is {everyLivery + 267:F0} MB; it used to be 4,292 MB");
+        Assert.True(everyLivery - oneLiveryPerType < 600,
+            $"the restriction is back to saving {everyLivery - oneLiveryPerType:F0} MB — did the textures get "
+            + "embedded in the GLBs again? Run: python3 tools/models/glb_textures.py extract");
     }
 
     /// <summary>Normal builds are untouched: every use of the define sits behind #if, nothing puts it in
@@ -137,56 +160,4 @@ public class PhoneLiveryTests
             }
         }
     }
-
-    /// <summary>Pixels of every image embedded in a GLB (PNG or JPEG, in the BIN chunk).</summary>
-    private static long GlbTexturePixels(string path)
-    {
-        byte[] b = File.ReadAllBytes(path);
-        if (b.Length < 12 || b[0] != 'g' || b[1] != 'l' || b[2] != 'T' || b[3] != 'F') return 0;
-        System.Text.Json.JsonDocument? js = null; int binOff = -1;
-        for (int off = 12; off + 8 <= b.Length;)
-        {
-            int len = BitConverter.ToInt32(b, off), type = BitConverter.ToInt32(b, off + 4);
-            if (type == 0x4E4F534A) js = System.Text.Json.JsonDocument.Parse(b.AsMemory(off + 8, len));
-            else if (type == 0x004E4942) binOff = off + 8;
-            off += 8 + len;
-        }
-        if (js == null || binOff < 0 || !js.RootElement.TryGetProperty("images", out var images)) return 0;
-        var views = js.RootElement.GetProperty("bufferViews");
-        long total = 0;
-        foreach (var im in images.EnumerateArray())
-        {
-            if (!im.TryGetProperty("bufferView", out var bv)) continue;
-            var view = views[bv.GetInt32()];
-            int o = binOff + (view.TryGetProperty("byteOffset", out var bo) ? bo.GetInt32() : 0);
-            int n = view.GetProperty("byteLength").GetInt32();
-            (int w, int h) = PngSize(b, o) ?? JpegSize(b, o, n) ?? (0, 0);
-            total += (long)w * h;
-        }
-        return total;
-    }
-
-    private static (int, int)? PngSize(byte[] b, int o)
-    {
-        if (o + 24 > b.Length || b[o] != 0x89 || b[o + 1] != 'P' || b[o + 2] != 'N' || b[o + 3] != 'G') return null;
-        return (Be32(b, o + 16), Be32(b, o + 20));
-    }
-
-    private static (int, int)? JpegSize(byte[] b, int o, int n)
-    {
-        if (o + 4 > b.Length || b[o] != 0xFF || b[o + 1] != 0xD8) return null;
-        for (int i = o + 2, end = Math.Min(b.Length - 9, o + n); i < end;)
-        {
-            if (b[i] != 0xFF) { i++; continue; }
-            int m = b[i + 1];
-            if (m == 0xD8 || m == 0x01 || (m >= 0xD0 && m <= 0xD7)) { i += 2; continue; }
-            int len = (b[i + 2] << 8) | b[i + 3];
-            if (m >= 0xC0 && m <= 0xCF && m != 0xC4 && m != 0xC8 && m != 0xCC)
-                return ((b[i + 7] << 8) | b[i + 8], (b[i + 5] << 8) | b[i + 6]);
-            i += 2 + len;
-        }
-        return null;
-    }
-
-    private static int Be32(byte[] b, int o) => (b[o] << 24) | (b[o + 1] << 16) | (b[o + 2] << 8) | b[o + 3];
 }

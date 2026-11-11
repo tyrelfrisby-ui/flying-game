@@ -114,15 +114,20 @@ public class EngineStateTests : IDisposable
     public void WindmillingPropIsASmallDragAndAWakeDeficitNeverABlast()
     {
         var c = Load("extra-300-like");
-        var ac = Flying(c, 50.0);
+        // 65 m/s, AND THE SPEED IS PART OF THE TEST. It was 50, which is no longer a windmilling condition at all: with
+        // the dry boundary friction solved against Ty's stall anchor (PistonEngine.BoundaryExcessFor, 2026-11-10) the
+        // Extra's COARSE oil-loss stop cannot be driven at 50 m/s at 1,500 m - the propeller is simply stopped, and
+        // the stopped case is pinned just below. This test is about what a TURNING one does to the tail, so it is
+        // asked at a speed where it turns.
+        var ac = Flying(c, 65.0);
         ac.MixtureLever = 0.0;
         new SimLoop(ac).RunFor(0.05, new ControlInputs(0, 0, 0, FullThrottle));
         double v = ac.State.Velocity.Length;
         // IT IS NO LONGER A FLAT J = 1 GUESS. Until 2026-11-10 a dead propeller was assumed to turn at one advance
         // ratio whatever its blades were doing, which could not tell a fine stop from a coarse one - and the oil-loss
         // rule is entirely about which stop it is on. Now the rpm is where the blade's own torque balances the
-        // engine's cranking resistance (PropModel.Windmilling), which for the Extra's COARSE oil-loss stop at 50 m/s
-        // is around 870 rather than 1,500. Checked against the model's own solve so the two cannot drift, and bounded
+        // engine's cranking resistance (PropModel.Windmilling), which for the Extra's COARSE oil-loss stop up here is
+        // around 1,100 rather than 1,900. Checked against the model's own solve so the two cannot drift, and bounded
         // so a change of mechanism still has to come past this test.
         double solved = PropModel.WindmillRpm(c.Propulsion!, v, Atmosphere.DensityAtAltitude(-ac.State.Position.Z));
         Assert.Equal(solved, ac.EngineRpm, 6);
@@ -131,7 +136,7 @@ public class EngineStateTests : IDisposable
         _out.WriteLine($"windmilling at {v:F1} m/s: {ac.EngineRpm:F0} rpm, tail du {du:F3} m/s swirl {swirl:F3}");
         // Momentum theory with the windmill's OWN drag: V_slip = V·√(1 − C_D), 90 % developed. The coefficient is no
         // longer the authored 0.15 — a dead constant-speed propeller's drag is solved at the stop its oil loss left it
-        // on (PropModel.Windmilling), and the Extra's coarse stop at 50 m/s is a third of that. Derived from the same
+        // on (PropModel.Windmilling), and the Extra's coarse stop up here is a third of that. Derived from the same
         // solve rather than written down, so the two cannot drift apart.
         double discM2 = Math.PI * 0.25 * c.Propulsion!.PropDiameterM * c.Propulsion.PropDiameterM;
         double rhoHere = Atmosphere.DensityAtAltitude(-ac.State.Position.Z);
@@ -140,6 +145,18 @@ public class EngineStateTests : IDisposable
         Assert.Equal(0.9 * (Math.Sqrt(1 - cdDisc) - 1) * ac.State.Velocity.X, du, 1);
         Assert.True(du < 0.0 && du > -0.08 * v, $"a small deficit, not a blast ({du:F3})");
         Assert.True(swirl < 0.0, "a windmill swirls the other way");
+
+        // AND A COARSE BLADE THE AIR CANNOT DRIVE READS ZERO, not a guess. PropModel.Windmilling answers NaN both for a
+        // type this does not apply to and for a blade that is stopped, and until 2026-11-10 the tachometer fell through
+        // to the flat J = 1 assumption in both cases: a standing propeller read 1,498 rpm. On a type whose stops are
+        // fitted, NaN is an answer — it is stopped.
+        var slow = Flying(c, 50.0);
+        slow.MixtureLever = 0.0;
+        new SimLoop(slow).RunFor(0.05, new ControlInputs(0, 0, 0, FullThrottle));
+        double rhoSlow = Atmosphere.DensityAtAltitude(-slow.State.Position.Z);
+        Assert.True(double.IsNaN(PropModel.WindmillRpm(c.Propulsion!, slow.State.Velocity.Length, rhoSlow)),
+                    "the Extra's coarse oil-loss stop is not driveable at 50 m/s up here");
+        Assert.Equal(0.0, slow.EngineRpm);
         (Vec3 f, Vec3 m) = PropModel.Compute(c.Propulsion!, 1.0, new Vec3(50, 0, 0), new Vec3(0, 0.5, 0), Rho0, PropModel.PropDrive.Dead(1500), out PropModel.Parts parts);
         Assert.True(f.X < 0.0, "drag");
         Assert.Equal(0.0, parts.TorqueRoll);

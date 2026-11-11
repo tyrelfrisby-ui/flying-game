@@ -186,48 +186,32 @@ public sealed partial class Aircraft
     public System.Collections.Generic.IReadOnlyList<double> CylinderSeal => _leak ?? System.Array.Empty<double>();
 
     /// <summary>
-    /// HOW HARD A CYLINDER ON COMPRESSION PUSHES BACK, N·m, calibrated to Ty's own anchor: "To get prop windmilling
-    /// again should take 10% under vne". A STOPPED propeller has no stored energy to carry it through a compression —
-    /// it has to beat the worst of it from rest — so that condition fixes this one number:
+    /// HOW HARD A CYLINDER ON COMPRESSION PUSHES BACK, N·m at sea level — the engine's OWN gas load, out of its
+    /// displacement and compression ratio and nothing else. See <see cref="PistonCompression.PeakNmFor"/>, which holds
+    /// the expression and why Ty gave up the restart anchor this used to be solved from: the Pitts and the Extra carry
+    /// the same AEIO-540 and were coming out at 99 and 683 N·m because their airframes have different Vne.
     ///
-    ///     Q_air(0.9 · Vne, fine stop, at rest)  =  |Q_mean|  +  peak · worstRipple(cylinders, CR)
-    ///
-    /// One equation, one unknown, and no freedom left over. Which means the OTHER anchor he gave — that the propeller
-    /// stops at level-flight stall speed — is a PREDICTION of this model and not a second knob: a turning propeller
-    /// carries through on the kinetic energy it stored over the easy part of the cycle, so it keeps going far below
-    /// the speed that could restart it, and where exactly it gives up falls out of the blade, the cylinder count and
-    /// the propeller's own inertia. CompressionStopProbe measures it.
+    /// The only thing still solved from an anchor is the engine's dry boundary friction
+    /// (<see cref="PistonEngine.BoundaryExcessFor"/>), from his stall-speed anchor. The restart speed is now a
+    /// measurement of the model (<see cref="PistonCompression.RestartSpeedMs"/>) rather than an input to it.
+    /// Cached because the shaft integration asks every step.
     /// </summary>
     public double CompressionPeakNm
-    {
-        get
-        {
-            if (!double.IsNaN(_compPeakNm)) return _compPeakNm;
-            PropulsionConfig? p = Config.Propulsion;
-            if (p is null || p.PropDiameterM <= 0.0 || p.MaxPowerW <= 0.0) return _compPeakNm = 0.0;
-            double restartMs = 0.9 * (Config.Limits?.VneMs ?? 0.0);
-            double fine = p.ConstantSpeed && p.FineStopDeg > 0.0 ? p.FineStopDeg
-                        : p.BladePitch75Deg > 0.0 ? p.BladePitch75Deg : 15.0;
-            if (restartMs <= 1.0) return _compPeakNm = 0.0;
-
-            var g = new BladeElement.Geometry(p.PropBladeCount, 0.5 * p.PropDiameterM, fine, p.ActivityFactor);
-            // "At rest" is the point: the air's torque on a barely-turning blade, which is the most it can offer a
-            // propeller that is stopped. 5 rpm rather than 0 because the solve needs an omega to divide by.
-            double qAir = -BladeElement.Solve(g, restartMs, 0.0, 5.0, Atmosphere.SeaLevelDensityKgM3).TorqueNm;
-            double qMean = -PistonEngine.MotoringTorqueNm(p.MaxPowerW, p.MaxRpm, p.MaxRpm, 0.0, 1.0, 1.0);
-            double worst = PistonCompression.WorstRipple(Config.EngineCylinders, Config.EngineCompressionRatio);
-            return _compPeakNm = System.Math.Max(0.0, (qAir - qMean) / System.Math.Max(1e-6, worst));
-        }
-    }
+        => double.IsNaN(_compPeakNm) ? _compPeakNm = PistonCompression.PeakNmFor(Config) : _compPeakNm;
 
     /// <summary>The engine's resisting torque at the crank angle it is actually at, N·m (negative): the mean it takes
-    /// to turn it over plus the compression ripple. This is what makes it lump.</summary>
+    /// to turn it over plus the compression ripple. This is what makes it lump.
+    ///
+    /// THE RIPPLE SCALES WITH AMBIENT PRESSURE, because a cylinder compresses the charge it DREW: at 10,000 ft it draws
+    /// 69 % of the sea-level mass and its gas spring is 69 % as stiff. <see cref="CompressionPeakNm"/> is the sea-level
+    /// figure — it is a cached per-type number and cannot know the altitude — so the lapse belongs here. The mean
+    /// carries its own altitude term already, through PistonEngine's power curve.</summary>
     private double CrankingTorqueNm(double rpm, double pressureRatio)
     {
         PropulsionConfig p = Config.Propulsion!;
-        double mean = PistonEngine.MotoringTorqueNm(p.MaxPowerW, p.MaxRpm, rpm, _throttle01, pressureRatio);
+        double mean = PistonEngine.MotoringTorqueNm(p, rpm, _throttle01, pressureRatio);
         double ripple = PistonCompression.RippleFactor(_crankRad, Config.EngineCylinders, Config.EngineCompressionRatio, _leak);
-        return mean + CompressionPeakNm * ripple;
+        return mean + CompressionPeakNm * System.Math.Clamp(pressureRatio, 0.0, 1.3) * ripple;
     }
 
     /// <summary>A cylinder stopped on compression bleeds past its rings, each at its own rate, which is what lets a
@@ -238,7 +222,7 @@ public sealed partial class Aircraft
         int n = System.Math.Max(1, Config.EngineCylinders);
         if (_leak is null || _leak.Length != n)
         {
-            _leakTau = PistonCompression.LeakTauSec(n, Config.Id?.GetHashCode() ?? 1);
+            _leakTau = PistonCompression.LeakTauSec(n, PistonCompression.SeedFor(Config.Id));
             _leak = new double[n];
             // EMPTY, not sealed. A cylinder's charge is something it DREW, and an engine that has been standing has
             // bled down everywhere - which is also the only initial condition that does not invent energy. Started
@@ -246,19 +230,7 @@ public sealed partial class Aircraft
             // and its gas spring drove the propeller round from a standstill with no air on it at all. That is how
             // this was caught: an Extra parked on the ground with the mixture cut read 1.26 rpm.
         }
-        for (int i = 0; i < n; i++)
-        {
-            double cycle = (_crankRad + 4.0 * System.Math.PI * i / n) % (4.0 * System.Math.PI);
-            if (cycle < 0.0) cycle += 4.0 * System.Math.PI;
-            bool onCompression = cycle >= 2.0 * System.Math.PI && cycle < 3.0 * System.Math.PI;
-            if (onCompression)
-                _leak[i] *= System.Math.Exp(-dt / System.Math.Max(0.05, _leakTau![i]));   // bleeding past the rings
-            else
-                // CHARGED BY TURNING, not by waiting: a cylinder fills on its induction stroke, so the charge comes in
-                // proportion to how far the crank actually moved. A stopped engine never gains any, which is what
-                // keeps the gas spring from being a source of energy and what makes a stopped propeller stay stopped.
-                _leak[i] = System.Math.Min(1.0, _leak[i] + crankAdvanceRad / (2.0 * System.Math.PI));
-        }
+        PistonCompression.BleedOneStep(_leak, _leakTau!, _crankRad, dt, crankAdvanceRad);
     }
 
     /// <summary>The shaft rpm being integrated, or 0 when this type is still on the old throttle law.</summary>
@@ -370,6 +342,13 @@ public sealed partial class Aircraft
     /// behind MixtureModel.WindmillRpm cannot tell a fine stop from a coarse one, and that difference is the whole
     /// point of the oil-loss rule — a fine blade is driven hard and spins up, a coarse one barely turns. Everything
     /// else keeps the old assumption, which is all it has.
+    ///
+    /// AND ON A FITTED TYPE, NaN MEANS STOPPED — not "no answer" (2026-11-10, second pass). PropModel.Windmilling
+    /// returns NaN both for a type it does not apply to and for a blade the air cannot drive at all, and this fell
+    /// through to the flat J = 1 assumption in BOTH cases. With the dry boundary friction solved against Ty's stall
+    /// anchor the second case now happens in ordinary flight — the Extra's coarse stop cannot be driven at 50 m/s at
+    /// 1,500 m — and a propeller that is standing still was reading 1,498 rpm on the tachometer. A fitted type that
+    /// gets NaN has a stopped propeller; only an unfitted one still has to guess.
     /// </summary>
     public double WindmillRpm
     {
@@ -379,7 +358,8 @@ public sealed partial class Aircraft
             double v = State.Velocity.Length;
             double rho = Atmosphere.DensityAtAltitude(-State.Position.Z);
             double solved = PropModel.WindmillRpm(p, v, rho);
-            return double.IsNaN(solved) ? MixtureModel.WindmillRpm(v, p.PropDiameterM, p.MaxRpm) : solved;
+            if (!double.IsNaN(solved)) return solved;
+            return PropModel.OilLossPitchDeg(p) > 0.0 ? 0.0 : MixtureModel.WindmillRpm(v, p.PropDiameterM, p.MaxRpm);
         }
     }
 

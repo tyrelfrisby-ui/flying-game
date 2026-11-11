@@ -42,9 +42,12 @@ public sealed class AircraftConfig
     private bool _bushwheels;
 
     /// <summary>
-    /// WHEEL-SKIS (owner 2026-10-16): skis with the wheels still protruding, so the same aeroplane lands on
-    /// a glacier and on pavement. On snow the ski carries it — almost no rolling drag, very little grip and
-    /// no useful brakes; on anything hard the wheel does the work and nothing changes.
+    /// WHEEL-SKIS (owner 2026-10-16; hinged since Ty 2026-11-05): a ski on every wheeled leg, hung from the axle on links
+    /// and raised or lowered by the cockpit's WHEELS / SKIS selector (<see cref="SkiGear"/>, <see cref="SkiSelector"/>).
+    /// Lowered, the tyre sits on top of the ski and the ski is what touches the ground — on snow it runs almost freely,
+    /// holds sideways only by its edge and the brakes do nothing; on pavement it SCRAPES. Raised, the skis swing forward
+    /// and up, the tyres meet the ground and the aeroplane rolls on its wheels. Either way the skis' weight and drag are
+    /// on. Session state, not the type's own data; any aeroplane with a wheel can have it.
     /// </summary>
     public bool Skis { get; set; }
 
@@ -204,6 +207,12 @@ public sealed class StationConfig
     public double[]? Eye { get; set; }
 
     public bool HasEye => Eye is { Length: 3 };
+
+    /// <summary>SEATS only: where the shared WHEELS / SKIS selector (<see cref="FlyingGame.Core.SkiSelectorPart"/>) is mounted
+    /// for this seat when wheel-skis are fitted, body frame like <see cref="Eye"/>: the centre of its placard plate. An
+    /// ANCHOR only: the part itself is the one shared part, drawn the same in every aeroplane. Absent on every seat: the
+    /// pilot's seat gets it at <see cref="FlyingGame.Core.SkiSelectorPart.DefaultOffsetFromEye"/>.</summary>
+    public double[]? SkiSelector { get; set; }
 
     public MathTypes.Vec3 StationVec() => new(Station[0], Station[1], Station[2]);
 
@@ -747,6 +756,27 @@ public sealed class SpinAeroConfig
     public double ControlSpoilerK { get; set; } = 0.0;
 
     /// <summary>
+    /// WHERE <see cref="ControlSpoilerK"/> STARTS, in degrees of the strip's own flow angle; it is full 20° later.
+    /// Default 30, which is the angle it shipped with and the one Ty flew and accepted ("That is it! Now it behaves
+    /// like a Pitts really does"), so no type changes until it is entered.
+    ///
+    /// IT IS A KNOB, AND THE ONSET IS THE PART OF IT WITH PHYSICS IN IT. The spoiler term exists because the section
+    /// table stops being able to express a control: the model moves a control by shifting its section's incidence,
+    /// and once the section is on the fully separated law CN = Cd_max·sin(θ) that shift changes which way the force
+    /// points and not how big it is. So the term should begin where the TABLE'S OWN flap effect dies — at the
+    /// section's stall — and 30° was chosen when every horizontal tail in the fleet was a NACA 0012, whose stall is
+    /// at 14° and whose separated law has taken over by about 30°.
+    ///
+    /// A FLAT-PLATE TAIL STALLS AT 9–12°, not 14, which is why this is a field and not a constant: with the plate,
+    /// the band from the section's stall up to 30° is one where the table has no control effectiveness left and this
+    /// term has not started either, and that shows up as a hole in elevator authority at α 20–34
+    /// (FlatPlateSearchProbe, FLAT_PLATE_SEARCH=…). Lowering it is NOT free — it is the term Ty judged the Pitts'
+    /// spin on, so moving the onset moves a spin he has already accepted, and it has to be flown again before it
+    /// ships on a type he flies.
+    /// </summary>
+    public double ControlSpoilerOnsetDeg { get; set; } = 30.0;
+
+    /// <summary>
     /// GEOMETRIC HELICAL SHADOW DEPTH, 0 = use the Report 648 wake path instead (the default, so no type changes until
     /// it is entered). Above 0, EVERY surface's dynamic-pressure loss - wings, stabiliser, fin, all of them - is computed
     /// from THIS AIRFRAME'S OWN GEOMETRY by marching the real helical air path upstream from each section and seeing what
@@ -974,6 +1004,27 @@ public sealed class PropulsionConfig
     /// </summary>
     public int Cylinders { get; set; }
     public double CompressionRatio { get; set; }
+    /// <summary>
+    /// HOW MUCH MORE THAN ITS RUNNING FRICTION THIS ENGINE RESISTS WHEN IT IS DEAD AND DRY, at rest — so 3.0 means
+    /// four times (see <see cref="FlyingGame.Core.PistonEngine.BoundaryFrictionFactor"/>). 0 = use the fleet number.
+    ///
+    /// SOLVED, NOT CHOSEN: Ty 2026-11-10, "Cranking resistance should be calibrated such that at fine pitch the prop
+    /// stops right at level flight stall speed", and then, shown that one fleet constant could not do it: "fix it per
+    /// engine". For each type this is the one value that puts the propeller's stopping speed on the type's own stall
+    /// speed (<c>PracticeScenario.EstimateVso</c>, sea level, flaps up) — one equation in one unknown.
+    /// <see cref="DryBoundaryExcessSource"/> says what each was solved against, <c>CompressionStopProbe</c>
+    /// (COMPSTOP=1) re-measures it, and with SOLVE=1 it re-derives it.
+    ///
+    /// AND IT IS THE ONLY FITTED NUMBER LEFT IN THE DEAD-ENGINE MODEL. The compression peak beside it is the engine's
+    /// own gas load, out of its displacement and compression ratio (<c>PistonCompression.PeakNmFor</c>), and the speed
+    /// a stopped propeller breaks away at is a measurement rather than an anchor — Ty gave that anchor up on 2026-11-10
+    /// when the same AEIO-540 came out at 99 N·m in the Pitts and 683 in the Extra because their airframes have
+    /// different Vne.
+    /// </summary>
+    public double DryBoundaryExcess { get; set; }
+    /// <summary>Where <see cref="DryBoundaryExcess"/> came from — the stall speed it was solved against and the
+    /// stopping speed that came back.</summary>
+    public string DryBoundaryExcessSource { get; set; } = "";
     /// <summary>Drag of the idling / windmilling propeller as a coefficient on its DISC area (owner 2026-10-03: the 172
     /// glided 14:1 at idle — the POH says 9:1 — and floated forever). A fine-pitch prop at idle is driven by the air and
     /// is a big drag: C_D ≈ 0.15–0.25 on disc area. Fades out as the throttle comes up (gone by 20 %).
