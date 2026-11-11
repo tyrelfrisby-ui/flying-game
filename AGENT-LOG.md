@@ -1,3 +1,183 @@
+## The tailslide: a propeller that was paid to spin, and the stalled blade behind it — Claude, 2026-11-11, lane/claude-vortex-ring
+
+<!-- vortexringstate johnson-tp2005-213477 viterna-corrigan swirl-flux-magnitude plate-poststall -->
+
+Ty, 2026-11-11: *"Sometimes lower like a tail slide where the reversed direction works against the prop and can
+actually stop the engine if rpm falls below around 300 rpm."*
+
+The model did the opposite. Flown backwards at the idle stop the rpm ROSE — Pitts 700 to 805 at −20 m/s, J-3 700 to
+942. `BladeElement` carries the full derivation and the sources; this is the ledger.
+
+### What was wrong — two defects, and the first one hid the second
+
+**The inflow took the wrong root.** The annulus balance `(V + v) v = vh²` is a quadratic with two roots, and the code
+always took `+sqrt` — the normal-working root — with no test of which working state the disc was in. Johnson
+(NASA TP-2005-213477 p. 4) is explicit that *"only for the normal working state and windmill brake state is the
+velocity in the same direction throughout the flow field, so only in these regions is momentum theory valid"*, and a
+propeller flown backwards sits in the two states in between. MEASURED at −20 m/s: the solve returned v = 21.4 m/s
+against a free stream of −20, so the disc held a small POSITIVE through-flow of 1.4 m/s however hard the air was
+driven through it backwards. The blade never left a two-degree inflow angle, sat at nearly its full geometric angle,
+and made more thrust (223 → 313 N) on less torque (22.6 → 16.3 N·m) the faster it was flown backwards.
+
+**The section was out of its range, and nothing had ever reached it.** `Section`'s comment said "flat-plate
+post-stall" and the code did not do that: it decayed cl at 0.7 per RADIAN, 0.012 per degree, so a blade 25 degrees
+past zero lift still reported cl 1.06 against cd 0.11. An L/D of ten, stalled. Standing still — the worst case in
+forward flight — the Pitts' blade runs 4.5 to 12.7 degrees and only two elements are past the stall at all, so the
+error was invisible. Correct the inflow and the same blade runs 22 degrees at the tip to 90 at the root, and there it
+decides the SIGN of the torque: an element is driven rather than dragged when cl/cd beats cot|φ|, which is 3.8 at
+that condition. With the inflow fixed alone the torque went to −29 N·m — the propeller was paid to spin by being
+pushed backwards through the air, which is worse than the defect it replaced. Its drag was also a shifted argument:
+`1.1 sin²(angle past the stall)` where the plate's own angle to the flow belongs, under-reading near broadside by the
+stall angle.
+
+### What replaced them
+
+- **Johnson's baseline model**, TP-2005-213477 p. 14, velocities scaled by vh: momentum theory for V ≥ −1, his cubic
+  `V + v = V(aV² − b)` with `a = √5/6` and `b = (4√5 − 3)/6` through the vortex ring and turbulent wake, momentum
+  theory's windmill-brake root below −2. The coefficients are DERIVED, by matching the cubic to momentum theory at
+  V = −1 and V = −2, so the three pieces agree exactly in value at both seams. Continuous, single-valued, and V + v
+  monotone through the cubic — which is what matters here, because the sim integrates the shaft. His FULL VRS model
+  is deliberately not taken: it adds a region of negative slope whose purpose is to produce the vortex-ring
+  instability, parameterised by a factor that suppresses it, and f = 0 is exactly this baseline. Castles and Gray
+  (NACA TN 2912) is the measured data the curve is drawn through, and is ref. 21 of that paper.
+- **Viterna and Corrigan (1982)** past the stall, `cl = A1 sin 2a + A2 cos²a/sin a`, `cd = B1 sin²a + B2 cos a`, with
+  A2 and B2 fixed by matching the UNTOUCHED linear branch at the stall angle. Cd_max = 1.11 + 0.018 AR = 1.25 at this
+  fleet's blade aspect ratio. Broadside the section is now a plate — cl 0, cd 1.25 — instead of cl 0.6, cd 1.13.
+- **The swirl's mass flux is a magnitude.** `0.5 W² σ Ct = 2F(V + v) w` reads, on the right, mdot·(2w)·r, and mdot is
+  a mass FLOW: positive whichever way the air is going, with the swirl in the direction of rotation either way.
+  Written with the signed flux floored at +1e-3, a disc with reversed through-flow got a denominator of a thousandth
+  and a swirl pinned to the ±0.5 vTan clamp — half the blade's tangential speed, conjured out of a floor.
+
+### What moved, measured
+
+**Forward flight is bit-identical under the inflow change** — 240 sweep points across four types, zero difference,
+by construction and not by tolerance: for V ≥ 0 the new curve IS the old expression rearranged.
+
+The section change is not free, and it is the whole of the cost. Only five types fly this model at all (the two
+J-3s, which carry a fitted `bladePitch75Deg`, and the three constant-speed types; every other type uses the
+estimated propeller), so that is the blast radius:
+
+| anchor | before | after |
+|---|---|---|
+| J-3 static rpm, full power (Ty's 2150) | 2150.1 | 2163.4 (+0.6 %; refit wants 15.49° against 15.33°) |
+| J-3 redline at 84 mph (Ty confirmed) | 2581.9 | **2581.9, unchanged** |
+| Pitts static thrust, fine stop, 2300 rpm | 2411.3 N | 2402.0 N (−0.39 %) |
+| Great Lakes / Extra static thrust | 2228.7 / 3783.8 N | 2203.4 / 3766.5 N (−1.14 % / −0.46 %) |
+| governor stops, all three types | 11.00/31.42, 12.50/25.93, 12.72/34.42 | unchanged |
+
+`GlideTableTests`, `BestGlidePolarTests`, `BladeElementTests`, `FittedBladeTests`, `StallBreakTests`,
+`PropEffectsTests` and `LowRpmTests` all pass: the idle-glide calibration did not move.
+
+### The behaviour, which is the acceptance test
+
+Idle torque margin on the Pitts (engine at the idle stop minus the propeller), at 350/500/700/900 rpm:
+
+| | before | after |
+|---|---|---|
+| −20 m/s | +19.6 / +15.3 / +6.3 / −6.7 | +9.4 / +8.1 / +7.1 / +6.5 |
+| −30 m/s | +20.1 / +16.6 / +8.9 / −2.7 | **−3.1 / −6.6 / −9.5 / −11.2** |
+
+Before, flying backwards RAISED the margin at every rpm — the reversed air helped the engine. After, at −30 m/s it
+is negative at every rpm from 350 to 900, so the shaft decelerates continuously into the 300 rpm static-friction
+stop. That stop is `ImpulseCoupling.StaticFrictionStopRpm` and was already built; nothing here re-implements it.
+
+On the integrated shaft, entering from a 25 m/s glide with the throttle closed (so the run starts from the
+windmilling rpm the aeroplane really carries in, not from idle):
+
+| backwards | Pitts 1528 rpm → | J-3 1272 rpm → |
+|---|---|---|
+| −15 m/s | 959 | 900 |
+| −20 m/s | 1138 | 641 |
+| −25 m/s | 1232 | 440 |
+| −30 m/s | 1094 | 316 |
+| −40 m/s | 455 | **0, stopped at 1.71 s** |
+
+The rpm falls in every case. The engine actually STOPS on the J-3 at 40 m/s backwards. Ty's words are "can actually
+stop the engine", not "always does", so a threshold is right — but where it sits is his to judge.
+
+### The pins that cached the old curve, re-derived
+
+Nine tests went red. **Three of them were already red** on `lane/claude-quest-islandnav` before this lane touched
+anything — proved by building a detached worktree at the pre-change commit and running them there, where they fail
+with byte-identical numbers (`PropJetTests`: 9.21 at 0.75 R, 1.64 at 0.95 R). `PropJet` never reaches
+`BladeElement` on that path: `Du`, `R0` and `Swirl` are literals and no swirl profile is passed. For whoever owns
+it: the cos-squared shear profile should give exactly 0.50 Du at 0.75 R and gives 0.614, which is its value at
+0.713 R — `Probe`'s returned radius is about 5 % smaller than the one `RelWindAt` samples against, so the test asks
+for one station and reads another. Not touched here.
+
+The other six were this lane's, and all six are green:
+
+- **`PropModel.StoppedDragFraction`, re-derived and not adjusted.** That constant's provenance IS a blade check: 0.5
+  was kept because the J-3's authored coefficient gave Cd 0.075 on disc area against the blade's 0.073. Running the
+  same derivation reproduces itself — under the old curve the blade asks for **0.4857** — and under the corrected
+  section it asks for **0.7124**. So it is 0.712. The J-3's stopped blade now reads Cd 0.107 where it read 0.073,
+  and Hoerner (ch. 13) puts a locked two-blade propeller at "about 0.1 at flat pitch": the old figure sat under his
+  number, the new one sits on it. Two pins fell into place from this alone (the authored-coefficient check, and the
+  Pitts' coarse stop).
+- **The 0.7 "the coefficient overstates a coarse blade" margin is now 0.9.** The claim survives — one coefficient
+  cannot know which stop, and it still overstates a coarse blade by 1.6x on the Pitts, 1.3x on the Great Lakes and
+  1.2x on the Extra. What moved is that the corrected section COMPRESSES the fine/coarse spread (coarse/fine ran
+  0.43, 0.58, 0.40 and now runs 0.57, 0.70, 0.53), because sin² saturates near broadside where the old shifted
+  argument did not. A blade stopped at 31 degrees is still nearly broadside; Hoerner's fall "down to a hundredth" is
+  at FEATHER, near 85 degrees, not at a coarse stop.
+- **The locked-propeller band is now PER BLADE, which is the basis Hoerner states it on**, and that tightens it
+  rather than loosening it. It used to read 0.02–0.13 on disc area with no blade-count term, so the three-blade
+  Extra was held to a two-blade figure and failed at 0.171 while being the same physics. Per blade the fleet reads
+  **0.0537, 0.0573, 0.0570** — three types inside six per cent — against a disc-area spread of 60 %. The drag is the
+  blade area's, not the disc's.
+
+### The finding under the last two pins: it is the WINDMILLING end that is light
+
+The stopped-against-windmilling margin (0.6) failed on two types and does **not** follow from the constant, so it
+was measured properly. Scaled to two blades so Hoerner's propeller figures apply:
+
+| | stopped Cd | windmilling Cd |
+|---|---|---|
+| J-3 | 0.107 | 0.217 |
+| Great Lakes | 0.115 | 0.178 |
+| Extra | 0.114 | 0.149 |
+| **Hoerner ch. 13** | **about 0.1 at flat pitch** | **0.2 to 0.3** |
+
+**The stopped end is now right on his number for all three types. The windmilling end is at or below the bottom of
+his band for two of them, and the Extra is at half its floor.** Windmilling drag was not touched by this lane and
+did not move by a single newton. So the ratio narrowed because the stopped end was corrected up to where it
+belongs while the windmilling end stayed where it was — which makes the margin a pin on the windmilling model, not
+on this one. It is set to 0.85 with that written into the test, and it should go back to 0.6 when the windmilling
+drag gets the same treatment the stopped drag just got. **That is the next lane.**
+
+### The J-3's two anchors no longer fit one pitch
+
+Refitted 15.33 -> 15.49, which puts the static anchor back on Ty's measured 2,150 exactly (2149.7). It costs the
+other figure he confirmed: at 84 mph full throttle the J-3 now reads **2,557 rpm against the 2,575 redline**, where
+at 15.33 it reads 2,582. The section change does not touch the 84 mph point at all — identical under either
+post-stall branch at a fixed pitch, because the blade is unstalled at that speed — so what moved is the BALANCE
+between the static point, where the root is stalled, and the high-speed point, where it is not.
+
+| pitch | static (anchor 2,150) | 84 mph (redline 2,575) |
+|---|---|---|
+| 15.33 | 2,163 (+13) | 2,582 (+7) |
+| **15.49** | **2,150 (0)** | **2,557 (−18)** |
+
+15.49 is taken because 2,150 is the number he measured. 15.33 is defensible on total error and is a one-line
+decision to reverse. It is also the one piece of evidence that bears against Cd_max = 1.25: if the section were
+exactly right, one pitch should still hold both of his figures, and 0.16 degrees of pitch is the size of the
+disagreement.
+
+### Known and not fixed
+
+- **The Pitts does not reach the stop** at any of these speeds. Its governor drives the blade to the fine stop as the
+  rpm falls and a fine blade in reversed flow absorbs less. Whether a real S-2B can be stopped in a tailslide at all
+  is a question for the man who flies one.
+- **The torque is not monotone through the vortex-ring band.** Pitts at 700 rpm: 22.5 N·m standing still, down to
+  9.6 at −12 m/s, back up to 32.0 at −30. The dip is real and explainable — through that band the inflow angle goes
+  negative, so the blade's LIFT drives the rotation while only its drag absorbs, and the two nearly cancel near
+  autorotation — but it means a slow tailslide still lets the rpm creep up.
+- **The seam at V = −2 vh has an infinite slope**, inherited from momentum theory's own `sqrt(V²/4 − 1)`. The value
+  is continuous — both branches give exactly vh — but the curve is not Lipschitz there, so a step across it moves v
+  like the square root of the step. Johnson's full model joins the branches further out and avoids it; the baseline
+  does not. It has caused no trouble (the fixed point runs at 0.4 relaxation, and only a thin annulus of a real disc
+  is at exactly −2 at any instant) and `VortexRingTests` asserts it as what it is rather than pretending otherwise.
+
 ## The water: a wind-driven sea state, a shadow that is not a cutout, and the keel's cavity — Claude, 2026-11-11, lane/claude-water-look
 
 <!-- seastate-jonswap-fetch coxmunk-slope shadow-mask-not-cutout gpuprojection-flip planingwake-savitsky-morabito wakebodyat-merged -->
