@@ -214,6 +214,58 @@ public sealed class WorldTerrain
     /// <summary>The big bay flying boats operate from (the last entry of <see cref="Lakes"/>).</summary>
     public static Lake Harbor => Lakes[Lakes.Length - 1];
 
+    /// <summary>
+    /// THE PATCH OF WATER A WAKE FIELD SHOULD COVER at (x, y) in sim metres, or null when there is none near enough
+    /// to be worth one.
+    ///
+    /// Ty 2026-11-11, twice: "The water wake and spray work seem to have not been [shown]", then "The water spray and
+    /// wake don't seem to have been done". They WERE done, and WaterRender's fixtures prove them frame by frame — but
+    /// <c>WakeWaves.Update</c> looked for its water in <see cref="Lakes"/> alone, and <see cref="Lakes"/> is the
+    /// LEGACY table: one ellipse per legacy airport plus the harbour. The world the player actually flies is the
+    /// island, whose water is <see cref="IslandSites.Fields"/> with surface "water". Measured
+    /// (<c>WakeFieldCoverageProbe</c>): PALH's 1,384 m seaplane lane sits 9.64 lake-radii from the nearest legacy
+    /// lake and AP8's 600 m lane 5.08, against the 1.3 the allocator needs — so the height field, the foam history,
+    /// the Kelvin V and the bow shoulders had never once allocated anywhere he could land. The render fixture did not
+    /// catch it because it builds its own <see cref="Lake"/> out of the island's lane ("Editor fixtures can use the
+    /// current island's water bounds without changing legacy lake tables") and so asks a question the game does not.
+    ///
+    /// A LANE IS A MARKING, NOT A SHORE, so the patch is a square around the lane centre rather than the lane's own
+    /// 60 m width: a wake reflecting off a boundary one wingspan to each side would be a canal, not a bay. Square
+    /// because the aeroplane turns, and the grid is allocated once per body.
+    ///
+    /// The legacy scan is kept, unchanged and second, so every water body that works today still works.
+    /// </summary>
+    public static Lake? WakeBodyAt(double x, double y)
+    {
+        IslandField? lane = null; double bestMargin = double.MaxValue;
+        foreach (IslandField f in WaterLanes)
+        {
+            // How far outside the lane, in metres, along its own axes: 0 inside.
+            var d = new IslandPoint((y - f.Centre.Y) / 1000.0, (x - f.Centre.X) / 1000.0);
+            double along = System.Math.Abs(d.Dot(f.U)) * 1000.0 - f.Length / 2.0;
+            double across = System.Math.Abs(d.Dot(f.V)) * 1000.0 - f.Width / 2.0;
+            double outside = System.Math.Max(System.Math.Max(along, across), 0.0);
+            if (outside < bestMargin) { bestMargin = outside; lane = f; }
+        }
+        // Within the lane or a short taxi off it — the same spirit as the legacy scan's 1.3 radii.
+        if (lane is not null && bestMargin <= WakeBodyMarginM)
+        {
+            double r = System.Math.Clamp(lane.Length / 2.0 + WakeBodyMarginM, 300.0, 900.0);
+            return new Lake(lane.Centre.X, lane.Centre.Y, r, r, lane.Elevation);
+        }
+        int best = -1; double bestR = 1.3;
+        for (int i = 0; i < Lakes.Length; i++) { double r = Lakes[i].Inside(x, y); if (r < bestR) { bestR = r; best = i; } }
+        return best >= 0 ? Lakes[best] : null;
+    }
+
+    /// <summary>How far outside a water lane still counts as being on that water, and the margin the wake patch adds
+    /// around the lane so its reflecting boundary is a bay's distance away rather than a canal's.</summary>
+    public const double WakeBodyMarginM = 200.0;
+
+    /// <summary>The island's water lanes, found once: <see cref="WakeBodyAt"/> runs every frame.</summary>
+    public static readonly IslandField[] WaterLanes =
+        System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Where(IslandSites.Fields, f => f.Surface == "water"));
+
     // ---- Seaplane water lanes (owner 2026-10-07: "make the seaplanes land on water but put two rows of buoys on the water
     // like runway edges so the user can better judge height"): one on the Valley lake, one in the harbor (the H-4 needs
     // its 2.4 km). Each is a "water" strip along x through the lake centre; the buoy rows mark its edges.

@@ -1,3 +1,56 @@
+## The water: a wind-driven sea state, a shadow that is not a cutout, and the keel's cavity — Claude, 2026-11-11, lane/claude-water-look
+
+<!-- seastate-jonswap-fetch coxmunk-slope shadow-mask-not-cutout gpuprojection-flip planingwake-savitsky-morabito wakebodyat-merged -->
+
+Four of Ty's 2026-11-11 water notes, done as physics rather than as look tuning. `SeaState`, `PlaningWake` and the
+shader's own derivations carry the full reasoning and the sources; this is the ledger.
+
+### What changed
+
+- **`_WaterCalm` was a binary** set by a lighting preset and unconnected to the wind. It is now
+  `SeaState.Glassy01(windMs)`, one number in a continuous model: a capillary floor (clean water's 0.231 m/s minimum
+  phase speed; Beaufort 0 "sea like a mirror"), a texture-first band (Beaufort 1–2), then JONSWAP fetch-limited
+  growth capped at Pierson–Moskowitz. Fetch is marched upwind to the real shoreline and handed to the shader as a
+  plane, so each fragment has its own and the water really is smoother near the upwind shore.
+- **The reflection** got bolder through two physical levers and no fudge: the surface is built to Cox and Munk's
+  measured mean square slope (it was 13× too smooth in rms slope) with the Fresnel averaged over the unresolved
+  slope by two-point Gauss–Hermite; and the submerged term now leaves the water at t/n² = 0.55 (the n-squared law
+  of radiance) instead of at the view-angle Fresnel's 0.98.
+- **The water receives the aeroplane's shadow**, as a mask applied to the submerged term and the sun glint only —
+  not as a silhouette painted on the surface, which is what the old `if (onWater) return;` note was right to
+  reject. The penumbra is the mask's own texel size, so it costs one tap and gets cheaper with height.
+- **The cavity and the rooster tail** are one curve, and it was already here: `FloatHydro.WakeHeightBeams`
+  (Savitsky and Morabito 2010) read against the undisturbed surface instead of the extended keel line. White water
+  starts at Savitsky's planing onset Cv = 2, which on this float's own 0.5358 m beam is 10.3 mph — Ty's "above
+  10 mph" to within 3 %.
+
+### The 90-degree shadow, which was a mirror
+
+Ty: "The shadow is off by 90 degrees". It was not a rotation and not `GroundShadow`'s projection. The sampling
+matrix used `GL.GetGPUProjectionMatrix(p, renderIntoTexture: true)`, whose Y is negated on D3D and Metal so the
+image leaves the rasteriser upright; applying that again at sample time mirrors the mask about the
+sun-perpendicular axis. At that frame's heading the fuselage sat at −135° in mask coordinates and the span at
++135°, symmetric about that axis, so the mirror mapped one exactly onto the other and was indistinguishable from a
+90° yaw **at that heading only**. Proof frames at three headings (`-viewYaw` 0, 50, 90) all show the shadow's long
+axis tracking the fuselage. A constant 90° would have been wrong at every heading but the one that showed it.
+
+### Known and not fixed
+
+- **Far-field hatch.** Beyond roughly fifteen pixels per wave the drawn train still reads as a regular hatch, and
+  it is worst above about 15 kt. Widening `Resolved` to 12..30 removes it and also flattens the middle distance
+  into a sheet; 5..14 is the setting Ty approved on 2026-11-11, so that is the setting that ships.
+- **No airborne rooster plume.** The same contour gives the water's rise speed on to the crest — 0.94 m/s at plow,
+  a 4 cm ballistic throw. A J-3 on floats does not throw a hydroplane's rooster; the crest is drawn on the surface
+  and the number is in `PlaningWake.CrestRiseSpeedMs`.
+- **A second camera still samples the planar reflection in its own screen space.** `WaterReflection` documents this
+  for split screen (`SuppressedForSplit`) but `LandingPreview` copies `Camera.main.cullingMask` and renders the
+  water with no such guard, so the landing page's water draws the MAIN camera's mirror image at the preview's
+  screen coordinates — a ghost aeroplane whose apparent orientation changes as the preview orbits. That matches
+  Ty's "weird ghost plane that was rotating of axis to it about 90 degrees" on the landing page and is a different
+  defect from the one above, in a different code path, and it is not fixed here.
+
+Unpushed: the lane is committed locally only.
+
 ## The Stearman's certificate, and the biplane cellule's lift derived at last — Claude, 2026-11-10, lane/claude-stearman-cellule
 
 <!-- stearman-tcds-a743 biplane-interference-derived munk-rep-151 cellule-per-wing pitts-untouched -->
