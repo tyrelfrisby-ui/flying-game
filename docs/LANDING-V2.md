@@ -16,7 +16,7 @@ All in `src/FlyingGame.Core/Landing/` (namespace `FlyingGame.Core.Landing`), pur
 | Type | What the view reads / calls |
 |---|---|
 | `LandingFlow` | THE state machine. `Page` (`Choose`/`Load`), `OpenPicker` (`PickerKind`), `Version` (bumps on every change; redraw/refresh on change), `Changed` event. Navigation: `Next()`, `Back()` (closes an open menu first), `GoTo(page)`, `Open(PickerKind)` (toggles), `ClosePicker()`, `CanGoNext/CanGoBack/CanLaunch`, `RequestLaunch()` (what buttons call: asks first when the W&B is out of limits), `ConfirmLaunch(fly)`, `LaunchConfirmPending`, `Launch()` (unconditional). |
-| page 1 | `Items(PickerKind)` → `List<PickerItem>` for Aircraft / Configuration / Location / Viewpoint / Challenge / Lesson (already RESTRICTED by the activity's rules; disallowed cards are not in the list). `Pick(kind, id)` (closes the menu). `IsFixed(kind)`: a menu with nothing to choose (draw a fixed line). Hero: `HeroTitle`, `HeroSubtitle`, `HeroThumbnails`; current choice: `Family`, `Gear`, `Location`, `Viewpoint`, `ViewpointName`, `Activity`, `ActivityKind`, `Rules` (`AircraftNote`, `FixedViewpointNote`, `ConditionsLocked`). |
+| page 1 | `Items(PickerKind)` → `List<PickerItem>` for Aircraft / Configuration / Location / Start / CameraView / Challenge / Lesson (already RESTRICTED by the activity's rules; disallowed cards are not in the list). `Pick(kind, id)` (closes the menu). `IsFixed(kind)`: a menu with nothing to choose (draw a fixed line). Hero: `HeroTitle`, `HeroSubtitle`, `HeroThumbnails`; current choice: `Family`, `Gear`, `Location`, `Viewpoint`, `ViewpointName`, `CameraView`, `CameraViewName`, `Activity`, `ActivityKind`, `Rules` (`AircraftNote`, `FixedViewpointNote`, `ConditionsLocked`). |
 | `PickerItem` | `Kind, Id, Title, Subtitle, Selected, Enabled, DisabledReason, Thumbnails` (keys, most specific first), `IconKey` (`icon/<group>/<id>`, for the visual lane's drawn icons), `ThumbnailKey`. |
 | page 2 seats | `Seats` → `SeatRow { SeatId, Label, HasControls, Occupant (Empty/Me/DefaultPerson/InvitedPlayer), Role (Passenger/DualControl), Kg, MaxKg, InviteName, IconKey }`. `CycleSeat(id)` (one tap: empty → person → invited passenger → invited on the controls → empty), `SetSeat(id, who, role)`, `SetSeatKg(id, kg)`, `SetInviteName(name)`. Exactly one seat is `Me`. |
 | page 2 load | `Stations` → `StationRow { StationId, Label, Kind (Fuel/Baggage), Kg, MaxKg, Fraction }`, `SetStationKg`, `SetFuelFraction(0..1)`, `FuelFraction`. |
@@ -36,6 +36,33 @@ Bridge side (`unity/Assets/_Project/Scripts/Bridge/Landing/`):
 | `QuestMenu` | the Quest panel's landing rows read the same flow. |
 
 ## Rules decided in code (tests hold them)
+
+### Page 1, overhauled (Ty 2026-11-11)
+
+His words: *"On the landing page don't show the airplane on every button it takes up too much space the 'viewpoint'
+button is currently the start button and we need a viewpoint button like flight path tail fly by cockpit etc. remove
+the giant 'f' with challenges or lessons and put the current left stack at the top in vertical or left landscape and
+the challenges or lessons at the bottom with the airplane in the middle. On landscape airplane middle challenge and
+lessons to the right."* And: *"The weather is missing on the landing page I suspect it is just too low and the list is
+not scrollable."*
+
+- **No picture on a menu tile.** The hero is the aeroplane; four more thumbnails of it down the side cost half of every
+  tile. Where a card has no picture there is no placeholder letter either (the grey "F" of "Free flight").
+- **START is the start, VIEWPOINT is the camera.** `PickerKind.Start` (renamed from `Viewpoint`) still picks a
+  `Viewpoint` value — that type keeps its name because it is written into every device's thumbnail keys, the saved key
+  `landing.viewpoint`, and `SessionSettings.Start`, which it converts to by value. `PickerKind.CameraView` is new and
+  picks a `CameraView`, which converts by value to `ChaseCamera.View`; `LandingCatalog.CameraViews` is the game's own
+  VIEW list (ChaseCamera.ViewNames), minus `Locked`, in menu order. `LandingSession.ApplyCameraView` sets it on every
+  chase camera AFTER `StartMenu.Fly()`, because entering the cockpit needs the aeroplane that just spawned. A launch in
+  any camera but the default does NOT capture a location thumbnail (the key has no camera in it).
+- **Layout.** Portrait: stack (5 tiles) / aeroplane / Challenges | Lessons / the activity note. Landscape: stack left,
+  aeroplane middle, Challenges + Lessons + note right.
+- **Both pages scroll.** Rows take a readable height first and the page scrolls if that does not fit, instead of
+  dividing the height by the number of rows and shrinking them. Drag or wheel, the same handling as the classic
+  chapters; a bar appears only when there is something below the fold.
+- **Where the weather is.** Page 2's settings column, as the 2026-11-05 spec put it — second block, under TIME OF DAY.
+  It was always drawn; what it was not was big enough to find on a phone, which `SettingsHeight` now puts a floor
+  under.
 
 - Families and configurations: `LandingCatalog.Variants` (literal). Floats / amphibian / the PA-18's bushwheels fly their own
   files; any other powered landplane gets generic bushwheels and wheel-skis (the sim's existing flags). Gliders, hang
