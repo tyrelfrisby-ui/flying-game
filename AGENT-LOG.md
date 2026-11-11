@@ -311,8 +311,30 @@ none at all**. The J-3's five scars on snow are the same thing and they are 1.6�
 soft snow, just brushing it. That is the model being right, not the scene misbehaving.
 
 **Nothing was tuned.** The fix is the REPORT: `marks.txt` now gives the median and the 90th percentile per kind
-before the peak, because the peak is the one number that misleads here. The missing ski pressure-sinkage model is
-written up in the doc as the next piece of ski work, with the measurement attached.
+before the peak, because the peak is the one number that misleads here.
+
+### ONE GAP SEEN TWICE: the ski has no flotation model, and the drag side says so too
+
+The wide regression run turned up `WheelSkiTests.OnSnowASkiRunsOnAfterTheWheelHasStopped` failing for all three
+types it covers. It is **not** a regression — I reverted my own tyre-sinkage line, rebuilt and re-ran, and got the
+same numbers **to the digit**, decelerations included, then restored the file (tree clean) and re-ran the imprint
+suite green. But what it measures is the other half of the finding above:
+
+| on snow | runs | deceleration |
+|---|---|---|
+| on wheels | 132–186 m | 0.17–0.24 m/s² |
+| on skis | **51–54 m** | **0.61–0.64 m/s²** |
+
+A ski is expected to run ON after a wheel has stopped. It stops in **a third of the distance**, decelerating three
+times as hard. That is backwards for exactly the reason the peak depth is backwards: **a ski's forward drag comes
+from `SkiGear.ForwardCoefficient` and its flotation from nothing at all.** A ski that does not float cannot honestly
+be charged the drag of one — a model that gives it a tyre's share of the snow it is supposed to be riding over will
+both run it down too fast AND, when the leg compresses, cut it in too deep.
+
+So the depth finding (zero sinkage on 2,386 contacts, every ski depth an elastic leg compression) and the drag
+finding are **one gap seen twice**, and they belong to `lane/claude-ski-physics` as one piece of work. A real
+pressure-sinkage model fixes the peak depth and is the number the forward drag should be built on, and
+`OnSnowASkiRunsOnAfterTheWheelHasStopped` is a test already sitting there waiting to go green.
 
 ### `Shader.Find` does not find this project's shaders in a batchmode editor
 
