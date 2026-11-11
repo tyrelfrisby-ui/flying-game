@@ -83,7 +83,40 @@ public class FloatLandingTests
         return l;
     }
 
-    /// <summary>A normal float landing in the J-3: 60 mph, 100–300 fpm, slightly nose-up, power idle. No damage of any
+    /// <summary>
+    /// The speed a type is PUT ON THE WATER at: the fastest power-off glide at which it has already reached its
+    /// landing angle of attack. A float landing is flown by attitude — the aeroplane is held off until the floats are
+    /// at the angle the step wants and it settles on — so the touchdown speed is a consequence of that attitude and of
+    /// the type's own wing, not a number you can write down once.
+    ///
+    /// IT USED TO BE A LITERAL AND THE LITERAL ROTTED. ANormalJ3FloatLandingGoesOnTheStepThenOffItUndamaged touched
+    /// down at a hard-coded 26.8 m/s (60 mph), which was 1.37 Vso when it was written — a fast but perfectly normal
+    /// arrival. On 2026-11-11 the J-3's authored mass went 589.67 → 451.142 kg (its empty weight corrected to Piper
+    /// Service Memo 41 plus the float exchange), Vso went 19.55 → 17.10 m/s with it, and the same 26.8 became
+    /// 1.57 Vso. MEASURED on the sweep that followed: at 1.57 Vso the aeroplane will not stay on the water at all —
+    /// it touches, flies straight off again on a wing that is still making lift, zooms to 17 m, stalls, and arrives
+    /// back nose-down 19° at 20 m/s for 8 g and a propeller in the lake. The float was never the problem; nothing it
+    /// did was wrong. 1.11/1.17/1.23/1.29 Vso all touch, run 9–12 s on the step, come off into displacement and settle
+    /// at 0.256 m with nz ≤ 3.0 and no damage; 1.37 balloons to 7 m; 1.40 loses the propeller.
+    ///
+    /// EveryFloatTypeLandsNormallyWithoutDamage already derived its touchdown speed this way and so never rotted. This
+    /// is that construction, shared. For the J-3 today it gives 21.0 m/s — 47 mph, 1.23 Vso.
+    /// </summary>
+    private static (double V, double AlphaDeg) TouchdownSpeed(AircraftConfig cfg, double landingAlphaDeg = 7.0)
+    {
+        double v = 60, alpha = 0;
+        for (double vv = 60; vv > 12; vv -= 0.5)
+        {
+            TrimSolver.Result t = TrimSolver.SolveGliderTrim(cfg, vv, 10, flapFraction: 0.0, idleProp: true);
+            if (!t.Converged) continue;
+            v = vv; alpha = t.AlphaRad * 57.3;
+            if (alpha >= landingAlphaDeg) break;
+        }
+        return (v, alpha);
+    }
+
+    /// <summary>A normal float landing in the J-3: on the step at its own landing attitude (<see cref="TouchdownSpeed"/>:
+    /// 47 mph today), 100–300 fpm, slightly nose-up, power idle. No damage of any
     /// kind; it runs on the step, then comes off it into displacement as it slows, and ends afloat at its resting draft.</summary>
     [Theory]
     [InlineData(0.5)]
@@ -95,8 +128,13 @@ public class FloatLandingTests
         try
         {
             AircraftConfig cfg = Load("j3-cub-floats-like");
-            Landing l = Land(cfg, 26.8, sinkMs, 5.0, 40.0);
-            _out.WriteLine($"{sinkMs * 196.85:F0} fpm: " + l.Summary);
+            (double v, _) = TouchdownSpeed(cfg);
+            double vso = FlyingGame.Sim.Practice.PracticeScenario.EstimateVso(cfg, 0.0);
+            // Guard the derivation itself: a float landing is flown between the stall and about 1.3 Vso. If this ever
+            // walks outside that band again the scenario is wrong before any float force is.
+            Assert.InRange(v / vso, 1.05, 1.30);
+            Landing l = Land(cfg, v, sinkMs, 5.0, 40.0);
+            _out.WriteLine($"{sinkMs * 196.85:F0} fpm at {v:F1} m/s ({v / 0.44704:F0} mph, {v / vso:F2} Vso): " + l.Summary);
             Assert.True(l.TouchAt >= 0, "never touched the water");
             Assert.Empty(l.Ac.LostComponents);
             Assert.Empty(l.Ac.Hydro.DamageLog);
@@ -260,15 +298,9 @@ public class FloatLandingTests
         {
             AircraftConfig cfg = Load(id);
             // Touchdown speed: the fastest power-off glide at which the type is already at 7° angle of attack — slow,
-            // nose up, the way a float landing is flown — and that attitude.
-            double v = 60, alpha = 0;
-            for (double vv = 60; vv > 12; vv -= 0.5)
-            {
-                TrimSolver.Result t = TrimSolver.SolveGliderTrim(cfg, vv, 10, flapFraction: 0.0, idleProp: true);
-                if (!t.Converged) continue;
-                v = vv; alpha = t.AlphaRad * 57.3;
-                if (alpha >= 7) break;
-            }
+            // nose up, the way a float landing is flown — and that attitude. (TouchdownSpeed: the same derivation the
+            // J-3 landing above now uses, because a written-down speed goes stale the moment a weight moves.)
+            (double v, double alpha) = TouchdownSpeed(cfg);
             Landing l = Land(cfg, v, 1.0, Math.Min(alpha, 8), 25.0);
             _out.WriteLine($"{id}: touchdown {v:F1} m/s at {Math.Min(alpha, 8):F1} deg; " + l.Summary);
             Assert.True(l.TouchAt >= 0, "never touched the water");
