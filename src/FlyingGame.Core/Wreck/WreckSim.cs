@@ -91,6 +91,18 @@ public sealed class WreckPiece
     /// <summary>Principal moments about the CG, body axes (products of inertia neglected).</summary>
     public Vec3 Inertia { get; }
     public RigidBodyState State { get; internal set; }
+    /// <summary>
+    /// THIS PIECE WAS FLUNG, not shed. A break-up piece leaves with no velocity of its own — <see cref="WreckSim.Add"/>
+    /// gives it v_cg + ω × r and says so — and simply drifts away from an aeroplane that is moving with it. A THROWN
+    /// piece (a propeller blade, an engine off its mount) leaves with a large velocity relative to the aeroplane and
+    /// is the case Ty described on 2026-11-11: it can come back through the airframe on its way past.
+    ///
+    /// It is the difference between the two that decides whether a piece is worth strike-testing, and the
+    /// distinction is not cosmetic: testing EVERY piece made ten crash and break-up tests red at once, because after
+    /// a crash the debris lies where the aeroplane is sliding and the test kept tearing more off. A shed piece and a
+    /// flung piece are different events and this is what says so.
+    /// </summary>
+    public bool Thrown { get; internal set; }
     public WreckPhase Phase { get; internal set; } = WreckPhase.InAir;
     public bool HitWater { get; internal set; }
     public bool HitLand { get; internal set; }
@@ -261,11 +273,23 @@ public sealed class WreckSim
     /// (v_cg + ω × r): a break-up does not add a kick of its own.
     /// </summary>
     public WreckPiece Add(string name, AirframeComponent comp, List<HydroElement> elements, Vec3 aircraftCgBody, RigidBodyState aircraft)
+        => Add(name, comp, elements, aircraftCgBody, aircraft, Vec3.Zero);
+
+    /// <summary>
+    /// The same, with a DEPARTURE VELOCITY of the piece's own (body axes, added to v_cg + ω × r).
+    ///
+    /// A break-up adds no kick and must not — that is what the overload above is for. A THROWN PROPELLER BLADE is
+    /// the other case: it does not fall off, it is flung, tangentially in the plane of the disc at the rim speed its
+    /// centre of mass was already travelling at, which on a Pitts at the red line is about 140 m/s. That is not a
+    /// kick invented for effect; it is the velocity the blade had the instant before the hub let go of it.
+    /// </summary>
+    public WreckPiece Add(string name, AirframeComponent comp, List<HydroElement> elements, Vec3 aircraftCgBody,
+                          RigidBodyState aircraft, Vec3 departureVelocityBody)
     {
-        var p = new WreckPiece(name, comp, elements) { Id = _nextId++ };
+        var p = new WreckPiece(name, comp, elements) { Id = _nextId++, Thrown = departureVelocityBody.LengthSquared > 1e-6 };
         Vec3 r = p.CgBody - aircraftCgBody;
         Vec3 pos = aircraft.Position + aircraft.Attitude.Rotate(r);
-        Vec3 vBody = aircraft.Velocity + Vec3.Cross(aircraft.Rates, r);
+        Vec3 vBody = aircraft.Velocity + Vec3.Cross(aircraft.Rates, r) + departureVelocityBody;
         p.State = new RigidBodyState(pos, aircraft.Attitude, vBody, aircraft.Rates);
         Pieces.Add(p);
         return p;

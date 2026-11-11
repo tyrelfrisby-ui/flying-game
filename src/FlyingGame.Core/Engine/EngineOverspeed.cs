@@ -1,4 +1,5 @@
 using System;
+using FlyingGame.Core.MathTypes;
 
 namespace FlyingGame.Core.Engine;
 
@@ -155,6 +156,46 @@ public static class EngineOverspeed
     /// <summary>Where a blade's centre of mass is: 25 % of the DIAMETER from the axis, which is half the radius.
     /// Ty's rule, and the "of DIAMETER" is the part that is easy to misread and worth writing out.</summary>
     public static double BladeComRadiusM(double propDiameterM) => 0.25 * propDiameterM;
+
+    /// <summary>
+    /// WHICH WAY A THROWN BLADE GOES, body axes, as a unit vector — and it is decided by WHERE THE BLADE WAS when
+    /// the hub let go, not by a choice. The propeller is direct-drive, so the shaft angle the sim is already
+    /// integrating (AircraftEngine.CrankAngleRad, modulo one turn) IS the blade's clock position, and the departure
+    /// is tangential: straight along the velocity the blade already had.
+    ///
+    /// The azimuth convention is <see cref="BladeElement"/>'s own, so the two cannot disagree: psi = 0 is the blade
+    /// out to the RIGHT and going DOWN. The radial direction is then (0, cos psi, sin psi) and the tangential one is
+    /// its derivative, (0, −sin psi, cos psi), which at psi = 0 is +z — down — as it must be. A left-hand propeller
+    /// reverses it through <paramref name="rotationSign"/>.
+    ///
+    /// So the same failure at a different crank angle throws the blade up, down, left or right, and on a biplane
+    /// with two wings and a cabin within a metre of the disc that decides what it meets. Nothing here is random and
+    /// nothing is chosen.
+    /// </summary>
+    public static Vec3 ThrowDirectionBody(double shaftAngleRad, double rotationSign)
+    {
+        double psi = shaftAngleRad % (2.0 * Math.PI);
+        double s = rotationSign >= 0.0 ? 1.0 : -1.0;
+        return new Vec3(0.0, -Math.Sin(psi) * s, Math.Cos(psi));
+    }
+
+    /// <summary>Where the blade's centre of mass was when it left, body axes, relative to the hub: out along the
+    /// radius at the azimuth it was at.</summary>
+    public static Vec3 ThrowRadiusBody(double shaftAngleRad, double propDiameterM)
+    {
+        double psi = shaftAngleRad % (2.0 * Math.PI);
+        double r = BladeComRadiusM(propDiameterM);
+        return new Vec3(0.0, Math.Cos(psi) * r, Math.Sin(psi) * r);
+    }
+
+    /// <summary>How fast it leaves, m/s: the tangential speed its centre of mass already had. The outer half of a
+    /// fixed-pitch blade leaves FASTER than a whole constant-speed blade would, because its centre of mass is
+    /// further out — measured on this fleet, 185 m/s for the Cub's half against 140 for the Pitts' whole.</summary>
+    public static double ThrowSpeedMs(double propDiameterM, double rpm, bool constantSpeed)
+    {
+        double r = BladeComRadiusM(propDiameterM) * (constantSpeed ? 1.0 : 1.5);
+        return Math.Abs(rpm) * 2.0 * Math.PI / 60.0 * r;
+    }
 
     /// <summary>Ty's blade rule: each blade is 15 % of the net propeller weight, the rest being hub near the axis.
     /// Two-blade propellers only; the rule runs 60 % high on a three-blade one, which is recorded on every
