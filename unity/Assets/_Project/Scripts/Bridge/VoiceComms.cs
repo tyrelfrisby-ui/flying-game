@@ -59,6 +59,34 @@ namespace FlyingGame.Bridge
 
         /// <summary>TALK button held (ViewPanel).</summary>
         public static bool PttHeld;
+
+        /// <summary>
+        /// THE VOX BUTTON on the flight screen (Ty 2026-11-10: "Add a vox button on the screen"). Armed, the
+        /// microphone is held open and the voice gate opens on voice activity; off, the microphone opens only while
+        /// PTT is held. PTT is unchanged either way.
+        ///
+        /// DELIBERATELY NOT PERSISTED, and this is the one design decision here worth arguing about. Every other
+        /// voice setting goes in PlayerPrefs, and that is exactly what cost Ty an evening: "Record my voice in
+        /// clips" is persisted under voice.narrate, so once ticked it held the microphone open from launch, every
+        /// launch — "Force quit and restart did not fix it", because a force-quit reloads the tick. A hot mic must
+        /// not outlive the session that asked for it, so this one resets to off every launch. The cost is one tap
+        /// per flight; the benefit is that a forgotten VOX can never listen across launches. The within-session
+        /// case is covered by <see cref="MicOpen"/>, which the button shows whatever the reason.
+        /// </summary>
+        public static bool VoxOn;
+
+        /// <summary>
+        /// IS THE MICROPHONE ACTUALLY OPEN RIGHT NOW? Read from the native engine's own state, not derived from the
+        /// settings, so the indicator cannot drift from the behaviour: VoiceIO.mm keeps the engine's lifetime equal
+        /// to its MicWanted(), so "gState is 1 or 2" and "the mic is open" are the same statement.
+        ///
+        /// This is true for reasons the pilot did not choose this flight — clip narration holding it, or the 1.5 s
+        /// unkey linger — which is the whole point of showing it.
+        /// </summary>
+        public static bool MicOpen { get; private set; }
+
+        /// <summary>Peak level the microphone is hearing, 0..1, for the VOX button's meter. 0 while it is shut.</summary>
+        public static float MicLevel01 { get; private set; }
         /// <summary>Name of whoever is on the frequency right now (null when it's quiet).</summary>
         public static string Receiving { get; private set; }
         /// <summary>In a multiplayer room (the TALK button only shows then).</summary>
@@ -75,6 +103,10 @@ namespace FlyingGame.Bridge
         [DllImport(NativeLib)] private static extern void VO_Init(int unityRate);
         [DllImport(NativeLib)] private static extern void VO_SetTvWantsAudio(int wants);
         [DllImport(NativeLib)] private static extern int VO_EnsureMic();
+        // Both of these have been exported since 2026-10-01 and are in the committed Mac bundle, so declaring them
+        // now costs nothing. Nothing had called them until the VOX button needed to show the real mic state.
+        [DllImport(NativeLib)] private static extern int VO_State();
+        [DllImport(NativeLib)] private static extern float VO_MicLevel();
         [DllImport(NativeLib)] private static extern void VO_SetIntercom(int on);
         [DllImport(NativeLib)] private static extern void VO_SetPtt(int on);
         [DllImport(NativeLib)] private static extern int VO_ReadTx(byte[] dst, int max, out int ended);
@@ -90,6 +122,8 @@ namespace FlyingGame.Bridge
         private static void VO_Init(int unityRate) { }
         private static void VO_SetTvWantsAudio(int wants) { }
         private static int VO_EnsureMic() => -2;
+        private static int VO_State() => 0;
+        private static float VO_MicLevel() => 0f;
         private static void VO_SetIntercom(int on) { }
         private static void VO_SetPtt(int on) { }
         private static int VO_ReadTx(byte[] dst, int max, out int ended) { ended = 0; return 0; }
@@ -158,11 +192,17 @@ namespace FlyingGame.Bridge
             _nextRouteCheck = Time.unscaledTime + 0.25f;
             int n = VO_RouteOutputs(_routeBuf, _routeBuf.Length);
             string outputs = n > 0 ? System.Text.Encoding.UTF8.GetString(_routeBuf, 0, n) : "";
-            // Narration counts as voice in use: it is the one setting that holds the microphone open with nobody
-            // talking (VoiceIO.mm MicWanted), so a TV cannot have the audio while it is ticked — play-and-record has
-            // no HDMI output to give it. Left out, the policy would ask for the mic to be released, MicWanted would
-            // ask for it straight back, and the two would fight every quarter second.
-            bool voice = IntercomOn || RadioAvailable || NarrateClips;
+            // "Voice in use" means the microphone can actually be open, or a radio call can actually arrive — not
+            // that a checkbox is ticked. Narration and the VOX button are the two things that hold the mic with
+            // nobody talking (VoiceIO.mm MicWanted), so a TV cannot have the audio while either is on: play-and-
+            // record has no HDMI output to give it. Left out, the policy would ask for the mic to be released,
+            // MicWanted would ask for it straight back, and the two would fight every quarter second.
+            //
+            // THE INTERCOM TICK IS NOT IN THIS LIST, and that is the fix for the silent TV rather than a hole in
+            // the rule. A tick with the VOX off opens no microphone and plays no sidetone, so there is nothing to
+            // keep off the TV — and counting it would hold the session in play-and-record, which is precisely how
+            // an idle intercom kept HDMI silent for ever.
+            bool voice = RadioAvailable || NarrateClips || VoxOn;
             var route = FlyingGame.Core.TvAudioPolicy.Decide(voice, TvOutput.ExternalDisplay, FlyingGame.Core.TvAudioPolicy.FromPortTypes(outputs));
             // A TV with nobody talking has to have the mic RELEASED, not just the route changed: play-and-record
             // has no HDMI output to offer (VoiceIO.mm ApplySession).
@@ -192,22 +232,29 @@ namespace FlyingGame.Bridge
         {
             bool menu = SessionSettings.MenuOpen;
             bool ptt = PttHeld && !menu;
-            if (!_micAsked && (IntercomOn || ptt || NarrateClips)) _micAsked = true;
+            bool vox = VoxOn && !menu;
+            if (!_micAsked && (ptt || vox || NarrateClips)) _micAsked = true;
             if (_micAsked)
             {
                 int st = VO_EnsureMic();
                 MicProblem = st == -1 ? "Microphone is off - allow it in Settings > Aero Playground"
                            : st == -2 && Native ? "Microphone unavailable" : null;
             }
-            // Narration keeps the gate open through a menu: the options screen is a thing he is filming and talking over.
+            // Narration keeps the gate open through a menu: the options screen is a thing he is filming and talking
+            // over. VOX does not — a menu is not a flight, and a hot mic should not survive one.
             //
-            // Bit 1 says the microphone may be HELD while nobody is talking, and only narration asks for it. Ty
-            // 2026-11-10: "The app is listening to my mic even when I do[n't] have PTT pressed unchecked intercom
-            // just now". The intercom used to hold the mic for the rest of the session the moment it was ticked;
-            // VoiceIO.mm MicWanted now lets it go unless PTT is down, narration is on, or there is a headset for the
-            // voice-activated sidetone to be heard in.
-            VO_SetIntercom(((IntercomOn && !menu) || NarrateClips ? 1 : 0) | (NarrateClips ? 2 : 0));
+            // The mask is VO_SetIntercom's: bit 0 the intercom (gate + sidetone), bit 1 narration (gate, and it
+            // holds the mic), bit 2 the VOX button (holds the mic). Ty 2026-11-10: "The app is listening to my mic
+            // even when I do[n't] have PTT pressed unchecked intercom just now" — the intercom tick used to hold
+            // the mic by itself whenever a headset was attached; now only bits 1 and 2 do, and bit 2 is the one the
+            // pilot controls from the flight screen and which resets every launch.
+            VO_SetIntercom(((IntercomOn && !menu) ? 1 : 0) | (NarrateClips ? 2 : 0) | (vox ? 4 : 0));
             VO_SetPtt(ptt ? 1 : 0);
+            // The real state, straight back out of the engine, for the VOX button's live indicator. 1 is "starting"
+            // and counts as open: the mic is about to be, and an indicator like this should light early, not late.
+            int micState = Native ? VO_State() : 0;
+            MicOpen = micState == 1 || micState == 2;
+            MicLevel01 = MicOpen ? Mathf.Clamp01(VO_MicLevel() * 6f) : 0f;   // peak is small for speech; 6x to read
             VO_SetRxVolume(FlightAudio.MasterVolume);
             if (RoutesAroundTv && Time.unscaledTime >= _nextRouteCheck) KeepOffTheTv();
 

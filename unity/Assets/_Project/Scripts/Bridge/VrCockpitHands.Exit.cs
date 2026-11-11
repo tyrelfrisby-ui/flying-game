@@ -216,7 +216,7 @@ namespace FlyingGame.Bridge
             _grab.ReleaseAll();
             Debug.Log($"[VrEgress] EXIT {p} ({sit}): belt open, {_exit.Control} worked — out to the {_exit.Side}");
             // The jettison alone counts as the release (Ty): the exit opens the latch itself.
-            if (cockpit.HandLatch is PittsCanopyLatch pl && pl.Locked) { pl.Grab(0.0); pl.Follow(-1.0); pl.Release(); }
+            if (cockpit.HandLatch is PittsCanopyLatch pl && pl.Locked) { pl.Grab(_pittsSeatLever); pl.Follow(_pittsSeatLever, -1.0); pl.Release(_pittsSeatLever); }
             _autoSqueeze = cockpit.HandLatch is ExtraCanopyLatch && cockpit.CanopyLocked;
             // A canopy with no hands-on model: it goes in flight, it opens on the ground.
             if (_canopyRelease != null && !cockpit.CanopyGone)

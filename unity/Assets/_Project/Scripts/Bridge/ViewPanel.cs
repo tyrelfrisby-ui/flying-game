@@ -22,8 +22,8 @@ namespace FlyingGame.Bridge
         private FlyingGame.Bridge.Net.NetSession _net;
         private StartMenu _menu;
 
-        private GUIStyle _btn, _btnOn, _btnRec, _label, _small;
-        private Texture2D _bg, _btnBg, _btnOnBg, _recBg, _track, _fill, _knob;
+        private GUIStyle _btn, _btnOn, _btnRec, _btnArm, _label, _small;
+        private Texture2D _bg, _btnBg, _btnOnBg, _recBg, _armBg, _track, _fill, _knob;
         private int _fs;
         private bool _scrubbing;
         private Rect _talkRect;   // GUI coords (top-left origin); empty when hidden
@@ -41,6 +41,8 @@ namespace FlyingGame.Bridge
             _btnBg ??= Solid(new Color(0.18f, 0.24f, 0.32f, 0.9f));
             _btnOnBg ??= Solid(new Color(0.2f, 0.62f, 0.35f, 0.95f));
             _recBg ??= Solid(new Color(0.8f, 0.12f, 0.12f, 0.95f));
+            // VOX armed but not open yet: amber, so it is neither the dull "off" nor the red "live" (DrawVox).
+            _armBg ??= Solid(new Color(0.85f, 0.55f, 0.08f, 0.95f));
             _track ??= Solid(new Color(0.3f, 0.34f, 0.4f, 1f));
             _fill ??= Solid(new Color(0.25f, 0.75f, 1f, 1f));
             _knob ??= Solid(Color.white);
@@ -48,6 +50,7 @@ namespace FlyingGame.Bridge
             _btn = new GUIStyle { font = f, fontSize = fs, alignment = TextAnchor.MiddleCenter, wordWrap = true, normal = { textColor = Color.white, background = _btnBg }, active = { textColor = Color.white, background = _btnBg }, padding = new RectOffset(4, 4, 2, 2) };
             _btnOn = new GUIStyle(_btn) { fontStyle = FontStyle.Bold, normal = { textColor = Color.white, background = _btnOnBg }, active = { textColor = Color.white, background = _btnOnBg } };
             _btnRec = new GUIStyle(_btn) { fontStyle = FontStyle.Bold, normal = { textColor = Color.white, background = _recBg }, active = { textColor = Color.white, background = _recBg } };
+            _btnArm = new GUIStyle(_btn) { fontStyle = FontStyle.Bold, normal = { textColor = Color.black, background = _armBg }, active = { textColor = Color.black, background = _armBg } };
             _label = new GUIStyle { font = f, fontSize = fs, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
             _small = new GUIStyle(_label) { fontStyle = FontStyle.Normal, fontSize = Mathf.RoundToInt(fs * 0.85f), normal = { textColor = new Color(0.85f, 0.9f, 0.95f) } };
         }
@@ -146,16 +149,63 @@ namespace FlyingGame.Bridge
             // a two-line HOLD TO TALK sign straight across the aeroplane. It sits just ABOVE the control tray rather
             // than in the corner proper: the corner is the rudder/throttle pad, and a transmit button over the rudder
             // is worse than one that is slightly higher up.
+            float pw = UiLayout.S * 0.15f, ph = UiLayout.ButtonH * 1.2f;
+            float trayTop = Mathf.Min(UiLayout.BottomLimit, Screen.height - UiLayout.SafeBottom);
+            float voiceX = UiLayout.SafeLeft + UiLayout.Margin, voiceY = trayTop - ph - UiLayout.Gap;
             if (VoiceComms.RadioAvailable)
             {
-                float pw = UiLayout.S * 0.15f, ph = UiLayout.ButtonH * 1.2f;
-                float trayTop = Mathf.Min(UiLayout.BottomLimit, Screen.height - UiLayout.SafeBottom);
-                _talkRect = new Rect(UiLayout.SafeLeft + UiLayout.Margin, trayTop - ph - UiLayout.Gap, pw, ph);
+                _talkRect = new Rect(voiceX, voiceY, pw, ph);
                 GUI.Box(_talkRect, "PTT", VoiceComms.PttHeld ? _btnRec : _btn);
             }
             else _talkRect = default;
+            // VOX goes BESIDE PTT, on the same row, and it is drawn whether or not the radio exists: the radio only
+            // exists in a room, but a hot mic does not need one — narration alone can hold the microphone open on a
+            // solo flight, which is the case that cost Ty an evening, so the indicator has to be there then too.
+            // Same row as PTT on purpose: that row's clearance above the control tray is the one Ty already approved
+            // (2026-11-08), so this adds no new way to crowd the pads or the dials. PTT keeps the corner slot it was
+            // given and never moves; VOX takes it only when there is no PTT to sit next to.
+            DrawVox(new Rect(VoiceComms.RadioAvailable ? voiceX + pw + UiLayout.Gap : voiceX, voiceY, pw, ph));
             string radio = VoiceComms.MicProblem ?? (VoiceComms.Receiving != null ? $"RADIO: {VoiceComms.Receiving}" : null);
             if (radio != null) UiLayout.Label(UiLayout.NextLine(_fs * 1.4f), radio, _label);
+        }
+
+        /// <summary>
+        /// THE VOX BUTTON, and the only thing on screen that says whether the microphone is open (Ty 2026-11-10:
+        /// "Add a vox button on the screen", after an evening in which a persisted "Record my voice in clips" held
+        /// the mic from launch with nothing to show it — "Force quit and restart did not fix it").
+        ///
+        /// It does two jobs, and the second matters more. Tapping it arms or disarms VOX: armed, the microphone is
+        /// held open and the voice gate opens on voice activity; disarmed, the microphone opens only while PTT is
+        /// held. PTT is untouched either way.
+        ///
+        /// AND IT SHOWS THE REAL STATE, not its own. The colour follows <see cref="VoiceComms.MicOpen"/>, which is
+        /// read back out of the native engine (VO_State) rather than worked out from the settings here, so it cannot
+        /// say "shut" while VoiceIO.mm has the mic. That is why it goes RED and reads MIC when narration — or the
+        /// 1.5 s unkey linger — is holding the microphone with VOX off: the pilot did not ask for that this flight,
+        /// which is exactly when he needs telling. Red is already this toolbar's "live" colour (REC, PTT held).
+        ///
+        /// Three states, so "armed" and "open" are never confused:
+        ///   dull   VOX     — the microphone is shut. Nothing is listening.
+        ///   amber  VOX ..  — armed, but the mic is not open yet: starting up, or permission refused (MicProblem
+        ///                    says which, on its own line). A state that should flicker past, and sticks if denied.
+        ///   red    VOX / MIC, with a level bar — THE MICROPHONE IS OPEN. The bar is what it is hearing, so a glance
+        ///                    separates "open and quiet" from "open and picking me up".
+        /// </summary>
+        private void DrawVox(Rect r)
+        {
+            bool open = VoiceComms.MicOpen, armed = VoiceComms.VoxOn;
+            GUIStyle st = open ? _btnRec : armed ? _btnArm : _btn;
+            // With VOX off and the mic open anyway, the word VOX would be a lie about why: say MIC instead.
+            string label = open ? (armed ? "VOX ●" : "MIC ●") : armed ? "VOX .." : "VOX";
+            if (UiLayout.Button(r, label, st)) VoiceComms.VoxOn = !VoiceComms.VoxOn;
+            if (!open) return;
+            // Level bar across the bottom of the button: a dark channel with a white fill, inside the button's own
+            // edge so it reads as part of it rather than as a separate widget.
+            float inset = Mathf.Max(2f, r.width * 0.06f), h = Mathf.Max(2f, r.height * 0.12f);
+            var channel = new Rect(r.x + inset, r.yMax - inset - h, r.width - 2f * inset, h);
+            GUI.DrawTexture(channel, _track);
+            float lvl = Mathf.Clamp01(VoiceComms.MicLevel01);
+            if (lvl > 0.01f) GUI.DrawTexture(new Rect(channel.x, channel.y, channel.width * lvl, channel.height), _knob);
         }
 
         // ---- LOCAL 2-PLAYER, compact split (SplitControls) -------------------------------------------------------------
