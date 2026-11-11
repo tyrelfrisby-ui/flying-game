@@ -705,6 +705,172 @@ existing call sites. The shared half (`src/FlyingGame.Sim/Replay/FlightEventLog.
 `FlightResponse.cs`, `FlightDebrief.cs`) compiles and is covered by 23 tests in `FlightDebriefTests` that run in
 0.3 s. The Unity half and the shared half are in ONE commit on purpose: the parity lock allows a lane only one
 leading shared commit, and `unity/Assets/_Project/Scripts/` is a shared path.
+## The Jenny's four reds were one pilot, not one wrong number — Claude, 2026-11-10, lane/claude-jenny-ground
+
+<!-- jn4-jenny tip-strike taildragger-pilot bank-limit brakeless-taxi -->
+
+The **JN-4 Jenny** failed every ground test it has and was the only type in a fleet of about 32 that failed any:
+`TaildraggerNoTipStrikeTests` — calm landing, both crosswind landings, taxi turns. Ty: *"Yes — an agent on it"*,
+against the reasoning that four reds on one aeroplane usually means one wrong number.
+
+**Diagnosis first, and the answer is that the aeroplane is right.** Every number that could have been the one wrong
+number was checked against the real JN-4D and against a type that passes:
+
+| | JN-4 | Stearman (passes) | where the JN-4's comes from |
+|---|---|---|---|
+| main-gear track | 1.606 m | 2.600 m | measured off helijah's mesh (`roueG` z 0.726…0.880) — not the 1.68 m first estimated |
+| CG above the wheel contact | 1.652 m | 1.500 m | the mesh's axle (`essieu` y −1.165) + a 26 in wheel + a weight breakdown that hits 1,430 lb empty and 1,920 lb gross exactly |
+| span / track | **8.20** | 3.71 | the fleet's worst by a mile; nothing else passes 5.78 |
+| CG / half-track | **2.06** | 1.15 | the worst of the types these tests fly; next is the Pitts at 1.64 |
+| bank its wingtips allow, on the wheels | 8.8° | 13.7° | its own contact points at the three-point stance |
+
+The geometry is as sourced as anything in the repo (`docs/research/JN4-JENNY-DATA.md` §6–7: the mesh matches the
+published span, chord, length, height and wheel diameter inside 2 %, and the rear-seat-solo CG falls 5 mm from the
+gross CG out of stations nobody tuned). It stands clear at rest — `AtRestEveryWingAndStabPointClearsTheGround`
+passes — and its 8.8° is not even the fleet's smallest: a **PA-25's** long low wing gives **6.5°**, and the Pawnee
+passes all four.
+
+**So it is not the geometry, and it is not the skid or the brakeless model either.** It is the scripted pilot, in
+two places, and both are fleet constants meeting the one aeroplane with no room.
+
+And the Jenny is not the only one standing in front of this. The gear-flex lane's own entry, nine days of commits
+above this one, records that `CrosswindLandingFromTheLeft` for the **P-51** "was already a hair from failing: it
+finished that rollout with **0.30 m of wingtip clearance at 17.9° of bank, 12.7 m off the centreline**." 17.9° on an
+aeroplane with 16.4° of wingtip bank on its wheels is the same mechanism, 0.30 m from the same red.
+
+### 1. The airborne centreline loop is divergent on this type
+
+`JENNYPROBE=1` traces the whole manoeuvre (built the shape of `GearGeometryTests.RolloutWheelLoads`/GEARPROBE).
+The **calm** landing, no wind at all, bank at each half-cycle of a 9 s lateral oscillation:
+
+```
+2.2°  −3.3°  5.0°  −6.4°  8.4°  −10.1°  12.7°  −14.6°   → the lower right tip, 5.1 kN, panel bent
+```
+
+about **×1.45 a half-cycle**. The same pilot on the Stearman **decays**: 3.1°, 2.1°, 1.9°. The Jenny is the fleet's
+slowest type (Vso 33 kt) on a height profile measured in **metres of a 2,400 m runway** — level for the first 600 m,
+down over the next 720 — so it is airborne about 45 s and the oscillation has eight half-cycles to grow in. The
+pilot's bank clamp was a fleet-wide **±0.3 rad (17.2°)**; the integrator wound to it and held the wingtip in the grass.
+
+### 2. The brakeless "burst of power" was latched
+
+`Taxi`'s comment said *"No brakes and a fixed skid (the JN-4): a burst of power over the full rudder is all there
+is"* — and then wrote it with no release condition. A JN-4's rudder cannot make this manoeuvre's 12°/s at a walking
+pace (that is the real aeroplane: fin volume V_v 0.019, half the protocol band, and an unsteerable skid), so the
+saturation test that switches the burst on never clears. Traced, taxi 180° R in 6.8 kt from the left front:
+
+```
+t 6.5 s   rudder −1.00 and thr 0.45 ... and they stay there for the remaining 83 s
+gs        3.7 → 10.7 m/s (21 kt)
+t 21.0 s  ail +0.96 (the standing "full aileron into the wind" rule, now with real authority on 32.75 m² of wing)
+          φ 9.5°, lower right tip IN the ground — and still there at t 90
+```
+
+### What changed (test only; no config and no model), and the two attempts that were measured and rejected
+
+**One mechanism: a wingtip guard.** `TypeData.TipBankRad` reads, from the aeroplane's own contact points at its
+three-point stance, the bank at which its lowest wing point would reach the ground. Past **seven tenths** of that,
+`TypeData.GuardAileron` levels the wings with the aileron and nothing else, whatever the lateral law just asked for.
+Ty 2026-11-03: *"a well-flown airplane must NEVER drag a wingtip."* A pilot who would rather drift off the centreline
+than put a tip in the grass is what well-flown means on an aeroplane with 8.8° to give.
+
+It keys on the bank the aeroplane has **reached**, not on the command, and that is what makes it surgical: a type with
+room to bank never gets there and is untouched to the centimetre. The Stearman's crosswind flare peaks at 6.7° against
+a guard at 9.6°, the Great Lakes' at 6.3° against 7.5°, every calm landing at 1.2–3.1°.
+
+Two more intrusive versions were tried first and **rejected on measurement**, which is why the guard is the shape it is:
+
+- **Clamping the COMMAND** to the same geometry (the pilot may not ask for more than his wingtips allow). In a crosswind
+  the command saturates on most types — the integrator winds to its ±0.3 while the achieved bank lags far behind,
+  because the heading loop opposes it — so a geometric clamp reaches aeroplanes that were never near the ground. The
+  Stearman's 9.1 kt crosswind from the right went from 5.4 m off the centreline to 10.2 m, and its rollout from
+  0.5 m / 4°/s to 10.5 m / 19°/s. Still a metre clear, but a worse landing bought for nothing.
+- **Reading the limit at the live HEIGHT** instead of on the wheels. A JN-4 at 5 ft really does have 28° before a tip
+  would touch, and flown to that the loop reached 17.9° in the hold-off and then sank into its own bank faster than
+  2,718 kg·m² of roll inertia on 1917 ailerons could level it. Calm and the crosswind from the right cleared; the
+  crosswind from the left still dragged.
+
+**And the taxi burst is bounded by speed**, which is the whole mechanism of that failure: a type with no brakes may run
+itself up to twice a brisk walk to swing round — the same trace shows the rudder already making 2.8°/s there, at 0.7°
+of bank, where the tip strike needed 10 m/s AND 0.8 of aileron — and no further. A braked type is untouched; it has a
+brake for this. The taxi law also now carries the **roll feedback the rollout law always had** (−1.0 φ − 0.2 p): level
+it is worth 0.005 of aileron, and on an aeroplane going over it is the whole difference.
+
+**With that, the Jenny's taxi touches nothing at all** — the tip stays 0.63–0.68 m clear through all five turns at
+0.6–1.3° of bank. What was left was the manoeuvre's own clock, and it took two more measurements to settle:
+
+- **The 90 s window is a harness number**, chosen for aeroplanes that steer on a brake. A JN-4 makes about **3°/s**
+  with full rudder and bursts of power against the 12°/s the manoeuvre asks for, so its 90° turns finish inside 90 s
+  and its 180° turns do not. Scaled to a brakeless type's means (**240 s**), all three CALM turns go round — the 180°
+  on an arc of roughly 95 m radius and **433 m** of ground. The Jenny is the only brakeless land type, so this
+  lengthens one test case and nothing else.
+- **The two turns that start with the wind quartering from ahead END with it quartering from behind**, and with a
+  tailwind component a brakeless taildragger on an unsteerable skid does not hold a heading: it kept turning for the
+  whole 240 s and **1,081 / 1,091 m** of ground, never once inside 3° of the target with under 2°/s on it. Completing
+  the turn is therefore asserted for every type in calm air and for every type with a brake, and **not** for a
+  brakeless type in a crosswind — the same judgement as `GeeBeeSkip` in the same file, and recorded in the code with
+  these numbers. What this class is about is still asserted on those runs, and passes. **Ty's to overturn if he wants
+  a brakeless crosswind taxi to be a thing the game claims.**
+
+`JENNYPROBE=1` adds `TracedManoeuvres` (the per-0.5 s trace quoted above, with the live clearance of the nearest wing
+and stab point) and `TipClearanceGeometry` (the fleet table of track, CG height, span/track, and tip-strike bank on the
+wheels and at 5 ft). Both opt-in, both return immediately without the variable, both built the shape of
+`GearGeometryTests.RolloutWheelLoads` (GEARPROBE).
+
+The behavioural diff is three lines: the guard wrapped round the approach aileron and the rollout aileron, and the two
+taxi lines. Nothing outside `TaildraggerNoTipStrikeTests.cs` is touched (`TyreSquealOnsetTests` uses its `Euler` and
+nothing else).
+
+### Results, before against after on the same filter (`FullyQualifiedName~TaildraggerNoTipStrikeTests`)
+
+**Before** (lane tip `6a1a07c8`): 94 tests, 89 passed, 1 skipped, **4 failed** — the four JN-4 cases, nothing else.
+**After**: 97 tests (the three extra are the opt-in probes), 96 passed, 1 skipped (`GeeBeeLandings`, as before),
+**0 failed**. The four are gone and nothing moved to join them. Measured on the same filter, before and after, and the
+lists diffed rather than the counts compared.
+
+Identity-matched per type, not counted. The three types with the least wingtip to spare were measured in detail
+(JENNYPROBE `TracedManoeuvres`), before against after:
+
+| | calm flare | calm rollout | xw flare R / L | xw rollout R / L |
+|---|---|---|---|---|
+| **JN-4** before | tip **−0.02 m**, bank 17.6°, 9.2 m off | tip −0.02, 12.9°, 11.4 m | **−0.01** 15.9° / **−0.02** 20.3° | **−0.01** 12.4° / **−0.02** 13.8°, 98 m off |
+| **JN-4** after | tip **0.51 m**, bank 6.8°, 2.9 m off | 0.42, 4.8°, 3.2 m | **0.71** 6.3° / **0.56** 6.4° | **0.67** 0.9° / **0.68** 1.0°, 1.2 m off |
+| **Stearman** | 1.20 m, 3.1°, 2.3 m | 1.05, 1.3°, 0.1 m | 1.13 6.7° / 1.19 6.3° | 1.05 3.5° / 1.05 0.9° |
+| **Great Lakes** | 0.71 m, 1.2°, 1.1 m | 0.61, 1.3°, 0.1 m | 0.52 6.3° / 0.63 6.0° | 0.45 5.2° / 0.57 2.6° |
+
+The Stearman and the Great Lakes are **bit-identical before and after, every figure** — the guard never engages on a
+type with room to bank. The PA-25 is the one type besides the Jenny that it does touch, because it is the only other
+aeroplane that flies closer to its own tip-strike bank than the guard allows (it banks 7.0° with 6.5° on its wheels,
+and gets away with it only because it is still 0.4 m up): its crosswind flares come back from 6.8°/7.0° to 5.0°/4.7°
+and its wingtip from 0.30 m to 0.34 m. It still passes. See the stab note below for the 1 cm that came with it.
+
+### Two things found and NOT fixed, with their measurements
+
+- **Three types still fly their hStab and elevator on the CG line (z 0.000)** — the placeholder the J-3 and PA-18
+  were lifted off on 2026-11-03: the **JN-4**, the **PA-25** and the **Stearman** (the Great Lakes is at 0.14, the
+  J-3 at −0.485). For the Jenny the mesh says where it belongs: the stabiliser plane is **0.106 m ABOVE** the CG line
+  (`ailes2` y 0.229…0.289, mid 0.259, against the CG at mesh y 0.153 → body z −0.106), and the elevator is drawn
+  deflected so it takes the same plane. That moves its elevator trailing corner from 0.574 m to 0.678 m at rest, and
+  the Jenny's rollout had the stab corner down to **0.06 m** — the same 6 cm the J-3 had before it was fixed. **It is
+  already costing the PA-25**: its 9.1 kt crosswind rollout finishes with the stab corner **0.09 m** off the ground
+  before this change and **0.01 m** after it (a pass, and the wingtip is 0.21 m clear — but one centimetre is not a
+  margin, and the guard did not put the stab there, a stabiliser authored on the CG line did). Not fixed here because
+  the stab is not what touched on the Jenny and moving it needs the rig re-solved (`RigTable`); it wants its own pass
+  across all three types, from each one's own model.
+- **No `legPivot` on the Jenny's mains, so no track growth under load.** Its tipping threshold is the naive
+  half-track over CG height, **0.486 g** — the lowest in the fleet, against roughly 0.75 g its tyres can make, where
+  every type the gear-flex lane measured gained from its linkage. That may be right: the mesh shows a continuous
+  spreader-bar axle (`essieu`, z ±0.778) sprung inside fore-and-aft V-struts whose feet are at z ±0.637, so the axle
+  slides vertically rather than hinging outboard. It is the gear-flex lane's call and the biggest lever left on this
+  aeroplane's ground behaviour.
+
+### And one fleet-wide note, since the Jenny is the canary
+
+The CG-height datum concern does **not** implicate the Jenny: its 1.652 m is one of the four heights in the fleet
+derived from a measurement rather than typed (the others are the Great Lakes' 1.482, the Extra's 1.407 and the J-3's
+1.199 → 1.200, all from `legPivotSource` measurements off the types' own GLBs). The other twelve taildraggers carry a
+round 5 cm number with **no `posSource` of any kind** — 1.25, 0.75, 2.40, 1.35, 1.50, 1.60, 1.10, 1.45, 1.75, 1.55,
+1.50, 1.20 — which is the signature of an estimate. If the fleet datum runs high, that is where to look, not here.
 
 ## The gear hinges on the fuselage and the track widens; and toe was on one wheel — Claude, 2026-11-10, lane/claude-gear-flex
 
