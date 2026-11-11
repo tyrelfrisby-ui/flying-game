@@ -18,6 +18,18 @@ public sealed class SimLoop
     public Aircraft Aircraft { get; }
     public double FixedDtSec { get; }
 
+    /// <summary>
+    /// CALLED ONCE PER FIXED PHYSICS STEP, after <see cref="Aircraft.Step"/> has fully returned — so the state,
+    /// the forces, the damage and the contacts are all the settled end-of-step values rather than something
+    /// half-integrated. The control input for that step is handed over with it, because the sim does not keep it.
+    ///
+    /// It exists for the flight-test recorder, which has to sample at the sim's own rate: Aircraft's
+    /// SurfaceContactsStepped fires mid-step and leaves the damage channels one step stale, and the Bridge's
+    /// PostStep fires once a FRAME, which cannot give a fixed 50 or 200 Hz at all. Null by default, one null test
+    /// per step when nothing is listening.
+    /// </summary>
+    public Action<SimLoop, ControlInputs>? Stepped;
+
     public SimLoop(Aircraft aircraft, double fixedDtSec = DefaultFixedDtSec)
     {
         Aircraft = aircraft;
@@ -31,6 +43,7 @@ public sealed class SimLoop
         for (int i = 0; i < steps; i++)
         {
             Aircraft.Step(inputs, FixedDtSec);
+            Stepped?.Invoke(this, inputs);
         }
 
         return Aircraft.State;
@@ -81,6 +94,7 @@ public sealed class SimLoop
             Aircraft.CaptureForces = capture && accumulatorSec < 2 * FixedDtSec;
             Aircraft.Step(inputs, FixedDtSec);
             accumulatorSec -= FixedDtSec;
+            Stepped?.Invoke(this, inputs);
         }
         Aircraft.CaptureForces = capture;
         return capped;
