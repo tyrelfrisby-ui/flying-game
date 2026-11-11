@@ -2263,7 +2263,18 @@ public sealed partial class Aircraft
             if (parts.InPlane.Y != 0.0 || parts.InPlane.Z != 0.0) pM += Vec3.Cross(propArm, parts.InPlane);
             // Blade tips curled by a prop strike (Aircraft.PropStrike): a smaller disc at the same power.
             if (thrustScale is { Length: > 0 } && thrustScale[0] != 1.0) { pF *= thrustScale[0]; pM *= thrustScale[0]; }
-            ForceDebug.Add(noseBody, pF, pM, "thrust");
+            // THE SAMPLE'S MOMENT MUST BE A PURE ONE (ForceSample): every consumer sums Cross(pos - cg, force) +
+            // moment, and `pM` is already the WHOLE moment about the CG - it carries the thrust line
+            // (thrust x ThrustLineZ), the disc's normal force on its arm and the in-plane force on its arm. Recorded
+            // at the hub with `pM` as it stands, each of those was counted a SECOND time out of Cross(propArm, pF),
+            // and the prop read about 1400 N.m more nose-down and several hundred N.m more yaw than it makes: the
+            // Pitts' inverted-spin pitch budget had the thrust group at -2850 N.m where it is -1400
+            // (InvSpinPowerHoldProbe, 2026-11-10). THE FLIGHT MODEL WAS NEVER AFFECTED - the equations of motion take
+            // (pF, pM) straight from this method and never go through a sample - but every spin budget taken through
+            // LastForces was, which is the same trap as the "tailflow" record that became a phantom +965 ft.lb
+            // nose-up term on 2026-11-09. Subtracting the arm moment keeps the arrow drawn at the hub where it
+            // belongs and makes Cross(pos - cg, force) + moment reconstruct pM exactly.
+            ForceDebug.Add(noseBody, pF, pM - Vec3.Cross(propArm, pF), "thrust");
             if (ForceDebug.Samples != null) ForceDebug.Add(noseBody, nF, Vec3.Zero, "propn");   // (already in "thrust": a breakdown only)
             if (ForceDebug.Samples != null) ForceDebug.Add(noseBody, Vec3.Zero, PropModel.GyroMoment(config.Propulsion, throttle01, rates, drive), "gyro");   // (already in "thrust"'s moment: a breakdown only)
             return (pF, pM);

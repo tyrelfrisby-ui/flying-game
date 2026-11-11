@@ -462,6 +462,15 @@ public static class PropModel
         => prop.PropDiameterM > 0.0 && drive.EngineRunning && drive.ShaftRpm > 0.0
            && (prop.BladePitch75Deg > 0.0 || drive.BladePitchDeg > 0.0);
 
+    /// <summary>
+    /// Ablation switches for the SOLVED disc's two cross-flow terms, which <see cref="PropulsionConfig.PFactorK"/>
+    /// does NOT reach: on a blade-element prop the in-plane force and the P-factor offset come out of the azimuthal
+    /// integral, so zeroing PFactorK (the legacy coefficient) ablates nothing at all on the Pitts, the Extra or any
+    /// other solved type. PROP_NOINPLANE=1 / PROP_NOPFACTOR=1. Diagnostics only.
+    /// </summary>
+    public static bool NoDiscInPlaneForDiagnostics = Environment.GetEnvironmentVariable("PROP_NOINPLANE") != null;
+    public static bool NoDiscPFactorForDiagnostics = Environment.GetEnvironmentVariable("PROP_NOPFACTOR") != null;
+
     private static (Vec3 Force, Vec3 Moment) BladeElementForces(PropulsionConfig prop, Vec3 bodyVelocity, Vec3 bodyRates,
                                                                 double airDensity, PropDrive drive, ref Parts parts,
                                                                 BladeElement.SwirlProfile? profile = null)
@@ -513,7 +522,7 @@ public static class PropModel
             // the gyroscopic couple (docs/aircraft/prop-gyro-DERIVATION.md section 5) - and on the solved types it was
             // pointing the wrong way entirely, which is what Ty felt as the Extra "coming up way short on side slip
             // angle (beta) when yawed left and pushed forward... like the gyroscopics are too light".
-            Vec3 inPlane = new(0, -r.NormalN * uy, -r.NormalN * uz);
+            Vec3 inPlane = NoDiscInPlaneForDiagnostics ? Vec3.Zero : new(0, -r.NormalN * uy, -r.NormalN * uz);
             force += inPlane;
             parts.InPlane = inPlane;
 
@@ -523,7 +532,7 @@ public static class PropModel
             double offset = r.ThrustN > 1e-6 ? r.ThrustMomentNm / r.ThrustN : 0.0;
             double yOffset = prop.RotationSign * offset * uz;     // + = right
             double zOffset = -prop.RotationSign * offset * uy;
-            moment += new Vec3(0, r.ThrustN * zOffset, -r.ThrustN * yOffset);
+            if (!NoDiscPFactorForDiagnostics) moment += new Vec3(0, r.ThrustN * zOffset, -r.ThrustN * yOffset);
             parts.PFactorY = yOffset; parts.PFactorZ = zOffset;
         }
 
