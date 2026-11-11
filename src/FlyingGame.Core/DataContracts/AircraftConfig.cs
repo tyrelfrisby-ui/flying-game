@@ -747,6 +747,27 @@ public sealed class SpinAeroConfig
     public double ControlSpoilerK { get; set; } = 0.0;
 
     /// <summary>
+    /// WHERE <see cref="ControlSpoilerK"/> STARTS, in degrees of the strip's own flow angle; it is full 20° later.
+    /// Default 30, which is the angle it shipped with and the one Ty flew and accepted ("That is it! Now it behaves
+    /// like a Pitts really does"), so no type changes until it is entered.
+    ///
+    /// IT IS A KNOB, AND THE ONSET IS THE PART OF IT WITH PHYSICS IN IT. The spoiler term exists because the section
+    /// table stops being able to express a control: the model moves a control by shifting its section's incidence,
+    /// and once the section is on the fully separated law CN = Cd_max·sin(θ) that shift changes which way the force
+    /// points and not how big it is. So the term should begin where the TABLE'S OWN flap effect dies — at the
+    /// section's stall — and 30° was chosen when every horizontal tail in the fleet was a NACA 0012, whose stall is
+    /// at 14° and whose separated law has taken over by about 30°.
+    ///
+    /// A FLAT-PLATE TAIL STALLS AT 9–12°, not 14, which is why this is a field and not a constant: with the plate,
+    /// the band from the section's stall up to 30° is one where the table has no control effectiveness left and this
+    /// term has not started either, and that shows up as a hole in elevator authority at α 20–34
+    /// (FlatPlateSearchProbe, FLAT_PLATE_SEARCH=…). Lowering it is NOT free — it is the term Ty judged the Pitts'
+    /// spin on, so moving the onset moves a spin he has already accepted, and it has to be flown again before it
+    /// ships on a type he flies.
+    /// </summary>
+    public double ControlSpoilerOnsetDeg { get; set; } = 30.0;
+
+    /// <summary>
     /// GEOMETRIC HELICAL SHADOW DEPTH, 0 = use the Report 648 wake path instead (the default, so no type changes until
     /// it is entered). Above 0, EVERY surface's dynamic-pressure loss - wings, stabiliser, fin, all of them - is computed
     /// from THIS AIRFRAME'S OWN GEOMETRY by marching the real helical air path upstream from each section and seeing what
