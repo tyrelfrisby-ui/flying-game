@@ -401,7 +401,12 @@ namespace FlyingGame.Bridge
             r.ManifoldInHg = ManifoldPressureInHg(ac, altM);
 
             // Oil and cylinder-head temperature: first-order, toward what the power setting holds.
-            double oilTarget = firing ? 150.0 + 60.0 * thr : 100.0;
+            // AND A SPUN BEARING COOKS IT (Ty 2026-11-11: an over-rev past 15 % gives "High vibration reduced power
+            // due to friction increasing oil temperature and decreasing oil pressure"). The sim owns what is heating
+            // the oil (Aircraft.OilTempRiseF, from EngineOverspeed); this state owns the temperature itself, so the
+            // rise goes on the TARGET and the same 150 s lag carries it — the needle climbs over a couple of minutes
+            // rather than jumping, which is what a pilot would actually see.
+            double oilTarget = (firing ? 150.0 + 60.0 * thr : 100.0) + ac.OilTempRiseF;
             // An open cowl flap (Aircraft.CowlFlap01) takes (E) 60 F off the heads at any power.
             double chtTarget = FlyingGame.Core.Engine.EngineTemperatures.ChtTargetF(firing, thr, ac.CowlFlap01);
             if (dt > 1e-4f)

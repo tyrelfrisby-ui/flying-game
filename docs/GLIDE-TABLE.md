@@ -32,7 +32,7 @@ Valley field (1000 ft), windmilling-prop drag included; gliders at half spoiler.
 | dhc2-beaver-like | up | kt | 60 | 78 | 8.2 | 6.9:1 | 1132 | -2.5 | 5.7 | -2.2 | -0.11 |
 | dhc2-beaver-like | half | kt | 55 | 72 | 8.3 | 6.9:1 | 1053 | -3.9 | 4.4 | 3.5 | +0.16 |
 | dhc2-beaver-like | full | kt | 52 | 68 | 8.8 | 6.4:1 | 1062 | -6.2 | 2.6 | 10.0 | +0.39 |
-| extra-300-like | up | kt | 55 | 72 | 8.2 | 7.0:1 | 1036 | 2.8 | 11.0 | -7.6 | -0.35 |
+| extra-300-like | up | kt | 55 | 72 | 8.2 | 7.0:1 | 1038 | 2.8 | 11.0 | -7.6 | -0.35 |
 | f86-sabre-like | up | kt | 138 | 179 | 9.0 | 6.3:1 | 2830 | -2.1 | 6.9 | -0.7 | -0.06 |
 | f86-sabre-like | half | kt | 122 | 159 | 8.8 | 6.5:1 | 2457 | -3.4 | 5.4 | 6.2 | +0.25 |
 | f86-sabre-like | full | kt | 122 | 159 | 9.8 | 5.8:1 | 2749 | -7.9 | 1.9 | 15.3 | +0.57 |
@@ -44,7 +44,7 @@ Valley field (1000 ft), windmilling-prop drag included; gliders at half spoiler.
 | glider-eb29r-like | up | kt | 46 | 59 | 5.0 | 11.3:1 | 528 | 0.6 | 5.6 | -3.4 | -0.15 |
 | glider-grob103-acro-like | up | kt | 34 | 45 | 3.8 | 14.9:1 | 304 | -1.6 | 2.3 | -0.3 | -0.05 |
 | glider-swift-s1-like | up | kt | 35 | 45 | 4.9 | 11.7:1 | 392 | 3.1 | 8.0 | -2.9 | -0.14 |
-| great-lakes-like | up | mph | 56 | 72 | 7.9 | 7.2:1 | 871 | -5.0 | 2.8 | -1.0 | -0.07 |
+| great-lakes-like | up | mph | 56 | 72 | 7.9 | 7.2:1 | 876 | -5.1 | 2.8 | -1.0 | -0.07 |
 | hang-glider-like | up | mph | 20 | 26 | 5.3 | 10.7:1 | 216 | 0.9 | 6.3 | -14.3 | -0.75 |
 | hughes-h4-like | up | mph | 84 | 109 | 5.7 | 10.1:1 | 950 | 0.3 | 5.9 | -5.0 | -0.21 |
 | hughes-h4-like | half | mph | 78 | 102 | 6.3 | 9.1:1 | 976 | -1.5 | 4.7 | -0.1 | -0.03 |
@@ -71,7 +71,7 @@ Valley field (1000 ft), windmilling-prop drag included; gliders at half spoiler.
 | pa28-archer-like | half | kt | 52 | 67 | 8.7 | 6.5:1 | 1024 | -2.3 | 6.4 | -0.4 | -0.08 |
 | pa28-archer-like | full | kt | 50 | 64 | 9.9 | 5.7:1 | 1123 | -4.3 | 5.6 | 0.9 | +0.15 |
 | paraglider-en-b-like | up | mph | 18 | 23 | 7.9 | 7.2:1 | 280 | -9.0 | -1.2 | 8.2 | +0.41 |
-| pitts-s2b-like | up | mph | 67 | 87 | 10.1 | 5.6:1 | 1351 | -4.0 | 6.2 | -4.5 | -0.21 |
+| pitts-s2b-like | up | mph | 67 | 87 | 10.2 | 5.6:1 | 1353 | -4.0 | 6.2 | -4.5 | -0.21 |
 | seminole-like | up | kt | 65 | 85 | 8.2 | 7.0:1 | 1215 | -1.5 | 6.6 | -1.8 | -0.09 |
 | seminole-like | half | kt | 60 | 78 | 8.3 | 6.9:1 | 1142 | -2.7 | 5.6 | 3.0 | +0.14 |
 | seminole-like | full | kt | 57 | 75 | 8.8 | 6.5:1 | 1150 | -4.7 | 4.1 | 7.9 | +0.31 |

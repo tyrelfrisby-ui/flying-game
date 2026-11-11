@@ -399,8 +399,12 @@ namespace FlyingGame.Bridge
             bool running = aircraft == null || aircraft.EngineRunning;
             _tele.Throttle01 = aircraft != null ? (float)aircraft.ShaftPower01 : (float)d.Throttle01;
             _tele.EngineRpm = running ? (float)d.EngineRpm : 0f;
-            _tele.PropShakeG = aircraft != null ? (float)aircraft.PropVibrationG() : 0f;
+            // The propeller's own imbalance, plus the shake of a bearing an over-rev has spun (Ty 2026-11-11: "High
+            // vibration"). Both are a once-a-revolution g at the pilot, so they add rather than compete.
+            _tele.PropShakeG = aircraft != null ? (float)(aircraft.PropVibrationG() + aircraft.BearingVibrationG) : 0f;
             _tele.PropShakeHz = aircraft != null ? (float)aircraft.PropVibrationHz : 0f;
+            // And the cylinder it broke a ring in: its exhaust pulse goes missing from the firing order.
+            _tele.DeadCylinders = aircraft != null ? aircraft.DeadCylinders : 0;
             _tele.Spoiler01 = aircraft != null ? (float)aircraft.CurrentDeflections.SpoilerFraction : 0f;
             var spoilerCfg = aircraft?.Config?.Controls?.Spoiler;
             _tele.SpoilerRoar = spoilerCfg != null ? (float)spoilerCfg.SoundLevel : 1f;
@@ -539,6 +543,7 @@ namespace FlyingGame.Bridge
             crashes.Prepare();
             PropStrikeMixer strikes = _propStrikes;
             strikes?.Prepare();
+            engine?.SetDeadCylinders(t.DeadCylinders);
             engine?.Prepare(rpm, thr);
 
             // Fully ducked and settled: emit silence without rendering.

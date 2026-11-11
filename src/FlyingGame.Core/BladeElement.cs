@@ -455,6 +455,53 @@ public static class BladeElement
         Windmilling At(double rpm) => new(rpm, -Solve(blade, vAxialMs, 0.0, rpm, rhoKgM3).ThrustN);
     }
 
+    /// <summary>
+    /// A PROPELLER THAT IS NOT TURNING, which is a different problem and not a limit of the one above. Ty 2026-11-11:
+    /// "A stopped prop should have much lower drag than either idle windmilling or idle cutoff windmilling but base
+    /// that off the science by giving the stopped prop a realistic drag. Make sure that stopped cs props for
+    /// acrobatic airplanes are coarse pitch when calculating stopped prop drag."
+    ///
+    /// WHY IT IS MUCH LESS, in one line: a windmilling propeller is a TURBINE. It extracts energy from the airstream
+    /// and dumps it into the engine as heat, and the drag it makes is that power divided by the airspeed — which is
+    /// why <see cref="PropModel.Windmilling"/>'s drag falls as a coefficient with speed instead of growing with q. A
+    /// stopped propeller extracts nothing. It is a stalled bluff body: two or three stationary stubs of wing standing
+    /// across the flow, and its drag is their profile drag and nothing else. (Hartman and Biermann, NACA Report 646,
+    /// <i>The aerodynamic characteristics of full-scale propellers having 2, 3 and 4 blades</i>, measures both regimes
+    /// on the same propellers and the negative-thrust branch of a locked blade sits well inside the windmilling one;
+    /// Perkins and Hage, <i>Airplane Performance Stability and Control</i>, ch. 3, tabulates the two as equivalent
+    /// flat-plate areas for exactly this comparison.)
+    ///
+    /// SO IT IS THE SAME BLADE AND THE SAME SECTION, SOLVED AT ZERO RPM, and there is no new coefficient in it. With
+    /// omega = 0 the inflow angle at every station is 90 degrees — the flow is purely axial and the blade has no
+    /// tangential speed of its own — so the element meets the air at an angle of attack of (90 - theta(x)) to its
+    /// chord, and <see cref="Section"/>'s post-stall branch, which decays toward a flat plate's Cd ~ 1.13, is already
+    /// the right polar for that. The axial force is then the same cn = cl cos(phi) - cd sin(phi) the solver uses,
+    /// which at phi = 90 degrees is simply -cd: the drag is the blade's own profile drag over its own area.
+    ///
+    /// AND THAT IS WHY THE BLADE ANGLE MATTERS. A fine blade stands nearly broadside to the flow and drags like a
+    /// plate; a coarse one is nearer edge-on and drags much less, which is the whole of Ty's second sentence — an
+    /// aerobatic single's governor is plumbed so that losing the oil drives the blades COARSE
+    /// (PropModel.OilLossPitchDeg), so the blade a stopped aerobatic propeller is standing at is the COARSE stop.
+    ///
+    /// No induced velocity and no slipstream: at these solidities (0.05 to 0.10 of the disc in blade area) the disc
+    /// is not blocking enough of the tube for the momentum correction to be worth a term, and a stopped propeller's
+    /// drag is wanted to a few per cent, not to a part in a thousand.
+    /// </summary>
+    public static double StoppedDragN(in Geometry g, double vAxialMs, double rhoKgM3)
+    {
+        if (g.RadiusM <= 0.0 || vAxialMs <= 0.0 || rhoKgM3 <= 0.0 || g.PitchAt75Deg <= 0.0) return 0.0;
+        double dx = (1.0 - g.HubFraction) / Elements, q = 0.5 * rhoKgM3 * vAxialMs * vAxialMs, drag = 0.0;
+        for (int i = 0; i < Elements; i++)
+        {
+            double x = g.HubFraction + (i + 0.5) * dx;
+            // phi = 90 deg exactly (no rotation), so alpha = theta - phi is large and negative: the air meets the
+            // blade's back at (90 - theta). cn = cl*cos(phi) - cd*sin(phi) = -cd, and the axial force is q*cn*area.
+            (double _, double cd) = Section(g.BladeAngleRad(x) - 0.5 * Math.PI);
+            drag += q * cd * g.Blades * g.ChordM(x) * dx * g.RadiusM;
+        }
+        return drag;
+    }
+
     /// <summary>A freely windmilling propeller: the rpm the air turns it at and the drag (N, positive) it makes there.</summary>
     public readonly struct Windmilling
     {
@@ -480,6 +527,29 @@ public static class BladeElement
     /// Power at 26 inHg comes from the naturally aspirated engine's near-linear fall with manifold pressure, taken
     /// through the friction intercept near 10 inHg: (26 - 10)/(29.92 - 10) = 0.80 of rated. No tuning constant: full
     /// throttle at sea level IS 29.92 inHg, and the intercept is a property of a piston engine.
+    ///
+    /// AND THE COARSE RULE HAS AN ALTITUDE, which it did not have until Ty gave it one (2026-11-11): "If the high
+    /// pitch stop on a c[s] prop is set to redline rpm at vd (le[t]s do that at 10,000 ft da) th[e]n anything over
+    /// that should be an over rev which is not happening now." Vd is a CAS limit, so the TRUE airspeed at Vd rises
+    /// with altitude — 16.4 % higher at 10,000 ft on a standard day — while the engine loses only what Gagg and
+    /// Ferrar's line takes off it (70.3 % of rated at sigma 0.7385). The blade's torque falls with DENSITY, which is
+    /// less than the engine loses, so the governed blade angle demanded at a given CAS grows with height: the dive at
+    /// altitude is the limiting case, and a stop set at sea level is finer than the aeroplane needs, while a stop set
+    /// at 10,000 ft is the one the manufacturer would actually certify against. The condition is
+    /// <see cref="CoarseStopDensityAltitudeM"/>, and nothing else about the rule moves: the FINE stop is explicitly a
+    /// sea-level run-up check and stays at sea level.
+    ///
+    /// MEASURED, with the stops the fleet carried before this (PropPhysicsProbe, full power, prop lever forward, the
+    /// steady torque balance and the integrated shaft agreeing to the digit):
+    ///
+    ///              first over-rev at sea level     first over-rev at 10,000 ft DA
+    ///   Pitts        between 120 and 140 % of Vd     between 100 and 110 %
+    ///   Great Lakes  between 120 and 140 %           between 100 and 110 %
+    ///   Extra        between 100 and 110 %           AT 100 % — already over-revving at Vd
+    ///
+    /// The Pitts needed 284 kt CAS at sea level to run out of blade against a 184 kt Vne, which is why the over-rev
+    /// "is not happening": not the governor, which does run out of blade and does let the rpm go, and not
+    /// AircraftEngine.StepShaft's MaxRpm*1.6 clamp, which sits at 4,320 rpm and was never reached. The stops.
     /// </summary>
     public readonly struct Stops
     {
@@ -488,6 +558,11 @@ public static class BladeElement
     }
 
     public const double RunUpManifoldInHg = 26.0, SeaLevelManifoldInHg = 29.92, FrictionManifoldInHg = 10.0;
+
+    /// <summary>The density altitude the coarse-stop rule is written at, m (10,000 ft — Ty 2026-11-11). See
+    /// <see cref="Stops"/> for why the dive at altitude, and not the one at sea level, is the limiting case.</summary>
+    public const double CoarseStopDensityAltitudeM = 3048.0;
+
     public static double PowerFractionAtManifold(double inHg)
         => Math.Clamp((inHg - FrictionManifoldInHg) / (SeaLevelManifoldInHg - FrictionManifoldInHg), 0.0, 1.0);
 
@@ -498,7 +573,13 @@ public static class BladeElement
         double qRated = ratedPowerW / Math.Max(1e-6, omega);
         double qRunUp = qRated * PowerFractionAtManifold(RunUpManifoldInHg);
         double fine = PitchForTorqueDeg(blades, radiusM, activityFactor, hubFraction, qRunUp, ratedRpm, 0.0, rhoKgM3);
-        double coarse = PitchForTorqueDeg(blades, radiusM, activityFactor, hubFraction, qRated, ratedRpm, 1.1 * vneMs, rhoKgM3);
+        // THE COARSE STOP AT 10,000 FT DENSITY ALTITUDE. Vd is CAS, so the true airspeed there is Vd / sqrt(sigma);
+        // the engine makes Gagg and Ferrar's fraction of rated; the air the blade works in is that density.
+        double rhoCoarse = Atmosphere.DensityAtAltitude(CoarseStopDensityAltitudeM);
+        double sigma = rhoCoarse / Atmosphere.SeaLevelDensityKgM3;
+        double vdTas = 1.1 * vneMs / Math.Sqrt(sigma);
+        double qCoarse = qRated * PistonEngine.AltitudePowerFraction(sigma);
+        double coarse = PitchForTorqueDeg(blades, radiusM, activityFactor, hubFraction, qCoarse, ratedRpm, vdTas, rhoCoarse);
         return new Stops(fine, Math.Max(coarse, fine + 1.0));
     }
 

@@ -66,6 +66,14 @@ public class FuelValveTests
             Fly(ac, 1.5);
             Assert.True(ac.EngineRunning);
             Assert.False(ac.FuelStarved);
+            // AND THEN IT HAS TO SPOOL UP, WHICH TAKES LONGER THAN IT USED TO, because the blade has further to come
+            // back: the Extra's coarse stop moved from 31.12 deg to 34.42 on 2026-11-11 (re-derived at Vd at 10,000 ft
+            // density altitude, BladeElement.GovernorStops), and with no oil pressure the dead engine's governor had
+            // driven the blades all the way onto it. The head can move the blade 12 deg/s (GovernorRateDegPerSec), so
+            // the extra 3.3 deg is a further quarter of a second of blade on top of a shaft that was windmilling
+            // slower to begin with. Measured: 2,436 rpm at 1.5 s after it caught, 2,696 at 2.5 s. The pin is now at
+            // 2.5 s rather than looser at 1.5, so what it still measures is that full power COMES BACK.
+            Fly(ac, 1.0);
             Assert.True(ac.EngineRpm > 2600, $"did not come back to full power: {ac.EngineRpm:F0} rpm");
         }
         finally { WorldTerrain.Active = oldTerrain; FloatHydro.FlatWaterOverride = oldWater; }
