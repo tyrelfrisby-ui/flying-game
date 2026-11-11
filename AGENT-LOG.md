@@ -1,3 +1,336 @@
+## ASTC 4x4: the textures come out of the GLBs, and the whole fleet with every livery is 0.95 GB — Claude, 2026-11-10, lane/claude-textures
+
+<!-- astc-4x4 glb-sidecar-textures gltfast-external-texture 4gb-limit livery-policy-superseded -->
+
+Ty, offered four ways to get the iOS build under App Store Connect's 4 GB, chose: *"Do it - 4x4, keep all
+liveries."*
+
+**THE MEASUREMENT WAS RE-DERIVED FROM THE FILES BEFORE ANYTHING WAS CHANGED, not inherited.** Parsing all 39
+GLBs independently: **754,922,296 pixels**. 754.92e6 x 4 x 4/3 = **4,026,252,245 B** against build
+2026.1105.1550's recorded `resources.assets.resS` of **4,024,558,864 B** — **0.042 % out**. resS was 93.8 %
+of a 4,291,667,298 B build. A texture embedded in a GLB is imported by glTFast's `ScriptedImporter`, so
+Unity's platform texture pipeline never sees it: no compression field exists in a `.glb.meta` at all, and the
+pixels ship uncompressed at four bytes each with a full mip chain. On-disk size is a **20x misleading proxy**
+(265 MB of Assets, a 4.29 GB build).
+
+**THE MECHANISM IS glTFast'S OWN, NOT A FORK.** glTFast has no compression setting of any kind and its
+`GltfImporter` is `internal`. Writing our own `ScriptedImporter` would have meant copying that importer into
+this repo and maintaining the copy; KTX2/`KHR_texture_basisu` picks its transcode target from `SystemInfo` at
+LOAD time, so an Editor import on this Mac would bake BC7 into an iOS build. Both rejected. What landed
+instead: the embedded images were moved OUT into ordinary texture assets the GLB names by URI, because
+`GltfImport.LoadImageFromBytes` says, in its own comment, *"Use the original texture at Editor (asset
+database) import"* — an external texture comes back from `AssetDatabase.LoadAssetAtPath<Texture2D>`, so it
+arrives with everything its `TextureImporter` says. From there **ASTC is one `AssetPostprocessor`**
+(`ModelTextureFormat`), which is the plainest thing in the editor.
+
+**MEASURED, iOS, full fleet AND every livery: 682 MB of texture, ~949 MB of build, against 4 GB.** Was 4,026
+MB of texture and 4,292 MB of build. Three savings compound and all three were measured, not estimated:
+ASTC 4x4 (32 bpp -> 8), **271 Mpix of byte-identical duplicates** that collapse because glTFast references a
+shared file instead of copying it into each GLB, and **34.5 Mpix referenced by no material** that simply stop
+shipping now that they are outside `Resources/`. Mac: 2,721 MB with pixel-identical paint (RGBA32, written
+out explicitly so "Automatic" cannot turn into DXT). Quest: the same 949 MB — it was carrying the same
+uncompressed 4 GB on 8 GB of shared memory.
+
+**WHAT ASTC 4x4 DID TO HIS PAINT.** All 358 sidecars were encoded and decoded with **Unity's own astcenc**
+(`Unity.app/Contents/Frameworks/astcenc-neon.dylib`, driven through ctypes) at the quality the editor uses:
+pixel-weighted mean **77.9 dB**, 96 % of pixels above 50 dB, **26 % bit-exact**, and **every alpha channel in
+the fleet bit-exact** including the three hard-edged cut-outs. **The Pitts checkers come back with no error at
+all.** The worst thing in any of Ty's liveries is a **21/255 error on the anti-aliased edge of a registration
+letter, at 70.3 dB** (visually lossless is normally taken as 40 dB). The before/after close-ups are in the
+handback.
+
+**WHERE IT DOES SHOW: NORMAL MAPS, so they are not compressed.** 47.1 dB on the P-51D's 4096² map but **25.2
+dB on the pilot's 256² twill**, errors to 51/255. There are five normal maps in the fleet; keeping them
+uncompressed costs **68 MB of a 682 MB budget against a 4 GB limit**, which is an obvious trade and one line
+to undo.
+
+**TWO THINGS THAT WOULD HAVE BROKEN A BUILD AND ARE NOW HELD BY TESTS.** The sidecars live OUTSIDE
+`Resources/` (everything under a Resources folder ships whether referenced or not, so inside it the unused
+textures would ship and holding a livery out would stop removing its paint), reached by
+`../../../ModelTextures/...`. glTFast resolves that against the GLB's own directory, so **any directory a GLB
+is moved to for a build must be the same five segments deep** — both of `BuildScript`'s hold directories
+gained a `/Models` level in this commit, and `GlbTextureTests` fails if either loses it. Dedupe is keyed on
+(bytes, sampler) because glTFast makes a private copy of a texture used with a second sampler, and a private
+copy is embedded again.
+
+**REVERSIBLE, AND PROVEN SO OFFLINE.** `tools/models/glb_textures.py embed` is the exact inverse of
+`extract`, and `verify` holds that every accessor's bytes and every part of the glTF JSON except `images`,
+`bufferViews` and `buffers` survive the round trip — **39 of 39 GLBs identical**. The offline tools that do
+surgery on an embedded image (`floor_windows.py`, `glb_visuals.py`, `instrument_face_style.py`,
+`update_engine_faces.py`, `pitts_cockpit_v2.py`, `vr_phase2e.py`, `pilot_body.py`) still work: `embed`, run
+the tool, `extract`. A Blender re-export re-embeds too, and the suite says so.
+
+**NEEDS YOU — the livery restriction is now a choice, not a necessity, and it is yours to keep or drop.**
+`PhoneLiveryTests` measured it: one livery per type used to save **2,133 MB**; it now saves **241 MB**, because
+the alternates no longer carry a full duplicate texture set. Every livery on the phone is ~949 MB against
+4 GB. The flag was NOT touched — it is still on for iOS. One line in `BuildScript` turns it off.
+
+**NOT BUILT. NOT ONE UNITY IMPORT HAS RUN.** Every structural claim above was proved by parsing the files,
+and the .NET tests that read the models are green apart from failures that are present on the base commit
+unchanged (`PittsRearViewTests` x4, and at the older base also `J3OwnModelTests`, `GlideTableTests` and
+`AerobatGroundHandlingTests` — all verified against a clean checkout, none of them mine). But this is exactly
+the kind of change that breaks a Unity build while the suite stays green. What has not been verified: that Unity imports 358 new textures without complaint, that ASTC
+compression of 460 Mpix finishes in a sane time, that the relative URIs resolve inside the editor, and that
+the aeroplanes look right. `python3 tools/models/glb_textures.py embed` puts everything back in one command.
+
+**NOT DONE ON PURPOSE.** ASTC 6x6 halves it again and measured **29.7 dB** against 4x4's 43.9 on a hard test
+pattern — that one would show, and only 4x4 was authorised. Mip-map removal (-25 %), maximum-size reduction
+and crunch compression are available and none was asked for.
+
+## Boundary friction was the wrong SHAPE, not the wrong size; and the compression peak is the engine's own gas load — Claude, 2026-11-10, lane/claude-boundary-friction
+
+<!-- dry-boundary-excess stribeck-rolloff prop-stop-speed compression-peak-from-displacement -->
+
+Ty, 2026-11-10: *"Cranking resistance should be calibrated such that at fine pitch the prop stops right at level
+flight stall speed"* — and, shown that one fleet constant could not meet it across the fleet: **"fix it per engine"**.
+
+**Every type the mechanism is live on now stops within 1.2 % of its own stall speed**, against 21–37 % short before.
+The stall speeds are the repo's own (`PracticeScenario.EstimateVso`, sea level, flaps up — the number the rest of the
+suite is tuned against, not a book figure), and they are not the figures anybody was working from: the Pitts' is 66 mph
+and the Cub's 43, not the 56 and 38 of the earlier table.
+
+| type | engine | excess | its Vso | stops at | err | Cd at 1.3 Vso | peak N·m | ripple | restarts sealed / bled |
+|---|---|---|---|---|---|---|---|---|---|
+| Pitts S-2B | AEIO-540, 6 cyl | **4.71** | 29.5 m/s = 66 mph | 29.7 = 66 | +0.5 % | 0.198 | 326 | 80 % | 1.09 / 0.87 Vne |
+| Extra 300 | AEIO-540, 6 cyl | **4.09** | 28.5 = 64 | 28.7 = 64 | +0.7 % | 0.223 | 325 | 77 % | 0.74 / 0.60 |
+| Great Lakes | AEIO-360, 4 cyl | **2.19** | 22.9 = 51 | 22.9 = 51 | +0.1 % | 0.203 | 326 | 262 % | 1.43 / 0.93 |
+| J-3 Cub (wood prop) | C-85, 4 cyl | **2.24** | 19.3 = 43 | 19.3 = 43 | +0.1 % | 0.153 | 125 | 199 % | 1.18 / 0.81 |
+| J-3 Cub on floats (metal prop) | C-85, 4 cyl | **2.90** | 19.6 = 44 | 19.8 = 44 | +1.1 % | 0.166 | 125 | 165 % | 1.22 / 0.86 |
+
+**THE AMPLITUDE WAS NEVER THE PROBLEM. The exponent was.** `BoundaryFrictionFactor` decayed as exp(−rpm/300), so the
+whole effect lived below 300 rpm — and measured, these propellers give up between 650 and 1,500 rpm, where that tail
+has already shrunk the excess by a factor of 9 to 140. That is why Ty's anchor was asking for amplitudes of **7 to 40**
+times the running friction (far outside anything tribology allows) and still could not be met with one number: the
+exponent was carrying a 25-fold spread, in exactly the rpm band the windmilling drag is calibrated in. Replacing it
+with the shape boundary friction actually has — a Stribeck plateau that holds while the surfaces touch and rolls off
+once sliding speed builds a film, `1 + excess/(1 + (rpm/700)²)` — collapses the required amplitude to **2.19 to 4.71**,
+which is the range a cold unlubricated engine really sits in, and cuts the fleet spread from 25x to 2.2x. The 700 rpm
+is a rubbing speed and not a fitted one: the boundary-to-mixed transition for a piston ring is near 2.5 m/s of mean
+piston speed, and on this fleet's strokes (C-85 0.098 m, Lycoming 540 0.111 m) 2.5 m/s is 680 to 765 rpm.
+
+**NOTHING PHYSICAL EXPLAINS THE REMAINING 2.2x, and the reason is arithmetic.** Motoring friction and rated torque
+*both* scale with displacement, and this fleet's BMEP runs 139–163 psi — a 17 % spread — so every engine-internal
+measure (displacement, FMEP, bore, ring circumference, main-bearing count) hands back nearly the SAME excess for all of
+them, and the two that do vary point the wrong way: per unit of displacement a small cylinder has more ring
+circumference, and a short stroke moves the Stribeck transition up. Cylinder count looked like a clean 4-against-6
+split until the controlled run — the same aeroplane at 4, 6 and 9 cylinders with nothing else touched moved the
+stopping speed **2–5 %**, so that split was the two 540s being aerobatic, not their cylinder count. What the spread
+actually tracks is the airframe: its stall speed against its Vne, and its propeller's inertia — the two Cubs differ in
+nothing but the propeller, and a 6 kg wood blade asks 2.24 where a 20 kg metal one asks 2.90. A friction law has no
+business reading either. **So it is SOLVED per type from the type's own stall speed — one equation in one unknown — and
+not predicted. It is also the ONLY fitted number left in the dead-engine model.** `propulsion.dryBoundaryExcess`
+carries it, `dryBoundaryExcessSource` records what it was solved against, and `CompressionStopProbe` with `COMPSTOP=1
+SOLVE=1` re-derives it. The fleet default for the 22 types not yet live is **3.0**, the geometric mean of the five.
+
+**THE COMPRESSION PEAK IS THE ENGINE'S OWN GAS LOAD NOW, AND TY GAVE UP THE RESTART ANCHOR TO GET IT.** It used to be
+solved from *"to get prop windmilling again should take 10% under vne"*, and that put the SAME Lycoming AEIO-540 at
+**99 N·m in the Pitts and 683 in the Extra** — purely because the air's torque at rest goes as V² and the Extra's Vne
+is 113 m/s against the Pitts' 95. Shown that: *"that settles it - compute from displacement"*, and *"give up the 0.9
+Vne restart"*, because he would rather the Pitts **thud** than restart at an exact number. So it is now
+
+    peak = p_amb · V_c · PeakFor(CR),   V_c = V_d / (cylinders · (CR − 1))
+
+the same slider-crank and polytropic charge the ripple's shape already came from, in absolute units: **326 N·m** for a
+541.5 cubic inch six at 8.7:1 — about 20 kN on the piston through a 55 mm crank throw — and the Pitts and the Extra now
+agree to 0.3 %, which is the difference between 541.5 and 540 cubic inches and nothing else. A 361 cubic inch FOUR
+comes out at 326 as well, which is right: an O-360 is an O-540 with two cylinders missing, same 5.125 in bore and
+4.375 in stroke, so one cylinder pushes back exactly as hard and the count only changes how often. The Cub's 188 at
+6.3:1 is 125.
+
+**AND THE LUMPS CAME BACK.** The ripple's worst against the mean it takes to turn the engine over at rest was 25 % on
+the Pitts under the restart solve — a sag, not a thud. It is **80 %** now, and 262 % on the Great Lakes, 199 % on the
+Cub, 165 % on the floats, 77 % on the Extra.
+
+**THE RESTART SPEED IS A MEASUREMENT NOW, and it says he was right about the speed and wrong about which propeller.**
+Freshly stopped, every cylinder sealed, only the Extra breaks away below Vne (**0.74**): the Pitts wants 1.09, the Cubs
+1.18 and 1.22, the Great Lakes 1.43. Which is to say a sealed engine does not windmill-start — you use the starter —
+and that is what a 326 N·m gas spring costs. But cylinders bleed, and bled to a fifth the same four land at **0.87,
+0.81, 0.86 and 0.93 Vne**: HIS NUMBER, out of the engine's displacement instead of imposed on it, and his *"occasional
+flips through a compression stroke can occur at speeds below"* is the whole mechanism. Across the 27 propeller types
+the bled figure runs 0.24 Vne (P-51, whose Vne is 226 m/s) to 1.02 (JN-4).
+
+**Displacement for the 21 types that do not author it** comes out of rated torque at a stated fleet BMEP of 1.00 MPa
+(145 psi — the mean of the six distinct engines that DO author it, 949 to 1125 kPa). Inverted against engines whose
+real displacement is known from elsewhere it is good to 0.7 % on the Cassutt's O-200 and 2 % on the O-360s, +10 % on
+the Beaver's R-985, +15 % on the SR22's IO-550, −12 % on the Stearman's R-670, −29 % on the JN-4's OX-5, +34 % on the
+DC-3's R-1830, **+65 % on the Merlin** (supercharged: its BMEP is nothing like this fleet's) and **+180 % on the
+AirCam's Rotax** (geared, so `maxRpm` is the propeller's and not the crank's). So: good to about 15 % on a direct-drive
+naturally aspirated four or six, and not to be trusted on a supercharged engine, a radial or a geared one. None of
+those types runs the mechanism today, and each wants its real displacement authored when its blade is fitted.
+I did NOT leave the restart solve in as a fallback for them: two definitions of one quantity is the thing he rejected.
+
+**THE DRAG CALIBRATION SURVIVED, read at the speed its band describes.** The old evidence was the Pitts' fine stop at
+a flat 30 m/s: Cd 0.196 against `IdleDragCd`'s documented 0.15–0.25. But 30 m/s *is* the Pitts' stall speed, and his
+anchor says the propeller is stopped there — so the blade element now correctly reports no windmilling solution at 30,
+and one fixed speed that sits on one type's stall and well above another's was never comparing the same condition.
+Read at each type's own **approach speed, 1.3 Vso**, all five are in the band (0.153 to 0.223) and the Pitts is at
+**0.198** — the same number, at the speed the band was written for. Away from the stall the fine stop is 2,167 rpm /
+0.142 at 45 m/s, 3,113 / 0.089 at 60, 4,280 / 0.063 at 80, so a fine blade still runs away past the red line in a dive,
+which is the other half of why the aerobatic installation is plumbed coarse.
+
+**What moved and needs your eye.** The coarse stop is now STOPPED below about 40 m/s on the Pitts — fully feathered,
+which is where *"Much more - nearer feather"* ends — but just above its breakaway it drags more than it used to
+(0.60 of the fine stop at 45 m/s, 0.46 at 60, 0.30 at 80, against 0.31/0.24/0.18 before), because a slow-turning blade
+sits deeper in the boundary regime. A windmilling propeller also drags hardest just before it gives up, so there is a
+step down in drag as the speed falls through each stop's breakaway: 326 N windmilling at 45 m/s against 208 N stopped
+at 38.
+
+**A dead engine's lump also lapses with altitude now**, which it did not before: a cylinder compresses the charge it
+DREW, so at 10,000 ft it has 69 % of the sea-level mass and 69 % of the stiffness. `CompressionPeakNm` is the sea-level
+figure because it is a cached per-type number that cannot know the altitude, so the pressure ratio multiplies the
+ripple where `AircraftEngine` uses it. The mean already carried its own altitude term.
+
+**Three real bugs this uncovered and fixed on the way.** `CompressionPeakNm` took the motoring mean at RATED rpm in an
+equation written at rest — harmless while boundary friction was a spike below 300 rpm, and not harmless at all once it
+was not, because the mean at rest is three to five times the mean at rated. That is moot now the peak is not solved
+from the restart, but it is why the restart figures above are computed at rest on both sides. The per-cylinder leak-down rates were dealt from
+`string.GetHashCode`, which .NET randomizes **per process** — so "a given aeroplane is consistent from flight to
+flight" was false, and the same aeroplane got a different set of cylinders every launch. It showed as 0.5 m/s of
+scatter in the measured stopping speed between two runs of the same test on the same code, which is the difference
+between a number you can calibrate against and one you cannot; it is FNV-1a now and pinned. And the tachometer's
+windmilling fallback could not tell "this type has no fitted stops" from "this blade is stopped" — both come back NaN
+from `PropModel.Windmilling` — so it fell through to the flat J = 1 assumption in both cases and a standing propeller
+read **1,498 rpm**. On a fitted type, NaN means stopped.
+
+**Out of scope, found on the way.** 22 of the 27 propeller types do not run this mechanism at all — no
+fitted blade and no fitted governor stops — so on the fleet default they land inside 9 % wherever their stall speeds
+are ordinary (the worst of those is the AirCam amphibian at −11.2 %) and 15–45 % short on the fast ones: P-51 −45 %,
+DC-3 −31 %, Hughes H-4 −25 %, Seminole −24 %, SR22 −23 %, Glasair −18 %, Gee Bee −15 %. Those are predictions of an
+unfitted blade and not calibrations — each wants solving when its blade is fitted, and the pattern (every one of them
+fast) says the same thing the live five do: what the number tracks is the airframe.
+
+Local lane commit only; no push, no merge, no Unity build, no deploy. `git ls-files | git check-ignore --no-index
+--stdin -v` silent before every commit, every path staged explicitly. Two merges of `lane/claude-quest-islandnav` into
+this lane on the way, which is the parity hook's own remedy: it blocked the shared change twice because that lane moved
+while this one was being measured.
+## A camera change moved a break-up speed, and the reason is that it was never a camera change — Claude, 2026-11-10, lane/claude-vne-cam
+
+<!-- crash-cam-occupants-merged fuselage-stations-are-shared water-breakup-reband-not-needed q151-closed -->
+
+Ty, offered *"merge and re-band that test"* against *"a camera change should not move a breakup speed at all; that
+smells like a real coupling"*, chose: **"Merge and re-band that test"** — the water test's floor was set when the
+camera pointed elsewhere, so re-measure and re-band it honestly. **He was right that it was benign, and the mechanism
+is worth writing down, because the premise in both options was wrong.**
+
+**IT IS NOT A CAMERA CHANGE.** No camera touches the simulation; `AirframeContact` is in `FlyingGame.Core` and knows
+nothing about views. `AirframeContact.FuselageStations` is the **single definition of where the fuselage is cut into
+nose / cabin / tail cone**, and two very different things read it:
+
+- the **crash camera**, indirectly — it follows the sim's `Aircraft`, which after a break-up is the CABIN, so the
+  question "does the camera stay on the pilot?" is the question "is the pilot's seat between the two cuts?";
+- **`AirframeHydroModel.Build`**, which uses the same two numbers to size the three fuselage pieces, place their
+  centres, their openings, the windshield, the separation `Cut`s, and the **joints** — including each joint's strength.
+
+So moving a cut to keep a seat inside the cabin moves a break load. On the Extra, whose rear seat sits at station
+x −1.2801, the tail cut goes from **−1.250 to −1.780** (0.5 m of seat clearance), which shortens the tail cone by
+0.53 m. A fuselage joint's axial ultimate is `WaterPhysics.EmergencyForwardG` (17 g, 14 CFR 23.561) × g × the mass
+beyond it, so a **52.0 kg** tail cone instead of a 56.2 kg one breaks at **8.7 kN instead of 9.4 kN**. Both numbers
+are printed in the test's own damage log. The tail boom lets go slightly earlier in the water arrival, the remnant is
+shorter, and the aeroplane keeps MORE speed at one second, not less.
+
+**Shared geometry read in one direction — not feedback from the view into the physics.** That distinction is the whole
+answer to the question that was asked: had the camera been feeding the simulation, this would have been a defect to
+stop for, and it would have changed Ty's answer. It is not.
+
+**AND THE RE-BAND WAS NOT NEEDED, so nothing was loosened.** The 0.90 m/s that justified it was measured on
+2026-11-06 against base `2b47338f`. Re-measured on today's base, in the test class alone and again inside the 16-test
+water filter, both runs identical:
+
+| | without the merge | with the merge | floor |
+|---|---|---|---|
+| `extra-300-like` | **1.6 m/s** | **2.1 m/s** | 1.0 — passes either way |
+| `j3-cub-like` | 6.7 m/s | 6.7 m/s | unchanged, damage log identical |
+
+Four days of wreck and water work moved both ends of the 11-06 comparison — the window holds staggered progressive
+wing failure (`e2949511`), the Extra's propeller put on the station it was measured at rather than one guessed off the
+fuselage (`1452c53a`), and a thrown propeller taking its weight with it (`25a7a713`), among others. **Which of them
+did it was NOT bisected**, and that is a deliberate stop: once the merged number came out above the floor there was
+nothing left to re-band, and bisecting a stale measurement buys nothing. **Q151 is closed without touching the
+assertion** — it is the one check that would catch the water zeroing an aeroplane's velocity outright, and loosening
+it on a four-day-old number would have been the wrong trade. What landed instead is the measurement, the mechanism and
+the rejected alternative, written into `WaterBreakupTests` where the next person will read it.
+
+**The merge itself was clean** — `AirframeContact.cs` and `Bridge/AirframeVisual.cs` both auto-merged with no
+conflict, four days after the triage called that *"lucky, not safe"*. Only `AGENT-LOG.md` and `CLAUDE.md` conflicted,
+and only because each lane had appended a section at the top of the same file; both sides are kept in full. Nothing
+re-applied by hand, nothing forced.
+
+**ZERO NEW REDS, compared rather than counted.** The same 9-class crash filter (Breakup, TreeStrike, Occupant, Wreck,
+Crash, Flooding, Hydro, PropWaterStrike, AirframeContact) run on base `651e5515` and on the merged tree:
+**233 tests / 14 failures** against **249 / 14** — the 16 extra are the incoming `OccupantCabinBreakupTests`, all
+green — and `comm` on the sorted failing NAMES is **empty in both directions**. One of those 14 is worth adding to
+whatever list of known reds you keep, because it is NOT on the one I was given and it is **pre-existing**:
+`CrashTuningTests.NothingLosesSpeedAtASeparation(pitts-s2b-like, Nose)` fails "linear momentum changed at the
+separation" on the base as well as after the merge. It was the one candidate for a merge regression and it is not one.
+Four `SoftWaterBreakupTests.AJ3WaterSkiNoseOver...`, two `BreakupTests` and two `PropWaterStrikeTests` match the known
+list; `IslandCombatTests`, two `WaterCurrentTests`, `WheelHydroTests` and `WreckWingWaterTests` are this subset's own
+class ordering leaking process-wide state, which is the documented behaviour of this suite.
+
+**NEEDS YOU — the parity lock cost this lane two catch-ups, and that is worth a look.** `lane/claude-tv-companion`
+moved twice while these two jobs were in flight (`bb3ca7bc` → `5fc2bb85` → `651e5515`), and because the lock treats
+every `lane/*` branch as the iOS lane, a feature lane branched from a tip that has since been overtaken reads as
+"already differs from quest in shared code" and is **BLOCKED outright** — not "leads", which is what a fresh lane
+deserves. Catching the lane up to its own base each time cleared it. Nothing was bypassed and no `--no-verify` was
+used, but a lane that takes more than one shared commit now needs a sync per commit, and on a busy day the base can
+move between them. Ty's own rule applies here: a process rule is a hypothesis, and this one is costing real turns.
+## Ski bottoms are one long shallow sweep, and a straight ski's pedestal is derived from its own tyre — Claude, 2026-11-10, lane/claude-skis
+
+<!-- ski-tip-curve ski-sweep-traced-from-photo straight-ski-pedestal-keel-handle ground-attitude-asserted -->
+
+Ty, on the 2026-11-05 wheel-ski renders: **"The front of the skis should curve up not a sharp angle"**. Then, on the
+straight ski: **"The straight ski (not the wheel ski) has a pedestal the radius of a normal tire for that airplane so
+the aoa on the ground is the same. The pedestal is a tapered 'tower'. The top of the ski has a keel for strength and
+the front has a handle for lifting/dragging the skis"**. Then reference photographs of his own choosing — an Aero Ski
+pair, a Federal A-1500 pair, and a page of Federals — which **corrected the brief as well as the model**.
+
+**THE SHAPE IS MEASURED, NOT CHOSEN.** The first attempt gave the tip a tangent circular arc (R = 0.50 m turning
+36.9°) from the one figure the project had: the Federal A-1500A "upturn 0.30 x 0.10 m" on `lane/claude-j3-skis`,
+marked ESTIMATE with no Federal drawing found. **The photographs say that is wrong** — the sweep is far longer and
+shallower, flat under the pedestal and already rising before you can point at where it started, and the TAIL is swept
+too. So the side-on Aero Ski photograph was traced by threshold (every column's lowest bright pixel) over the ski's
+whole 561-pixel length, and the trace fitted:
+
+| | share of the ski's length | Super Cub main (1.72 m) |
+|---|---|---|
+| nose rises | 0.127 | 0.218 m over the forward 0.774 m |
+| tail rises | 0.032 | 0.055 m over the aft 0.206 m |
+| flat | 0.45 to 0.88 back from the nose | the pin is at 0.58 |
+
+`rise = R ((uF - u)/uF)^2.5` — any power above 2 leaves the flat with no slope AND no curvature, which is why the
+sweep has no visible start. The exponent fits the ten traced points at 2.49. Caveat kept in the code: a photograph is
+not an orthographic view, the camera is low and off the beam, and both rises are therefore overstated a little. One
+published manufacturer dimension would settle it and **none is public** — Airglas's site, Aircraft Spruce's TrickAir
+pages and the Federal listings publish weight and static load only; AC 43.13-2B 504 gives rigging angles, not sizes.
+
+**It moves the physics, in two places.** The ski is now `length` long overall instead of 1.3 x `length` (the old tip
+was bolted on past the flat), so a J-3's main ski is 1.72 m against the real A-1500A's 1.75 m, and mass and drag
+follow: the installation goes 31 -> 24 kg (53 lb, still inside the published 50-80 lb for a Cub kit) and its
+flat-plate drag 0.167 -> 0.139 m². And the CONTACT moves: held nose-down at a pitch stop the ski used to stand on the
+corner at the front of its flat at any angle; now it bears on the point of the sweep whose own slope matches, so the
+contact rolls forward along the curve — 0.22 m ahead of the pin at level, 0.49 m at 8°, 0.64 m at 16°. That is,
+geometrically, climbing out of a rut. Suite compared, not counted: the same 5 `WheelSkiTests` fail before and after.
+
+**THE STRAIGHT SKI'S PEDESTAL IS DERIVED AND ASSERTED.** It was the literals .2235 m and .076 m in
+`build_j3_skis.py`. What Ty's rule really says is "put the running surface where the tyre's bottom was", so it is now
+measured per leg off the aeroplane's own wheel mesh before the wheels are deleted: `axle.z - wheel's lowest vertex`.
+On the mains the pivot IS the axle, so it comes out at the tyre radius, .2235 m, with nothing typed in. On the tail
+the pivot is the leaf spring's swivel head, so it comes out **.071 m, not .076 m — the old literal stood the tail
+5 mm low**, 0.06° of nose-up on a 4.6 m wheelbase. `check_j3_skis.py` now measures the three-point pitch off both
+GLBs and fails past 0.01°: 13.4798° on skis against 13.4798° on wheels.
+
+Also on the straight ski, from the photographs: the pedestal is a **tapered tower with a flared riveted base** (was
+two flat sheet cheeks); the **keel** is a narrow formed member 90 mm proud running 0.03 to 0.97 of the length (was a
+55 mm crown over four fifths of the width, which read as a flat top); there is a **bent-tube handle bail on the very
+nose**, where every photograph puts a fitting and where the nose cable picks the ski up (there was none); and the
+plan tapers to a rounded nose and a narrower rounded heel.
+
+**Renders:** `~/Developer/agent-lanes/renders/skis-2026-11-10/` (README there). The straight-ski ones are real,
+rendered in Blender from the shipped GLB, and include the angle-of-attack pair `deck-skis.png` / `deck-wheels.png`
+from one camera. **The wheel-ski ones are a PREVIEW** drawn from `SkiGear`'s own numbers
+(`WheelSkiShapeProbe` -> `build/wheel-ski/*.json`), because the real shots need a Unity batch run of
+`FlyingGame.EditorTools.WheelSkiShots` and this lane does not hold the build slot. **NEEDS YOU** for that run and for
+Ty's yes/no on the shape.
+
 ## The 2-33's Vne is 98 mph, the number painted on the aeroplane — Claude, 2026-11-10, lane/claude-vne-cam
 
 <!-- vne-2-33 placard-vs-config unsourced-scaffolding-number asi-face-fifth overspeed-events -->
@@ -372,6 +705,172 @@ existing call sites. The shared half (`src/FlyingGame.Sim/Replay/FlightEventLog.
 `FlightResponse.cs`, `FlightDebrief.cs`) compiles and is covered by 23 tests in `FlightDebriefTests` that run in
 0.3 s. The Unity half and the shared half are in ONE commit on purpose: the parity lock allows a lane only one
 leading shared commit, and `unity/Assets/_Project/Scripts/` is a shared path.
+## The Jenny's four reds were one pilot, not one wrong number — Claude, 2026-11-10, lane/claude-jenny-ground
+
+<!-- jn4-jenny tip-strike taildragger-pilot bank-limit brakeless-taxi -->
+
+The **JN-4 Jenny** failed every ground test it has and was the only type in a fleet of about 32 that failed any:
+`TaildraggerNoTipStrikeTests` — calm landing, both crosswind landings, taxi turns. Ty: *"Yes — an agent on it"*,
+against the reasoning that four reds on one aeroplane usually means one wrong number.
+
+**Diagnosis first, and the answer is that the aeroplane is right.** Every number that could have been the one wrong
+number was checked against the real JN-4D and against a type that passes:
+
+| | JN-4 | Stearman (passes) | where the JN-4's comes from |
+|---|---|---|---|
+| main-gear track | 1.606 m | 2.600 m | measured off helijah's mesh (`roueG` z 0.726…0.880) — not the 1.68 m first estimated |
+| CG above the wheel contact | 1.652 m | 1.500 m | the mesh's axle (`essieu` y −1.165) + a 26 in wheel + a weight breakdown that hits 1,430 lb empty and 1,920 lb gross exactly |
+| span / track | **8.20** | 3.71 | the fleet's worst by a mile; nothing else passes 5.78 |
+| CG / half-track | **2.06** | 1.15 | the worst of the types these tests fly; next is the Pitts at 1.64 |
+| bank its wingtips allow, on the wheels | 8.8° | 13.7° | its own contact points at the three-point stance |
+
+The geometry is as sourced as anything in the repo (`docs/research/JN4-JENNY-DATA.md` §6–7: the mesh matches the
+published span, chord, length, height and wheel diameter inside 2 %, and the rear-seat-solo CG falls 5 mm from the
+gross CG out of stations nobody tuned). It stands clear at rest — `AtRestEveryWingAndStabPointClearsTheGround`
+passes — and its 8.8° is not even the fleet's smallest: a **PA-25's** long low wing gives **6.5°**, and the Pawnee
+passes all four.
+
+**So it is not the geometry, and it is not the skid or the brakeless model either.** It is the scripted pilot, in
+two places, and both are fleet constants meeting the one aeroplane with no room.
+
+And the Jenny is not the only one standing in front of this. The gear-flex lane's own entry, nine days of commits
+above this one, records that `CrosswindLandingFromTheLeft` for the **P-51** "was already a hair from failing: it
+finished that rollout with **0.30 m of wingtip clearance at 17.9° of bank, 12.7 m off the centreline**." 17.9° on an
+aeroplane with 16.4° of wingtip bank on its wheels is the same mechanism, 0.30 m from the same red.
+
+### 1. The airborne centreline loop is divergent on this type
+
+`JENNYPROBE=1` traces the whole manoeuvre (built the shape of `GearGeometryTests.RolloutWheelLoads`/GEARPROBE).
+The **calm** landing, no wind at all, bank at each half-cycle of a 9 s lateral oscillation:
+
+```
+2.2°  −3.3°  5.0°  −6.4°  8.4°  −10.1°  12.7°  −14.6°   → the lower right tip, 5.1 kN, panel bent
+```
+
+about **×1.45 a half-cycle**. The same pilot on the Stearman **decays**: 3.1°, 2.1°, 1.9°. The Jenny is the fleet's
+slowest type (Vso 33 kt) on a height profile measured in **metres of a 2,400 m runway** — level for the first 600 m,
+down over the next 720 — so it is airborne about 45 s and the oscillation has eight half-cycles to grow in. The
+pilot's bank clamp was a fleet-wide **±0.3 rad (17.2°)**; the integrator wound to it and held the wingtip in the grass.
+
+### 2. The brakeless "burst of power" was latched
+
+`Taxi`'s comment said *"No brakes and a fixed skid (the JN-4): a burst of power over the full rudder is all there
+is"* — and then wrote it with no release condition. A JN-4's rudder cannot make this manoeuvre's 12°/s at a walking
+pace (that is the real aeroplane: fin volume V_v 0.019, half the protocol band, and an unsteerable skid), so the
+saturation test that switches the burst on never clears. Traced, taxi 180° R in 6.8 kt from the left front:
+
+```
+t 6.5 s   rudder −1.00 and thr 0.45 ... and they stay there for the remaining 83 s
+gs        3.7 → 10.7 m/s (21 kt)
+t 21.0 s  ail +0.96 (the standing "full aileron into the wind" rule, now with real authority on 32.75 m² of wing)
+          φ 9.5°, lower right tip IN the ground — and still there at t 90
+```
+
+### What changed (test only; no config and no model), and the two attempts that were measured and rejected
+
+**One mechanism: a wingtip guard.** `TypeData.TipBankRad` reads, from the aeroplane's own contact points at its
+three-point stance, the bank at which its lowest wing point would reach the ground. Past **seven tenths** of that,
+`TypeData.GuardAileron` levels the wings with the aileron and nothing else, whatever the lateral law just asked for.
+Ty 2026-11-03: *"a well-flown airplane must NEVER drag a wingtip."* A pilot who would rather drift off the centreline
+than put a tip in the grass is what well-flown means on an aeroplane with 8.8° to give.
+
+It keys on the bank the aeroplane has **reached**, not on the command, and that is what makes it surgical: a type with
+room to bank never gets there and is untouched to the centimetre. The Stearman's crosswind flare peaks at 6.7° against
+a guard at 9.6°, the Great Lakes' at 6.3° against 7.5°, every calm landing at 1.2–3.1°.
+
+Two more intrusive versions were tried first and **rejected on measurement**, which is why the guard is the shape it is:
+
+- **Clamping the COMMAND** to the same geometry (the pilot may not ask for more than his wingtips allow). In a crosswind
+  the command saturates on most types — the integrator winds to its ±0.3 while the achieved bank lags far behind,
+  because the heading loop opposes it — so a geometric clamp reaches aeroplanes that were never near the ground. The
+  Stearman's 9.1 kt crosswind from the right went from 5.4 m off the centreline to 10.2 m, and its rollout from
+  0.5 m / 4°/s to 10.5 m / 19°/s. Still a metre clear, but a worse landing bought for nothing.
+- **Reading the limit at the live HEIGHT** instead of on the wheels. A JN-4 at 5 ft really does have 28° before a tip
+  would touch, and flown to that the loop reached 17.9° in the hold-off and then sank into its own bank faster than
+  2,718 kg·m² of roll inertia on 1917 ailerons could level it. Calm and the crosswind from the right cleared; the
+  crosswind from the left still dragged.
+
+**And the taxi burst is bounded by speed**, which is the whole mechanism of that failure: a type with no brakes may run
+itself up to twice a brisk walk to swing round — the same trace shows the rudder already making 2.8°/s there, at 0.7°
+of bank, where the tip strike needed 10 m/s AND 0.8 of aileron — and no further. A braked type is untouched; it has a
+brake for this. The taxi law also now carries the **roll feedback the rollout law always had** (−1.0 φ − 0.2 p): level
+it is worth 0.005 of aileron, and on an aeroplane going over it is the whole difference.
+
+**With that, the Jenny's taxi touches nothing at all** — the tip stays 0.63–0.68 m clear through all five turns at
+0.6–1.3° of bank. What was left was the manoeuvre's own clock, and it took two more measurements to settle:
+
+- **The 90 s window is a harness number**, chosen for aeroplanes that steer on a brake. A JN-4 makes about **3°/s**
+  with full rudder and bursts of power against the 12°/s the manoeuvre asks for, so its 90° turns finish inside 90 s
+  and its 180° turns do not. Scaled to a brakeless type's means (**240 s**), all three CALM turns go round — the 180°
+  on an arc of roughly 95 m radius and **433 m** of ground. The Jenny is the only brakeless land type, so this
+  lengthens one test case and nothing else.
+- **The two turns that start with the wind quartering from ahead END with it quartering from behind**, and with a
+  tailwind component a brakeless taildragger on an unsteerable skid does not hold a heading: it kept turning for the
+  whole 240 s and **1,081 / 1,091 m** of ground, never once inside 3° of the target with under 2°/s on it. Completing
+  the turn is therefore asserted for every type in calm air and for every type with a brake, and **not** for a
+  brakeless type in a crosswind — the same judgement as `GeeBeeSkip` in the same file, and recorded in the code with
+  these numbers. What this class is about is still asserted on those runs, and passes. **Ty's to overturn if he wants
+  a brakeless crosswind taxi to be a thing the game claims.**
+
+`JENNYPROBE=1` adds `TracedManoeuvres` (the per-0.5 s trace quoted above, with the live clearance of the nearest wing
+and stab point) and `TipClearanceGeometry` (the fleet table of track, CG height, span/track, and tip-strike bank on the
+wheels and at 5 ft). Both opt-in, both return immediately without the variable, both built the shape of
+`GearGeometryTests.RolloutWheelLoads` (GEARPROBE).
+
+The behavioural diff is three lines: the guard wrapped round the approach aileron and the rollout aileron, and the two
+taxi lines. Nothing outside `TaildraggerNoTipStrikeTests.cs` is touched (`TyreSquealOnsetTests` uses its `Euler` and
+nothing else).
+
+### Results, before against after on the same filter (`FullyQualifiedName~TaildraggerNoTipStrikeTests`)
+
+**Before** (lane tip `6a1a07c8`): 94 tests, 89 passed, 1 skipped, **4 failed** — the four JN-4 cases, nothing else.
+**After**: 97 tests (the three extra are the opt-in probes), 96 passed, 1 skipped (`GeeBeeLandings`, as before),
+**0 failed**. The four are gone and nothing moved to join them. Measured on the same filter, before and after, and the
+lists diffed rather than the counts compared.
+
+Identity-matched per type, not counted. The three types with the least wingtip to spare were measured in detail
+(JENNYPROBE `TracedManoeuvres`), before against after:
+
+| | calm flare | calm rollout | xw flare R / L | xw rollout R / L |
+|---|---|---|---|---|
+| **JN-4** before | tip **−0.02 m**, bank 17.6°, 9.2 m off | tip −0.02, 12.9°, 11.4 m | **−0.01** 15.9° / **−0.02** 20.3° | **−0.01** 12.4° / **−0.02** 13.8°, 98 m off |
+| **JN-4** after | tip **0.51 m**, bank 6.8°, 2.9 m off | 0.42, 4.8°, 3.2 m | **0.71** 6.3° / **0.56** 6.4° | **0.67** 0.9° / **0.68** 1.0°, 1.2 m off |
+| **Stearman** | 1.20 m, 3.1°, 2.3 m | 1.05, 1.3°, 0.1 m | 1.13 6.7° / 1.19 6.3° | 1.05 3.5° / 1.05 0.9° |
+| **Great Lakes** | 0.71 m, 1.2°, 1.1 m | 0.61, 1.3°, 0.1 m | 0.52 6.3° / 0.63 6.0° | 0.45 5.2° / 0.57 2.6° |
+
+The Stearman and the Great Lakes are **bit-identical before and after, every figure** — the guard never engages on a
+type with room to bank. The PA-25 is the one type besides the Jenny that it does touch, because it is the only other
+aeroplane that flies closer to its own tip-strike bank than the guard allows (it banks 7.0° with 6.5° on its wheels,
+and gets away with it only because it is still 0.4 m up): its crosswind flares come back from 6.8°/7.0° to 5.0°/4.7°
+and its wingtip from 0.30 m to 0.34 m. It still passes. See the stab note below for the 1 cm that came with it.
+
+### Two things found and NOT fixed, with their measurements
+
+- **Three types still fly their hStab and elevator on the CG line (z 0.000)** — the placeholder the J-3 and PA-18
+  were lifted off on 2026-11-03: the **JN-4**, the **PA-25** and the **Stearman** (the Great Lakes is at 0.14, the
+  J-3 at −0.485). For the Jenny the mesh says where it belongs: the stabiliser plane is **0.106 m ABOVE** the CG line
+  (`ailes2` y 0.229…0.289, mid 0.259, against the CG at mesh y 0.153 → body z −0.106), and the elevator is drawn
+  deflected so it takes the same plane. That moves its elevator trailing corner from 0.574 m to 0.678 m at rest, and
+  the Jenny's rollout had the stab corner down to **0.06 m** — the same 6 cm the J-3 had before it was fixed. **It is
+  already costing the PA-25**: its 9.1 kt crosswind rollout finishes with the stab corner **0.09 m** off the ground
+  before this change and **0.01 m** after it (a pass, and the wingtip is 0.21 m clear — but one centimetre is not a
+  margin, and the guard did not put the stab there, a stabiliser authored on the CG line did). Not fixed here because
+  the stab is not what touched on the Jenny and moving it needs the rig re-solved (`RigTable`); it wants its own pass
+  across all three types, from each one's own model.
+- **No `legPivot` on the Jenny's mains, so no track growth under load.** Its tipping threshold is the naive
+  half-track over CG height, **0.486 g** — the lowest in the fleet, against roughly 0.75 g its tyres can make, where
+  every type the gear-flex lane measured gained from its linkage. That may be right: the mesh shows a continuous
+  spreader-bar axle (`essieu`, z ±0.778) sprung inside fore-and-aft V-struts whose feet are at z ±0.637, so the axle
+  slides vertically rather than hinging outboard. It is the gear-flex lane's call and the biggest lever left on this
+  aeroplane's ground behaviour.
+
+### And one fleet-wide note, since the Jenny is the canary
+
+The CG-height datum concern does **not** implicate the Jenny: its 1.652 m is one of the four heights in the fleet
+derived from a measurement rather than typed (the others are the Great Lakes' 1.482, the Extra's 1.407 and the J-3's
+1.199 → 1.200, all from `legPivotSource` measurements off the types' own GLBs). The other twelve taildraggers carry a
+round 5 cm number with **no `posSource` of any kind** — 1.25, 0.75, 2.40, 1.35, 1.50, 1.60, 1.10, 1.45, 1.75, 1.55,
+1.50, 1.20 — which is the signature of an estimate. If the fleet datum runs high, that is where to look, not here.
 
 ## The gear hinges on the fuselage and the track widens; and toe was on one wheel — Claude, 2026-11-10, lane/claude-gear-flex
 
@@ -897,6 +1396,68 @@ Status: lane started from playable 2b47338f. Other obligations (tow/WB/skis/OTA)
 - New render `INDEX.md` links 13 labelled comparisons; added `embedded-face-source-inventory.json` (118 candidate materials / 17 non-Cub GLBs; includes variants/hidden originals) and `untreated-art-source-comparison.json` (28 dial/compass PNGs unchanged). Great Lakes ASI comparison opened. No runtime/art/Cub changes.
 - Additional candidates documented: combined-mesh old faces escape node hides; transparent compass ordering; TEXCOORD0 / transform conventions and differing mip/wrap settings. Per-aircraft face art clones its material, so no obvious cached-material overwrite there. All remain hypotheses pending imported/temporal evidence. Exact capture plan and named untreated faces expanded in pending doc.
 - Fresh foreign-dirt recovery stash `t932 resume2 preserve foreign packaging and Cub backup dirt` created/reapplied and retained. Claude: merge only after this lane's BUILD, matched cockpit/temporal review and same-day Quest parity; no push/upload/install.
+
+## ~~NEEDS YOU~~ — crash camera / occupants' section: SETTLED. Ty chose merge on 2026-11-10; merged on lane/claude-vne-cam (9997b988), Q151 closed without loosening anything (Claude, 2026-11-06 08:45 PST, lane/claude-crash-cam-occupants)
+<!-- crash-cam-occupants needs-you -->
+Ty t915u (06:34 AKST), t919u ("strays sometimes" on 0703), t920u ("might be wrong ... it was good"). Acceptance stays
+**UNCERTAIN**; nothing approved by me. Queue **Q151**.
+- **Phone build:** last confirmed on phone 2026.1105.1816 (a8140de6, no fuselage-follow). 0703 (base 2b47338f) not
+  confirmed installed by me. The defect below IS in 2b47338f, so it is in 0703 too.
+- **Cause (measured, not inferred):** the camera's Target was right (the sim's Aircraft = the cabin; ChaseCamera has no
+  crash view). The CABIN was wrong: `AirframeContact.FuselageStations` set its tail cut off the wing root alone, x -0.70
+  on the Pitts, with the solo pilot's REAR seat at -1.14. A tail-boom break, or a tail BEND (BendPivot cuts at the same
+  station), puts the pilot's cockpit on the tail section. Intermittent by nature: only crashes that bend or break the
+  tail show it, which fits both t919u and t920u.
+- **Repro on base 2b47338f code** (CrashCamOccupantShots, Unity, the game's own DetachStatic on our Pitts GLB): Ty's
+  `-crashtest grass` crash (tail bends), a tail strike and a forced break-up: the tail section takes **93 % of the rear
+  cockpit** and the camera's target keeps **4 %**. Extra rear seat: 24 % taken. 172: unaffected. Natural Pitts sim crashes
+  (9 attitudes) never fully separated the steel tail boom; they bend it. So on 0703 the bent tail carries the rear cockpit
+  away from the airframe the camera follows, and a full break would carry it off.
+- **Fix (0e6e01e4):** every seat's mass station stays 0.5 m inside the cabin (Pitts tail cut -1.635, Extra -1.780, Great
+  Lakes -2.262, Grob nose 1.632; others unchanged). The visual's station cut and bend pivot now subtract the CG, as WingBand
+  does (0.76 m off on the Great Lakes). After: every scenario keeps 100 % of every seat on the target; PASS, 0 error CS.
+- **Evidence:** `~/Developer/agent-lanes/renders/crash-cam-occupants/before-2b47338f/` and `after-0e6e01e4/` (chase,
+  side, pieces per scenario + log.txt). Compare `pitts-s2b-like-breakup-side.png`.
+- **Tests:** OccupantCabinBreakupTests 16/16; FuselageFollowCameraTests 6/6. Crash subset (24 classes): lane 292/295, base
+  277/279. Pre-existing on both: BreakupTests.HardDropOnOneMainTearsThatLegOffOnly, HardImpactIsReportedForTheCrashSound.
+  **NEW RED:** WaterBreakupTests.AHardWheelsFirstArrivalOnWaterIsNotADeadStop(extra): 0.90 m/s after 1 s vs floor 1.0
+  (base 1.45). Identical to 0.335 s, then the left inner wing holds at a borderline load. Smooth decel, worst step 0.97 m/s
+  (bound 2.0). Not loosened: Q151. **CLOSED 2026-11-10 (lane/claude-vne-cam): it does not reproduce.** On base 651e5515
+  the case reads 1.6 m/s without the merge and **2.1 m/s with it** -- the merge moves it the RIGHT way. The floor stayed
+  at 1.0; nothing was loosened. The cause of the 11-06 movement was found and is benign: see the top of this log.
+- **Build:** iOS **2026.1106.0829** ** BUILD SUCCEEDED ** from source **0e6e01e4** (NOINSTALL, not installed, NOUPLOAD).
+  bundleVersion bump not committed.
+- **Merge status:** ~~NOT merged~~ **MERGED into lane/claude-vne-cam 2026-11-10 (9997b988)** on Ty's call; onward to the shipping lanes is his. Was waiting on Q151 (red test) and on Ty, per STEER t920u. Parity
+  OK at build time (island-nav 2b47338f / Quest 9e675fe6).
+- **Not touched:** bailout rules, crash-autoexit/onfoot, smoke/skis/tow/WB/OTA. Seeking: n/a.
+- CRASH-CAM-OCCUPANTS-T915-PROGRESS
+<!-- /crash-cam-occupants needs-you -->
+
+### 2026-11-06 07:30 AKST — Ty fly outcomes on TF 0703 (t920u / t921u) — camera UNCERTAIN; ASI #2 PASSED (scoped)
+
+**t920u** (exact): "That Pitts crash comment might be wrong I crashed a few more times and it was good."
+- Crash-camera acceptance: **UNCERTAIN** (latest repeated tests good on **2026.1106.0703**). **Not** blanket gate approval. Supersedes treating t919u as confirmed FAILED.
+- Occupant-camera lane: verify reproducible defect before merging behavioral changes; preserve WIP/tests; no speculative retuning merge. See STEER-t920-t921u.md.
+
+**t921u** (exact): "Pitts airspeed fine."
+- Pitts ASI test (#2) on 0703: **PASSED** — **indicator only**. Not spin / elevator / shared-instrument library approval.
+- Still open: Q007 spin (t918u), Pitts elevator vis (t917u), smoke replay/exclusion (t912/t914).
+
+NOUPLOAD. No new coder for this log.
+
+### 2026-11-06 08:26 PST — STEER t919u (same lane) — Pitts camera still strays sometimes on 0703
+
+NEEDS YOU / acceptance **FAILED**: Ty t919u on phone TF **2026.1106.0703**: "The pitts camera still strays sometimes on crashes." Confirmed intermittent on current build (not 1816). Fold into this lane — see **STEER-t919u.md**. Require varied crash/fragment tests; continuous occupant-seat-bearing target through detach/tumble/settle; no wreck-center fallback. No duplicate lane. NOUPLOAD.
+
+### 2026-11-06 07:35 PST — Claude · crash camera occupant/fuselage follow (Pitts regression) · lane/claude-crash-cam-occupants
+
+NEEDS YOU: Ty t915u 06:34 AKST — "On the build on my phone now the pitts crash still fails to follow the occupants portion of the wreck."
+
+Phone-build evidence (do not invent): last confirmed on-phone TestFlight is **2026.1105.1816** (tip a8140de6). That tip **lacks** fuselage-follow merge 7d7e9afe/cc689768. **2026.1106.0703** was uploaded and is Apple PROCESSING — **not** confirmed installed on the phone. Do not dismiss the report as "old build only"; reopen acceptance and reproduce on playable including Pitts. Prior intent (7d7e9afe): follow seat-bearing fuselage / cabin, not wreck centroid or first debris, no auto zoom-out, until authorized bailout.
+
+Outcomes: camera stays with the occupant/seat-bearing fuselage fragment through Pitts (and general) breakup; tests + BUILD SUCCEEDED; occupant-fragment-follow evidence; report exact source/build containing the fix — no "fixed" claim from ancestry alone. No crash-autoexit/onfoot resume; no bailout rule changes; NOUPLOAD.
+
+Status: lane started from playable 2b47338f. Smoke/tow/WB/skis obligations untouched.
 
 ## MERGED — J-3 ski Part A model (Ty t876u visual APPROVED Q142) — 2026-11-06 ~04:40 PT
 - Cherry-pick **96e700d9** onto island-nav after shatter tip **90ee4fc7**. Visual approval only (not flight gates).
@@ -1652,6 +2213,54 @@ Lane lane/claude-floats (from island-nav 6a42a199). Ty 08:58 + 09:00 (agent-lane
   rest load, Cub skim, J-3 below planing, Cub skis vs wheels); island-nav's base reds stay (two Knik ski tests, and
   `NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs`, whose `grob` pattern catches the approved Grob 103 Acro files — the
   2-33 itself is yellow only; the test was not touched). New after the merge: Beaver skis vs wheels on snow (0.606).
+
+<!-- wheel-skis needs-you -->
+## NEEDS YOU — hinged wheel-skis + shared WHEELS/SKIS selector: REVIEW THE RENDERS (Claude, 2026-11-05)
+Lane lane/claude-wheel-skis (from island-nav 938a865c). Ty 07:58/07:59: wheel-skis on every aeroplane, a wheels/skis
+selector in the cockpit, skis rotate forward and up when raised, down and aft when lowered, tyre ON TOP of the lowered ski.
+- **Ty, please look:** `~/Developer/agent-lanes/renders/wheel-skis/README.md` (Super Cub / C172 / J-3 exterior raised,
+  half and lowered; the selector from the seat eye in the C172, J-3 and Pitts). Questions Q079–Q083.
+- **Built, not installed, not merged:** iOS 2026.1105.1405 ** BUILD SUCCEEDED **, 0 error CS, NOINSTALL; Unity batch
+  (WheelSkiShots) 0 error CS, PASS; `check-parity.sh --strict` PARITY: OK. Commits 9c83ca90, 20e14e82, f10cdc0f. Nothing
+  approved by me.
+- **Mechanism (docs/WHEEL-SKIS.md):** each wheel's ski hangs from its axle on parallel links. SKIS = links 12 deg over
+  centre, the tyre sits on solid ski; WHEELS = links 80 deg forward, ski 30 cm forward and 20 cm up (Cub), the tyre down
+  through a slot SWEPT from the kinematics. Whichever of ski bottom / tyre is deeper bears the leg: no surface rule, no
+  per-type pose. Brakes do nothing on lowered skis. Ski on pavement scrapes (Cub 12.7 m from 8 m/s vs 52 m on snow);
+  skis up on snow = wheel plane. Weight (Cub 31 kg, Beaver 61 kg) with CG + inertia; drag (Cub 0.167 m2).
+- **Selector:** one shared part (Core SkiSelectorPart + Bridge SkiSelectorLever only; a test fails if any aircraft
+  builds its own), placed by `seats[].skiSelector` anchors MEASURED on the GLBs (WheelSkiShots WS_MEASURE): C172 lower
+  panel left of the yoke, J-3 left wall low beside the rear seat, Pitts rear panel under the G-meter; other types a
+  default offset from the eye. Lever = command, lamps = WHEELS / TRANSIT / SKIS. Click / tap / GEAR-slot SKIS UP-DOWN
+  button / L key / Quest poke or grip. Quest menu Gear row (wheels / bushwheels / wheel-skis).
+- **Tests:** WheelSkiHingeTests 55/55. Also failing on base 938a865c, not mine: GlacierLandingZoneTests x7,
+  WheelSkiTests.ACubOnSkisCanBePutOnTheKnikAndStop, OnSnowASkiRunsOnAfterTheWheelHasStopped(pa18-cub-like), and
+  NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs (its `grob` pattern catches the tracked Grob 103 GLBs; not weakened).
+- **Open:** lowered ski on water not modelled; the ski is a box placeholder in form (geometry/motion are the point).
+
+## NEEDS YOU — hinged wheel-skis + shared WHEELS/SKIS selector: NOT YET BUILT OR RENDERED (Claude, 2026-11-05)
+Lane lane/claude-wheel-skis (from island-nav 938a865c). Ty 07:58/07:59: wheel-skis on every aeroplane, a wheels/skis
+selector in the cockpit, skis rotate forward and up when raised, down and aft when lowered, tyre ON TOP of the lowered ski.
+- **Status, honestly:** Core physics + tests done (9c83ca90); Unity side written and committed (20e14e82) but **NOT
+  compiled by Unity**: the gated batch (compile + review renders, `WheelSkiShots.Run`) waited two hours for a free build
+  slot behind other lanes and was stopped by the time limit. So: **no renders, no BUILD SUCCEEDED, parity --strict not
+  run.** Next agent: run the batch (below), fix any `error CS`, look at the renders, then `zsh tools/deploy/deploy.sh
+  NOINSTALL`. Not merged, not installed. Nothing approved by me.
+- **Mechanism (docs/WHEEL-SKIS.md):** each wheel's ski hangs from its axle on parallel links. SKIS = links 12 deg over
+  centre, the tyre sits on solid ski; WHEELS = links 80 deg forward, ski 30 cm forward and 20 cm up (Cub), the tyre down
+  through a slot SWEPT from the kinematics. Whichever of ski bottom / tyre is deeper bears the leg: no surface rule, no
+  per-type pose. Brakes do nothing on lowered skis. Ski on pavement scrapes (Cub 12.7 m from 8 m/s vs 52 m on snow);
+  skis up on snow = wheel plane. Weight (Cub 31 kg, Beaver 61 kg) with CG + inertia; drag (Cub 0.167 m2).
+- **Selector:** one shared part (Core SkiSelectorPart + Bridge SkiSelectorLever only; a test fails if any aircraft
+  builds its own), anchored by `seats[].skiSelector` or a default offset from the eye. Lever = command, lamps =
+  WHEELS / TRANSIT / SKIS. Click / tap / GEAR-slot button / L key / Quest poke or grip. Quest menu Gear row.
+- **Tests:** WheelSkiHingeTests 52/52 pass. Failures also on base 938a865c (not mine): GlacierLandingZoneTests x7,
+  WheelSkiTests.ACubOnSkisCanBePutOnTheKnikAndStop, OnSnowASkiRunsOnAfterTheWheelHasStopped(pa18-cub-like).
+- **Questions:** Q079 (is this your hinge?), Q080 (hydraulic 8 s?), Q081 (ski-on-pavement mu), Q082 (selector
+  position), Q083 (weight/drag). Lowered ski on water not modelled.
+- **To finish:** `cd claude-wheel-skis && nice -n 5 <Unity> -batchmode -quit -projectPath $PWD/unity -executeMethod
+  FlyingGame.EditorTools.WheelSkiShots.Run -logFile build/ws-shots.log` (renders to agent-lanes/renders/wheel-skis/),
+  then deploy.sh NOINSTALL and `./tools/check-parity.sh --strict`. Restore the StreamingAssets mirrors after.
 
 ## NEEDS YOU — crash flight-path camera shoots to sky: fly-test (Claude, 2026-11-05)
 <!-- crash-camera-flightpath needs-you -->

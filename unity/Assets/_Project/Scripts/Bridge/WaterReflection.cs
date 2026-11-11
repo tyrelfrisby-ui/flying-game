@@ -38,6 +38,7 @@ namespace FlyingGame.Bridge
         private Renderer[] _zonePanes;
         private readonly System.Collections.Generic.List<Renderer> _hiddenPanes = new();
         private RenderTexture _rt;
+        private bool _viewportWarned;
         private static readonly int ReflTexId = Shader.PropertyToID("_ReflectionTex");
         private static readonly int ReflPlaneId = Shader.PropertyToID("_ReflPlaneY");
         private static readonly int ReflOnId = Shader.PropertyToID("_ReflOn");
@@ -87,6 +88,25 @@ namespace FlyingGame.Bridge
             var reflection = Matrix4x4.identity;
             reflection.m11 = -1f; reflection.m13 = 2f * planeY;   // y' = -y + 2*planeY
             _refl.CopyFrom(_main);
+            // CopyFrom copies the viewport too. In portrait the main camera draws above the touch tray, rect (0, f, 1, 1−f)
+            // (ChaseCamera ← ScreenLayout.CameraViewport), and the mirror then filled only the top 1−f of its target while the
+            // water samples the whole of it (Water.shader, screen position over the main viewport): every reflection drawn
+            // lifted toward the horizon and stretched by 1/(1−f), ~0.37 on an iPhone 17 Pro (t961/t983/t989; diagnosis
+            // state/water-image-t989-diagnosis.md). The target is already sized to the main camera's aspect, which is its
+            // viewport's, so the mirror must fill it, as ClipRecorder and VrRig already do after their CopyFrom.
+            //
+            // 2026-11-10, Ty, J-3 on a lake at 1 KT and 1 FT: "The reflection is still above the airplane so that has not been
+            // nixed". STILL, because this line was written on 2026-11-07 and committed to a lane that never merged, so no build
+            // he has flown has ever had it. The screenshot is the measurement: 1206 x 2622, the 3D view ends at row 1665, so the
+            // tray is 957 px and f = 957/2622 = 0.365; the aeroplane sits at viewport v ≈ 0.43 and its reflection is drawn ≈ 363 px
+            // above its own waterline, where f(1 − v)·H = 0.365 · 0.57 · 1665 = 353 px is what this bug predicts with no free
+            // parameter. REJECTED on the same screenshot: a mirror plane at the wrong height. It would need planeY ~2.7 m above
+            // the lake; planeY here is FloatHydro.WaterSurfaceAt, which returns an up-positive metre height (= Unity Y, via
+            // CoordinateMap) and has no such offset anywhere on its path; and Water.shader only reflects where
+            // abs(wp.y − _ReflPlaneY) < 1.5 m, so a plane 2.7 m out would have switched the reflection OFF rather than lifted it.
+            // An aeroplane at 1 ft is the case that pins this down — its image should be all but on top of it — and it is now the
+            // third height in WaterMirrorViewportCheck. The seat view is this same camera, so it carries this same rect.
+            _refl.rect = new Rect(0, 0, 1, 1);
             _refl.enabled = false;
             _refl.clearFlags = CameraClearFlags.SolidColor; _refl.backgroundColor = new Color(0, 0, 0, 0);
             EnsureTexture();
@@ -100,6 +120,11 @@ namespace FlyingGame.Bridge
             _refl.transform.position = reflection.MultiplyPoint(pos);
             _refl.transform.rotation = Quaternion.LookRotation(reflection.MultiplyVector(_main.transform.forward), reflection.MultiplyVector(_main.transform.up));
             _refl.targetTexture = _rt;
+            if (!_viewportWarned && (_refl.pixelRect.width != _rt.width || _refl.pixelRect.height != _rt.height))
+            {
+                _viewportWarned = true;   // once: the water would sample a mirror that does not cover its target
+                Debug.LogError($"[WaterReflection] mirror viewport {_refl.pixelRect} does not fill its {_rt.width}x{_rt.height} target: the reflection will be misplaced on the water.");
+            }
             _refl.worldToCameraMatrix = _main.worldToCameraMatrix * reflection;
             // Keep a conventional finite frustum. At a grazing water angle an oblique
             // near plane also tilts the far plane, slicing distant cliffs into slivers.
