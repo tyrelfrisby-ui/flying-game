@@ -925,7 +925,27 @@ public static class AeroModel
                 // crossflow neutralizes controls (factor ~0) rather than reversing them — the planar
                 // angle misreads flow-from-below as tail-first and commanded the rudder BACKWARD
                 // during deep phases (found via spin direction-reversal hunt).
-                double chordwiseFactor = Math.Clamp(2.0 * vLocal.X / Math.Max(vLocal.Length, MinSpeedMs), -1.0, 1.0);
+                // NORMALISED BY THE STRIP'S OWN IN-PLANE SPEED, not by the 3-D one. This used to divide by
+                // vLocal.Length, which charges a control surface for the SPANWISE flow over it - and a control
+                // surface cannot feel spanwise flow, because its hinge line IS the spanwise direction: rotating a
+                // plate about an axis parallel to the flow does not change its angle to the flow at all. It is the
+                // independence principle, which this loop already applies everywhere else that matters (`planeSpeed`
+                // and therefore `q` are in-plane; the fin's own alpha is atan2(v, u) and ignores w). The one place
+                // the 3-D speed survived was here, so the geometry was paid for twice.
+                // IT FALLS ALMOST ENTIRELY ON THE FIN, which is the imbalance: a fin's spanwise direction is
+                // VERTICAL, so in a spin its spanwise flow is the whole descent velocity while its in-plane flow is
+                // only what the rotation gives it - the Pitts' fin at alpha 82 flies 21.6 m/s in plane against 32.7
+                // m/s of total, so the rudder was cut by a third for nothing. A stabiliser's spanwise direction is
+                // LATERAL, where the only flow is the rotation's own, and it loses under a tenth.
+                // Ordinary flight is untouched to the digit: at small alpha and beta the in-plane and the 3-D speed
+                // are the same number, and the clamp at 2x holds the factor at 1.0 either way out to 60 deg.
+                // AND IT IS NOT A LEVER ON THE SPIN, measured, so do not reach for it as one: A/B'd on 2026-11-10 it
+                // moved SpinAuthorityProbe's rudder and elevator authority by not one digit at any alpha from 30 to
+                // 90, and the Pitts' inverted-spin trajectory by under 1 %. The reason is the arithmetic wall -
+                // `fin-lowAR` holds Cl flat from 25 deg out, so handing the rudder 26 deg of incidence shift instead
+                // of 17 samples the same flat table - and it is why ControlSpoilerK had to exist. This is a
+                // double-count removed, not a fix for anything.
+                double chordwiseFactor = Math.Clamp(2.0 * vLocal.X / Math.Max(planeSpeed, MinSpeedMs), -1.0, 1.0);
                 // Owner (CFI) observation: moving the stick from pro-spin THROUGH neutral toward
                 // anti-spin, the elevator hits a 'stall' — down-deflection into the stalled tail flow
                 // loses ~half its power (the deflected-down surface works in the stab's separated
