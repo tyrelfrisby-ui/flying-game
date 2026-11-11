@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "stearman-pt17-like",
   "displayName": "Stearman-like Trainer Biplane",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "No canopy: an open cockpit behind a windscreen, so there is nothing to jettison."
+  },
   "structureType": "steelTube",
   "structureTypeSource": "Boeing-Stearman PT-17: welded steel-tube fuselage, fabric covered; wooden-spar wings (Stearman erection and maintenance manual).",
   "wingBreakStationY": {

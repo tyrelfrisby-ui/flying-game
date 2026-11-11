@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "jn4-jenny-like",
   "displayName": "JN-4D-like Trainer Biplane",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "No canopy: an open cockpit behind a windscreen, so there is nothing to jettison."
+  },
   "structureType": "wood",
   "structureTypeSource": "Curtiss JN-4D: wire-braced spruce and ash wooden-truss fuselage, fabric covered.",
   "wingBreakStationY": {

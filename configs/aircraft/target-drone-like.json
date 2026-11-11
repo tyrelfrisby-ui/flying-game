@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "target-drone-like",
   "displayName": "Target drone",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "No cockpit and no glazing at all, so there is nothing to jettison. It carries nobody."
+  },
   "structureType": "composite",
   "structureTypeSource": "Target drone: composite airframe (generic jet target drone).",
   "spawnIasMs": 70,

@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "pa18-cub-like",
   "displayName": "Super Cub-like",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "PA-18: the Cub's two-piece door, which folds open in flight. No canopy, nothing to jettison."
+  },
   "structureType": "steelTube",
   "structureTypeSource": "Piper PA-18 Super Cub: welded 4130 steel-tube fuselage, fabric covered (FAA TCDS 1A2; Piper PA-18 service manual).",
   "wingSpar": "aluminumFabric",

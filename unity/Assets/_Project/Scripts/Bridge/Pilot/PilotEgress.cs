@@ -384,11 +384,20 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>
-        /// THE REAL CANOPY OR DOOR, WORKED (Ty 2026-11-05 06:37 / 06:38): the red handle pulls, the latch opens and the hinge
-        /// pins come out, and from then on the canopy's own physics (Core Vr.CanopyDynamics, the headset's canopy where it has
-        /// one) decides when it goes — at once in the air, after his hand shoves it up and over on the ground (Core
-        /// Vr.CanopyBailout). It leaves as the model's own parts (AirframeVisual.DetachCanopy → CanopyFlight). An open
-        /// cockpit or a fold-out door loses nothing, and nothing is ever spawned in its place.
+        /// THE REAL CANOPY OR DOOR, WORKED (Ty 2026-11-05 06:37 / 06:38): the red handle pulls, the latch opens, and from
+        /// then on the canopy's own physics (Core Vr.CanopyDynamics, the headset's canopy where it has one) decides what
+        /// happens. It leaves as the model's own parts (AirframeVisual.DetachCanopy → CanopyFlight). An open cockpit or a
+        /// fold-out door loses nothing, and nothing is ever spawned in its place.
+        ///
+        /// WHETHER ANYTHING LEAVES AT ALL is <see cref="FlyingGame.Core.Vr.CanopyBailout"/>'s, and since 2026-11-11 it is
+        /// two questions instead of none: has the type a jettison (its config says), and is the aeroplane on the ground?
+        /// Ty, after a hard landing in the Extra: *"on the ground it should not fall off it should stay open. The extra
+        /// has no jettison feature."* So on the ground the canopy is shoved open and stays on the aeroplane, and he
+        /// climbs out past it — which is also why <see cref="CanopyClear"/> no longer waits for it to depart.
+        ///
+        /// AN EJECTION IS NOT A BAIL-OUT. The seat cannot fire through an attached canopy, so an ejection jettisons it
+        /// wherever the aeroplane is, ground included — that is how the system works, and the only types with a seat
+        /// are the ones whose config authors a jettison anyway.
         /// </summary>
         private void JettisonCanopy()
         {
@@ -404,22 +413,44 @@ namespace FlyingGame.Bridge
             visual.Cockpit.PullCanopyRelease();   // the red handle moves, wherever the hand came from
             visual.Cockpit.SetCanopyLock(false);  // and the latch opens
             visual.Cockpit.EgressCanopy = c;
-            _canopy = new FlyingGame.Core.Vr.CanopyBailout(c);
-            Log($"canopy unlatched, hinge pins out ({c.Spec.Motion}, {c.Spec.MassKg:F1} kg)");
+            bool onGround = !_eject && AirframeOnGround();
+            _canopy = new FlyingGame.Core.Vr.CanopyBailout(c, onGround);
+            Log(_canopy.JettisonPulled
+                ? $"canopy unlatched, hinge pins out ({c.Spec.Motion}, {c.Spec.MassKg:F1} kg)"
+                : $"canopy unlatched and shoved open to {_canopy.PushTargetDeg:F0}°, staying on the aeroplane " +
+                  $"({c.Spec.Motion}, {c.Spec.MassKg:F1} kg: " +
+                  (c.Spec.HasJettison ? "on the ground, so nothing is jettisoned" : "this type has no jettison") + ")");
             StepCanopy(0.005f);
         }
 
-        /// <summary>The bail-out's canopy, from the pins coming out until it has gone (null when there is none).</summary>
+        /// <summary>On its wheels, or lying on something: the same test the headset's exit makes
+        /// (VrCockpitHands.AirframeOnGround), so the two ways out agree about where the aeroplane is.</summary>
+        private bool AirframeOnGround()
+        {
+            FlyingGame.Sim.Aircraft ac = _driver != null ? _driver.Sim?.Aircraft : null;
+            if (ac == null) return false;
+            if (FlyingGame.Core.LandingGear.AnyMainWheelOnGround(ac.Config, ac.State)) return true;
+            foreach (FlyingGame.Core.ContactPoint p in ac.ContactPoints) if (p.Touching) return true;
+            return false;
+        }
+
+        /// <summary>The bail-out's canopy, from the latch opening until he is out (null when there is none).</summary>
         private FlyingGame.Core.Vr.CanopyBailout _canopy;
 
-        /// <summary>He can go: there is no canopy to wait for, or it has gone.</summary>
-        private bool CanopyClear => _canopy == null || _canopy.Departed;
+        /// <summary>He can go: there is no canopy to wait for, or it is open far enough to climb out past (Core
+        /// CanopyDynamics.ClearToLeaveDeg — 60°, the frame clear of his shoulders). It used to be "or it has GONE",
+        /// which was only ever true because the bail-out jettisoned every canopy in the fleet. A canopy that cannot be
+        /// jettisoned never departs on the ground, and he still has to be able to get out past it.</summary>
+        private bool CanopyClear => _canopy == null || _canopy.ClearToLeave;
 
         private void StepCanopy(float dt)
         {
             if (_canopy == null || _canopy.Departed) return;
             var visual = GetComponent<AirframeVisual>();
             if (visual == null || visual.Cockpit.CanopyGone) return;
+            // He is over the side: his hand comes off the frame and the canopy is the air's from here. (It used to end
+            // itself by departing; a canopy that stays on the aeroplane would otherwise go on being pushed.)
+            if (_pilotDone && !_canopy.Unhanded) _canopy.HandsOff();
             double ias = _driver.IasMs;
             double q = 0.5 * 1.225 * ias * ias;   // IAS is equivalent airspeed here: q = ½ρ₀V_e², as the headset's canopy
             FlyingGame.Sim.Aircraft ac = _driver.Sim?.Aircraft;

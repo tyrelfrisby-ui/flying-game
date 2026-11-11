@@ -17,6 +17,15 @@ namespace FlyingGame.FlightTests;
 /// </summary>
 public sealed class VrBailoutTests
 {
+
+    /// <summary>A config that authors a jettison (Core CanopyConfig), for the tests that used to get the answer from
+    /// the aircraft id: the id has not said since 2026-11-11.</summary>
+    private static FlyingGame.Core.DataContracts.AircraftConfig Cfg(string id, bool jettison) =>
+        new FlyingGame.Core.DataContracts.AircraftConfig
+        {
+            Id = id,
+            Canopy = new FlyingGame.Core.DataContracts.CanopyConfig { Jettison = jettison, JettisonSource = "test" },
+        };
     private static readonly Vec3 Level1G = new(0, -9.80665, 0);
     private static readonly Vec3 Hinge = new(0.343, 0.0, 0.0);   // Extra: right sill, 0.733 m to the free edge
     private const double Rho0 = 1.225;
@@ -358,7 +367,7 @@ public sealed class VrBailoutTests
     public void JettisonKnobBelowItsThresholdDoesNothingAndFiringIsOneWay()
     {
         // Pitts knob 38 mm; 8 mm breakout; fires at 90 % = 34.2 mm, i.e. 42.2 mm of hand travel.
-        JettisonPull k = JettisonPull.For("pitts-s2b-like", modelHasPull: false)!;
+        JettisonPull k = JettisonPull.For(Cfg("pitts-s2b-like", true), modelHasPull: false)!;
         var axis = new Vec3(-1, 0, 0);
         k.Grab(Vec3.Zero, axis);
         Assert.False(k.Follow(new Vec3(-0.006, 0, 0)));   // inside the breakout: nothing moves
@@ -437,14 +446,20 @@ public sealed class VrBailoutTests
         Assert.Equal(CanopyDeparture.HingesFailed, go.DepartedBy);
     }
 
+    /// <summary>THE KNOB IS THE CONFIG'S NOW (Ty 2026-11-11: "The extra has no jettison feature"). A type whose
+    /// config authors no jettison has no knob at all, however its model is drawn; one that does still needs somewhere
+    /// to put it — the Pitts' own place, or the node its model provides.</summary>
     [Fact]
-    public void OnlyThePittsAndAnExtraWhoseModelHasThePullHaveAJettison()
+    public void OnlyATypeWhoseConfigAuthorsAJettisonHasAKnob()
     {
-        Assert.NotNull(JettisonPull.For("pitts-s2b-like", modelHasPull: false));
-        Assert.Null(JettisonPull.For("extra-300-like", modelHasPull: false));
-        Assert.NotNull(JettisonPull.For("extra-300-like", modelHasPull: true));
-        Assert.Equal(0.040, JettisonPull.For("extra-300-like", modelHasPull: true)!.TravelM, 9);
-        Assert.Null(JettisonPull.For("great-lakes-2t1a2-like", modelHasPull: true));
+        Assert.NotNull(JettisonPull.For(Cfg("pitts-s2b-like", true), modelHasPull: false));
+        Assert.NotNull(JettisonPull.For(Cfg("extra-300-like", true), modelHasPull: true));
+        Assert.Equal(0.040, JettisonPull.For(Cfg("extra-300-like", true), modelHasPull: true)!.TravelM, 9);
+        Assert.Null(JettisonPull.For(Cfg("extra-300-like", true), modelHasPull: false));
+        // No jettison in the config: no knob, whatever the model has.
+        Assert.Null(JettisonPull.For(Cfg("pitts-s2b-like", false), modelHasPull: true));
+        Assert.Null(JettisonPull.For(Cfg("extra-300-like", false), modelHasPull: true));
+        Assert.Null(JettisonPull.For(null, modelHasPull: true));
     }
 
     // ---- the harness ----

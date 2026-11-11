@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "boeing-737-like",
   "displayName": "737-like Airliner",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "No canopy: an enclosed cabin whose doors stay on their hinges, so there is nothing to jettison."
+  },
   "structureType": "aluminumMonocoque",
   "structureTypeSource": "Boeing 737: 2024/7075 aluminium semi-monocoque fuselage.",
   "spawnIasMs": 130,

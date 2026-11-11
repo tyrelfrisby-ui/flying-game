@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "cirrus-sr22-like",
   "displayName": "SR22-like",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "No canopy: an enclosed cabin whose doors stay on their hinges, so there is nothing to jettison. (It has the whole-aircraft parachute instead; with CAPS fitted the pilot does not bail out at all.)"
+  },
   "structureType": "composite",
   "structureTypeSource": "Cirrus SR22: glass/carbon composite monocoque fuselage (FAA TCDS A00009CH; Cirrus POH Section 7).",
   "spawnIasMs": 75,

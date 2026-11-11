@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "dc3-like",
   "displayName": "DC-3-like Airliner",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "No canopy: an enclosed cabin whose doors stay on their hinges, so there is nothing to jettison."
+  },
   "structureType": "aluminumMonocoque",
   "structureTypeSource": "Douglas DC-3: aluminium stressed-skin semi-monocoque.",
   "spawnIasMs": 75,

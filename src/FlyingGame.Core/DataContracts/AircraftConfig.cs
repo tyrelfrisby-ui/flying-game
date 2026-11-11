@@ -105,6 +105,9 @@ public sealed class AircraftConfig
     /// cockpit openings. Optional; absent means a riveted aluminium skin and an enclosed cabin with a windshield and
     /// two doors.</summary>
     public ConstructionConfig Construction { get; set; } = new();
+    /// <summary>The canopy's per-type fittings — today, only whether the pilot can JETTISON it
+    /// (<see cref="CanopyConfig"/>). Absent means no jettison, which is the conservative answer.</summary>
+    public CanopyConfig? Canopy { get; set; }
     public PropulsionConfig? Propulsion { get; set; }
 
     /// <summary>Airshow smoke exhaust (optional; owner 2026-10-12, the Extra: "the exhaust location … 4 ft from the nose on
@@ -594,6 +597,33 @@ public sealed class FuselageConfig
     /// respective area centers (x vs CG), giving the moments a point-model fuselage cannot.
     /// </summary>
     public CrossflowConfig Crossflow { get; set; } = new();
+}
+
+/// <summary>
+/// THE CANOPY'S PER-TYPE FITTINGS. One thing lives here so far: whether the aeroplane has a JETTISON — a control the
+/// pilot can work that drops the canopy off the aeroplane altogether, as against a canopy that only ever opens on its
+/// hinges and stays on them.
+///
+/// Ty, 2026-11-11, having bailed out of the Extra after a hard landing: *"the canopy shattered even though it didn't
+/// hit anything … And on the ground it should not fall off it should stay open. The extra has no jettison feature."*
+/// A jettison is a FITTING, not something canopies have: a sailplane usually has one because bailing out is a drill it
+/// is certificated for, and plenty of aerobatic aeroplanes have not got one. So it is authored per type, here, with
+/// where the answer came from — not inferred from the aircraft id in code, where it was invisible and wrong.
+///
+/// ABSENT MEANS NO, because the two mistakes do not cost the same. A type wrongly marked "no jettison" only makes the
+/// pilot shove the canopy open and climb out past it. A type wrongly marked "jettison" invents a fitting the aeroplane
+/// has not got and throws its canopy away — which is the bug Ty flew into.
+/// </summary>
+public sealed class CanopyConfig
+{
+    /// <summary>The pilot can jettison the canopy: a handle, knob or pin-puller that drops it off the aeroplane (the
+    /// Pitts' red knob, Ty 2026-11-02: it "pulls the hinge pins and the canopy falls away at ANY speed"). False — the
+    /// default — means the canopy only opens on its hinges, and bailing out opens it and leaves it there.</summary>
+    public bool Jettison { get; set; }
+    /// <summary>Where <see cref="Jettison"/> came from: the owner, a flight manual, a type certificate — or "ASSUMED"
+    /// and why. Every file in <c>configs/aircraft</c> must carry one (CanopyJettisonTests): the whole point of moving
+    /// this out of code was that the answer be visible and auditable, and an unsourced answer is a guess in hiding.</summary>
+    public string JettisonSource { get; set; } = "";
 }
 
 /// <summary>How the airframe is built (crash-in-water damage, Core/Wreck/AirframeHydroModel).</summary>

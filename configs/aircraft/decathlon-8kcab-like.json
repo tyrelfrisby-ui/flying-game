@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "decathlon-8kcab-like",
   "displayName": "Decathlon-like Aerobat",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "No canopy: an enclosed cabin whose doors stay on their hinges, so there is nothing to jettison."
+  },
   "structureType": "steelTube",
   "structureTypeSource": "American Champion 8KCAB Decathlon: welded 4130 steel-tube fuselage, fabric covered (FAA TCDS A21CE; ACAC maintenance manual).",
   "spawnIasMs": 50,

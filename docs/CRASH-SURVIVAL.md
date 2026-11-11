@@ -72,16 +72,43 @@ The model's own nodes, never a stand-in (the translucent dome, `CanopyJettison`,
   paraglider has no cockpit, so it stays.
 
 **How it goes (Ty 06:38: reuse the canopy system that already exists).** The bail-out does what the headset's hands do:
-the red handle pulls, the latch opens, the hinge pins come out (`CanopyDynamics.ReleaseHingePins`), and from then on the
-canopy's own physics decides. It uses the headset's `CanopyDynamics` where it has one (the Pitts, the Extra), else Core's
+the latch opens, the jettison is pulled *if there is one and it is worth pulling*, and from then on the canopy's own
+physics decides. It uses the headset's `CanopyDynamics` where it has one (the Pitts, the Extra), else Core's
 written-down Pitts/Extra spec, else a spec sized from the part itself (`CanopySpec.ForPart`: its bounds in the
-aeroplane's axes, the Pitts'/Extra's 10.8 kg/m², and a door turned to hang on its front edge). In the air (q above that
-of 20 kt) it goes on the first step. At rest, a wreck, his hand shoves the free edge (the Pitts slides its whole 6 in track past the stop tab first and goes over past its 150° hooks; in the air its own v2 slide-and-swing race decides, ~0.7 s)
-through CanopyDynamics' own bounded hand servo until it is past 10° and free. He does not jump until it has gone. The parts
-are then detached with everything under them and flown as one `JettisonedCanopy` by `CanopyFlight` (Core
-`CanopyFreeBody`: the canopy's own mass, drag and lift), and the aeroplane sheds the mass. The next flight's rebuild brings
-them back. While the bail-out works it (`CockpitRigState.EgressCanopy`) the headset's hands leave that canopy alone, so it
-is stepped once a frame.
+aeroplane's axes, the Pitts'/Extra's 10.8 kg/m², and a door turned to hang on its front edge). The parts that leave
+are detached with everything under them and flown as one `JettisonedCanopy` by `CanopyFlight` (Core `CanopyFreeBody`:
+the canopy's own mass, drag and lift), and the aeroplane sheds the mass. The next flight's rebuild brings them back.
+While the bail-out works it (`CockpitRigState.EgressCanopy`) the headset's hands leave that canopy alone, so it is
+stepped once a frame.
+
+### 3a. Whether anything leaves at all (Ty 2026-11-11)
+
+> *"I had a hard landing on the extra but the airplane was intact and upright. When I 'bailed out' the canopy shattered
+> even though it didn't hit anything … And on the ground it should not fall off it should stay open. The extra has no
+> jettison feature."*
+
+Until then `CanopyBailout` pulled the hinge pins of **every** canopy in the fleet, always, and `CanopySpec.For(id)`
+answered "has a jettison" for both aerobatic types from a lookup on the aircraft id. Two questions are asked now:
+
+- **Has the type a jettison?** It is a *fitting*, and it is authored per type in the aircraft's own config
+  (`canopy.jettison` + `canopy.jettisonSource`, Core `CanopyConfig`). No code may invent one: a `CanopySpec` built from
+  an id or measured off a model part has **no** jettison, and only `CanopySpec.For(AircraftConfig)` can give it one.
+  Absent means no, because the two mistakes do not cost the same — a type wrongly marked "no" costs a shove on the
+  frame; a type wrongly marked "yes" throws away a canopy the aeroplane cannot throw away.
+- **Is the aeroplane on the ground?** Then nothing is jettisoned whatever the type has: nobody pulls a jettison to
+  climb out of a stopped aeroplane. (An **ejection** is not a bail-out: the seat cannot fire through an attached
+  canopy, so `Eject` jettisons it wherever the aeroplane is.)
+
+What that leaves:
+
+| | on the ground | in the air |
+|---|---|---|
+| **has a jettison** (Pitts, F-86, P-51) | opens to its stop and stays on; he climbs out past it | pins out, gone as before |
+| **no jettison** (the Extra, and most of the fleet) | opens to its stop and stays on | flung to its stop and flails there; if the airload at the stop beats `CanopySpec.FittingStrengthN` the hinge fittings fail and it is **torn off** (`CanopyDeparture.HingesFailed`) — a tear, not a jettison. The Extra's fittings are calibrated to let go at 80 KIAS, so at any speed you would really be leaving at it goes anyway |
+
+So "he does not jump until it has gone" is now "he does not jump until it is **open enough to get past**"
+(`CanopyDynamics.ClearToLeave`, 60° — the frame clear of his shoulders). Once he is over the side his hand comes off
+it (`CanopyBailout.HandsOff`) and the rest is the airload's.
 
 ## 4. The glass in a crash (Core `Glazing`, Sim `AircraftGlazing`, Bridge `GlassShatter`)
 
@@ -102,6 +129,15 @@ with a jagged broken-glass look; ~18:23: every aeroplane's canopy, windshield an
   A high wing or a biplane's upper wing holds the glass off the ground on its back: there the glass stays whole.
 - **It stays on.** Shattering removes no part and sheds no mass; nothing opens a latch or pulls a hinge pin, so an
   unlatched canopy rides through a crash too (airspeed tearing a canopy off its hinges is `Vr.CanopyDynamics`, unchanged).
+- **A DEPARTED canopy breaks on the same rule, and did not before 2026-11-11.** Once a canopy is off the aeroplane it is
+  `Vr.CanopyFreeBody`, which swept its flight against the airframe and shattered on **any** contact at **any** speed —
+  the impact speed was recorded and then played no part in the decision. It now breaks only above
+  `CanopyFreeBody.ShatterSpeedMs`, which is the same `Glazing.ShatterClosingMs` the panes use (6 m/s cast acrylic,
+  8 stretched), measured as the **closing** speed on the structure rather than the shell's speed through the air — a
+  canopy brushing the fin at 150 kt is closing on it at nothing. Below it the shell touches the aeroplane whole
+  (`CanopyFreeBody.Touched`) and, with no airflow to carry it off, comes to rest there. This is almost certainly the
+  mechanism behind Ty's 2026-11-11 report: on the ground the released shell had nowhere to go but straight down onto the
+  turtledeck, at about a metre a second.
   A shattered canopy or windshield opens its water hatch, so the cabin floods through it.
 - **What you see.** `ContactEventKind.GlazingShattered` → the pane's glass is hidden and replaced by the jagged ring still
   held in its frame (saw-toothed, larger pieces left further from the blow, cut from an evenly subdivided copy of the
@@ -111,7 +147,9 @@ with a jagged broken-glass look; ~18:23: every aeroplane's canopy, windshield an
 
 ## Checks
 
-- `tools/FlightTests/OccupantInjuryTests.cs`, `CanopyEgressTests.cs`, `CanopyBailoutTests.cs`, `GlazingTests.cs` (.NET suite).
+- `tools/FlightTests/OccupantInjuryTests.cs`, `CanopyEgressTests.cs`, `CanopyBailoutTests.cs`, `CanopyJettisonTests.cs`
+  (every config authors its jettison with a source; no code can invent one), `CanopyStrikeSpeedTests.cs` (the departed
+  shell breaks on how hard it hits, and on the closing speed), `GlazingTests.cs` (.NET suite).
 - `GlassShatterShots` (Unity, `-executeMethod FlyingGame.EditorTools.GlassShatterShots.Render`): the glass measured on
   eight types' drawn airframes, shattered (really, for the Pitts and the Extra), drawn before / after, outside and seat eye.
 - `BailoutHeavenCheck` (Unity, `-executeMethod FlyingGame.EditorTools.BailoutHeavenCheck.Run`): every type, flying and at

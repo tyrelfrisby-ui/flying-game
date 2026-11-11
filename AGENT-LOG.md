@@ -1,3 +1,94 @@
+## The canopy that broke on a parked aeroplane, and the jettison the Extra has not got — Claude, 2026-11-11, lane/claude-canopy-jettison
+
+<!-- canopyjettison canopy-strike-speed canopyconfig pmma-shatter-closing -->
+
+Ty, 2026-11-11: *"I had a hard landing on the extra but the airplane was intact and upright. When I 'bailed out' the
+canopy shattered even though it didn't hit anything. It should only shatter if it hits something"*, and then: *"And on
+the ground it should not fall off it should stay open. The extra has no jettison feature."*
+
+Three faults, two of which make the symptom together and one of which is older than the report.
+
+### 1. The bail-out jettisoned every canopy in the fleet, always
+
+`CanopyBailout`'s constructor called `ReleaseHingePins()` unconditionally, and `CanopySpec.For(id)` answered
+`HasJettison = true` for the Pitts and the Extra from a lookup on the aircraft id. Nothing asked whether the type HAS a
+jettison, and nothing asked whether the aeroplane was on the ground. So an Extra sitting intact on its wheels had its
+canopy let go, and the canopy fell a metre onto its own turtledeck.
+
+**A jettison is a fitting, and it is authored per type now** — `canopy.jettison` + `canopy.jettisonSource` in all 35
+aircraft configs (Core `CanopyConfig`), and in `build_grob103.py`, which writes one of them. No code can invent one: a
+`CanopySpec` built from an id or measured off a model part has none, and only `CanopySpec.For(AircraftConfig)` can give
+it one. **Absent means no**, because the two mistakes do not cost the same — a type wrongly marked "no" costs the pilot
+a shove on the frame, a type wrongly marked "yes" throws away a canopy the aeroplane cannot throw away.
+
+Authored: **Pitts yes** (Ty, 2026-11-02, the red knob), **Extra NO** (Ty, today — his aeroplane, not argued from a
+manual), **F-86 yes** (it has an ejection seat, and a seat cannot fire through an attached canopy), **P-51 yes**
+(proposed from the D's emergency release; his to overturn). Everything else no, each with its reason: no canopy at all
+for the open cockpits, the Cubs' fold-out door and the cabin types; **ASSUMED, and a question for Ty**, for the four
+sailplanes (2-33, Grob 103, Swift S-1, EB-29R), the Cassutt, the Glasair III and the Gee Bee. A search for the 2-33's
+own procedure on 2026-11-11 did not settle it. Sailplanes probably SHOULD have one — bailing out is the drill they are
+certificated for — but it is not authored until he says so, and being wrong that way only makes the pilot climb out.
+
+**And nobody pulls one on the ground**, whatever the type has. An ejection is not a bail-out, so `Eject` still
+jettisons wherever the aeroplane is.
+
+What bailing out does now:
+
+| | on the ground | in the air |
+|---|---|---|
+| has a jettison | opens to its stop, stays on, he climbs out past it | unchanged: pins out, gone |
+| no jettison | opens to its stop, stays on | flung to its stop and flails there; above the fitting-failure speed the hinge fittings fail and it is **torn off**, not jettisoned. The Extra's are calibrated to 80 KIAS, so at any speed you would really be leaving at it goes anyway — because the air took it |
+
+Two consequences: "he does not jump until the canopy has GONE" became "until it is open enough to get past"
+(`ClearToLeave`, 60°), or a canopy that never departs would trap him; and once he is over the side his hand comes off it
+(`CanopyBailout.HandsOff`), where the stepping used to end itself by departing.
+
+### 2. ANY contact at ANY speed shattered a departed canopy
+
+Older than the report and wrong on its own. `CanopyFreeBody.Step` recorded `StrikeSpeedMs` and then made no use of it,
+so a shell leaning on the turtledeck at a metre a second broke exactly as hard as one that caught the fin at 60 m/s.
+With fault 1 that is the whole of Ty's symptom.
+
+`CanopyFreeBody.ShatterSpeedMs` is the threshold. **The number is the repo's own `Glazing.ShatterClosingMs`** — the
+speed at which a pane of the same material shatters when its own surface arrives on something, 6 m/s cast acrylic, 8
+for the fighters' stretched — rather than a third number for the same event. That constant is **AUTHORED**, as it says
+where it is defined ("CHOSEN, not derived"), and this does not dress it up: what can be said for the order of magnitude
+is that the strain energy a cast-acrylic shell stores before fracture (σ²/2E ≈ 0.8 MJ/m³ at 69 MPa and 3.0 GPa), over
+the part of a 4.8 mm skin a local contact bends, is some 30–90 J, which a 9–14 kg shell carries at 2–4.5 m/s. Same
+order as 6, and about as much as that argument is worth.
+
+**And it is measured against the right speed.** `StrikeSpeedMs` is the shell's speed through the AIR, which at cruise is
+tens of m/s however gently it brushes the fin. What breaks acrylic is the CLOSING speed, so `ICanopyObstacle` reports
+its own velocity: zero in the aeroplane's body frame (the tail check — the aeroplane is at rest there), and in the
+Bridge the airframe point's own world velocity, finite-differenced through the point's place on the aeroplane so a
+rolling aeroplane's fin moves as fast as it really does. The impact sound and the shards take the closing speed too.
+
+### 3. The fourth thing, checked and cleared
+
+A hard landing CANNOT pre-shatter the canopy pane through the other system (Sim `AircraftGlazing`). That system breaks a
+pane only when one of ITS OWN sensor points arrives in the ground or a solid above the material's closing speed; a
+canopy's points sit on top of the fuselage, so on an upright aeroplane they never arrive on anything. Ty's "the airplane
+was intact and upright" is exactly the case it already excludes. Nothing to fix.
+
+### Checks
+
+- `CanopyJettisonTests` (new, 5), `CanopyStrikeSpeedTests` (new, 9), `CanopyBailoutTests` (rewritten), `CanopyTumble`,
+  `VrBailout`, `VrEgress`, `CanopyEgress`, `PittsCanopyTab`, `BailoutSequence`, `Glazing`, `CrashTuning`: 197 passed.
+- **Four failures, all pre-existing at the lane tip** and confirmed there in a clean worktree:
+  `GlazingTests.OnItsBackGlassBreaksOnlyWhereItIsWhatHitsAndNeverOnATouch`,
+  `CrashTuningTests.AHighEnergyLimbHitCanBreakAWing`, `.ABellySlamCrushes…(j3-cub-like, sink 15)`,
+  `.NothingLosesSpeedAtASeparation(pitts-s2b-like, Nose)`. Not touched here.
+- Unity's own Roslyn (6000.3.23f1, AOT BCL + il2cpp player refs, `UNITY_IOS`): **Core 0 errors, Sim 0 errors, Bridge 0
+  NEW errors** — the Bridge's two `FlightTestRecording.cs` `AircraftConfig` errors are a harness artifact and appear
+  identically at the lane tip. No `init`, no records, no file-scoped namespace added under `unity/`.
+- Full suite NOT run (it takes about an hour). Nothing built for a device, nothing deployed, nothing pushed.
+
+### Still Ty's
+
+- the seven ASSUMED types above, the sailplanes first;
+- the P-51 and F-86 "yes", proposed rather than confirmed;
+- whether a no-jettison canopy flailing at its stop in the air should look like anything in particular.
+
 ## The tailslide: a propeller that was paid to spin, and the stalled blade behind it — Claude, 2026-11-11, lane/claude-vortex-ring
 
 <!-- vortexringstate johnson-tp2005-213477 viterna-corrigan swirl-flux-magnitude plate-poststall -->

@@ -713,6 +713,17 @@ cfg = {
     # Crash tuning (FuselageStructure): the Twin III's fuselage is a glass-fibre composite shell, like the Swift's.
     'structureType': 'composite',
     'structureTypeSource': 'Grob G 103 C Twin III Acro: glass-fibre (GFRP) composite fuselage shell.',
+    # Can the pilot JETTISON the canopy (Core CanopyConfig)? Authored per type since 2026-11-11, and conservative
+    # where it is not sourced: a type wrongly marked "no" only makes the pilot shove the canopy open and climb out
+    # past it, while a type wrongly marked "yes" invents a fitting the aeroplane has not got and throws the canopy
+    # away. This file writes the config, so the answer has to live here or the next build would drop it.
+    'canopy': {
+        'jettison': False,
+        'jettisonSource': "Grob 103: ASSUMED (conservative), 2026-11-11: no source gathered for this type's canopy "
+                          'fittings. The cheap mistake is this one - the pilot shoves the canopy open and climbs out '
+                          'past it. QUESTION FOR TY. A modern two-seat sailplane usually has canopy emergency '
+                          'releases; not sourced, so not authored.',
+    },
     'retractableGear': False,       # [POH] 1.4 "non-retractable tandem landing gear"
     # FIXED tandem gear -- main wheel with disc brake, nose wheel, tail wheel, no retraction ([POH] 1.4 "the
     # non-retractable tandem landing gear"; [TCDS] N.III.2 "fixed tandem landing gear with brake"). The nose wheel is
