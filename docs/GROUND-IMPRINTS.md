@@ -207,11 +207,14 @@ them. A ground loop is the expensive case, because it is all curve; that is the 
   one. When one exists it is three numbers in the table above: bearing near 50 kPa, retention ~1.0, repose near 25°,
   which would give the deepest, widest, longest-lasting mark on the map. Until then wet grass and dirt are what the
   island has.
-- **A ski's SINKAGE, and it now has a price tag.** Nothing computes how far a ski compacts snow, so a ski track's
-  depth is the plastic part of the ski's contact penetration, which is the airframe's treatment and not a flotation
-  model. MEASURED 2026-11-10 on the island's real snowfield, over 2,386 ski contacts: **a ski's sinkage is zero on
-  every single one of them** — every ski depth in this record comes from the retained part of an ELASTIC leg
-  compression.
+- **THE SKI HAS NO FLOTATION MODEL, and it shows up in two places that look unrelated.** This is one gap seen
+  twice — the depth side is below, the drag side follows it — and the two together are the case for
+  `lane/claude-ski-physics`.
+
+  **The depth side.** Nothing computes how far a ski compacts snow, so a ski track's depth is the plastic part of
+  the ski's contact penetration, which is the airframe's treatment and not a flotation model. MEASURED 2026-11-10 on
+  the island's real snowfield, over 2,386 ski contacts: **a ski's sinkage is zero on every single one of them** —
+  every ski depth in this record comes from the retained part of an ELASTIC leg compression.
 
   That matters because a spring compresses *more* under a harder arrival, which is backwards from flotation, and it
   shows up in exactly one number: **the peak**.
@@ -228,9 +231,26 @@ them. A ground loop is the expensive case, because it is all curve; that is the 
   the peak is what a one-line report shows. `marks.txt` therefore reports the median and the 90th percentile before
   the peak.
 
-  A real pressure-sinkage model for a ski — the thing that would say a 0.29 x 1.98 m ski floats where a 8.00-6 tyre
-  ploughs, by more than their penetrations happen to differ, and that would make the peak behave too — is still
-  wanted, and `lane/claude-ski-physics` is where it would come from. **This is the next piece of ski work.**
+  **The drag side, and it is the same gap wearing different clothes.**
+  `WheelSkiTests.OnSnowASkiRunsOnAfterTheWheelHasStopped` has been failing for all three types it covers, and it is
+  NOT a regression — measured identical with the 2026-11-10 tyre-sinkage change reverted, to the digit. What it says:
+
+  | on snow | runs | deceleration |
+  |---|---|---|
+  | on wheels | 132–186 m | 0.17–0.24 m/s² |
+  | on skis | **51–54 m** | **0.61–0.64 m/s²** |
+
+  A ski is expected to run ON after a wheel has stopped. It stops in **a third of the distance**, decelerating three
+  times as hard. That is backwards for exactly the reason the peak depth is backwards: a ski's forward drag comes
+  from `SkiGear.ForwardCoefficient` and its flotation from **nothing at all**. A ski that does not float cannot be
+  charged the drag of one — and a model that gives it a tyre's share of the snow it is supposed to be riding over
+  will both run it down too fast and, when the leg compresses, cut it in too deep.
+
+  **So the work is one piece, not two.** A real pressure-sinkage model for a ski — the thing that would say a
+  0.29 x 1.98 m ski floats where a 8.00-6 tyre ploughs, by more than their penetrations happen to differ — fixes the
+  peak depth AND is the number the forward drag should be built on. `lane/claude-ski-physics` is where it comes
+  from, and `OnSnowASkiRunsOnAfterTheWheelHasStopped` is a test waiting there to go green. **This is the next piece
+  of ski work.**
 - **Ice scoring**, which would be a mark with no depth. Nothing draws one.
 
 ## The drawing
