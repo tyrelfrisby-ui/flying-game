@@ -22,17 +22,18 @@ import numpy as np
 from vr_cockpit import Glb, builder, MODELS
 
 VARIANTS = ['glider-2-33-like/glider-2-33-like-own.glb', 'glider-2-33-like/glider-2-33-like-own-tf.glb']
-# TWO STATIONS, not one. They were the same number until 2026-11-10, when Ty moved the canopy's one bow aft
-# ("move the yellow band around the canopy to abeam the wing leading edge"), and collapsing them again would
-# make this check assert something it was never written to assert.
-BOW_X = 0.55             # builder x of the canopy's one bow, now abeam the wing root's leading edge (px 360).
-                         # Rule 1 below -- Canopy_Frame carries nothing ahead of the bow -- is measured from
-                         # here; the bow's 1.3 px half-width is 0.020 m, inside the 0.025 m slack.
-FRONT_X = 1.085          # aft end of the FRONT BUBBLE, the glass over the front seat that rule 2 keeps clear
-                         # of opaque geometry. It stayed where the old split bow was, because that is where the
-                         # door begins, and the door, its rails, hinges and latch and the rear side window and
-                         # its frame are real and belong there. Policing them as "a band across the front
-                         # canopy" is a different claim from the one in this file's title.
+# TWO STATIONS, not one. They were the same number until 2026-11-10, when the canopy's one bow started moving,
+# and collapsing them again would make this check assert something it was never written to assert.
+BOW_X = 0.657            # builder x of the canopy's one bow (px 353), the frame the glass ends on and the rear
+                         # door's forward frame -- one pair on the real aeroplane. It was 1.085, then 0.55 for a
+                         # few hours, and is now the station the Commons three-view puts it at, with Ty's photo of
+                         # N5711S agreeing to 19 mm. Rule 1 below -- Canopy_Frame carries nothing ahead of the bow
+                         # -- is measured from here; the bow's 1.3 px half-width is 0.020 m, inside the slack.
+FRONT_X = 1.085          # aft end of the FRONT BUBBLE, the glass over the front seat that rule 2 keeps clear of
+                         # opaque geometry. It has stayed put through all three moves of BOW_X, because it is not
+                         # the bow: it is where the front cockpit's glass ends and hardware is allowed. Policing
+                         # the rear door, its hinges and latch, and the rear side glazing as "a band across the
+                         # front canopy" is a different claim from the one in this file's title.
 NEAR_M, EDGE_M = 0.015, 0.030
 FITTING_M = 0.040   # hits spanning less than this are a fitting (INFO), not a band
 EXEMPT = ('YawString', 'Yaw_String', 'Panel_Coaming')

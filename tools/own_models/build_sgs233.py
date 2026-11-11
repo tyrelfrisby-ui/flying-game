@@ -123,24 +123,30 @@ def loft_secs(name, secs, cap_end=True):
         for i in range(len(a_) - 1): bm.faces.new((a_[i], a_[i + 1], b2[i + 1], b2[i]))
     if cap_end: bm.faces.new(cr[-1])
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces); return link(name, bm)
+# v13 (Ty, 2026-11-10): the canopy ENDS at px 353 now, not 362. On the real aeroplane its aft frame and the rear
+# door's forward frame are one structural pair of uprights -- unmistakable in his hangar photograph of N5711S --
+# and the model's glass used to run 137 mm past that and simply stop, with no door at all. px 353 is the Commons
+# three-view's own station for that frame, read in the pixel frame the whole model is registered to (x 0.657);
+# his in-flight photo of N5711S, scaled independently off a sky mask at 9.27 mm per image pixel, puts it at
+# x 0.676. The two are 19 mm apart, so the drawing gives the station and the photograph is the check.
 CAN = [(279, 225.8), (285, 219.7), (293, 213.3), (301, 208.5), (309, 204.8), (317, 202.1), (325, 199.5),
-       (333, 197.9), (341, 196.3), (349, 195.7), (357, 195.2), (362, 194.5)]
+       (333, 197.9), (341, 196.3), (349, 195.7), (353, 195.45)]
 P['Canopy_Glass'] = loft_secs('Canopy_Glass', [sec(px, tp) for px, tp in CAN], cap_end=False)
 bm = bmesh.new()   # frame: ONE bow, abeam the wing root's leading edge, plus sill rails aft of it
 # v11 (Ty t295u, 2026-11-02): NO windscreen-arch bow and NO sill rails ahead of the split. The real front canopy is
 # clear all the way down to the fuselage, with no painted band or frame strip (check_sgs233_canopy.py).
 # v12 (Ty, 2026-11-10): "move the yellow band around the canopy to abeam the wing leading edge". That band was the
-# canopy/door split bow at px 325, builder x 1.085. Abeam the wing ROOT's leading edge is x 0.55, and by mx()'s own
-# definition that is px 360 -- WING_LE_PX, the station the whole drawing is registered on. The canopy also ENDS
-# there (px 362, x 0.520), so the split bow and the old aft-edge bow are one frame now: a single hoop abeam the
-# wing leading edge, with clear glass all the way forward of it. The sill rails ran from the split aft, and that run
-# is 30 mm long now, so they go with it -- which continues t295u rather than contradicting it.
+# canopy/door split bow at px 325, builder x 1.085, and it became ONE hoop with the canopy's aft frame.
+# v13 (Ty, same evening, shown the measurements): that hoop moves again, from px 360 to px 353, off "abeam the wing
+# leading edge" and onto the station the references actually put the frame at -- see the note on CAN above. He was
+# asked which he wanted and chose the measurement over his own phrasing. It is 107 mm forward of where v12 put it.
+# The band is now the canopy's aft frame AND the rear door's forward frame, which is what the real pair is.
 #
 # WHAT THE PHOTOGRAPHS SHOW, recorded because this is his scheme rather than any one airframe's: neither N17879 nor
 # the Royal Canadian Air Cadets machine carries a band AROUND the fuselage at all. Both wear a LENGTHWISE stripe
-# along the side, and the only thing that wraps is the dark band round the cadets' fin. What N17879 does have is its
-# canopy framing in a single arch at the aft end, under the wing's leading edge -- which is where this now is.
-SPLIT_PX = WING_LE_PX   # px 360: mx(WING_LE_PX) is 0.55, which is ROOT_LE, the wing root's leading edge
+# along the side, and the only thing that wraps is the dark band round the cadets' fin. What they do have is the
+# canopy framing in a single arch at the aft end, just ahead of the wing -- which is where this now is.
+SPLIT_PX = CAN[-1][0]   # px 353: the canopy's own last station, so the band IS the frame the glass ends on
 CLEAR_FROM = len(CAN) - 1   # everything ahead of the band is clear glass
 def bow(bm, px, tp, wdt=1.3, grow=0.008):
     pa = sec(px + wdt, tp, grow=grow); pb = sec(px - wdt, tp, grow=grow)
@@ -266,7 +272,7 @@ def pyl_crown(px):
     t = min(max((TE_X - x) / RUNOUT, 0.0), 1.0)          # aft of it: Hermite out onto the deck, arriving flat
     return ((2 * t ** 3 - 3 * t ** 2 + 1) * RUN_Z0 + (t ** 3 - 2 * t ** 2 + t) * (-RUN_M0 * RUNOUT)
             + (-2 * t ** 3 + 3 * t ** 2) * RUN_Z1)
-PYL_PX0, PYL_PX1 = 362, mx_inv(RUN_X1)
+PYL_PX0, PYL_PX1 = CAN[-1][0], mx_inv(RUN_X1)   # the deck picks up exactly where the canopy hands over (v13: 353)
 PYL = [(px, mz_inv(pyl_crown(px))) for px in L(PYL_PX0, PYL_PX1, int((PYL_PX1 - PYL_PX0) / PYL_STEP) + 1)]
 def pyl_sec(px, tp, M_=16, grow=0.0):
     """The fairing's section. No clamp any more: pyl_crown is the shape, so the arch is just the canopy's
@@ -277,8 +283,8 @@ def outer_y(px, z):
     """outer half-width at height z including canopy / pylon above the sill"""
     t, b_, hw, n = fus(px); z0 = mz(t) - DROP
     if z <= z0: return side_y(px, z)
-    tp = np.interp(px, [p for p, _ in PYL], [q for _, q in PYL]) if px >= 362 else np.interp(px, [p for p, _ in CAN], [q for _, q in CAN])
-    s_ = (pyl_sec if px >= 362 else sec)(px, tp, M_=32)[:17]
+    tp = np.interp(px, [p for p, _ in PYL], [q for _, q in PYL]) if px >= PYL_PX0 else np.interp(px, [p for p, _ in CAN], [q for _, q in CAN])
+    s_ = (pyl_sec if px >= PYL_PX0 else sec)(px, tp, M_=32)[:17]
     zs = [p[2] for p in s_]; ys = [p[1] for p in s_]
     return float(np.interp(z, zs, ys)) if zs[-1] > zs[0] else ys[0]
 
@@ -370,8 +376,19 @@ for dy in (0.012, -0.012):
     tube(bm, (mx(254.5), dy, mz(209.7)), (mx(247), dy, mz(208.5)), r=0.004, f=1.0, cap=True)
 bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 P['Pitot'] = link('Pitot', bm)
-# rear-seat side windows (3-view side view quad, both sides): tinted glass laid on the skin, not cut through
-WINQ = [(359.8, 202.5), (355.7, 231), (384.3, 230.4), (384.3, 211)]
+# ---- the rear-seat side panels: a DOOR on the aircraft's RIGHT, a fixed window on the left ---------------
+# v13, Ty 2026-11-10: "the rear seat has a side door on the aircraft [right]" (he corrected left to right himself).
+# Both sides are glazed -- his in-flight photograph of N5711S is the LEFT side and the rear occupant is plainly
+# visible through a framed panel there -- so only the right one is a door. The forward edge is now the canopy's own
+# aft frame (px 353), because in his hangar photograph the canopy's aft upright and the door's forward upright are
+# one pair; it used to start at px 355.7, floating 2.7 px aft of nothing in particular.
+#
+# THE GLASS IS CLEAR NOW, not tinted. This is the actual fix for what he reported. The rear seat was already
+# entirely under the wing (cushion x +0.062..+0.540 against a wing root from +0.550 to -0.970) -- it was not in
+# front of the wing and never had been. What was wrong is that you could not SEE it there: the glazing stopped at
+# the wing leading edge, the panel aft of it was 'glass_dark', and the rear occupant sat in an opaque box. Through
+# clear glass in a proper door the rear seat reads as being where it has always been.
+WINQ = [(353.0, 202.5), (353.0, 231), (384.3, 230.4), (384.3, 211)]   # fwd-top, fwd-bottom, aft-bottom, aft-top
 bm = bmesh.new(); bmf = bmesh.new()
 def lerp2(a, b, t): return (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
 for sg in (1, -1):
@@ -387,28 +404,48 @@ for sg in (1, -1):
     for i in range(6):
         for j in range(6): bm.faces.new((vv[i][j], vv[i + 1][j], vv[i + 1][j + 1], vv[i][j + 1]))
     edge = [G[i][0] for i in range(7)] + [G[6][j] for j in range(7)] + [G[i][6] for i in range(6, -1, -1)] + [G[0][j] for j in range(6, -1, -1)]
+    # the right side is the door, so its frame stands a little prouder and deeper: in the hangar photograph it is a
+    # riveted metal surround, not the flush bead the fixed left window gets
+    half, out = (0.016, 0.004) if sg < 0 else (0.012, 0.002)
     for p0, p1 in zip(edge, edge[1:]):
-        q = [bmf.verts.new((p[0], p[1] + sg * 0.002, p[2] + dz)) for p, dz in ((p0, -0.012), (p1, -0.012), (p1, 0.012), (p0, 0.012))]
+        q = [bmf.verts.new((p[0], p[1] + sg * out, p[2] + dz)) for p, dz in ((p0, -half), (p1, -half), (p1, half), (p0, half))]
         bmf.faces.new(q)
 bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 P['Window_Rear'] = link('Window_Rear', bm); P['Window_Rear_Frame'] = link('Window_Rear_Frame', bmf)
 
-# ---- v8 exterior details from the photos: right-side canopy hinges, left rear door (rails, hinges, latch), canopy latch,
-# wing-root skylight over the rear seat (clear, framed), boarding step under the left door
+# ---- exterior hardware: the tilting canopy's right-sill hinge and left latch, the RIGHT rear door's hinge and
+# latch, the wing-root skylight over the rear seat, and the boarding step under the door.
+#
+# v13, Ty 2026-11-10, two corrections in one. "The front canopy tilts": it already hinged on the right sill, on
+# three knuckles, but nothing joined them, so it did not read as one liftable unit -- there is a continuous hinge
+# along that sill now, from the windscreen to the aft frame, which is what makes a one-piece canopy look like one.
+# "The rear seat has a side door on the aircraft [right]": the door hardware was on the LEFT sill and at px
+# 326..361, which is alongside the front seat under the canopy -- it was a door into the front cockpit. It is on
+# the right now and at the rear door's own station, px 353..384, hinged on its forward edge (the frame it shares
+# with the canopy) and latched at its aft edge. The boarding step went with it: a step on the far side from the
+# door is no use to anyone climbing in.
 bm = bmesh.new()
 def _sill(px, sg, dz=0.0):
     tp = float(np.interp(px, [p for p, _ in CAN], [q for _, q in CAN])); s_ = sec(px, tp, grow=0.012); lo = s_[0] if sg > 0 else s_[-1]
     return (lo[0], lo[1], lo[2] + dz)
-for px in (287, 303, 319):                                                          # canopy hinge knuckles on the right sill
+def _door(px, py_, out=0.0):
+    """A point on the rear door's frame, aircraft RIGHT (-y). outer_y carries the fairing as well as the canopy,
+    which _sill cannot do: the door is aft of where CAN stops."""
+    z = mz(py_); return (mx(px), -(outer_y(px, z) + out), z)
+CAN_HINGE_PX = (285.0, CAN[-1][0])                        # the canopy's hinge line, right sill, full length
+h0, h1 = _sill(CAN_HINGE_PX[0], -1, 0.012), _sill(CAN_HINGE_PX[1], -1, 0.012)
+tube(bm, (h0[0], h0[1] - 0.006, h0[2]), (h1[0], h1[1] - 0.006, h1[2]), r=0.007, f=1.0, n=8)
+for px in (287, 303, 319, 345):                                                     # knuckles along that hinge
     x_, y_, z_ = _sill(px, -1, 0.012); cyl(bm, (x_, y_ - 0.006, z_), 'X', 0.011, 0.05, seg=12)
 x_, y_, z_ = _sill(305, 1, 0.02); box(bm, (x_, y_ + 0.008, z_), (0.06, 0.016, 0.025))          # canopy latch, left sill
-d0, d1 = _sill(326, 1, 0.004), _sill(361, 1, 0.004)
-tube(bm, d0, d1, r=0.009, f=1.0, n=8)
-for dz in (0.06, 0.22):                                                             # door hinges on its forward edge
-    x_, y_, z_ = _sill(326.5, 1, dz); cyl(bm, (x_, y_ + 0.004, z_), 'Z', 0.009, 0.05, seg=10)
-x_, y_, z_ = _sill(360, 1, 0.14); box(bm, (x_ + 0.02, y_ + 0.012, z_), (0.07, 0.012, 0.018)); box(bm, (x_ + 0.05, y_ + 0.006, z_), (0.012, 0.012, 0.03))  # door latch
-SPX = 352; ZST = mz(fus(SPX)[1]) + 0.16                                             # boarding step, lower left
-yo = outer_y(SPX, ZST); box(bm, (mx(SPX), yo + 0.05, ZST - 0.05), (0.11, 0.07, 0.012)); tube(bm, (mx(SPX), yo - 0.01, ZST), (mx(SPX), yo + 0.07, ZST - 0.05), r=0.008, f=1.0)
+DOOR_FWD, DOOR_AFT = WINQ[0][0], WINQ[2][0]               # px 353 .. 384.3, the door's own frame
+for py_ in (208.0, 226.0):                                                          # door hinges on its forward edge
+    x_, y_, z_ = _door(DOOR_FWD, py_, 0.004); cyl(bm, (x_, y_, z_), 'Z', 0.009, 0.05, seg=10)
+x_, y_, z_ = _door(DOOR_AFT - 1.0, 220.0, 0.012)                                    # door latch at the aft edge
+box(bm, (x_, y_, z_), (0.07, 0.012, 0.018)); box(bm, (x_ - 0.03, y_ + 0.006, z_), (0.012, 0.012, 0.03))
+SPX = 0.5 * (DOOR_FWD + DOOR_AFT); ZST = mz(fus(SPX)[1]) + 0.16                     # boarding step, under the door
+yo = outer_y(SPX, ZST); box(bm, (mx(SPX), -(yo + 0.05), ZST - 0.05), (0.11, 0.07, 0.012))
+tube(bm, (mx(SPX), -(yo - 0.01), ZST), (mx(SPX), -(yo + 0.07), ZST - 0.05), r=0.008, f=1.0)
 bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 P['Canopy_Hardware'] = link('Canopy_Hardware', bm)
 bm = bmesh.new(); bmf = bmesh.new()                                                 # skylight on the pylon front, px 363..383
@@ -498,7 +535,7 @@ def setm(o, names):
     for n in names: o.data.materials.append(M[n])
 P['Fuselage'] = paint.join([P['Fuselage'], P.pop('Fuselage_Pylon')], 'Fuselage')
 COL = {'Canopy_Glass': 'glass', 'Gear': 'tyre', 'Tyres_Small': 'tyre', 'Skids': 'grey', 'Struts': 'yellow', 'Canopy_Frame': 'yellow',
-       'Pitot': 'steel', 'Window_Rear': 'glass_dark', 'Window_Rear_Frame': 'grey', 'Canopy_Hardware': 'grey',
+       'Pitot': 'steel', 'Window_Rear': 'glass', 'Window_Rear_Frame': 'grey', 'Canopy_Hardware': 'grey',
        'Skylight_Glass': 'glass', 'Skylight_Frame': 'grey'}
 for n, o in P.items():
     if n == 'Fuselage':
