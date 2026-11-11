@@ -528,15 +528,14 @@ public static class PropModel
         {
             var stops = new BladeElement.Stops(prop.FineStopDeg, prop.CoarseStopDeg);
             var gov = PistonEngine.Govern(prop.PropBladeCount, 0.5 * prop.PropDiameterM, prop.ActivityFactor, 0.15, stops,
-                GovernorCommandRpm(prop, throttle01, 1.0), prop.MaxPowerW, prop.MaxRpm, prop.IdleRpm, throttle01, pressureRatio,
+                GovernorCommandRpm(prop, throttle01, 1.0), PistonEngine.Spec.For(prop), prop.IdleRpm, throttle01, pressureRatio,
                 vAxialMs, rho);
             return drive.WithShaft(gov.Rpm, gov.PitchDeg);
         }
         if (prop.BladePitch75Deg > 0.0)
         {
             var g = new BladeElement.Geometry(prop.PropBladeCount, 0.5 * prop.PropDiameterM, prop.BladePitch75Deg, prop.ActivityFactor);
-            return drive.WithShaft(PistonEngine.BalancedRpm(g, prop.MaxPowerW, prop.MaxRpm, prop.IdleRpm, throttle01,
-                                                            pressureRatio, vAxialMs, rho, pressureRatio));
+            return drive.WithShaft(PistonEngine.BalancedRpm(g, prop, throttle01, pressureRatio, vAxialMs, rho, pressureRatio));
         }
         return drive;
     }

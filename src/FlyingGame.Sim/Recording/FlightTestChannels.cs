@@ -284,11 +284,17 @@ public static class FlightTestChannels
     }
 
     /// <summary>The manifold pressure the ENGINE actually flies on (PistonEngine's own law), not the cockpit
-    /// presentation value in CockpitRigState — the two disagree, and a flight-test file wants the physical one.</summary>
+    /// presentation value in CockpitRigState — the two disagree, and a flight-test file wants the physical one.
+    ///
+    /// IT NEEDS THE RPM, and that is the whole of the FMEP/PMEP change in one line: a throttle plate is a restriction
+    /// and the engine is a pump whose demand goes as its speed, so the same lever reads a healthy manifold at idle
+    /// and a few inches of vacuum at 2,500 rpm (PistonMep.ManifoldPa). Recording it against the lever alone would
+    /// have written a number no gauge in the aeroplane agrees with.</summary>
     private static double Manifold(RecorderContext x)
     {
         Aircraft a = x.Aircraft;
-        return PistonEngine.ManifoldInHg(a.Throttle01, x.PressurePa / Atmosphere.SeaLevelPressurePa);
+        double rated = a.Config.Propulsion?.MaxRpm ?? 0.0;
+        return PistonEngine.ManifoldInHg(a.Throttle01, x.PressurePa / Atmosphere.SeaLevelPressurePa, a.EngineRpm, rated);
     }
 
     private static double Heading(RecorderContext x)

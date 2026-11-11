@@ -388,7 +388,7 @@ public sealed partial class Aircraft
         // for torque, and a lever making literally zero power let the shaft decay to friction — the J-3 idled at 89.8
         // rpm against its published 700. The floor is the throttle that holds IdleRpm on THIS blade, so it costs
         // nothing above idle and makes IdleRpm mean something again.
-        if (EngineRunning) qEngine = PistonEngine.TorqueNm(p.MaxPowerW, p.MaxRpm, _shaftRpm,
+        if (EngineRunning) qEngine = PistonEngine.TorqueNm(p, _shaftRpm,
                                                           System.Math.Max(_throttle01 * PowerScale, IdleBleed(p, g, pressureRatio, airDensity)),
                                                           pressureRatio);
         else
@@ -445,7 +445,7 @@ public sealed partial class Aircraft
         if (_idleBleed >= 0.0
             && System.Math.Abs(g.PitchAt75Deg - _idleBleedPitch) < 0.25
             && System.Math.Abs(pressureRatio - _idleBleedDelta) < 0.01) return _idleBleed;
-        _idleBleed = PistonEngine.IdleBleedThrottle(g, p.MaxPowerW, p.MaxRpm, p.IdleRpm, pressureRatio, airDensity);
+        _idleBleed = PistonEngine.IdleBleedThrottle(g, p, pressureRatio, airDensity);
         _idleBleedPitch = g.PitchAt75Deg; _idleBleedDelta = pressureRatio;
         return _idleBleed;
     }
