@@ -142,9 +142,26 @@ public class PlayerTextTests
         {
             string[] lines = File.ReadAllLines(f);
             for (int i = 0; i < lines.Length; i++)
+            {
+                // A LEADING UNDERSCORE MEANS AUTHORING PROVENANCE, NOT PLAYER TEXT. The configs carry their own
+                // sources beside the numbers they justify — "_cgLimitsSource", "_unitsRule", "_armSource",
+                // "_comment" — and that is where this project records WHY a figure is what it is. Those fields
+                // quote type certificates and the owner's own words, and a type certificate says "certified"
+                // because that is what the document is called. The player never sees a byte of it: nothing reads
+                // an underscore key, and AircraftConfig has no property for one.
+                //
+                // Scanning them cost seven configs' worth of false positives (the ASI-units work, 2026-11-10) and
+                // the only way to pass was to reword a quoted source, which is worse than the test it satisfies.
+                if (IsAuthoringField(lines[i])) continue;
                 if (Banned.IsMatch(lines[i])) bad.Add($"{Path.GetRelativePath(Repo, f)}:{i + 1} {lines[i].Trim()}");
+            }
         }
         _o.WriteLine($"{files.Count} configs scanned");
         Assert.True(bad.Count == 0, "banned word in a config:\n" + string.Join("\n", bad));
     }
+
+    /// <summary>A JSON line whose KEY begins with an underscore: this project's convention for the note that says
+    /// where a number came from. Player text never lives in one.</summary>
+    private static bool IsAuthoringField(string line) => AuthoringKey.IsMatch(line);
+    private static readonly Regex AuthoringKey = new(@"^\s*""_[A-Za-z0-9_]*""\s*:");
 }
