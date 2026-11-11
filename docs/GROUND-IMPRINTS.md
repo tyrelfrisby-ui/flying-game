@@ -275,8 +275,14 @@ record says 3.3 mm and the drawing makes that flattened, bruised turf — that i
 `unity/Assets/_Project/Scripts/Editor/GroundImprintShots.cs` shoots the review plates (plan from 30 m, eye height
 beside the tracks, a close low look along one rut) on the real island, from marks an aeroplane lays by rolling.
 
-It needs a GPU — **not** `-nographics`, which is what the build scripts use — and it refuses in four places rather
-than produce a picture that is not what it says it is. All four are things that actually happened on 2026-11-10:
+It needs a GPU — **not** `-nographics`, which is what the build scripts use — and it takes its shader from the
+**asset database**, because `Shader.Find` returns null for this project's own shaders in a bare `-executeMethod`
+batchmode editor (measured: null for `FlyingGame/GroundImprint` and for its `FlyingGame/UnlitTransparent` fallback
+alike, both present and compiling clean). It hands it over through `GroundImprintVisual.ShaderOverride`, set
+**before** `WorldBuilder.BuildAll()` because `IslandWorldBuilder.Build` attaches the visual itself. The game keeps
+`Shader.Find`, with `BuildScript.EnsureAlwaysIncludedShaders` keeping the shader in the player.
+
+It refuses in four places rather than produce a picture that is not what it says it is. All four are things that actually happened on 2026-11-10:
 
 1. **no graphics device.** With `-nographics` it wrote one blank grey PNG and then segfaulted, exit 139. The crash is
    a nuisance; the blank PNG was nearly relayed on as "the real island render".

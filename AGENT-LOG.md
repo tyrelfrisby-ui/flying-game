@@ -157,6 +157,31 @@ depth-to-width ratio. The honest model is those two terms separately rather than
 judged against were broken in two other ways at the time. A derived number measured against the wrong background is
 still the wrong number — and so is a picked one measured against a broken frame. It belongs to the next render.
 
+### `Shader.Find` does not find this project's shaders in a batchmode editor
+
+The guard above fired on the very next run, and it was right to: **no plates were written**, and the reason was not
+the shader.
+
+`Shader.Find("FlyingGame/GroundImprint")` returned **null** — and so did the `Shader.Find("FlyingGame/UnlitTransparent")`
+fallback, with both shaders present, tracked, `.meta`'d and compiling clean. Two nulls from two good shaders is a
+LOOKUP failure, not an asset failure. A bare `-executeMethod` batchmode editor does not have what `Shader.Find`
+needs; the asset database does. The pattern across the repo confirms it — every other editor harness calls
+`Shader.Find` only for BUILT-IN shaders (`Unlit/Color`), and the one place that asks for a project shader by name is
+`BuildScript`, which runs during a build. This project has been bitten by the same shape before, with glTFast's
+`LoadImageFromBytes` under `IsEditorImport`, and already routes that case through `AssetDatabase.LoadAssetAtPath`.
+
+So the harness loads it by path and hands it over through `GroundImprintVisual.ShaderOverride` — exactly as
+`PilotBodyShots` hands `VrPilotBody.PrefabOverride` a body. **The game is untouched:** `Shader.Find` is right there,
+with `BuildScript.EnsureAlwaysIncludedShaders` keeping the shader in the player.
+
+Two ordering traps came with it, and both would have left the fix looking like it had not worked:
+
+- `IslandWorldBuilder.Build` attaches the visual ITSELF, so the override has to be set **before**
+  `WorldBuilder.BuildAll()`, not before `Attach`. Setting it after would have changed nothing.
+- the material used to be taken once, inside a `Build()` that returns early when the geometry already exists — so a
+  component that came up shader-less stayed unable to draw for the rest of the session with the shader sitting right
+  there. It is now `EnsureMaterial()`, retried on every build, because **a shader can arrive late**.
+
 ### The harness refuses to shoot a plate it cannot vouch for
 
 Run with `-nographics` — which is the idiom the BUILD scripts use, so it is the natural thing to reach for — the first
