@@ -1,0 +1,5 @@
+# PlatformIO's build directory and generated editor files. Generated, never committed -- this repo's rule about
+# generated mirrors (see the StreamingAssets note in the root .gitignore) applies to build output too.
+.pio/
+compile_commands.json
+.vscode/

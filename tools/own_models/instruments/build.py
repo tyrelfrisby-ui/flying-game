@@ -23,11 +23,20 @@ from instruments import library as L  # noqa: E402
 
 
 def aircraft_asi():
-    """Every aircraft config with an instruments.airspeed block."""
+    """Every aircraft config that declares a FULL ASI face.
+
+    Since 2026-11-10 EVERY config has an instruments.airspeed block, because the unit the dial reads in is a
+    fleet-wide decision (Ty: "vintage, fabric and experimental types read mph; anything certified modern or turbine
+    reads knots") and it lives in the data. Most of those blocks are the unit alone: there is no modelled cockpit to
+    paint a face for, and the flat dials derive their scale (FlyingGame.Core.Instruments.AsiDial). A face is drawn
+    only where the scale and the arcs have actually been authored off a TCDS or a POH -- that is what scaleMin /
+    scaleMax mean here. Drawing a face from a guessed scale would put 31 more PNGs in Resources (which all ship,
+    used or not) and paint published-looking arcs that nobody published.
+    """
     out = {}
     for p in sorted((ROOT / 'configs/aircraft').glob('*.json')):
         spec = json.loads(p.read_text()).get('instruments', {}).get('airspeed')
-        if spec: out[p.stem] = spec
+        if spec and spec.get('scaleMax'): out[p.stem] = spec
     return out
 
 

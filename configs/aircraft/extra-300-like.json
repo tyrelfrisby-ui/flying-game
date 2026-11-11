@@ -1949,6 +1949,7 @@
     },
     "airspeed": {
       "units": "kt",
+      "_unitsSource": "TY'S EXPLICIT CALL -- and here it is the rule that is wrong and he is right: the Extra 300 POH section 2 is published in KIAS (VS0 60, VNO 158, VNE 220). Not to be 'corrected' to mph.",
       "scaleMin": 40,
       "scaleMax": 260,
       "arcs": {

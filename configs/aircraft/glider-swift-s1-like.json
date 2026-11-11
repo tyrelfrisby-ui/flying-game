@@ -2039,5 +2039,12 @@
     ],
     "_comment": "loading.seats[].station, loading.tanks[] and loading.baggage[] are the arms from docs/pending/loading-arm-estimates.md (Codex lane, 2026-11-01): a published TCDS/POH arm where the row is CONFIRMED, converted to this frame through that aircraft's anchor. maxKg is the published placard where the source gives one. referenceKg is UNCHANGED and still follows the 172's convention, so the reference loading reproduces the authored mass, CG and inertia exactly and nothing moves at spawn. Whether each airframe's authored massKg includes a pilot or fuel is still the open W&B decision in AGENT-LOG NEEDS YOU.",
     "_armSource": "docs/pending/loading-arm-estimates.md (and .json), lane/codex-loading-arms ee088db"
+  },
+  "instruments": {
+    "airspeed": {
+      "units": "kt",
+      "_unitsSource": "Modern composite aerobatic glider.",
+      "_unitsRule": "Ty 2026-11-10, asked what rule the other 27 types follow after settling five by hand, chose \"by era and category\": \"Vintage, fabric and experimental types read mph; anything certified modern or turbine reads knots.\" FlyingGame.Core.Instruments.AsiUnits carries the rule and the exceptions."
+    }
   }
 }
