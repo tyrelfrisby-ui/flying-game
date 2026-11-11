@@ -93,7 +93,7 @@ public sealed class LandingFlowTests
         Assert.True(f.Pick(PickerKind.Aircraft, "pa18-cub-like"));
         Assert.True(f.Pick(PickerKind.Configuration, "floats"));
         Assert.True(f.Pick(PickerKind.Location, "MESA"));
-        Assert.True(f.Pick(PickerKind.Viewpoint, "OnTheRunway"));
+        Assert.True(f.Pick(PickerKind.Start, "OnTheRunway"));
         f.SetTimeOfDay(TimeOfDay.Sunset);
         f.Next();
         bool launched = false; f.Launched += _ => launched = true;
@@ -164,7 +164,7 @@ public sealed class LandingFlowTests
         Assert.True(f.Pick(PickerKind.Lesson, "lesson:straight"));
         Assert.Equal(new[] { "glider-2-33-like", "c172-like", "pa18-cub-like", "j3-cub-like" }, f.Items(PickerKind.Aircraft).Select(i => i.Id).ToArray());
         Assert.Equal("glider-2-33-like", f.FamilyId);              // the Pitts is not a trainer: the first one in menu order
-        Assert.True(f.IsFixed(PickerKind.Viewpoint));
+        Assert.True(f.IsFixed(PickerKind.Start));
         Assert.Equal("The lesson sets its own start", f.ViewpointName);
         f.Pick(PickerKind.Aircraft, "pa18-cub-like");
         Assert.Equal(new[] { "standard" }, f.Items(PickerKind.Configuration).Select(i => i.Id).ToArray());
@@ -175,7 +175,7 @@ public sealed class LandingFlowTests
         Assert.True(f.Pick(PickerKind.Lesson, ""));
         Assert.Null(f.ActivityId);
         Assert.Equal(9, f.Items(PickerKind.Aircraft).Count);
-        Assert.False(f.IsFixed(PickerKind.Viewpoint));
+        Assert.False(f.IsFixed(PickerKind.Start));
     }
 
     [Fact]
@@ -190,7 +190,7 @@ public sealed class LandingFlowTests
         Assert.True(f.Pick(PickerKind.Challenge, "event:aerobox"));
         Assert.Equal(new[] { "pitts-s2b-like", "great-lakes-like" }, f.Items(PickerKind.Aircraft).Select(i => i.Id).ToArray());
         Assert.Equal(Viewpoint.InAeroBox, f.Viewpoint);
-        Assert.Equal(new[] { "InAeroBox" }, f.Items(PickerKind.Viewpoint).Select(i => i.Id).ToArray());
+        Assert.Equal(new[] { "InAeroBox" }, f.Items(PickerKind.Start).Select(i => i.Id).ToArray());
 
         // A scored contest: standard gear, the conditions are the contest's.
         f.Pick(PickerKind.Challenge, "");
@@ -718,10 +718,61 @@ public sealed class LandingFlowTests
         var f = NewFlow();
         f.Pick(PickerKind.Aircraft, "pitts-s2b-like");
         f.Pick(PickerKind.Location, "VALLEY");
-        var final = f.Items(PickerKind.Viewpoint).Single(i => i.Id == "OnFinal");
+        var final = f.Items(PickerKind.Start).Single(i => i.Id == "OnFinal");
         Assert.Equal("loc/pitts-s2b-like/standard/valley/OnFinal", final.ThumbnailKey);
         var mesa = f.Items(PickerKind.Location).Single(i => i.Id == "MESA");
         Assert.Equal("loc/pitts-s2b-like/standard/mesa/InTheAir", mesa.ThumbnailKey);
+    }
+
+    // ---------------------------------------------------------------- the camera (Ty 2026-11-11)
+
+    /// <summary>"We need a viewpoint button like flight path tail fly by cockpit etc": a menu of its own, separate
+    /// from START (which is what the button labelled VIEWPOINT had been offering). The four Ty named are at the top
+    /// of the list, the default is the view the game has always started in, and the pick survives a launch.</summary>
+    [Fact]
+    public void TheCameraViewIsItsOwnMenuAndIsRememberedAcrossLaunches()
+    {
+        var store = new MemoryLandingStore();
+        var f = NewFlow(store);
+        Assert.Equal(CameraView.RelativeWind, f.CameraView);          // nobody who never opens it sees a change
+        Assert.Equal(new[] { "Relative wind", "Cockpit", "Tail", "Fly-by" }, f.Items(PickerKind.CameraView).Take(4).Select(i => i.Title).ToArray());
+        Assert.False(f.IsFixed(PickerKind.CameraView));               // no activity owns the camera
+        Assert.Single(f.Items(PickerKind.CameraView), i => i.Selected);
+
+        Assert.True(f.Pick(PickerKind.CameraView, "Cockpit"));
+        Assert.Equal(CameraView.Cockpit, f.CameraView);
+        Assert.Equal("Cockpit", f.CameraViewName);
+        Assert.Equal(Viewpoint.InTheAir, f.Viewpoint);                // and it did NOT move the start
+        f.Next();
+        Assert.True(f.Launch());
+        Assert.Equal(CameraView.Cockpit, NewFlow(store).CameraView);
+    }
+
+    /// <summary>Direction lock is a toggle in flight, never a start: it freezes whatever direction the camera happens
+    /// to point the instant it is engaged, and at the spawn frame that is nothing anyone chose. A value saved by some
+    /// other route falls back to the default rather than launching into it.</summary>
+    [Fact]
+    public void DirectionLockIsNotOfferedAsAStartingCamera()
+    {
+        var f = NewFlow();
+        Assert.DoesNotContain("Locked", f.Items(PickerKind.CameraView).Select(i => i.Id));
+        Assert.False(f.Pick(PickerKind.CameraView, "Locked"));
+        var store = new MemoryLandingStore();
+        store.Values["landing.cameraView"] = "Locked";
+        Assert.Equal(CameraView.RelativeWind, NewFlow(store).CameraView);
+    }
+
+    /// <summary>A camera view has nothing to photograph, so its card carries no thumbnail key — which is what tells
+    /// the view to draw the card as words instead of a placeholder letter.</summary>
+    [Fact]
+    public void CameraViewCardsCarryNoThumbnail()
+    {
+        foreach (var it in NewFlow().Items(PickerKind.CameraView))
+        {
+            Assert.Empty(it.Thumbnails);
+            Assert.StartsWith("icon/view/", it.ThumbnailKey);
+            Assert.NotEqual("", it.Subtitle);
+        }
     }
 
     [Fact]

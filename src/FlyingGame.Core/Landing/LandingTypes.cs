@@ -10,8 +10,16 @@ namespace FlyingGame.Core.Landing;
 public enum LandingPage { Choose = 0, Load = 1 }
 
 /// <summary>The thumbnail menus that open over page 1 (one at a time). <see cref="Challenge"/> and <see cref="Lesson"/>
-/// are the right-hand column's lists.</summary>
-public enum PickerKind { None, Aircraft, Configuration, Location, Viewpoint, Challenge, Lesson }
+/// are the activity lists.
+///
+/// <see cref="Start"/> was called "Viewpoint" until 2026-11-11, and the button said VIEWPOINT while it offered "On the
+/// runway" and "In the air" — a START, not a camera (Ty: "the 'viewpoint' button is currently the start button and we
+/// need a viewpoint button like flight path tail fly by cockpit etc"). The menu is now <see cref="Start"/> and the
+/// camera is <see cref="CameraView"/>. The VALUE type <see cref="Start"/> picks is still called
+/// <see cref="Viewpoint"/>: that name is written into the thumbnail keys on every device already
+/// (loc/…/&lt;Viewpoint&gt;), into the saved key "landing.viewpoint", and into the Bridge enum it converts to by
+/// value, so renaming the type would cost a migration and buy a word.</summary>
+public enum PickerKind { None, Aircraft, Configuration, Location, Start, Challenge, Lesson, CameraView }
 
 /// <summary>Free flight, or one of the two right-hand lists. A challenge or lesson restricts the left-hand pickers
 /// (<see cref="ActivityRules"/>).</summary>
@@ -22,9 +30,19 @@ public enum ActivityKind { FreeFlight, Challenge, Lesson }
 /// (SessionSettings.Bushwheels / Skis).</summary>
 public enum GearKind { Standard, Bushwheels, WheelSkis, Floats, Amphibian, Hull, FootLaunch }
 
-/// <summary>Where the aeroplane begins. SAME NAMES AND ORDER as Bridge SessionSettings.Start (an EditMode test holds
-/// that), so the two convert by value.</summary>
+/// <summary>Where the aeroplane begins — the START, not the camera (see <see cref="PickerKind.Start"/> for why the type
+/// keeps this name). SAME NAMES AND ORDER as Bridge SessionSettings.Start (an EditMode test holds that), so the two
+/// convert by value.</summary>
 public enum Viewpoint { InTheAir, OnTheRunway, OnFinal, InAeroBox, InCombatZone, InThermal }
+
+/// <summary>Which camera you fly behind, picked on page 1 and set on the chase camera at LAUNCH. SAME NAMES AND ORDER
+/// as Bridge ChaseCamera.View (an EditMode test holds that), so the two convert by value: this list is the game's own
+/// VIEW menu, not a second one invented for the landing page.
+///
+/// <see cref="Locked"/> is in the enum so the values line up with ChaseCamera.View, but it is NOT offered as a start:
+/// direction lock freezes whatever direction the camera is pointing the instant it is engaged, which at the spawn
+/// frame is nothing anyone chose. It stays what it has always been — a toggle in flight (the V key / the VIEW menu).</summary>
+public enum CameraView { RelativeWind, Cockpit, Tail, SideLeft, SideRight, Top, Bottom, Front, Flyby, RelativeWindAhead, Locked }
 
 /// <summary>Who sits in a seat. <see cref="Me"/> is the player (exactly one seat). <see cref="DefaultPerson"/> is a
 /// stock occupant who only weighs something; <see cref="InvitedPlayer"/> is another player (a stub until the invite

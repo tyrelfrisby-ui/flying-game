@@ -62,6 +62,35 @@ public sealed class LandingCatalog
         (Viewpoint.InThermal, "In a thermal", "Circling at min sink, trimmed"),
     };
 
+    /// <summary>
+    /// THE CAMERA VIEWS page 1 offers (Ty 2026-11-11: "we need a viewpoint button like flight path tail fly by cockpit
+    /// etc"). The names are the game's own — ChaseCamera.ViewNames, the list the in-flight VIEW button already cycles —
+    /// copied here because Core never sees Bridge; an EditMode test holds the two in step. Nothing was invented: a
+    /// second vocabulary for the same cameras would mean the landing page and the VIEW button disagreed about what the
+    /// pilot is looking through.
+    ///
+    /// The blurbs say where the camera IS, because that is the only thing the picture on the card cannot (there are no
+    /// camera thumbnails, and a card with no picture is all words). They are drawn from ChaseCamera's own notes.
+    /// ChaseCamera.View.Locked is deliberately absent — see <see cref="CameraView"/>.
+    ///
+    /// MENU ORDER, not enum order: the four Ty named ("flight path tail fly by cockpit") come first, then the fixed
+    /// rig views. The enum keeps ChaseCamera's order because that is what converts by value; a menu is read top to
+    /// bottom by somebody choosing, and the four he named are the four anyone chooses.
+    /// </summary>
+    public static readonly (CameraView v, string name, string blurb)[] CameraViews =
+    {
+        (CameraView.RelativeWind, "Relative wind", "The flight path: behind you, looking where you are really going"),
+        (CameraView.Cockpit, "Cockpit", "From the seat, out through the glass"),
+        (CameraView.Tail, "Tail", "On the fin, looking forward over the aeroplane"),
+        (CameraView.Flyby, "Fly-by", "Parked ahead and off to one side; you fly past it"),
+        (CameraView.SideLeft, "Left side", "Alongside, bolted to the airframe"),
+        (CameraView.SideRight, "Right side", "Alongside, bolted to the airframe"),
+        (CameraView.Front, "Front", "Ahead of the nose, looking back at you"),
+        (CameraView.Top, "Top", "Straight down on the wing"),
+        (CameraView.Bottom, "Bottom", "Straight up at the belly"),
+        (CameraView.RelativeWindAhead, "Relative wind, ahead", "On the flight path, out in front, looking back"),
+    };
+
     /// <summary>Time of day: the sun's local hour and how bright the page shows it (light/dark feedback).</summary>
     public static readonly (TimeOfDay t, string name, double hour, double light)[] TimesOfDay =
     {
