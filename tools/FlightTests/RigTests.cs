@@ -378,12 +378,12 @@ public static class RigTable
         // The Grob 103's FIRST rig (2026-11-10): it had a config, no rig block and no row, so nothing tested it.
         new("glider-grob103-acro-like", false, 0, 0.0000, 0.0000, 0.4746, 50.13),
         new("glider-swift-s1-like", false, 0, 0.0000, 0.0000, -1.3028, 62.69),
-        new("great-lakes-like", true, 1, 0.4724, 0.3579, 0.9753, 106.67),
+        new("great-lakes-like", true, 1, 0.4741, 0.3642, 0.9951, 106.66),
         new("hang-glider-like", false, 0, 0.0000, 0.0000, -15.5066, 21.38),
         new("hughes-h4-like", true, 1, 0.0413, 0.0327, -0.5892, 151.17),
         new("j3-cub-floats-like", true, 1, 0.0935, 2.2431, -1.5061, 59.64),
         new("j3-cub-like", true, 1, 0.1050, 2.5570, -1.7359, 56.31),
-        new("jn4-jenny-like", true, 1, 0.4871, 0.7219, 0.0171, 51.30),
+        new("jn4-jenny-like", true, 1, 0.5127, 0.6826, -0.8444, 50.64),
         new("p51d-like", true, 1, 0.4943, 0.1943, -1.3254, 209.27),
         new("pa18-bush-like", true, 1, 0.2551, 0.4243, 0.7431, 91.25),
         new("pa18-cub-like", true, 1, 0.2387, 0.3810, 1.0109, 94.21),
@@ -393,7 +393,7 @@ public static class RigTable
         new("paraglider-en-b-like", false, 0, 0.0000, 0.0000, 9.5138, 19.74),
         new("pitts-s2b-like", true, 1, 0.4125, 0.4896, -1.9929, 136.95),
         new("seminole-like", true, 0, 0.0000, 0.0000, 1.7195, 143.09),
-        new("stearman-pt17-like", true, 1, 0.5143, 0.3708, -0.5492, 104.99),
+        new("stearman-pt17-like", true, 1, 0.4759, 0.3375, 3.7671, 106.94),
         new("target-drone-like", true, 1, 0.3319, 0.1609, 0.4464, 159.08),
     };
 

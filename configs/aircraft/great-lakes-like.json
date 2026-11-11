@@ -1670,14 +1670,14 @@
     }
   },
   "rig": {
-    "aileronRad": 0.008245,
-    "finOffsetRad": 0.006247,
+    "aileronRad": 0.008274,
+    "finOffsetRad": 0.006357,
     "throttleFraction": 0.75,
     "altitudeM": 1219.2,
-    "tasMs": 54.877,
-    "alphaRad": -0.041116,
-    "elevatorTrimRad": 0.017023,
-    "bankRad": 0.005985
+    "tasMs": 54.873,
+    "alphaRad": -0.033823,
+    "elevatorTrimRad": 0.017368,
+    "bankRad": 0.006134
   },
   "controls": {
     "aileron": {
@@ -1889,6 +1889,10 @@
       "tirePressurePsi": 28.6
     }
   ],
+  "cellule": {
+    "liftInterference": true,
+    "_source": "Derived biplane lift interference (BiplaneCellule: a Biot-Savart lattice on this config's own wings; Prandtl NACA Rep. 116, Munk NACA Rep. 151 General Biplane Theory 1923). ON because naca2312 peaks at CLmax 1.450, a true 2-D value, so the interference is not already in the table. Not a tuned number: nothing here is fitted to a stall speed."
+  },
   "limits": {
     "vneMs": 68.4,
     "gMax": 5.4,
