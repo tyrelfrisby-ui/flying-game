@@ -269,6 +269,12 @@ public sealed partial class Aircraft
     public IReadOnlyList<WheelState> Wheels => _wheels;
     private WheelState[] _wheels = System.Array.Empty<WheelState>();
 
+    /// <summary>What touched the surface in the last physics step (SurfaceContacts: the tracks' events), refilled in place
+    /// every step. <see cref="SurfaceContactsStepped"/> is raised with it after every step, so a reader stepping several
+    /// physics steps a frame sees each one.</summary>
+    public SurfaceContactBuffer SurfaceContacts { get; private set; } = new(1);
+    public event Action<SurfaceContactBuffer>? SurfaceContactsStepped;
+
     /// <summary>Structural g-limit state (limit/ultimate loads, groan severity, wing failure).</summary>
     public StructuralState Structure { get; }
 
@@ -530,6 +536,8 @@ public sealed partial class Aircraft
         _gearTouching = new bool[config.Gear.Count];
         _gearStageClear = new double[2 * config.Gear.Count];
         _wheels = WheelState.For(config);
+        SurfaceContacts = new SurfaceContactBuffer(config);
+        BuildImprints();
         _wheelBodies = config.Gear.Select(g => g.PosVec()).ToArray();
         Damage = new FlyingGame.Core.Combat.DamageState(LoseComponent, IsLost);
         foreach (GearConfig g in config.Gear) if (g.IsTailwheel && g.IsSteerable) { Tailwheel = new LandingGear.TailwheelState(); break; }
@@ -1826,6 +1834,12 @@ public sealed partial class Aircraft
         // A wheel the gear did not turn against the ground this step (in the air, on a ski, in the water, retracted)
         // runs down in its bearings.
         foreach (WheelState w in _wheels) { if (!w.Advanced) w.Coast(dt); w.Advanced = false; }
+        // The step's surface contacts, before anything else can recompute the (process-wide) float state.
+        FlyingGame.Core.SurfaceContacts.Collect(Config, State, _wheels, Config.Floats is not null, SurfaceContacts, Atmosphere.SimTimeSec);
+        SurfaceContactsStepped?.Invoke(SurfaceContacts);
+        // The marks those contacts leave in the ground (AircraftImprints): the airframe contact points still hold what
+        // this step's first stage recorded, which is what a scar's depth is read from.
+        LayImprints(Atmosphere.SimTimeSec);
         if (Config.Floats is not null)
         {
             // The water the floats carry (FloatHydro.AddedMassOf): applied implicitly, like the airframe's below.
