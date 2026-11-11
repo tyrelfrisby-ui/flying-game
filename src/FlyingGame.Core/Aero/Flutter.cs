@@ -43,21 +43,37 @@ public static class Flutter
     public const double VdOverVne = 1.1;
 
     /// <summary>Armed here: past the boundary, nothing growing yet. Ty.</summary>
-    public const double ArmVd = 1.20;
+    /// <remarks>A KNOB, not a const: Ty has already moved these twice in one day (the ceiling 1.5 -> 1.3,
+    /// the self-initiation 1.35 -> 1.275), so they belong on the Developer page where he can move them in
+    /// flight rather than by asking. The arm speed he has deliberately NOT moved.</remarks>
+    public static double ArmVd = 1.20;
 
-    /// <summary>Initiated here even with everything held still. Ty ("Make it a 1.35 fallback").</summary>
-    public const double FallbackInitiateVd = 1.35;
+    /// <summary>Initiated here even with everything held still. Ty, revising twice: "Make it a 1.35 fallback" and
+    /// then "decrease structural failure to 1.3 vd and the arm extends to 1.275". So the ARMED BAND is 1.20 to
+    /// 1.275: past 1.20 it is armed and waiting for a control to move, and at 1.275 it starts whatever the pilot
+    /// does.</summary>
+    public static double FallbackInitiateVd = 1.275;
 
     /// <summary>A surface moving faster than this while armed initiates it, and that surface is the one that
     /// flutters. Ty. It is deliberately SLOW — a degree a second is barely a twitch — because his stated intent is
     /// "it tends to be the control moved", so it must fire easily. No tolerance band, no debounce.</summary>
     public const double InitiateRateDegPerSec = 1.0;
 
-    /// <summary>The structure fails here regardless of duration. Ty. Its own ceiling, not the fatigue law reaching
-    /// infinity — they are two mechanisms and one law must not be asked to do both.</summary>
-    public const double CeilingVd = 1.50;
+    /// <summary>The structure fails here regardless of duration. Ty, revised from 1.5: "decrease structural failure
+    /// to 1.3 vd". Its own ceiling, not the fatigue law reaching infinity — they are two mechanisms and one law must
+    /// not be asked to do both. The whole flutter event now lives inside a 10 % speed band.</summary>
+    public static double CeilingVd = 1.30;
 
-    /// <summary>The one calibration: at 1.35 Vd, one minute is a full fatigue life on the weaker of the two. Ty.</summary>
+    /// <summary>
+    /// The one calibration: at 1.35 Vd, one minute is a full fatigue life on the weaker of the two. Ty.
+    ///
+    /// IT IS A DEFINING POINT, NOT AN OPERATING ONE, and that has to be said because it stopped being reachable when
+    /// he moved the ceiling to 1.3 Vd — the structure now fails outright below it, so 1.35 Vd cannot be sustained
+    /// for one second, let alone sixty. That does NOT make it wrong and it must not be "fixed" by moving it: the
+    /// statement's job is to set the SLOPE of the rate law, m = (v/Vd - 1.20) / 0.15 with rate = m / 60 s, which is
+    /// well defined everywhere whether or not a pilot can fly it. Re-anchoring the law to a reachable speed would
+    /// change the gradient he chose while appearing to tidy something up.
+    /// </summary>
     public const double CalibrationVd = 1.35, CalibrationSeconds = 60.0;
 
     /// <summary>
@@ -67,13 +83,27 @@ public static class Flutter
     /// square — so the rate is m^RateExponent, where m is the margin normalised so that m = 1 at the calibration
     /// speed and m = 0 at onset.
     ///
-    /// 2 rather than 3 because of what it does at the LOW end, which is the end Ty actually described: "a long
-    /// exposure at 1.25 vd stil produces a failure". At 2 that is 9 minutes; at 3 it is 27. Nine minutes is a long
-    /// exposure that a pilot could plausibly sit through and still be killed by, which is his sentence. At the top
-    /// end the two barely differ (34 s against 25 s at 1.40 Vd), so the choice is almost entirely about how survivable
-    /// the 1.2-to-1.3 band is. FlutterLawProbe prints both.
+    /// 1 IS TY'S OWN CHOICE, made against the measured table rather than left at a default, and it is worth knowing
+    /// why a reader is looking at a bare exponent of 1. Both 2 and 3 were put to him with the observation that at
+    /// k = 2 a pilot cannot hold 1.25 Vd — 1.375 Vne — for the nine minutes it gives, so the 1.2-to-1.35 band would
+    /// come out survivable in PRACTICE, against his own sentence "a long exposure at 1.25 vd stil produces a
+    /// failure". He took the faster one:
+    ///
+    ///     v/Vd    1.21     1.25     1.30     1.35     1.40    1.45
+    ///     k = 1   22 min   3.0 min  1.5 min  1.0 min  45 s    35 s
+    ///     k = 2   3.8 h    9.0 min  2.2 min  1.0 min  34 s    22 s
+    ///
+    /// Every exponent hits his calibration exactly, by construction — only the curvature below it moves, which is
+    /// the part he was describing. AND k = 1 MEANS THE RATE IS LINEAR IN THE MARGIN above onset: the damage accrues
+    /// in proportion to how far past it you are, with no curvature anyone has to justify. That is a simpler claim
+    /// than a power law and an honest one. FlutterLawProbe prints the table.
     /// </summary>
-    public const double RateExponent = 2.0;
+    /// <remarks>NOT a const: it is a knob. The coordinator's observation when the table went to Ty is that a pilot
+    /// cannot hold 1.25 Vd for the nine minutes k = 2 gives, so the 1.2-1.3 band may come out survivable in practice
+    /// where his sentence wanted it lethal — k = 1 gives three minutes there and bites. That is a flying judgement,
+    /// so this is settable and lives on the Developer page beside the other live knobs: he can fly the shape instead
+    /// of reading it. Shipping value 2.</remarks>
+    public static double RateExponent = 1.0;
 
     /// <summary>The margin above onset, normalised to 1 at the calibration speed. 0 at or below onset.</summary>
     public static double Margin(double vOverVd)
@@ -117,18 +147,33 @@ public static class Flutter
     /// At index 0 it is 1 — untouched. At index 1 the member breaks at 1 g, which is Ty's endpoint: a wing that
     /// cannot carry the aeroplane in level flight. Both ends are HIS; only the line between them is mine.
     /// </summary>
-    public static double StrengthForIndex(double index, double limitG, double breakRatio = OverstressMember.BreakRatio)
+    public static double StrengthForIndex(double index, double strengthAtOneG)
     {
-        if (limitG <= 0.0 || breakRatio <= 0.0) return 1.0;
-        double atOne = 1.0 / (breakRatio * limitG);              // breaks at 1 g
+        double atOne = Math.Clamp(strengthAtOneG, 0.0, 1.0);
         double i = Math.Clamp(index, 0.0, 1.0);
         return StrengthFalloffIsLinear ? 1.0 + i * (atOne - 1.0) : Math.Pow(atOne, i);
     }
 
+    /// <summary>
+    /// The <see cref="OverstressMember.Strength"/> at which a member breaks at 1 g — Ty's endpoint. It is derived
+    /// from the load ratio that member is REALLY driven by at 1 g (StructuralState.WingRatioAt / TailRatioAt) rather
+    /// than from a published limit, because the member's ratio is taken against the published limit scaled by the
+    /// wing's weight share, and neither of those is the number a reader would guess. Breaking happens at
+    /// EffectiveRatio = |LoadRatio| / Strength &gt; BreakRatio, so the strength that puts 1 g exactly on the break is
+    /// ratio(1 g) / BreakRatio.
+    /// </summary>
+    public static double StrengthAtOneG(double ratioAtOneG, double breakRatio = OverstressMember.BreakRatio)
+        => breakRatio > 0.0 ? Math.Clamp(ratioAtOneG / breakRatio, 0.0, 1.0) : 1.0;
+
+    /// <summary>The same shape expressed against a published limit, for the TABLE a pilot reads: at index 0 the
+    /// structure's certificated ultimate, at index 1 one g.</summary>
+    public static double StrengthForIndexFromLimit(double index, double limitG, double breakRatio = OverstressMember.BreakRatio)
+        => limitG <= 0.0 || breakRatio <= 0.0 ? 1.0 : StrengthForIndex(index, 1.0 / (breakRatio * limitG));
+
     /// <summary>The load factor a member with this much fatigue will break at, g — the reading of
     /// <see cref="StrengthForIndex"/> a pilot would recognise.</summary>
     public static double BreakingGForIndex(double index, double limitG, double breakRatio = OverstressMember.BreakRatio)
-        => breakRatio * limitG * StrengthForIndex(index, limitG, breakRatio);
+        => breakRatio * limitG * StrengthForIndexFromLimit(index, limitG, breakRatio);
 
     // ---- the signature: amplitude up, frequency down ------------------------------------------------------------
 

@@ -150,6 +150,19 @@ public sealed partial class StructuralState
     /// the symmetric part alone — a rolling pull does not load one side of the stabiliser more in anything this sim
     /// models, and its own load is a different case entirely (<see cref="TailDesignMargin"/>).
     /// </summary>
+    /// <summary>
+    /// THE LOAD RATIO A WING MEMBER ACTUALLY SEES at <paramref name="n"/> g — <see cref="Ratio"/> against the
+    /// PUBLISHED limit, scaled by the wing's weight share, exactly as <see cref="StepWings"/> computes it. Flutter
+    /// needs this because Ty's endpoint is "an ultimate strength of 1g", and the strength that makes a member break
+    /// at 1 g can only be worked out from the ratio that member is really driven by: the published limit is not
+    /// <see cref="LimitPosG"/> and the weight share is not 1 on every loading. One source of truth rather than a
+    /// second copy of the arithmetic that could drift.
+    /// </summary>
+    public double WingRatioAt(double n, double wingWeightRatio) => Ratio(n) * wingWeightRatio;
+
+    /// <summary>The same for the horizontal tail, which carries the wing's ratio over its own design margin.</summary>
+    public double TailRatioAt(double n, double wingWeightRatio) => Ratio(n) * wingWeightRatio / TailDesignMargin;
+
     public StructuralBreak Step(double nLeft, double nRight, double nTotal, double wingWeightRatio, double dt)
     {
         StructuralBreak broke = StepWings(nLeft, nRight, wingWeightRatio, dt);
@@ -2137,6 +2150,10 @@ public sealed partial class Aircraft
         long tAfter = SimProfile.Begin();
         Atmosphere.AdvanceTime(this, dt);   // only the clock's owner moves it (Atmosphere.ClockOwner)
         ShedWake(dt, windBody, airDensity, slipDu, slipR, slipSwirl);
+        // BEFORE the structure steps, because flutter lowers the ultimate strength the structure is about to be
+        // judged against: a wing whose fatigue has just taken it to 1 g has to be weak on THIS step's load, not the
+        // next one's.
+        StepFlutter(dt);
         UpdateStructure(dt);
         UpdateLoad(dt);
         Electrics.Step(dt, EngineRpm);

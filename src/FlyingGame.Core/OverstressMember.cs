@@ -85,6 +85,22 @@ public sealed class OverstressMember
 
     public OverstressMember(string name) { Name = name; }
 
+    /// <summary>
+    /// FATIGUE HAS LOWERED THIS MEMBER'S ULTIMATE STRENGTH. Ty 2026-11-11: "After experiencing flutter the wing's
+    /// structure is compromised which results in a lower ultimate strength so the wing follows the same bend break
+    /// rules just based on a lower 'limit load'".
+    ///
+    /// That is exactly what <see cref="Strength"/> already is — the whole curve scales by it, because
+    /// <see cref="EffectiveRatio"/> is |LoadRatio| / Strength — so flutter needs no new failure path and no second
+    /// set of rules: it writes here and the existing bend and break do the rest. Monotone by construction: a
+    /// structure that has been compromised does not heal, so this only ever lowers it.
+    /// </summary>
+    public void WeakenTo(double strength)
+    {
+        double s = System.Math.Clamp(strength, 0.0, 1.0);
+        if (s < Strength) Strength = s;
+    }
+
     /// <summary>The bending along the curve at effective ratio <paramref name="x"/> (≥ 0) of a straight member, rad.</summary>
     public static double CurveRad(double x) => x <= 1.0 ? 0.0 : FlexPerLimitRad * (x - 1.0);
 
