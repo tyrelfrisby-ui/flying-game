@@ -30,11 +30,50 @@ These are viewing/measurement references, not assertions of a redistribution lic
 
 Dimensions are copied from the **proposed, unapproved** `lane/claude-ski-physics` J-3 skiGear config
 (97bd8d5d lineage), so Part A and Part B can meet at the same anchors. They are not independently certified
-Federal factory measurements. Main: 1.75 m × .222 m, .30 m upturn rising .10 m, axle .95 m from tip.
-Tail: .60 m × .10 m, .10 m upturn rising .04 m, axle .30 m from tip.
-Axle-to-running-surface heights follow our wheel geometry: .2235 m main, .076 m tail.
+Federal factory measurements. Main: 1.75 m × .222 m, axle .95 m from tip. Tail: .60 m × .10 m, axle .30 m from tip.
 Pedestal sheet gauge, formed spine, rivet spacing, cable gauge and tail fitting are visual judgements.
 This is a Federal A-1500A-class visual proposal, not a claim to reproduce a particular installation drawing.
+
+### 2026-11-10: Ty's four corrections, and what each one is now derived from
+
+> "The straight ski (not the wheel ski) has a pedestal the radius of a normal tire for that airplane so the aoa on
+> the ground is the same. The pedestal is a tapered 'tower'. The top of the ski has a keel for strength and the
+> front has a handle for lifting/dragging the skis"
+
+and, on both kinds of ski, "The front of the skis should curve up not a sharp angle", with reference photographs
+(an Aero Ski pair, a Federal A-1500 pair, and a page of Federals from several angles).
+
+1. **Pedestal height — DERIVED, not authored.** It was the literals .2235 m (main) and .076 m (tail). It is now
+   measured per leg off this very model, before the wheels are deleted: `axle.z − (that leg's wheel's lowest
+   vertex).z`. On the mains the ski's pivot IS the axle, so it comes out at the tyre's radius, .2235 m, which is
+   Ty's words exactly, with nothing typed in. On the tail the pivot is the leaf spring's swivel head, 5 mm above
+   and .125 m ahead of the old tailwheel centre, so it comes out **.071 m, not .076 m** — the old literal stood the
+   tail 5 mm low, 0.06° of extra nose-up on a 4.6 m wheelbase. `check_j3_skis.py` now asserts the mains are the
+   tyre radius to 1 µm and that the three-point pitch attitude on skis equals the one on wheels to 0.01°
+   (it reports 13.4798° against 13.4798°, mains and tail contact heights identical).
+2. **Pedestal: a tapered tower.** Was two flat sheet cheeks on edge either side of the axle — one thin fin from the
+   side, nothing from ahead. Now a four-sided tower with a flared, riveted base (main: .37 m fore-and-aft × .13 m
+   across at the ski, drawing in to .13 × .075 at the bush). Proportions are a visual judgement, as the sheet gauge
+   and rivet spacing always were.
+3. **Keel.** Was a 55 mm crown spread over four fifths of the width and read as a flat top. Now a narrow, tall
+   formed member down the centreline: 90 mm proud on the main ski and 35 mm on the tail, over three fifths of the
+   width, running 0.03 to 0.97 of the length. In every photograph this is a major feature of a ski seen from above.
+   The heights are ESTIMATES (5.1 % and 5.8 % of each ski's length — the depth a formed-sheet beam of that span
+   wants); no Federal drawing has been found for any of it.
+4. **Handle.** There was none. Now a bent-tube bail standing on the very nose, where every photograph puts a
+   bracket or an eye, and where the nose cable picks the ski up from — the same end a man lifts to break a frozen
+   ski out and the end he drags it by. The nose cable now anchors on the bail's own crossbar.
+5. **The bottom profile.** The old tip was a parabola over the forward .30 m rising .10 m — tangent, so this ski
+   never had the crease Ty objected to on the wheel ski, but far too short a curve, and the heel was square. The
+   profile is now the one `SkiGear.BottomRiseAt` uses, so both ski stacks describe one ski, and it was MEASURED:
+   the bottom edge of the side-on Aero Ski photograph was traced by threshold over its whole 561-pixel length.
+   Nose rises **0.127 of the length** over the forward 0.45 of it; **the tail rises 0.032** over the aft 0.12;
+   flat in between, which is where the pedestal is. The full trace, the power-law fit (exponent 2.5) and the
+   caveat that a photograph is not an orthographic view are in the long note in `src/FlyingGame.Core/SkiGear.cs`.
+   **This supersedes the "upturn .30 × .10 m" above**, which was an ESTIMATE with no Federal drawing found and is
+   about half the rise and a third of the reach of what the photograph shows.
+   The plan now tapers too: widest between 0.34 and 0.70 of the length, narrowing to a rounded nose and a
+   narrower rounded heel, as all three photographs show.
 
 ## Geometry / attachment contract
 

@@ -768,8 +768,9 @@ namespace FlyingGame.Bridge
             }
             y += row;
 
-            // Wheel-skis: only the glacier knows the difference, and there it is the difference between
-            // landing and arriving. Next to the bushwheels because it is the same kind of choice.
+            // Wheel-skis (any aeroplane with a wheel; hinged since Ty 2026-11-05): fitted, the cockpit gets the shared
+            // WHEELS / SKIS selector (SkiSelectorLever) that raises and lowers them in flight. Next to the bushwheels
+            // because it is the same kind of choice.
             if (UiLayout.Button(new Rect(x, y, colW, bh), SessionSettings.Skis ? "Wheel-skis ON" : "Wheel-skis off",
                                 SessionSettings.Skis ? _btnOn : _btn))
             {
