@@ -23,6 +23,7 @@ namespace FlyingGame.Bridge
             SeasideBuilder.BuildCarrier(root.transform);
             foreach (var z in IslandGeometry.Zones) Zone(z, root.transform);
             ForestStreamer.Attach(WorldTerrain.Active, root.transform);
+            FlyingGame.Clouds.CloudPlayground.Attach(root.transform);   // Ty 2026-11-05: the cloud playground and wispy layers
             return root;
         }
         private static void Water(Transform parent)

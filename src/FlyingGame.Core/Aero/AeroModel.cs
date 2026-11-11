@@ -568,7 +568,8 @@ public static class AeroModel
         double slipstreamSwirlMs = 0.0,
         WindGradient windGradient = default,
         bool propellerIsSolved = false,
-        BladeElement.SwirlProfile? swirlProfile = null)
+        BladeElement.SwirlProfile? swirlProfile = null,
+        Vec3[]? stripAirBody = null)
     {
         int stripIndex = 0;
         // GROUND EFFECT (owner 2026-10-03: "is it even modeled?" — it was not). Within about a span of the surface the
@@ -722,6 +723,10 @@ public static class AeroModel
                 Vec3 vLocal = bodyVelocity - windBody + Vec3.Cross(rollRates, r);
                 // The air is not the same across the airframe (regional atmosphere): the strip sees the wind where IT is.
                 if (windGradient.Active) vLocal -= windGradient.PerX * r.X + windGradient.PerY * r.Y;
+                // Another aeroplane's wake (VortexWake): the air its trailing lines move at THIS strip, sampled where the strip
+                // is. Whatever it does to the aeroplane — the roll toward a vortex's turn, the sink between a pair — is this
+                // strip's own lift answering to it.
+                if (stripAirBody is not null && idx < stripAirBody.Length) vLocal -= stripAirBody[idx];
                 Vec3 vAirStrip = vLocal;   // the relative wind here before the slipstream: what carries the wakes over this strip
 
                 // THE FUSELAGE'S CROSSFLOW VORTICES (BodyVortex; Polhamus, NACA RM L55E20b): the air they move at this

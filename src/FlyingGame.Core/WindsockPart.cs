@@ -159,10 +159,12 @@ public static class WindsockPart
         new(s.Id + "-mast", "white", s.X, s.Y, s.GroundM, s.GroundM + PivotHeightM + ThroatRadiusM, 2 * MastRadiusM, 2 * MastRadiusM);
 
     /// <summary>The air the sock reads: the very query every aeroplane flies in (<see cref="Atmosphere.WindAtPosition"/>:
-    /// mean wind, gusts, thermals, slope and glacier winds). Wake vortices and prop wash are NOT in that field on this
-    /// lane (an aeroplane's own wake is per-strip inside its aero model), so a sock does not yet feel a passing
-    /// aeroplane; when a world wake field joins the query, it belongs here.</summary>
-    public static Vec3 AirAt(Vec3 pivotNed) => Atmosphere.WindAtPosition(pivotNed);
+    /// mean wind, gusts, thermals, slope and glacier winds) PLUS the world wake field, so a sock does feel an
+    /// aeroplane that has just gone past. The windsock lane left a note saying this line belonged here the moment a
+    /// wake field existed (<see cref="Aero.Wake.VortexWake"/>, merged 2026-11-10); SampleVelocity returns zero
+    /// immediately when nothing is shedding, so a quiet airfield costs nothing.</summary>
+    public static Vec3 AirAt(Vec3 pivotNed) =>
+        Atmosphere.WindAtPosition(pivotNed) + Aero.Wake.VortexWake.SampleVelocity(pivotNed);
 }
 
 /// <summary>
