@@ -165,9 +165,20 @@ public class SprayFieldTests
     /// does not list it and no session can start there; the seaplane lanes a pilot reaches are these.</summary>
     public static IEnumerable<object[]> SeaplaneFields()
     {
-        WorldTerrain.Active ??= new WorldTerrain();
-        foreach (WorldTerrain.Airport a in WorldTerrain.Airports)
-            if (IslandRunways.Water(a, 600) != null) yield return new object[] { a.Name };
+        // AND PUT IT BACK. This used `??=` and never restored, so enumerating the theory's cases left
+        // WorldTerrain.Active pointing at a live island for every test that ran afterwards — including ones written
+        // against no terrain at all. The 2-33's braking rollout (NoseSkidTests) then started on a hillside instead of
+        // flat ground and its velocity went NaN, which read as a physics regression and is not one. A test that
+        // changes global state and does not change it back makes every later result conditional on the order the
+        // filter happened to pick.
+        WorldTerrain? saved = WorldTerrain.Active;
+        try
+        {
+            WorldTerrain.Active ??= new WorldTerrain();
+            foreach (WorldTerrain.Airport a in WorldTerrain.Airports)
+                if (IslandRunways.Water(a, 600) != null) yield return new object[] { a.Name };
+        }
+        finally { WorldTerrain.Active = saved; }
     }
 
     /// <summary>
@@ -188,6 +199,8 @@ public class SprayFieldTests
     [MemberData(nameof(SeaplaneFields))]
     public void TheIslandsOwnSeaplaneLaneThrowsSprayAndItIsDrawn(string airport)
     {
+        // Restored to what it WAS, not to null: nulling it is just as much a change as setting it.
+        WorldTerrain? savedWorld = WorldTerrain.Active;
         WorldTerrain.Active = new WorldTerrain();
         try
         {
@@ -249,7 +262,7 @@ public class SprayFieldTests
             Assert.True(stepParcels > 0, "no spray parcels at all on the step");
             Assert.True(stepDrawn > 0, $"{stepParcels} parcels in the air on the step and NONE of them would be drawn");
         }
-        finally { WorldTerrain.Active = null; }
+        finally { WorldTerrain.Active = savedWorld; }
     }
 
     [Theory]
