@@ -364,9 +364,24 @@ public class Grob103Tests : IDisposable
         var simF = new SimLoop(fast);
         double peakF = 0;
         for (int i = 0; i < 60 && !fast.Structure.WingsFailed; i++) { simF.RunFor(0.025, new ControlInputs(0, -1.0, 0, 0)); peakF = Math.Max(peakF, fast.LoadFactorZ); }
-        _out.WriteLine($"full aft at 320 km/h: peak {peakF:F2} g, failed {fast.Structure.WingsFailed}");
+        _out.WriteLine($"full aft at 320 km/h: peak {peakF:F2} g, failed {fast.Structure.WingsFailed}, " +
+                       $"left wing {fast.Structure.LeftWing.Stage} fold {fast.Structure.LeftWing.FoldRad * 180 / Math.PI:F1}°");
         Assert.True(peakF > fast.Structure.UltimatePosG, $"full aft at 320 km/h must pass ultimate ({fast.Structure.UltimatePosG:F1} g); peak {peakF:F2}");
-        Assert.True(fast.Structure.WingsFailed);
+        // PAST ULTIMATE THE WINGS COME APART — and since Ty's staggered failure (2026-11-10) that is a LADDER, not one
+        // event: "For cantilever have the wings fold up 1 g before departing ... and continue to account for their
+        // aerodynamic force". The Grob is a cantilever composite wing, so it folds about its root first, and a wing
+        // folded 81° makes almost no lift — measured here, the load factor collapses from 17.7 g to 6.5 in one frame.
+        // That relief is the point of the rung, and it is why this pull now leaves the wings FOLDED on the aeroplane
+        // rather than gone: the structure never feels the break, because the moment it folds there is nothing left
+        // pulling on it. (A snatch that runs one g past the rung before the structure catches up skips the rung and
+        // departs the wing whole, which is what WingFailureLaw.Severe is for.)
+        //
+        // So what this pins is what it always meant — past ultimate the wings do NOT stay whole — stated in terms the
+        // ladder can express.
+        Assert.NotEqual(WingSideStage.Intact, fast.Structure.LeftWing.Stage);
+        Assert.NotEqual(WingSideStage.Intact, fast.Structure.RightWing.Stage);
+        Assert.True(Math.Abs(fast.Structure.LeftWing.FoldRad) > 45 * Math.PI / 180.0 || fast.Structure.WingsFailed,
+                    "past ultimate a cantilever wing must have folded right over or gone");
     }
 
     // ---------------------------------------------------------------------------------------------------------------

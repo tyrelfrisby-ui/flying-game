@@ -197,16 +197,10 @@ public sealed partial class Aircraft
         SetCaps(w, 0.0);
     }
 
-    /// <summary>The panel's rows fly at its shape under load: its set (in <see cref="WingPanel.BendRad"/>) plus the flex,
-    /// and the whole wing's fold on top if it has folded (<see cref="ShapeWingSide"/> then has the inboard rows too).</summary>
-    private void ApplyPanelFlex(int k)
-    {
-        WingPanel w = _panels[k];
-        if (w.FoldRad != 0.0) { ShapeWingSide(w); return; }
-        _flowState.BendRad ??= new double[_stripTotal];
-        _flowState.BendOffset ??= new Vec3[_stripTotal];
-        foreach (int i in w.Strips) WriteStripShape(w, i);
-    }
+    /// <summary>The whole wing side flies the shape the panel is in: the aerodynamic CURVE from the root, the strike's
+    /// kink at the station, and any fold. Always the whole side (<see cref="ShapeWingSide"/>) — a curve moves the rows
+    /// inboard of the station too, and writing only the panel's own left the inner wing flat under a set.</summary>
+    private void ApplyPanelFlex(int k) => ShapeWingSide(_panels[k]);
 
     /// <summary>Each half of the horizontal tail turned about the centreline by <paramref name="rad"/> (+ = tips up): its
     /// rows' dihedral grows by it and their load points move with it.</summary>
