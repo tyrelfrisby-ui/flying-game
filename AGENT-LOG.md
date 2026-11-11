@@ -15305,3 +15305,99 @@ exactly (8/2). Nine does not. Both fixed.
   spin lane. It is not live because `CrossflowConfig.AftCamberGain` does not exist in this checkout yet, and adding
   it here as well would give the merge two declarations of the same member. When that field lands, uncomment the
   block — that is the entire integration.
+
+## 2026-11-11 — lane/claude-devpage: the flight test data recorder
+
+**NEEDS YOU: Ty — fly it, then pull a file off the phone through Files and tell me whether the channel list is
+right. It is easier to cut channels than to add them after you have flown with them.**
+
+### What it is, and what it is NOT
+
+Ty: *"Add a flight test data recorder too with all of the data tracked for review and analysis."*
+
+**134 channels, 50 Hz, full float precision**, bursting to the sim's own 200 Hz around events. This is
+INSTRUMENTATION. It is not the two recorders that already exist — the in-game replay
+(`Replay/FlightRecorder`) and the named multitrack recordings (`FlightTrack`/`RecordingLibrary`) are POSE
+recorders, ~20 quantised channels at 30 Hz, so an aeroplane can be flown again on screen. They answer a different
+question and neither replaces the other. The names collide; the jobs do not.
+
+### Always armed — the page is gated, the data is not
+
+It runs from the moment an aeroplane spawns, whether or not the Developer page is reachable, and keeps the last
+**~110 minutes in a 200 MB ring that wraps**. Gating the recording would make the data unavailable exactly when a
+beta tester hits something worth reporting. A pilot's only job is **KEEP FLIGHT** (Options → Developer), which
+writes the buffer to a file. **MARK** drops a flag so he can find a moment again.
+
+### The rate, and why the burst is not optional
+
+50 Hz resolves every rigid-body mode on this fleet. The EVENTS are exactly what it cannot see: a water-landing
+peak, a gear strike, a blade leaving at 25 % overspeed are sub-100 ms transients that 50 Hz samples three or four
+times with no reason to believe the peak is one of them — and Ty will read a number off this file and believe it.
+So an event bursts to 200 Hz for two seconds and **reaches BACKWARDS** over records already in the ring. Those
+retro-marked records keep their own 50 Hz label rather than claiming a resolution they do not have, and **every
+record carries its rate** so nothing is inferred from timestamp spacing.
+
+### Cost: measured, not asserted
+
+**5.5 µs a sample against a 5000 µs step** (~0.1 %), and **0 bytes allocated** over 400 recorder steps — both
+pinned by tests. The recorder times itself, records that as a channel, and stands down with a message if it ever
+exceeds budget. The measurement earned its keep twice:
+- channels were re-deriving shared quantities — seven re-derived air-relative velocity, two sampled the
+  atmosphere — at **2903 µs a sample**. Fixed by deriving once per sample (`RecorderContext.Derive`);
+- the cost statistic was then poisoned by the first sample's JIT and read **2084 µs against a true 5.5**, which
+  would have auto-stopped the recorder on every flight for a cost it was not paying. First 32 samples excluded.
+
+### What is NOT recorded — the one place the brief and the constraints conflicted
+
+**Per-surface-group forces and moments.** The only breakdown in the sim is `ForceDebug`, which allocates a fresh
+`List<ForceSample>(160)` per captured step, buckets by a `string Kind` with no surface id, and is a process-wide
+static the force-vector overlay also uses. At 50 Hz that is fifty list allocations a second in the physics step.
+`SimLoop` already works around the same cost by capturing on the frame's last step only. The no-allocation
+constraint outranks the feature, so the cheap aggregates the sim already keeps are recorded instead (specific
+force, both load factors, aero rolling moment, stalled fraction, slip over tail, tail slipstream). **A per-group
+breakdown wants a separate, explicitly opt-in, much lower-rate mode** — not built, and it should not be bolted on
+quietly.
+
+Also absent because the sim does not have them: **shaft torque** (locals in `StepShaft`), **thrust as a scalar**
+(only via `ForceDebug`), **CAS** (IAS here is the pure density ratio with no position error, so CAS ≡ IAS).
+**Manifold pressure** is recorded from `PistonEngine.ManifoldInHg` — the law the engine actually flies on — not
+the cockpit presentation value in `CockpitRigState`, which disagrees with it.
+
+### The header is what makes a file analysable
+
+`aircraftFlown` and `modelDrawn` are **separate fields**. They can disagree in the running game — the
+`MODEL MISMATCH` banner fired on Ty's 2-33 this morning — and a recording carrying one "aircraft" field could not
+be trusted to say what was flown. The header also carries `TuningSession.DeltaReport`, the same function behind
+the Developer page's COPY REPORT, so a recording and a bug report can never disagree about the knob state.
+
+### Getting it off the phone — this needed a build change
+
+`BuildScript.OnPostProcessBuild` now sets **`UIFileSharingEnabled`** and **`LSSupportsOpeningDocumentsInPlace`**.
+Without them the app's Documents directory is invisible to the Files app and a recording is written perfectly and
+never reaches anyone. Files land in **Documents/FlightTest/flight-YYYYMMDD-HHMMSS.aerorec**, visible in Files
+under *On My iPhone → Aero Playground*. The folder is RESOLVED at runtime and logged, not assumed: Unity's iOS
+`persistentDataPath` has been `Documents` in some versions and `Library/Application Support` in others.
+**No POST to the OTA server** — that script is GET-only, untracked and outside the repo.
+
+### Converting it
+
+`tools/RecDump` → `dotnet run --project tools/RecDump -- flight.aerorec`. Prints the header, writes a CSV with
+every column named and united. It reads the channel table **out of the file**, so an old recording still converts
+after a channel is added. Verified end-to-end on a real 12-second Pitts flight: 1004 records, 134 channels, 539
+burst samples, stall fired at α 24.1° on the game's own 0.35 threshold and the spin at 0.95 rad/s of yaw.
+
+### Where it hooks
+
+`SimLoop.Stepped` — new, once per fixed step, after `Step` has fully returned, carrying the inputs the sim was
+given (it does not keep them). `Aircraft.SurfaceContactsStepped` fires mid-step and leaves damage a step stale;
+the Bridge's `PostStep` fires once a FRAME and cannot give a fixed rate at all. Attached from `FlightSimDriver`'s
+`Sim` setter, player 0 only.
+
+### State
+
+- 31 new tests (format/ring/clock, recorder against a real aeroplane, converter round trip), all passing.
+- **UNITY BUILD NOT RUN.** New Unity code hand-checked for `init`, records, `IsExternalInit` and nullable
+  annotations in Bridge — none — but a green .NET suite is not a build. Build before this reaches a device.
+- Pre-existing failure on the integration tip, NOT from this work and confirmed at the branch point 7e2fdfc0:
+  `CrashTuningTests.ABellySlamCrushesTheFuselageAndOnlyAluminiumPartsAtTheHardOne(j3-cub-like, sink 15)` — a J-3
+  belly slam at 15 m/s is not shedding the parts it should.
