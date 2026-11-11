@@ -2448,6 +2448,8 @@
       "lengthM": 5.189,
       "sharpSectionFraction": 0.5,
       "sectionCamberCl": 0.6,
+      "aftCamberBroadsideCl": 0.80,
+      "aftCamberBroadsideClSource": "TY 2026-11-11, chosen off a measured sweep, not derived. The bare form TN 4176 publishes is \"+ sin^2(alpha)\" with no sin^2(beta): a flat-bellied, round-topped body broadside to the crossflow makes a normal force whether or not it is sideslipping, and THAT is the share that is large in a spin (crossflow q factor 0.96 of free stream against the sideslip share's 0.0002). Always body-up aft of the CG, so always nose-down: it steepens an upright spin and flattens an inverted one. At 0.80 the Pitts measures upright 74.1 / inverted -91.7, a 17.6 deg spread against the 17 Ty predicted, both ~4 deg shy -- the missing uniform 4 deg points at the open 'spin control authority is absent, not weak' finding, NOT at this coefficient. AUTHORED ON THIS TYPE ONLY, not defaulted fleet-wide: the term is non-zero at zero sideslip so it moves the stall break of every type that carries it, and the shape it describes is an aerobatic fuselage, not a flying boat's or an airliner's. The two types that author sectionCamberCl are the two that get this.",
       "sectionCamberArea": 2.0,
       "sectionCamberCenterX": -1.36,
       "cowlCamberCl": 0.35,
