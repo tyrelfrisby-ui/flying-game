@@ -6,8 +6,8 @@
   "id": "glider-swift-s1-like",
   "displayName": "Swift S-1-like Aerobat",
   "canopy": {
-    "jettison": false,
-    "jettisonSource": "Swift S-1: ASSUMED (conservative), 2026-11-11: no source gathered for this type's canopy fittings. The cheap mistake is this one - the pilot shoves the canopy open and climbs out past it. QUESTION FOR TY. An aerobatic sailplane flown with a parachute very likely has one; not sourced, so not authored."
+    "jettison": true,
+    "jettisonSource": "Swift S-1: a single-seat aerobatic sailplane, flown with a parachute as a matter of course. TY'S DECISION 2026-11-11, asked directly whether the gliders should have a jettisonable canopy: \"Yes - all four gliders\". This replaces the ASSUMED (conservative) false that was authored on 2026-11-11 pending his answer. It is also the standard glider bail-out drill: release the canopy, let it go, then undo the harness and roll out - the sailplane fleet is flown with a parachute on and the canopy is the only way out, so every one of them has an emergency release. Not a document citation for this airframe's fittings: it is the owner's call, recorded as his."
   },
   "structureType": "composite",
   "structureTypeSource": "Swift S-1: glass/carbon composite fuselage shell.",

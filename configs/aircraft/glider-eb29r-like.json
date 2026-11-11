@@ -3,8 +3,8 @@
   "id": "glider-eb29r-like",
   "displayName": "EB29R-like Open Class",
   "canopy": {
-    "jettison": false,
-    "jettisonSource": "EB-29R: ASSUMED (conservative), 2026-11-11: no source gathered for this type's canopy fittings. The cheap mistake is this one - the pilot shoves the canopy open and climbs out past it. QUESTION FOR TY. A modern open-class sailplane very likely has one; not sourced, so not authored."
+    "jettison": true,
+    "jettisonSource": "EB-29R: modern open class, long wings and water ballast - the type most likely to need it and least likely to be climbed out of. TY'S DECISION 2026-11-11, asked directly whether the gliders should have a jettisonable canopy: \"Yes - all four gliders\". This replaces the ASSUMED (conservative) false that was authored on 2026-11-11 pending his answer. It is also the standard glider bail-out drill: release the canopy, let it go, then undo the harness and roll out - the sailplane fleet is flown with a parachute on and the canopy is the only way out, so every one of them has an emergency release. Not a document citation for this airframe's fittings: it is the owner's call, recorded as his."
   },
   "structureType": "composite",
   "structureTypeSource": "Schempp-Hirth/Binder EB29R: carbon/aramid composite fuselage shell.",

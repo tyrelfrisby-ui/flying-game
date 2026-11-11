@@ -64,6 +64,25 @@ public class CanopyJettisonTests
         _o.WriteLine($"  {yes} of {n} types can jettison a canopy");
     }
 
+    /// <summary>
+    /// THE GLIDER FLEET, ALL FOUR, on Ty's own decision 2026-11-11: asked whether the gliders should have a
+    /// jettisonable canopy he said <em>"Yes — all four gliders"</em>. They had been authored false the same day as
+    /// the conservative guess with "QUESTION FOR TY" in the source field; this pins his answer so nobody re-guesses
+    /// it. A sailplane is flown with a parachute on and the canopy is the only way out.
+    /// </summary>
+    [Fact]
+    public void EveryGliderCanJettisonItsCanopy()
+    {
+        var by = new Dictionary<string, bool>();
+        foreach (AircraftConfig c in Fleet()) by[c.Id] = c.Canopy!.Jettison;
+        foreach (string id in new[] { "glider-2-33-like", "glider-grob103-acro-like",
+                                      "glider-swift-s1-like", "glider-eb29r-like" })
+        {
+            Assert.True(by.ContainsKey(id), id);
+            Assert.True(by[id], $"{id}: Ty 2026-11-11 said all four gliders jettison");
+        }
+    }
+
     /// <summary>The two Ty has ruled on, and the conservative majority. The Extra is the one he flew.</summary>
     [Fact]
     public void TheExtraHasNoJettisonAndThePittsDoes()

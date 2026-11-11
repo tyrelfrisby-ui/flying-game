@@ -3,8 +3,8 @@
  "id": "glider-grob103-acro-like",
  "displayName": "Twin III Acro-like Aerobatic Two-Seater",
  "canopy": {
-  "jettison": false,
-  "jettisonSource": "Grob 103: ASSUMED (conservative), 2026-11-11: no source gathered for this type's canopy fittings. The cheap mistake is this one - the pilot shoves the canopy open and climbs out past it. QUESTION FOR TY. A modern two-seat sailplane usually has canopy emergency releases; not sourced, so not authored."
+  "jettison": true,
+  "jettisonSource": "Grob 103 Twin Astir / Twin II Acro: the POH's emergency section is the aerobatic/spin bail-out case. TY'S DECISION 2026-11-11, asked directly whether the gliders should have a jettisonable canopy: \"Yes - all four gliders\". This replaces the ASSUMED (conservative) false that was authored on 2026-11-11 pending his answer. It is also the standard glider bail-out drill: release the canopy, let it go, then undo the harness and roll out - the sailplane fleet is flown with a parachute on and the canopy is the only way out, so every one of them has an emergency release. Not a document citation for this airframe's fittings: it is the owner's call, recorded as his."
  },
  "_source": "tools/aircraft_builder/build_grob103.py -- docs/aircraft/grob103-acro-DERIVATION.md. Do not hand-edit.",
  "spawnIasMs": 26.67,

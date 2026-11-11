@@ -3,8 +3,8 @@
   "id": "glider-2-33-like",
   "displayName": "Glider Trainer",
   "canopy": {
-    "jettison": false,
-    "jettisonSource": "SGS 2-33: ASSUMED (conservative), 2026-11-11: no source gathered for this type's canopy fittings. The cheap mistake is this one - the pilot shoves the canopy open and climbs out past it. QUESTION FOR TY. A search of the 2-33 manual on 2026-11-11 did not settle it, and sailplanes generally DO have a jettisonable canopy, so this one is likely to be wrong in the safe direction."
+    "jettison": true,
+    "jettisonSource": "SGS 2-33: the two-seat trainer; TCDS G2EA. TY'S DECISION 2026-11-11, asked directly whether the gliders should have a jettisonable canopy: \"Yes - all four gliders\". This replaces the ASSUMED (conservative) false that was authored on 2026-11-11 pending his answer. It is also the standard glider bail-out drill: release the canopy, let it go, then undo the harness and roll out - the sailplane fleet is flown with a parachute on and the canopy is the only way out, so every one of them has an emergency release. Not a document citation for this airframe's fittings: it is the owner's call, recorded as his."
   },
   "structureType": "steelTube",
   "structureTypeSource": "Schweizer SGS 2-33: welded steel-tube fuselage, fabric covered; aluminium wing (FAA TCDS G16EA; Schweizer 2-33 maintenance manual).",
