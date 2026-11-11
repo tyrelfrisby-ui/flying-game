@@ -564,7 +564,14 @@ namespace FlyingGame.Bridge
                     y += row;
                 }
             }
-            if (SessionSettings.AircraftId.StartsWith("glider"))
+            if (FlyingGame.Core.TowPlanes.IsInterim(SessionSettings.AircraftId))
+            {
+                // Ty t906u: the 2-33 is towed by the Great Lakes until the Super Cub is built; no picker to mislead.
+                Head("TOW PLANE", ref y);
+                UiLayout.Label(new Rect(x, y, colW, bh), "Great Lakes (until the Super Cub is built)", _small);
+                y += row;
+            }
+            else if (SessionSettings.AircraftId.StartsWith("glider"))
             {
                 float half = (colW - gap * 0.4f) / 2f;
                 Head("TOW PLANE", ref y);
@@ -579,7 +586,7 @@ namespace FlyingGame.Bridge
             // flying. Revive the older one from e4755c9 if its CG envelope, %MAC or TankConfig are wanted.)
             y += gap * 0.4f;
             UiLayout.Label(new Rect(x, y, colW, lh * 2f),
-                SessionSettings.AircraftId.StartsWith("glider") ? "A sailplane: no engine. Tap TOW on the runway for the aerotow, or start in a thermal."
+                SessionSettings.AircraftId.StartsWith("glider") ? "A sailplane: no engine. On the runway it starts on the rope behind the tug (throttle up to roll), or start in a thermal."
                 : SessionSettings.AircraftId == "pa18-floats-like" ? "On floats: it lands on the field's lake as readily as on the strip."
                 : "Everything else about the aeroplane — how it is drawn, the instruments, the aids — is on the OPTIONS panel in flight.", _small);
             y += lh * 2f;
@@ -639,7 +646,7 @@ namespace FlyingGame.Bridge
                 : SessionSettings.StartMode == SessionSettings.Start.InCombatZone ? "Entering the combat zone, guns hot."
                 : SessionSettings.StartMode == SessionSettings.Start.InThermal ? "Circling right in a thermal at min-sink speed, trimmed. Hold the bank and climb."
                 : SessionSettings.StartMode == SessionSettings.Start.OnFinal ? "300 ft on final, idle, trimmed at best glide."
-                : (SessionSettings.AircraftId.StartsWith("glider") ? "At the threshold. Tap TOW for the aerotow."
+                : (SessionSettings.AircraftId.StartsWith("glider") ? "At the threshold, on the rope behind the tug. Throttle up and the tug rolls."
                    : SessionSettings.AircraftId == "pa18-floats-like" ? "Afloat on the field's lake, engine idling." : "At the threshold, engine idling."), _small);
             y += lh * 2f;
         }
