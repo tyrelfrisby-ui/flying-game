@@ -1,0 +1,9 @@
+Source: built here, not downloaded. tools/own_models/pilot_gear.py.
+Model: the pilot's worn equipment, pilot-gear-own.glb.
+Author: this project
+License: same as the rest of this repository
+Commercial use: ours to allow
+CREDIT LINE: pilot gear modelled for this project with tools/own_models/pilot_gear.py
+Note: clean-room, on the same terms as the pilot body it is worn by — generated from numbers in the
+builder, with no third-party mesh, rig, texture, scan or human model imported. See
+Models/pilot-body/LICENSE.txt and docs/models/pilot-body-own-PROVENANCE.md.
