@@ -193,9 +193,9 @@ from `PropModel.Windmilling` — so it fell through to the flat J = 1 assumption
 read **1,498 rpm**. On a fitted type, NaN means stopped.
 
 **Out of scope, found on the way.** 22 of the 27 propeller types do not run this mechanism at all — no
-fitted blade and no fitted governor stops — so on the fleet default they land inside 8 % wherever their stall speeds
-are ordinary (the worst of those is the AirCam amphibian at −10.1 %) and 15–45 % short on the fast ones: P-51 −45 %,
-DC-3 −31 %, Hughes H-4 −25 %, Seminole −24 %, SR22 −23 %, Glasair −19 %, Gee Bee −15 %. Those are predictions of an
+fitted blade and no fitted governor stops — so on the fleet default they land inside 9 % wherever their stall speeds
+are ordinary (the worst of those is the AirCam amphibian at −11.2 %) and 15–45 % short on the fast ones: P-51 −45 %,
+DC-3 −31 %, Hughes H-4 −25 %, Seminole −24 %, SR22 −23 %, Glasair −18 %, Gee Bee −15 %. Those are predictions of an
 unfitted blade and not calibrations — each wants solving when its blade is fitted, and the pattern (every one of them
 fast) says the same thing the live five do: what the number tracks is the airframe.
 
