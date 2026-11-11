@@ -183,6 +183,19 @@ public static class GearCatalog
     /// <summary>Does this leg take a ski — and is it a MAIN (a straight ski may replace its wheel) or not?</summary>
     public static bool IsMainLeg(GearConfig g) => WheelSpin.IsWheel(g) && !g.IsTailwheel && !g.IsSteerable;
 
+    /// <summary>
+    /// WHICH AIRFRAME PIECE THIS LEG LEAVES WITH, when the aeroplane comes apart —
+    /// <see cref="AirframeContact.GearComponent"/>'s answer, not a second one. That predicate already decides it for
+    /// the breakup model (left main, right main, tail, nose, off the leg's own y and tailwheel flag), so a gear
+    /// component asks it rather than saying "fuselage" and being wrong the first time a Cub loses a leg.
+    ///
+    /// (Note the name collision: <see cref="AirframeContact.GearComponent"/> is a METHOD returning an
+    /// <see cref="AirframeComponent"/>, and <see cref="GearComponent"/> is this catalogue's class. They compile
+    /// apart because one is only ever reached through <c>AirframeContact.</c>, but a reader meeting both in one file
+    /// deserves the warning.)
+    /// </summary>
+    public static string AttachmentOf(GearConfig g) => AirframeContact.GearComponent(g).ToString();
+
     /// <summary>Distance between the main wheels, m — the widest pair of mains the config has. 0 on an aeroplane
     /// with one main wheel (a glider), which is a real answer and not a missing one.</summary>
     public static double MainWheelTrackM(AircraftConfig c)
@@ -269,7 +282,7 @@ public static class GearCatalog
 
         set.Add(new GearComponent
         {
-            Id = leg + "-wheel", Name = fitted.Name, AttachTo = "fuselage",
+            Id = leg + "-wheel", Name = fitted.Name, AttachTo = AttachmentOf(g),
             MassKg = massKg,
             MassTier = fitted.Legacy ? MassTier.Estimated : MassTier.Known,
             MassSource = fitted.Source,
@@ -286,10 +299,10 @@ public static class GearCatalog
                          "), x " + install.ToString("0.00") + " for struts, fittings and interference (TR 485 Table VII-A)",
         });
 
-        if (pants) AddFairing(leg, g.IsSteerable && !g.IsTailwheel, fitted, axle, set);
+        if (pants) AddFairing(leg, g.IsSteerable && !g.IsTailwheel, AttachmentOf(g), fitted, axle, set);
     }
 
-    private static void AddFairing(string leg, bool nose, TireSpec t, Vec3 axle, List<GearComponent> set)
+    private static void AddFairing(string leg, bool nose, string attachTo, TireSpec t, Vec3 axle, List<GearComponent> set)
     {
         // A FAIRING'S ENVELOPE, from the tyre it has to cover: a little longer than the tyre's diameter, a little
         // taller than its radius above the axle, and wider than its section. Those proportions are what a fairing
@@ -297,7 +310,7 @@ public static class GearCatalog
         double lx = 1.6 * t.OdM, lz = 1.15 * t.OdM, ly = 1.6 * t.SectionWidthM;
         set.Add(new GearComponent
         {
-            Id = leg + "-fairing", Name = (nose ? "nose" : "main") + " wheel fairing", AttachTo = "fuselage",
+            Id = leg + "-fairing", Name = (nose ? "nose" : "main") + " wheel fairing", AttachTo = attachTo,
             MassKg = nose ? NoseFairingMassKg : MainFairingMassKg,
             MassTier = MassTier.Known, MassSource = FairingMassSource,
             CmBody = axle, AeroRefPointBody = axle,
@@ -325,7 +338,7 @@ public static class GearCatalog
             // The id never ends in "-wheel": a wheel ski is a ski, and an id that matched both would quietly be
             // counted as a wheel by anything filtering on the suffix.
             Id = leg + (straight ? "-ski-straight" : "-ski-penetration"),
-            Name = straight ? "straight ski" : "wheel ski", AttachTo = "fuselage",
+            Name = straight ? "straight ski" : "wheel ski", AttachTo = AttachmentOf(g),
             MassKg = massKg, MassTier = MassTier.Estimated,
             MassSource = "SkiGear.ArealMassKgPerM2 (22 kg/m^2, ESTIMATE fitted to published Cub and Beaver ski kits) " +
                          "on the ski's own plan area" +
