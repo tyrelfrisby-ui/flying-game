@@ -103,6 +103,16 @@ std::atomic<bool> gTvWantsAudio{false};
 /// Something needs the microphone HELD OPEN while nobody is talking: clip narration, whose buffer is always rolling
 /// (VoiceComms.NarrateClips). Bit 1 of VO_SetIntercom. Without it the mic is let go between transmissions.
 std::atomic<bool> gHoldMic{false};
+/// THE VOX BUTTON on the flight screen (bit 2 of VO_SetIntercom). Ty 2026-11-10: "Add a vox button on the screen".
+/// Armed, the mic is held and opens on voice activity; off, it opens only while PTT is held. This is now the only
+/// setting that gives a hot mic BY CHOICE, and it is deliberately not persisted — see VoiceComms.VoxOn.
+std::atomic<bool> gVoxArmed{false};
+/// The INTERCOM PROPER is ticked (bit 0), as opposed to the voice gate being open for some other reason. The
+/// sidetone - hearing yourself in your own headset - belongs to the intercom and to nothing else. Ty 2026-11-10,
+/// with narration ticked and the intercom NOT: "Even with audio intercom unchecked I hear things around me so the
+/// mic is picking up sound and playing it on my shokz headset". Narration opens the gate so a clip gets his voice,
+/// and the sidetone was riding that same gate straight back into his ears.
+std::atomic<bool> gSidetone{false};
 /// Record permission has been granted, so the engine can be rebuilt without going round the permission prompt again.
 std::atomic<bool> gMicGranted{false}, gAskedMic{false}, gReleasing{false};
 /// CFAbsoluteTime of the last unkey, for the linger below (0 = never keyed).
@@ -121,24 +131,32 @@ NSString *gRouteOutputs = @"";   // comma-separated port types, for C# (guarded 
 ///
 ///   PTT held, or just unkeyed  : yes. This is a transmission. The linger covers the tail VoiceComms has still to
 ///                                collect with VO_ReadTx (the frame AFTER ptt drops) and makes a quick re-key free.
+///   VOX armed                  : yes. The pilot pressed the VOX button and asked for a hot mic, which is the one
+///                                way to get one on purpose. It is not persisted, so it never outlives the session.
 ///   narration ticked           : yes. The clip buffer is always rolling, so a voice that only arrived after REC
 ///                                would be too late — VoiceComms.NarrateClips says so, and Ty asked for exactly that.
-///   intercom ticked, HEADSET   : yes. The intercom is voice-activated: it cannot open unless it can hear him.
-///   intercom ticked, no headset: NO. The intercom's only audible product is the sidetone, and ProcessMic pushes that
-///                                only `if (hp)`; the transmitter needs PTT and the clip voice needs narration. With
-///                                nothing plugged in to listen on, an open mic produces nothing anyone can hear. This
-///                                is the case Ty hit, flying with the phone in his hand.
-///   nothing ticked             : no.
+///                                This is the one hot mic a pilot can have without pressing VOX, which is why the
+///                                VOX button goes red for it too: see VoiceComms.MicOpen.
+///   nothing                    : no. In particular the INTERCOM CHECKBOX ALONE NO LONGER OPENS THE MIC. It used
+///                                to, whenever a headset was attached, which made a persisted tick into a hot mic
+///                                from launch with nothing on screen saying so. The checkbox now only says that
+///                                the sidetone may play; arming the VOX is what decides whether anything is heard.
+///
+/// THE ONE SOURCE OF TRUTH. Whatever this returns, ApplyMicLifecycle makes the engine match it, so "gState is 1 or
+/// 2" and "the microphone is open" are the same statement — which is what VO_State reports to the VOX button, so
+/// the indicator cannot drift from the behaviour it is indicating.
 bool MicWanted() {
     if (gPtt.load()) return true;
+    if (gVoxArmed.load()) return true;
     if (gHoldMic.load()) return true;
-    if (gIntercom.load() && gHeadphones.load()) return true;
     double unkey = gUnkeyAt.load();
     return unkey > 0 && CFAbsoluteTimeGetCurrent() - unkey < UnkeyLingerSec;
 }
 
 void ProcessMic(const float *x, uint32_t n) {
-    bool ptt = gPtt.load(), ic = gIntercom.load(), hp = gHeadphones.load();
+    // `side` is the INTERCOM's own tick, not the voice gate: narration opens the gate to get his voice into a clip
+    // and must not also play his room back to him (Ty 2026-11-10, Shokz, intercom unchecked).
+    bool ptt = gPtt.load(), ic = gIntercom.load(), hp = gHeadphones.load(), side = gSidetone.load();
     float voxThr = 0.018f, decay = expf(-1.f / (0.05f * gR)), gateK = 1.f - expf(-1.f / (0.004f * gR));
     float peak = 0;
     for (uint32_t i = 0; i < n; i++) {
@@ -151,7 +169,7 @@ void ProcessMic(const float *x, uint32_t n) {
         float voice = tanhf(v * 2.5f) * 0.6f;            // a little intercom compression
         if (ptt || gWasPtt) voice = tanhf(gRadLp.run(gRadHp.run(v)) * 3.f) * 0.55f;   // radio: narrower, driven
         float out = voice * gGate;
-        if (hp) gSideRing.push(out);
+        if (hp && side) gSideRing.push(out);
         gToUnity.feed(out, [](float y) { gClipOwn.push(y); });
         if (ptt) gTo8k.feed(gTxLp.run(v * 2.f), [](float y) { gTx.push(MuEncode(tanhf(y))); });
     }
@@ -520,16 +538,34 @@ int VO_EnsureMic(void)
     return 1;
 }
 
+/// 0 off, 1 asking or starting, 2 running, -1 denied, -2 failed. Because ApplyMicLifecycle keeps the engine's
+/// lifetime equal to MicWanted(), 1 or 2 here means THE MICROPHONE IS OPEN — which is what the VOX button's live
+/// indicator reads (VoiceComms.MicOpen). 1 is counted as open on purpose: it means the mic is about to be, and the
+/// safe direction for an indicator like this is to light up early rather than late.
 int VO_State(void) { return gState.load(); }
-/// Bit 0: the voice gate is open (the intercom's VOX, or clip narration riding it). Bit 1: something needs the mic
-/// HELD while nobody is talking — narration, whose clip buffer is always rolling. The second bit is new (2026-11-10)
-/// and rides this call rather than a new export, because the committed Mac bundle is a tracked binary and a symbol
-/// it does not have would throw on the first call (see VoiceComms.NarrateClips). An old bundle reading `on != 0`
-/// sees the mask as simply "on", which is what it used to mean.
+
+/// What the pilot has asked of the microphone, as a bit mask. It rides this one call rather than three new exports,
+/// because the committed Mac bundle is a tracked binary and a symbol it does not have would throw on the first call
+/// (see VoiceComms.NarrateClips); an old bundle reading `on != 0` sees any of these as simply "on", which is what
+/// this call used to mean.
+///
+///   bit 0  THE INTERCOM IS TICKED. Opens the voice gate, and is now the ONLY thing that lets the sidetone play.
+///          On its own it no longer holds the microphone open: that is what bit 2 is for.
+///   bit 1  CLIP NARRATION is ticked. Opens the gate so the clip gets his voice, and holds the mic while it is
+///          ticked because the clip buffer is always rolling. It does NOT play a sidetone.
+///   bit 2  THE VOX BUTTON is armed (Ty 2026-11-10: "Add a vox button on the screen"). Holds the mic open so it can
+///          open on voice activity. The one hot mic a pilot asks for on purpose, and not persisted.
 void VO_SetIntercom(int on)
 {
-    gIntercom = (on & 1) != 0;
+    gSidetone = (on & 1) != 0;
+    // The voice gate opens for any of the three. VOX is in here as well as in MicWanted on purpose: arming it holds
+    // the microphone open, and if the gate did not also open, the open mic would produce nothing at all - the very
+    // thing MicWanted exists to prevent. With VOX armed and the intercom unticked, his voice reaches the clip buffer
+    // (which is always rolling) and nothing else, so a CLIP has his narration for THIS FLIGHT without the persisted
+    // tick that held the mic across launches.
+    gIntercom = (on & 7) != 0;
     gHoldMic = (on & 2) != 0;
+    gVoxArmed = (on & 4) != 0;
     ApplyMicLifecycle();
 }
 
