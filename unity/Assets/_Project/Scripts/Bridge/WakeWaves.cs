@@ -41,19 +41,22 @@ namespace FlyingGame.Bridge
         {
             var ac = Driver != null && Driver.Sim != null ? Driver.Sim.Aircraft : null;
             if (ac == null) return;
-            // The lake under / nearest the aircraft (within 1.3 radii): the wake lives on that one.
+            // The water under / nearest the aircraft: the wake lives on that body. WorldTerrain.WakeBodyAt knows the
+            // ISLAND's water lanes as well as the legacy lake table — this used to scan WorldTerrain.Lakes alone,
+            // which is why the wake had never allocated on either lane the player can actually land on (Ty
+            // 2026-11-11, "the water spray and wake don't seem to have been done"; WakeFieldCoverageProbe measures it).
             var p = ac.State.Position;
-            int best = -1; double bestR = 1.3;
-            for (int i = 0; i < WorldTerrain.Lakes.Length; i++) { double r = WorldTerrain.Lakes[i].Inside(p.X, p.Y); if (r < bestR) { bestR = r; best = i; } }
+            WorldTerrain.Lake? body = WorldTerrain.WakeBodyAt(p.X, p.Y);
+            bool here = body.HasValue && Same(body.Value, _body);
             bool forcing = ac.Config.Floats != null && (FloatHydro.Floats[0].Wet || FloatHydro.Floats[1].Wet);
-            if (best >= 0 && best != _lake && (forcing || _lake < 0)) Allocate(best);
+            if (body.HasValue && !here && (forcing || _lake < 0)) { Allocate(body.Value); here = true; }
             if (_lake < 0) return;
-            if (forcing && best == _lake) _sinceForcing = 0f; else _sinceForcing += Time.deltaTime;
+            if (forcing && here) _sinceForcing = 0f; else _sinceForcing += Time.deltaTime;
             if (_sinceForcing > LastsSec) { Release(); return; }
 
             _acc += Mathf.Min(Time.deltaTime, 0.25f);
             int n = 0;
-            if (best == _lake) n = Sources(ac);
+            if (here) n = Sources(ac);
             while (_acc >= StepSec)
             {
                 _acc -= StepSec;
@@ -63,10 +66,18 @@ namespace FlyingGame.Bridge
             Shader.SetGlobalTexture("_WakeFoamTex", _foam != null ? (Texture)_foam : Texture2D.blackTexture);
         }
 
-        private void Allocate(int lake)
+        /// <summary>The body a field is currently allocated over, and whether another reading is the same one. Compared
+        /// by geometry rather than by index because a water lane is not in the lake table at all.</summary>
+        private WorldTerrain.Lake _body;
+        private static bool Same(in WorldTerrain.Lake a, in WorldTerrain.Lake b) =>
+            Mathf.Approximately((float)a.Cx, (float)b.Cx) && Mathf.Approximately((float)a.Cy, (float)b.Cy)
+            && Mathf.Approximately((float)a.Rx, (float)b.Rx) && Mathf.Approximately((float)a.Ry, (float)b.Ry);
+
+        private void Allocate(WorldTerrain.Lake lake)
         {
-            AllocateLake(WorldTerrain.Lakes[lake]);
-            _lake = lake;
+            AllocateLake(lake);
+            _body = lake;
+            _lake = 0;   // a field is allocated; which body it is lives in _body
         }
 
         // Editor fixtures can use the current island's water bounds without changing legacy lake tables.
