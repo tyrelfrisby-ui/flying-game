@@ -15401,3 +15401,84 @@ the Bridge's `PostStep` fires once a FRAME and cannot give a fixed rate at all. 
 - Pre-existing failure on the integration tip, NOT from this work and confirmed at the branch point 7e2fdfc0:
   `CrashTuningTests.ABellySlamCrushesTheFuselageAndOnlyAluminiumPartsAtTheHardOne(j3-cub-like, sink 15)` — a J-3
   belly slam at 15 m/s is not shedding the parts it should.
+## 2026-11-11 aft-fuselage sideslip camber, and the upright flat spin that was already right (Claude, lane/claude-fuselage-camber)
+
+Ty: "Also adjust elevator spoiler until upright flat spin is ~78 degrees which was the sweet spot before. Fuselage
+crossflow should trigger the sideslip camber on the aft fuselage and produce a pronounced negative pitching moment on
+the pitts and extra which should result in flatter inverted spins than upright. Model the sideslip aft fuselage camber
+and give me a knob on the game to adjust it so I can tune it rather that asking you to". Second number, asked later:
+"inverted in the real airplane is roughly 95".
+
+THE UPRIGHT FLAT SPIN WAS ALREADY AT 78 AND NEEDED NOTHING. Measured before touching anything (SpinBalanceProbe
+.Developed, full power, pro-spin rudder, full out-spin aileron, last 20 s of a 45 s hold): alpha 78.8 (78..79), theta
+-10.3, 1.58 s/turn. The 92-94 the task carried is the 2026-11-05 literal in PittsSpinPastFlatTests; Q007 t918u
+(11-06) and the flat-plate tail + controlSpoilerK 0.6 + onset 10 (11-10) had both moved it since and neither re-pinned.
+
+AND THE ELEVATOR SPOILER COULD NOT HAVE BEEN THE LEVER FOR IT, by construction: the ramp is
+clamp((local_flow - onset)/20, 0, 1) and the tail flies at 68-89 deg of local flow in a developed spin, so onset 10 and
+onset 30 both saturate at 1.0. Measured across onset 10/30/50/70/85, upright moves only 78.8 -> 77.4 and saturates by
+70. What the onset DOES move, hugely, is the INVERTED spin: -81.5 at onset 10 -> -68.1 at 30 -> -60.7 at 70. So onset
+10 is already the value that best favours a flat inverted spin and raising it is strongly the wrong way. The Great
+Lakes tracks the Pitts in both directions, which rules the tail out as the cause, as it was meant to.
+
+WHICH ONSET GOVERNS AT RUN TIME, asked because the config says 10.0 and the C# property default is 30.0. The config's
+does. Proved by measurement, not by reading the code: pitts-s2b-like.json deserialises to 10.0 while
+new SpinAeroConfig() is 30.0, AND the two give different elevator pitch authority over alpha 20-40 (769.6 N.m against
+502.4 at alpha 30). Pinned as SpoilerOnsetSpinSweep.TheConfigsOnsetGovernsAndNotTheCodeDefault. The code default only
+wins where the JSON omits the key, and exactly one type did: extra-300-like had a spinAero block with no
+controlSpoilerOnsetDeg, so the Extra alone ran at 30. Measured at 10 (upright 80.7 -> 81.0, inverted -41.3 -> -42.6,
+both small and both flattening) and authored with that measurement in its source string.
+
+THE CAMBER TERM TY DESCRIBES ALREADY EXISTED, and the first useful thing was to measure how awake it is in a spin.
+Barely: CrossflowConfig.SectionCamberCl contributes -11 N.m upright and -25 N.m inverted against a total aerodynamic
+pitching moment of 940 and -2216 N.m, i.e. 1-2 %. The reason is measured rather than argued - A DEVELOPED FLAT SPIN HAS
+ALMOST NO SIDESLIP (beta -4.3 deg upright, -1.8 inverted), and every published form of this effect scales with
+sideslip. The model's crossflow q factor there is 0.0002 against the published 0.959, a 4137x gap. Polhamus' own
+governing variable tan phi = tan beta / tan alpha puts that spin at phi 0.85 deg, where his sketch 13 says the force is
+near zero.
+
+WHAT SHIPPED. CrossflowConfig.AftCamberCl (0.6, on) carries the sin^2(alpha) share of the crossflow dynamic pressure
+that NACA TN 4176 / NASA TR R-29 publishes and the model drops, weighted by the same sin^2(beta) the camber force
+already has - which reduces to the existing lateral force times sin^2 of the station's own flow angle, i.e. Ty's
+sentence literally. Identically zero at alpha 0 and at beta 0, so SideslipCamberTests' pinned normal-flight numbers are
+untouched by construction (1.9 % of the existing camber term at a 5/15 deg slipping approach). Area and arm are
+GEOMETRIC - AeroModel.AftBody, the side-view silhouette behind the CG - so all 33 types with a fuselage get it and no
+area or station is authored anywhere.
+
+ONE THING COULD NOT BE MADE GEOMETRIC AND IS REPORTED RATHER THAN DISGUISED: the camber COEFFICIENT. The only
+fleet-wide shape data is lengthM/sideArea/planArea and their centroids, and side/plan area does not discriminate the
+aerobatic types at all - Pitts 1.33, Extra 1.30, but Great Lakes 1.31, Pawnee 1.32, and the fleet's two highest are the
+Hughes H-4 flying boat at 1.71 and the 737 at 1.38. Seven types share a round-number 5.00/4.00 and five share
+5.50/4.50. The one field that could express "rounded turtledeck over flat belly" is the measured station shape
+(stationX/MidZ/HalfY/HalfZ), which exists on two configs and on NEITHER the Pitts nor the Extra. Making the coefficient
+derivable means measuring those two GLB meshes into stations - the mesh itself, not a scaled three-view.
+
+IT WORKS, AND IN THE ASYMMETRIC DIRECTION TY PREDICTED. The term is always body-up aft of the CG, hence always
+nose-down in body axes, which steepens an upright spin and flattens an inverted one. Measured: inverted -81.5 -> -85.3
+for upright 78.8 -> 78.7. 3.8 deg of inverted flattening for 0.1 deg of upright. Against his pair of targets (78 and
+95) that holds the upright one and closes 3.8 of the 13.5 deg of the inverted one.
+
+THE REST OF THE INVERTED TARGET IS NOT AVAILABLE FROM THIS MECHANISM at any plausible coefficient. The bare form TN
+4176 actually publishes is "+ sin^2 alpha" with no sin^2 beta, which IS large in a spin; it is here as
+AftCamberBroadsideCl, OFF at 0.0, because it is non-zero at zero sideslip and so moves every type's stall break and
+trim - CM-BETA section 8 reserves exactly that to the owner. Swept anyway so the trade is measured and not guessed
+(Pitts, upright | inverted): 0.00 78.7 | -85.3; 0.05 78.3 | -86.2; 0.10 78.0 | -86.9; 0.20 77.3 | -88.1; 0.40 76.0 |
+-89.1. Inverted saturates while upright falls steadily. 0.10 puts the upright spin exactly on 78.0 and the inverted on
+-86.9.
+
+THE INVERTED SPIN IS GENUINELY HELD AND NOT AN ARTEFACT, checked because lane/claude-inverted-spin-rollout (77cbca97,
+never merged) measured it rolling out at t = 3.5 s and ending upright, which would make a 20 s mean meaningless. It
+does not reproduce. InvSpinRollOutProbe on this branch, full power, all three aileron directions: inverted 56-57 s of
+58 every time, alpha never positive. That probe is not orphaned - it reached this branch in 01cba1c5, the commit that
+found THE PROP'S MOMENT WAS DOUBLE-COUNTED IN EVERY SPIN BUDGET, which is why the lane's ablation implicated
+PropInertia. The roll-out was an artefact of the double-count. The new term does not touch it either: 57 s inverted and
+mean alpha -52 with and without, because the term scales with (v_y + r*arm)^2 and is near zero at the break.
+
+PRE-EXISTING FAILURES, confirmed on the pristine tree before any change of mine and NOT fixed here:
+  - SideslipCamberTests.ThePittsIsTheSameEffectButSmallerThanTheExtras: ratio 1.53 against a required 2.0-5.0.
+    Unchanged by this lane (the term cancels inside that helper). Looks like the Pitts' Iyy retrim moved it.
+  - PittsPowerSpinTargetTests.UprightFullPowerLeftSpinIsNearlyFlat: alpha 50.7 (47..54) against 78..92; its own doc
+    claims 84.6 as of 2026-11-06. This is the NO-out-spin-aileron case, a different spin from Ty's flat one. Left
+    failing rather than re-pinned to a number nobody has judged.
+  - PittsSpinPastFlatTests.GyroTurnsAtTheGovernedRpm: asserts a 3.5 kg.m2 prop inertia literal the config no longer
+    carries (Ty's blade rule moved it to 3.06).
