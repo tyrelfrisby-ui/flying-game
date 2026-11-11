@@ -116,6 +116,22 @@ public sealed class WidgetServerSurfaceTests
         Assert.Contains(needle, File.ReadAllText(path), StringComparison.Ordinal);
     }
 
+    // ---- CORS -----------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void NeitherHttpPathSendsWildcardCors()
+    {
+        // "Access-Control-Allow-Origin: *" with no authentication behind it is the browser being told to let any
+        // page in the world drive this server. It was on BOTH paths — the raw one that serves the remote page and
+        // the legacy HttpListener one that nothing reaches today.
+        string code = Code(Source("WidgetServer.cs"));
+        Assert.DoesNotContain("Access-Control-Allow-Origin", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("Access-Control-Allow-Headers", code, StringComparison.Ordinal);
+        // Both response writers still exist, so this is not passing because the code went away.
+        Assert.Contains("HTTP/1.1 200 OK", code, StringComparison.Ordinal);
+        Assert.Contains("ctx.Response.ContentType = type", code, StringComparison.Ordinal);
+    }
+
     // ---- the fleet check ------------------------------------------------------------------------------------
 
     [Fact]

@@ -299,7 +299,24 @@ namespace FlyingGame.Bridge.Widget
                 }
                 else { text = WidgetRemotePage.Html; type = "text/html; charset=utf-8"; }
                 byte[] payload = Encoding.UTF8.GetBytes(text);
-                string hdr = $"HTTP/1.1 200 OK\r\nContent-Type: {type}\r\nContent-Length: {payload.Length}\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: *\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n";
+                // NO WILDCARD CORS (pre-ship audit, 2026-11-11). This used to send
+                //     Access-Control-Allow-Origin: *
+                //     Access-Control-Allow-Headers: *
+                // which is the browser being TOLD to let any page in the world read this server's replies. With
+                // no authentication behind it, that meant any page the presenter happened to have open could
+                // drive the aeroplane, read the state stream, and — before the previous commit — write a file
+                // anywhere on the Mac through `snapshot`. No prompt, nothing on screen, from a tab in another
+                // window. The browser's same-origin policy was the only thing standing there and the widget was
+                // waving it away.
+                //
+                // Nothing needs it. The remote page is served BY this server, so it is same-origin already and
+                // fetch() from it needs no CORS header at all; Glass Overlay and the MCP layer speak TCP, where
+                // CORS does not exist. The only thing the header enabled was the attack.
+                //
+                // An OPTIONS preflight is still answered 200, but with no Allow-Origin, so a cross-origin
+                // XHR/fetch now fails in the browser as it should — and fails visibly, in the console, rather
+                // than silently succeeding.
+                string hdr = $"HTTP/1.1 200 OK\r\nContent-Type: {type}\r\nContent-Length: {payload.Length}\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n";
                 byte[] hb = Encoding.ASCII.GetBytes(hdr);
                 ns.Write(hb, 0, hb.Length); ns.Write(payload, 0, payload.Length); ns.Flush();
             }
@@ -336,7 +353,11 @@ namespace FlyingGame.Bridge.Widget
             try
             {
                 string path = ctx.Request.Url.AbsolutePath;
-                ctx.Response.AddHeader("Access-Control-Allow-Origin", "*");
+                // The wildcard Access-Control-Allow-Origin header that used to be added here is gone for the same
+                // reason as in ServeRaw above: it invited every page in the browser to drive this server. This
+                // path is the legacy HttpListener one and is not reached (Mono's HttpListener answered 400 to IPv6
+                // Host headers, which is why ServeRaw exists) — but a dead path that still carries the bug is how
+                // a bug comes back the day someone revives the path.
                 if (path == "/cmd" && ctx.Request.HttpMethod == "POST")
                 {
                     string body = new StreamReader(ctx.Request.InputStream, Encoding.UTF8).ReadToEnd();
