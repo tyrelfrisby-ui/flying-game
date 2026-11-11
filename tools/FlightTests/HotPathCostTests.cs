@@ -86,13 +86,24 @@ public sealed class HotPathCostTests : IDisposable
     /// count, and it is the half that can come back silently — a new caller in the force path costs a sixth of the
     /// propeller again and nothing else would notice. Zero on every type whose propeller is estimated: a type with no
     /// fitted blade has no business reaching the solve in level flight.
+    ///
+    /// AND SINCE 2026-11-11 THE THREE CONSTANT-SPEED TYPES ARE SIX TOO, not zero. They became solved types in normal
+    /// flight when PropModel.IntegratesShaft stopped being gated on the governor having lost its oil ("The Pitts'
+    /// P-factor is a propeller now, not a coefficient") — this row simply had not been re-read since, and a pin that
+    /// says 0 where the answer is 6 was measuring nothing at all. Measured here: 6.03 solves a step on the Pitts and
+    /// the Extra, 6.00 on the Great Lakes, which is the same four-RK4-stages-plus-slipstream-plus-shaft as the Cubs.
+    ///
+    /// WHAT IT COSTS IS WORTH SAYING OUT LOUD, because it is the half of this that can only be seen here: on this
+    /// machine the Pitts now runs 2,843 us a step — 569 ms of CPU per second of flight — the Extra 3,628 and the
+    /// Great Lakes 3,235, against a budget of 5,000 us at 200 Hz. Three more types joined the J-3 in the expensive
+    /// band, which is most of why the suite takes as long as it does.
     /// </summary>
     [Theory]
     [InlineData("j3-cub-like.json", 6)]
     [InlineData("j3-cub-floats-like.json", 6)]
-    [InlineData("pitts-s2b-like.json", 0)]
-    [InlineData("extra-300-like.json", 0)]
-    [InlineData("great-lakes-like.json", 0)]
+    [InlineData("pitts-s2b-like.json", 6)]
+    [InlineData("extra-300-like.json", 6)]
+    [InlineData("great-lakes-like.json", 6)]
     [InlineData("c172-like.json", 0)]
     [InlineData("glider-2-33-like.json", 0)]
     public void TheStepSolvesTheDiscSixTimesAndNoMore(string file, int solvesPerStep)

@@ -21,7 +21,9 @@ namespace FlyingGame.Bridge
         /// <summary>Thermal tops = cumulus base, metres above each plateau's field (~6,500 ft: a good summer day).</summary>
         public const double CloudBaseAglM = 2000;
 
-        private void BuildThermals()
+        /// <summary>Public so the cloud render tool (Editor/CumulusRender.cs) can lay the same thermals, and their
+        /// cumulus, into a batch-mode scene where Start() never runs.</summary>
+        public static void BuildThermals()
         {
             // A scattering of thermals over the farm grid, various strengths — the same set on every plateau
             // (positions relative to that plateau's airport, tops relative to its elevation).

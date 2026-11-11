@@ -264,8 +264,90 @@ public static class PropModel
         return gov + (takeoff - gov) * t * t * (3 - 2 * t);
     }
 
-    /// <summary>A stopped (not windmilling) prop's drag as a fraction of the windmilling one: a fixed blade blocks
-    /// less of the disc than one the air is driving.</summary>
+    /// <summary>
+    /// WHAT THE GOVERNOR IS ASKING FOR, which is NOT what the tachometer reads and is not what
+    /// <see cref="RunningRpm"/> returns. A governor is a flyweight head against a speeder spring, and the spring's
+    /// compression is set by the BLUE LEVER. The throttle is not connected to it. So the commanded rpm is the lever's
+    /// setting, whatever the throttle is doing, and what changes when the throttle comes back is the rpm the engine
+    /// can actually HOLD — not the rpm the governor wants.
+    ///
+    /// <see cref="RunningRpm"/> had a branch for this and it ran the governor the wrong way round: below 30 % throttle
+    /// it returned the idle rpm (700 on this fleet), which as a COMMAND means the head sees a massive overspeed and
+    /// drives the blade COARSE. Measured on the base commit, Pitts at the idle stop and 60 m/s: blade 33.00 deg, hard
+    /// on the COARSE stop. A real constant-speed propeller does the opposite — close the throttle with the lever
+    /// forward and the rpm falls below the setting, the head drives the blade FINE, and it sits on the LOW PITCH STOP
+    /// all the way down final. That is the stop Ty named: "The braking effect of a windmilling prop should also be a
+    /// function of low pitch stop and engine pumping and friction drag at idle."
+    ///
+    /// Above 30 % throttle this is <see cref="RunningRpm"/> to the digit, including the take-off ramp past 90 %
+    /// (which stands in for an installation whose governor is set to the red line with everything firewalled), so no
+    /// rigged or trimmed condition in the fleet moves. <see cref="RunningRpm"/> itself is untouched because it is
+    /// still the right answer for what it is read for: the TACHOMETER and the gyro of a constant-speed type whose
+    /// blade nobody has fitted, which has no governed blade angle to be on a stop of.
+    /// </summary>
+    public static double GovernorCommandRpm(PropulsionConfig prop, double throttle01, double propLever = 1.0)
+    {
+        if (!prop.ConstantSpeed) return RunningRpm(prop, throttle01, propLever);
+        double idle = prop.IdleRpm, max = prop.MaxRpm;
+        double lever = Math.Clamp(propLever, 0.0, 1.0);
+        double low = LowGovernedRpm(prop);
+        double govTop = Math.Clamp(prop.GovernedRpm, idle, max);
+        double gov = low + (govTop - low) * lever;
+        double takeoff = low + (max - low) * lever;
+        double t = Math.Clamp((Math.Clamp(throttle01, 0.0, 1.0) - 0.9) / 0.1, 0.0, 1.0);
+        return gov + (takeoff - gov) * t * t * (3 - 2 * t);
+    }
+
+    /// <summary>
+    /// BELOW THIS A PROPELLER IS STOPPED, rpm. Twelve seconds a revolution: the blade is a bluff body standing in the
+    /// air, the blade element's inflow triangle has no meaning (its tangential speed is a thousandth of the axial),
+    /// and the azimuthal integral would be 384 element solves spent on nothing.
+    ///
+    /// It is a threshold and not a test for zero because the shaft does not reach zero. AircraftEngine.StepShaft
+    /// clamps omega at zero so the air cannot pull a stopped propeller backwards through the engine, and the
+    /// compression ripple is a torque in the crank angle alone, so the clamp keeps the ripple's positive half and
+    /// discards its negative one — a ratchet. Measured 2026-11-11 (PropPhysicsProbe), mixture cut and the aeroplane
+    /// held for 30 s, standing still / at 25 m/s / at 35 m/s: the Pitts 1.12 / 0.37 / 0.26 rpm, the Extra 0.46 / 0.00
+    /// / 3.82, the J-3 1.28 / 0.00 and then windmilling properly at 1,212 by 35 m/s. CRUMBS, not the ~200 rpm the
+    /// base commit recorded — so the ratchet is no longer in the way of measuring a stopped propeller — but not zero
+    /// either, and "is it stopped" has to be answerable for <see cref="BladeElement.StoppedDragN"/> to be reached at
+    /// all. The ratchet itself is left where it stands: at a twentieth of a revolution a minute it changes nothing
+    /// downstream, and the fix for it runs through the dead-engine restart, which has anchors of its own.
+    /// </summary>
+    public const double StoppedRpm = 5.0;
+
+    /// <summary>
+    /// THE BLADE ANGLE A STOPPED PROPELLER IS STANDING AT, degrees at 0.75 R, or 0 when this type's blade geometry is
+    /// not known. Ty 2026-11-11: "Make sure that stopped cs props for acrobatic airplanes are coarse pitch when
+    /// calculating stopped prop drag." It is not a default and not a choice: a propeller that has stopped has no oil
+    /// pressure, so a governed blade is on whichever stop this installation's spring drives it to
+    /// (<see cref="OilLossPitchDeg"/> — COARSE for an aerobatic single and every twin, FINE for a standard single),
+    /// and a fixed blade is at the angle it was built with. The drive's own angle wins where it has one, because by
+    /// the time the propeller has stopped the governor has had seconds to take the blade there and the state is the
+    /// measurement.
+    /// </summary>
+    public static double StoppedBladePitchDeg(PropulsionConfig prop, PropDrive drive)
+        => drive.BladePitchDeg > 0.0 ? drive.BladePitchDeg
+         : prop.ConstantSpeed ? OilLossPitchDeg(prop)
+         : prop.BladePitch75Deg;
+
+    /// <summary>
+    /// A stopped (not windmilling) prop's drag as a fraction of the windmilling one, for a type whose blade geometry
+    /// is NOT known — the last place this number is still used, and it survived contact with the blade.
+    ///
+    /// IT WAS A GUESS AND IT TURNS OUT TO BE RIGHT, for the aeroplane it was guessed on. 0.5 came with nothing behind
+    /// it but "a fixed blade blocks less of the disc than one the air is driving". Checked against
+    /// <see cref="BladeElement.StoppedDragN"/> — a different route entirely, the blade's own area and its section's
+    /// post-stall polar — on the J-3, whose fixed blade IS fitted (15.33 deg at 0.75 R): the coefficient gives
+    /// IdleDragCd x 0.5 = 0.075 on disc area and the blade gives 0.073. Two independent routes to two per cent.
+    ///
+    /// WHAT IT IS NOT RIGHT FOR IS A COARSE BLADE, which is the whole reason the fitted types no longer use it. The
+    /// same blade solve puts the Pitts' stopped propeller, standing on the COARSE stop its oil loss drives it to, at
+    /// Cd 0.034 — the coefficient overstates it by 2.2x — the Great Lakes at 0.045 and the Extra at 0.056. A single
+    /// fraction of a single authored coefficient cannot know which stop a propeller stopped on, and that is exactly
+    /// what Ty asked for: "Make sure that stopped cs props for acrobatic airplanes are coarse pitch when calculating
+    /// stopped prop drag."
+    /// </summary>
     public const double StoppedDragFraction = 0.5;
 
     public static (Vec3 Force, Vec3 Moment) Compute(
@@ -357,12 +439,22 @@ public static class PropModel
         // The idling prop windmills: drag on the disc, fading out by 20 % throttle (above that it is pulling).
         if (thr < 0.2 && v > 5.0 && prop.IdleDragCd > 0)
         {
-            // A DEAD CONSTANT-SPEED PROP IS SOLVED, not estimated: its blades are on the stop the oil loss left them
-            // on and the blade element knows what turning the engine with them costs. Only this case — a running
-            // engine, a fixed-pitch propeller and a type whose stops are not fitted all keep the authored coefficient
-            // untouched, including the idling prop the coefficient was calibrated on.
-            double solved = drive.EngineRunning ? double.NaN : Windmilling(prop, bodyVelocity.X, airDensity).DragN;
-            if (!double.IsNaN(solved)) thrust -= solved;
+            // REACHING HERE WITH A DEAD ENGINE NOW MEANS ONE THING: THE PROPELLER IS STOPPED. A dead engine whose
+            // shaft is still turning is solved by the blade element above (see IsSolved), at the rpm the sim is
+            // integrating and the angle the governor actually left — it no longer detours through Windmilling's
+            // second, independent solve of the same propeller.
+            //
+            // So a stopped blade whose geometry is known gets the stopped-body drag of that blade at the stop it is
+            // standing on (BladeElement.StoppedDragN, and PropModel.StoppedBladePitchDeg for which stop). Everything
+            // else — a running engine on an unfitted type, including the idling propeller the coefficient was
+            // calibrated against, and any type with no blade geometry at all — keeps the authored coefficient exactly
+            // as it was.
+            double stoppedPitch = drive.EngineRunning ? 0.0 : StoppedBladePitchDeg(prop, drive);
+            if (!drive.EngineRunning && stoppedPitch > 0.0)
+            {
+                var sg = new BladeElement.Geometry(prop.PropBladeCount, radius, stoppedPitch, prop.ActivityFactor);
+                thrust -= BladeElement.StoppedDragN(sg, Math.Max(0.0, bodyVelocity.X), airDensity);
+            }
             else
             {
                 double cd = prop.IdleDragCd * (1 - thr / 0.2) * (drive.EngineRunning || drive.Rpm > 0.0 ? 1.0 : StoppedDragFraction);
@@ -436,7 +528,7 @@ public static class PropModel
         {
             var stops = new BladeElement.Stops(prop.FineStopDeg, prop.CoarseStopDeg);
             var gov = PistonEngine.Govern(prop.PropBladeCount, 0.5 * prop.PropDiameterM, prop.ActivityFactor, 0.15, stops,
-                RunningRpm(prop, throttle01, 1.0), prop.MaxPowerW, prop.MaxRpm, prop.IdleRpm, throttle01, pressureRatio,
+                GovernorCommandRpm(prop, throttle01, 1.0), prop.MaxPowerW, prop.MaxRpm, prop.IdleRpm, throttle01, pressureRatio,
                 vAxialMs, rho);
             return drive.WithShaft(gov.Rpm, gov.PitchDeg);
         }
@@ -524,8 +616,27 @@ public static class PropModel
     /// whose blade angle is not in the config at all — it is a STATE between the stops, governed, and it arrives here
     /// on the drive. Asking it of both is what makes the two places agree.
     /// </summary>
+    /// <remarks>
+    /// AND A DEAD ENGINE'S PROPELLER IS SOLVED TOO (2026-11-11). This used to demand <c>drive.EngineRunning</c>, so
+    /// the moment the engine quit the propeller stopped being a propeller: its drag came from
+    /// <see cref="Windmilling"/>, a SEPARATE closed-form solve that re-derived the rpm from scratch at the oil-loss
+    /// stop and ignored both the rpm the sim was integrating and the blade angle the governor had actually left. Two
+    /// solves of one propeller is the same mistake the rig and the sim made (see <see cref="IntegratesShaft"/>), and
+    /// it showed: the base commit's own note records the closed form returning NaN — "the air cannot drive this" —
+    /// where the integrated shaft, held at the same condition for 30 s, was turning 965 rpm.
+    ///
+    /// There is nothing about a windmilling blade a blade-element solve cannot do. Its torque is negative, its thrust
+    /// is negative, and that negative thrust IS the windmilling drag, falling out of the same integral as everything
+    /// else; Ty asked for exactly that — the braking "based off the science", a function of the blade angle and what
+    /// the engine costs to turn, rather than <see cref="PropulsionConfig.IdleDragCd"/>. What the dead case still gets
+    /// from the engine is the rpm, which AircraftEngine.StepShaft integrates against
+    /// <see cref="PistonEngine.MotoringTorqueNm"/> and the compression ripple.
+    ///
+    /// Below <see cref="StoppedRpm"/> it is NOT solved, because a stopped propeller is not a blade-element problem at
+    /// all: <see cref="BladeElement.StoppedDragN"/> has it.
+    /// </remarks>
     public static bool IsSolved(PropulsionConfig prop, PropDrive drive)
-        => prop.PropDiameterM > 0.0 && drive.EngineRunning && drive.ShaftRpm > 0.0
+        => prop.PropDiameterM > 0.0 && drive.ShaftRpm > StoppedRpm
            && (prop.BladePitch75Deg > 0.0 || drive.BladePitchDeg > 0.0);
 
     /// <summary>

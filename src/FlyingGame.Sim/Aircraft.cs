@@ -1154,7 +1154,7 @@ public sealed partial class Aircraft
     public (double DeltaU, double Radius, double Swirl) LastTailSlipstream { get; private set; }
     /// <summary>True once the propeller has hit the ground (or the nose is gone): engine stopped, no thrust. DAMAGE only:
     /// an engine stopped by its mixture is <see cref="EngineStarved"/>; <see cref="EngineRunning"/> covers both.</summary>
-    public bool EngineStopped => ReplayEngineRpm.HasValue ? ReplayEngineRpm.Value <= 1.0 : _noseLost;
+    public bool EngineStopped => ReplayEngineRpm.HasValue ? ReplayEngineRpm.Value <= 1.0 : _noseLost || _engineSeized;
 
     // ---- the fuel shut-off valve (the Great Lakes' and the Extra's red lever, one in each cockpit, linked) ----------
 
