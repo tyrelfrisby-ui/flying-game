@@ -98,6 +98,8 @@ namespace FlyingGame.Bridge
 
             if (_devCopyPicking) { CopyFromPicker(cfg, ref y); y += _gap * 0.5f; }
 
+            RecorderSection(cfg, ref y);
+
             Note("Tap a knob's TITLE to read what it does. ◂◂ ◂ ▸ ▸▸ are the coarse and fine steps; the slider is for "
                  + "getting near. A row marked NEXT FLY is built into the aeroplane when it is created, so it takes "
                  + "effect the next time you fly rather than straight away.", ref y);
@@ -112,6 +114,51 @@ namespace FlyingGame.Bridge
                 List<Tunable> knobs = groups[gi].Value;
                 for (int ki = 0; ki < knobs.Count; ki++) KnobRow(cfg, knobs[ki], ref y);
             }
+        }
+
+        /// <summary>
+        /// THE FLIGHT TEST RECORDER. It is ALWAYS RUNNING — this page does not switch it on, it decides what to do
+        /// with what has already been recorded. Ty's test pilots fly cards rather than menus, so the recording
+        /// cannot depend on anyone remembering to arm it; what a pilot does here is KEEP the last few minutes after
+        /// something interesting has happened.
+        /// </summary>
+        private void RecorderSection(AircraftConfig cfg, ref float y)
+        {
+            y += _gap * 0.5f;
+            UiLayout.Label(new Rect(_x, y, _cw, _lh), "FLIGHT TEST RECORDER", _head); y += _lh;
+
+            double minutes = FlightTestRecording.MinutesHeld;
+            string state = FlightTestRecording.Armed
+                ? "Recording — " + minutes.ToString("F1") + " min in the buffer"
+                : "NOT recording — " + FlightTestRecording.Status;
+            float h = RowH(state, _cw);
+            UiLayout.LabelWrapped(new Rect(_x, y, _cw, h), state, FlightTestRecording.Armed ? _note : _head);
+            y += h + _gap * 0.3f;
+
+            float bw = (_cw - _gap) / 3f;
+            if (UiLayout.Button(new Rect(_x, y, bw, _lh), "KEEP FLIGHT", _btnOn))
+                FlightTestRecording.Save(cfg, DrawnModelId());
+            if (UiLayout.Button(new Rect(_x + bw + _gap * 0.5f, y, bw, _lh), "MARK", _btn))
+                FlightTestRecording.Mark();
+            if (UiLayout.Button(new Rect(_x + 2 * (bw + _gap * 0.5f), y, bw, _lh), "COPY PATH", _btn))
+                GUIUtility.systemCopyBuffer = FlightTestRecording.LastSavedPath;
+            y += _lh + _gap * 0.4f;
+
+            if (FlightTestRecording.Status.Length > 0) Note(FlightTestRecording.Status, ref y);
+            if (FlightTestRecording.LastSavedPath.Length > 0) Note("Saved to " + FlightTestRecording.LastSavedPath, ref y);
+            Note("MARK drops a flag in the recording so you can find this moment again. KEEP FLIGHT writes the last "
+                 + "few minutes to a file you can pull off the phone from the Files app. The recorder also marks "
+                 + "stalls, spins, touchdowns, impacts and anything breaking off by itself, and records four times "
+                 + "as fast for two seconds around each of them.", ref y);
+            y += _gap * 0.5f;
+        }
+
+        /// <summary>Which model is actually being DRAWN, which is not always the one being flown — the MODEL
+        /// MISMATCH banner exists because they have disagreed. Both go in the recording header.</summary>
+        private string DrawnModelId()
+        {
+            try { return SessionSettings.AircraftId; }
+            catch (System.Exception) { return ""; }
         }
 
         /// <summary>

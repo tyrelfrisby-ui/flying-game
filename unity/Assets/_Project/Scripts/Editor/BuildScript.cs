@@ -597,8 +597,16 @@ namespace FlyingGame.EditorTools
             plist.root.SetBoolean("GCSupportsControllerUserInteraction", true);
             var pads = plist.root.CreateArray("GCSupportedGameControllers");
             pads.AddDict().SetString("ProfileName", "ExtendedGamepad");
+            // THE FLIGHT TEST RECORDER'S FILES HAVE TO BE REACHABLE, and without these two keys they are not:
+            // the app's Documents directory is invisible to the Files app, so a recording made on a TestFlight
+            // build can be written perfectly and never got off the phone. UIFileSharingEnabled puts the folder in
+            // Files under "On My iPhone > Aero Playground"; LSSupportsOpeningDocumentsInPlace lets a tester open or
+            // copy one from there rather than only see it. A recorder nobody can get the data out of is not a
+            // deliverable, and this is the whole of what makes it one.
+            plist.root.SetBoolean("UIFileSharingEnabled", true);
+            plist.root.SetBoolean("LSSupportsOpeningDocumentsInPlace", true);
             plist.WriteToFile(plistPath);
-            Debug.Log("Info.plist: ITSAppUsesNonExemptEncryption = false");
+            Debug.Log("Info.plist: ITSAppUsesNonExemptEncryption = false; UIFileSharingEnabled = true (flight-test recordings visible in Files)");
             string projPath = PBXProject.GetPBXProjectPath(path);
             var proj = new PBXProject();
             proj.ReadFromFile(projPath);

@@ -46,6 +46,10 @@ namespace FlyingGame.Bridge
 
         // ---- the presentation engine gauges (P) --------------------------------------------------------
         private double _oilTempF = 180.0, _chtF = 320.0;
+
+        /// <summary>The oil temperature and CHT the player's cockpit last computed, for the flight-test recorder.
+        /// Last-writer-wins, which is right: there is one cockpit the pilot is sitting in.</summary>
+        public static double LastOilTempF = 180.0, LastChtF = 320.0;
         /// <summary>The fuel computer's count, US gallons burned since the aeroplane was reset.</summary>
         private double _fuelUsedGal;
 
@@ -416,6 +420,11 @@ namespace FlyingGame.Bridge
             }
             r.OilTempF = _oilTempF;
             r.ChtF = _chtF;
+            // Published for the flight-test recorder, which has no other way to it: the SIM owns the oil-temperature
+            // RISE from damage but this state owns the temperature itself, so a recording would otherwise carry an
+            // empty oil-temp column on the one aeroplane a pilot is actually flying.
+            LastOilTempF = _oilTempF;
+            LastChtF = _chtF;
 
             // OIL PRESSURE COMES FROM THE SIM NOW (Aircraft.OilPressPsi), not from a second copy of the curve here. The
             // governor reads that number — with no oil the blades go to the installation's default stop and stay — so
