@@ -1921,6 +1921,18 @@ public sealed partial class Aircraft
     public static (double DeltaU, double Radius, double Swirl) TailSlipstream(AircraftConfig config, double throttle01, Vec3 velocity, Vec3 rates, double airDensity,
         PropModel.PropDrive drive, bool propGone, BladeElement.SwirlProfile? profile)
     {
+        // SimProfile only (Scope.Slipstream): on a type with a fitted blade this call solves a whole propeller disc
+        // once a step, on top of the four the RK4 stages solve, and that had never been separated from the rest of the
+        // step. Off, Begin() is one thread-static read.
+        long tSlip = SimProfile.Begin();
+        (double DeltaU, double Radius, double Swirl) r = TailSlipstreamInner(config, throttle01, velocity, rates, airDensity, drive, propGone, profile);
+        SimProfile.End(SimProfile.Scope.Slipstream, tSlip);
+        return r;
+    }
+
+    private static (double DeltaU, double Radius, double Swirl) TailSlipstreamInner(AircraftConfig config, double throttle01, Vec3 velocity, Vec3 rates, double airDensity,
+        PropModel.PropDrive drive, bool propGone, BladeElement.SwirlProfile? profile)
+    {
         if (profile is not null) profile.Any = false;
         if (config.Propulsion is null || config.Propulsion.PropDiameterM <= 0.0 || propGone) return (0.0, 0.0, 0.0);
         double vNow = velocity.Length;

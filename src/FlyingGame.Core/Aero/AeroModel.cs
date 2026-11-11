@@ -557,11 +557,15 @@ public static class AeroModel
             : 0.4 * Math.Clamp(wake.FlowAlpha, -0.5, 0.5) * (1.0 - wake.StalledFraction));
         epsTail = (epsTail + 0.4 * flapDownwashRad * (1.0 - wake.StalledFraction)) * gePhi;
         // Every wing and stabiliser section's own wake (TailWake): where it goes, how wide and how deep.
+        long tWakes = SimProfile.Begin();
         TailWake.Field wakes = TailWake.Prepare(config, airfoilTables, bodyVelocity - windBody, bodyRates, cg, flowState, surfaceMask, stripMask, epsTail, controls);
+        SimProfile.End(SimProfile.Scope.Wakes, tWakes);
         // THE THRUST JET (PropJet, owner 2026-11-08): the propeller's tube of faster air, traced from the disc through
         // the air's own motion, so it tilts with alpha and beta and bends under pitch and yaw rate. One trace serves
         // every strip below. Off (and free) whenever the prop is doing nothing to the air.
+        long tJet = SimProfile.Begin();
         PropJet.Jet jet = PropJet.Prepare(config, bodyVelocity - windBody, bodyRates, cg, slipstreamDeltaU, slipstreamRadius, slipstreamSwirlMs, swirlProfile);
+        SimProfile.End(SimProfile.Scope.Jet, tJet);
 
         // THE SEPARATED WING'S ROLLING MOMENT DUE TO SIDESLIP, accumulated STRIP BY STRIP as they are flown (owner
         // 2026-11-09: "make each of these real science not lump sums"). It used to be one bulk C_l*q*S*b at the bottom
