@@ -6,6 +6,24 @@ the Wikimedia Commons colour 3-view (digitised by eye, 1024-px display scale, 0.
 (control travels, cockpit layout), and photos. No FlightGear or other third-party mesh is read.
 
   blender -b --python tools/own_models/build_sgs233.py
+
+THIS SCRIPT NO LONGER PRODUCES THE SHIPPING GLB ON ITS OWN -- measured 2026-11-10, do not overwrite
+unity/.../glider-2-33-like-own*.glb with a plain run of it. Later passes edited the shipped file and are
+not replayed from here, so a straight rebuild silently reverts Ty-approved work. Diffing a clean build
+against the shipped GLB, node for node, found three things it would have thrown away:
+
+  * the instrument faces (instrument_face_style.py, bf61f0aa) -- Compass_Card / Dial_ALT / Dial_ASI /
+    Dial_VARIO come back pointing at different pixels, same dimensions, max channel difference 0.91-1.00;
+  * the aileron skin break fix (db87f77c) -- Aileron_L / Aileron_R move 34 mm;
+  * the seat harnesses -- Harness_Front / Harness_Rear and their buckles are in the shipped GLB and in no
+    build this script makes.
+
+sgs233_panel_flush.py --update replays its own pass and is the exception. For anything else, rebuild and
+then splice ONLY the nodes your change actually moves into the shipping GLB (diff a clean build of the
+unmodified script against a clean build of the modified one to get that list -- for the wing-root fairing
+below it was six: Fuselage_Painted, Skylight_Glass, Skylight_Frame, Window_Rear, Window_Rear_Frame and
+Cockpit_Bulkhead). A Blender export also re-embeds the textures that ASTC moved out (aad82fce), which a
+splice avoids: it never touches the shipped file's `images`.
 """
 import bpy, bmesh, sys, os, math, numpy as np
 from mathutils import Matrix, Vector
@@ -183,15 +201,65 @@ for sg, sd in ((1, 'L'), (-1, 'R')):
         P[nm + sd] = link(nm + sd, bm)
 P['Wing'] = paint.join(wing, 'Wing')
 bm = bmesh.new(); bm.from_mesh(P['Wing'].data); bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.001); bm.to_mesh(P['Wing'].data); bm.free()
-# wing-root pylon: lofted fairing following the 3-view profile from the canopy's aft end (px 362) up into the
-# wing underside and down the turtle deck to px 475
-PYL = [(362, 194.5), (372, 188.2), (385, 186.6), (397, 187.2), (410, 188.4), (435, 192), (450, 197), (458, 201.3), (461, 202.8), (462.5, 211)]
+# ---- wing-root fairing: the turtle deck from the canopy's aft end (px 362), under the wing root, and out
+# onto the boom. REBUILT 2026-11-10 -- Ty, flying the build: "on the 2-33 the area behind the wing to the
+# fuselage is rough smooth it out."
+#
+# WHAT WAS WRONG. The old table traced the three-view between px 372 and 410 at 0.60-0.63 m above the body
+# axis. That is where the WING's own upper skin is at those stations (0.611 / 0.602 / 0.583 by the root
+# section), not the deck's: the side view has the wing in front of the fuselage there, so what came off the
+# drawing was the wing's outline. A clamp in pyl_sec then pulled it back down -- z = min(z, Z0 + 0.09) --
+# which flattened four of the ten sections onto a shelf at exactly 0.560 and left a plateau with a kink at
+# each end. Worse, the last two stations dropped 0.125 m in 23 mm of length (dz/dx = 5.5) and loft_secs
+# capped that off with a flat wall, right at the wing's trailing edge. A shelf, a kink at each end of it
+# and a chopped-off wall is the wedge that reads as rough aft of the wing.
+#
+# WHAT THE AEROPLANE DOES. Ty's own photograph of N17879, and the Commons shots of N1192S and C-GCLF, all
+# show the deck as ONE unbroken surface: it leaves the canopy, tucks under the wing root and sweeps away
+# aft in a single gentle curve into the boom. No step, no shelf, no crease. So the crown line is DERIVED
+# instead of traced, and every piece of it joins its neighbour smoothly:
+#   * at px 362 it is the canopy's own crown on the canopy's own slope -- the first section here IS the
+#     canopy's last section, so the two lofts meet exactly;
+#   * under the wing it blends (smoothstep, hence C1) onto the root section's LOWER surface plus EMBED,
+#     which buries the seam inside the wing: nothing to see through and no edge to catch the light;
+#   * aft of the trailing edge it runs out onto the fuselage's own top line over RUNOUT metres, on a cubic
+#     Hermite that leaves on the wing's slope and arrives flat, instead of falling off a cliff.
+# PYL is still a (px, top-py) table because outer_y reads it, but it is generated now, not measured.
+EMBED = 0.018          # how far the fairing's crown sits INSIDE the wing root's underside
+BLEND = 0.40           # metres over which it leaves the canopy's line for the wing's underside
+RUNOUT = 0.70          # metres of turtle deck between the trailing edge and the bare boom
+PYL_STEP = 8           # px between sections: even, so no coarse step lands on the steepest part
+TE_X = ROOT_LE - ROOT_C                                  # -0.97, the wing root's trailing edge
+mx_inv = lambda x: (0.55 - x) / K + WING_LE_PX           # the inverses of mx / mz, to write the table in px
+mz_inv = lambda z: 197 - (z - 0.47) / K
+smoothstep = lambda u: (lambda t: t * t * (3 - 2 * t))(min(max(u, 0.0), 1.0))
+def wing_root_lower(x):
+    """z of the wing ROOT section's lower surface at builder x; None ahead of its LE or aft of its TE."""
+    f = (ROOT_LE - x) / ROOT_C
+    if f < 0 or f > 1: return None
+    return wz(0.0) + airfoil(np.array([f]), 0.0)[1][0] * ROOT_C
+CAN_X, CAN_Z = mx(CAN[-1][0]), mz(CAN[-1][1])            # where the canopy hands over to the deck
+CAN_SLOPE = (CAN_Z - mz(CAN[-2][1])) / (CAN_X - mx(CAN[-2][0]))
+RUN_Z0 = wing_root_lower(TE_X) + EMBED                                        # crown at the trailing edge
+RUN_M0 = (wing_root_lower(TE_X + 0.02) + EMBED - RUN_Z0) / 0.02               # and its dz/dx there
+RUN_X1 = TE_X - RUNOUT
+RUN_Z1 = mz(fus(mx_inv(RUN_X1))[0]) + 0.002              # the bare deck, where sec() floors the crown anyway
+def pyl_crown(px):
+    """Crown height of the wing-root fairing at a station, in metres above the body axis."""
+    x = mx(px)
+    lo = wing_root_lower(x)
+    if lo is not None:                                   # under the wing: canopy line -> wing underside
+        w = smoothstep((CAN_X - x) / BLEND)
+        return (1 - w) * (CAN_Z + CAN_SLOPE * (x - CAN_X)) + w * (lo + EMBED)
+    t = min(max((TE_X - x) / RUNOUT, 0.0), 1.0)          # aft of it: Hermite out onto the deck, arriving flat
+    return ((2 * t ** 3 - 3 * t ** 2 + 1) * RUN_Z0 + (t ** 3 - 2 * t ** 2 + t) * (-RUN_M0 * RUNOUT)
+            + (-2 * t ** 3 + 3 * t ** 2) * RUN_Z1)
+PYL_PX0, PYL_PX1 = 362, mx_inv(RUN_X1)
+PYL = [(px, mz_inv(pyl_crown(px))) for px in L(PYL_PX0, PYL_PX1, int((PYL_PX1 - PYL_PX0) / PYL_STEP) + 1)]
 def pyl_sec(px, tp, M_=16, grow=0.0):
-    s_ = sec(px, tp, m=2.4, M_=M_, grow=grow); zw = Z0 + 0.03; out = []
-    for x, y, z in s_:
-        if z > zw: y *= max(0.55, 1 - (z - zw) * 2.0); z = min(z, zw + 0.06)
-        out.append((x, y, z))
-    return out
+    """The fairing's section. No clamp any more: pyl_crown is the shape, so the arch is just the canopy's
+    own section function carried aft over the deck."""
+    return sec(px, tp, m=2.4, M_=M_, grow=grow)
 P['Fuselage_Pylon'] = loft_secs('Fuselage_Pylon', [pyl_sec(px, tp) for px, tp in PYL])
 def outer_y(px, z):
     """outer half-width at height z including canopy / pylon above the sill"""
