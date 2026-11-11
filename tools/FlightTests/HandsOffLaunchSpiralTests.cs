@@ -38,8 +38,10 @@ public sealed class HandsOffLaunchSpiralTests
     private static AircraftConfig Load(string id) =>
         AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));
 
+    /// <summary>Every config the build carries, from the DIRECTORY — not RigTable.Rows, which is a hand-written list and
+    /// so could leave a type out of its own launch test by omission (the Grob 103 was, for two days).</summary>
     public static IEnumerable<object[]> Fleet() =>
-        RigTable.Rows.SelectMany(r => new[] { new object[] { r.Id, true }, new object[] { r.Id, false } });
+        RigTests.ConfigIds().SelectMany(id => new[] { new object[] { id, true }, new object[] { id, false } });
 
     /// <summary>Bank, + = right wing down (body y axis below the horizon; world z is down).</summary>
     private static double Bank(Quat q) => Math.Asin(Math.Clamp(q.Rotate(new Vec3(0, 1, 0)).Z, -1, 1));

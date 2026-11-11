@@ -61,6 +61,32 @@ solves each type from the bare (unrigged) airframe and writes the `rig` block in
 file. `RIG_PROBE=1` prints the table without writing. `RigTests.ModelStillAsksForTheSameRig` re-solves every type and
 fails if the stored rig is stale, so a change to the aero or prop model forces a re-run.
 
+### `--filter RigTool` is the WRITER, and it checks nothing
+
+**`--filter RigTool` selects exactly one test**, `RigTool.SolveAndWriteTheFleetRig`, and with neither `RIG_WRITE` nor
+`RIG_PROBE` set that test returns on its first line and **passes in under a second**. It is not a check and never was;
+measured 2026-11-10, that filter reports `Total tests: 1 / Passed: 1`. The checks are all in `RigTests`:
+
+```
+dotnet test --filter 'FullyQualifiedName~FlyingGame.FlightTests.RigTests'   # the pins: ~190 cases, ~20 min
+RIG_WRITE=1 dotnet test --filter RigTool                                    # the writer: rewrites every config's rig
+RIG_PROBE=1 dotnet test --filter RigTool                                    # the writer, printing only: ~30 s
+```
+
+Do not shorten that first filter to `--filter Rig`: `Rig` is a substring of **`Right`**, which this suite uses in dozens
+of test names (`PositiveYawRateSwingsTheNoseRight`, `RightEngineOutYawsRight`, …), so `--filter Rig` selects 108 tests
+across 40 classes and buries the nine that matter. That is not pedantry. On 2026-11-10 the fleet's lateral rig had been
+stale for a day and a half — seven configs 3–5× off their own table — and no filtered run all evening selected
+`ConfigRigMatchesTheHandCopiedTable`, because the 4,444-test suite no longer finishes in a sitting and the only command
+this document gave was the one above that runs the writer and passes.
+
+**A literal check cannot see a rig that went stale because the MODEL moved.** `ConfigRigMatchesTheHandCopiedTable`
+compares each config against the table below; when an aero change invalidates a rig, the config and the table stay in
+perfect agreement and go wrong together. That night it was green for 27 of 34 types whose stored rig was stale by up to
+5× — the red seven were only the ones an earlier commit had rewritten in the config without re-copying the table. The
+test that sees the real thing is **`ModelStillAsksForTheSameRig`** (33 of 34 red that night). Run it after anything that
+touches a surface section, a tail, the propeller or the slipstream.
+
 **The in-air start** (`FlightSimDriver.Spawn`, default branch) now calls `RigSolver.SolveLevel` (rig held: speed, α,
 elevator, bank) at the start's own altitude, spawns there with the trim slider on that elevator, and the touch
 throttle preset for air starts is 75 % (`TouchFlightControls.PresetTrim`, was 50 % with a POWER-OFF glide trim —
@@ -70,52 +96,62 @@ trim the elevator for their own condition.
 
 ## Result (copied into `RigTests.RigTable`)
 
-Re-solved 2026-11-03 on lane/claude-island-nav after lane/claude-pitts-spin (run #3) was merged on top of
-lane/claude-roll-only, stick fixed at controls neutral: the aileron-section change and the biplane induction
-(docs/CONTROL-SURFACES.md, "Roll rate, fleet-wide"), the per-section tail wakes and the induced-angle tail tables ("The
-tail's finite-span table past the stall"). The aileron rigs grew 8–10 % (Pitts 35 %) because an aileron degree is now
-worth less, and the elevator trims moved with the tail wake. The merged aero model is the spin lane's, so this re-solve
-reproduced the spin lane's table exactly; roll-only's table (no tail wakes) is superseded (Pitts aileron rig 0.374° →
-0.368°, elevator −1.17° → −1.24°).
+**Re-solved for the WHOLE fleet, 2026-11-10**, after this week's two tail changes: `daf52725` moved all 26 fins to the
+low-aspect-ratio plate and `b7396cd0` made twelve types' horizontal tail a flat plate. All 35 configs converged
+(residuals 2·10⁻¹⁶ – 1·10⁻¹²), and the Grob 103 is rigged for the first time.
+
+A weaker fin needs more incidence for the same yawing moment, and that is the whole story of the big numbers below: the
+fabric types' fin offsets went up four to six times (J-3 0.364° → 2.260°, Pitts 0.475° → 1.997°, Great Lakes 0.361° →
+1.950°) while their aileron rigs came *down* by a third to two thirds (Pitts 0.386° → 0.096°) and the solved bank with
+them. The flat-plate horizontal tail moved the elevator trims and, through its drag, the rig *speed* — Pitts 139.1 →
+126.2 KTAS at the same 75 %, Great Lakes 108.5 → 99.8. The J-3 landing at 2.26° is worth something on its own: Ty
+measured about 1.76° of fin-chord-plane offset on his own aeroplane, and nothing here is tuned toward it.
+
+Before this re-solve, 33 of the 34 rigged types' stored rigs were stale against the model (`ModelStillAsksForTheSameRig`),
+and the hands-off launch left every powered type rolling to its propeller's torque side — the Pitts 36°, the Extra 26°,
+the Cubs and the Decathlon 3–5°, in ten seconds. Seven configs had been rewritten on 2026-11-09 by `b11819f7` (the
+measured-slipstream commit) without re-copying this table, which is the only reason the literal check was red at all;
+it was green for the other twenty-seven, which were just as stale. See "`--filter RigTool` is the WRITER" above.
 
 Fin + = leading edge left. Aileron + = right-roll deflection. Elevator + = trailing edge down. 4,000 ft ISA.
 
 | aircraft | power | rig speed KTAS / KIAS | α ° | elevator trim ° | aileron rig ° | fin offset ° | bank ° |
 |---|---|---|---|---|---|---|---|
-| AirCam (land) | 75 %, 2 pushers, both CW | 99.3 / 93.6 | −1.92 | +0.53 | +0.271 | +0.240 | +0.48 |
-| AirCam amphib | 75 %, both CW | 97.0 / 91.4 | −0.98 | −0.19 | +0.282 | +0.259 | +0.41 |
-| Boeing 737 | 75 % thrust, jet | 349.6 / 329.4 | −0.04 | +3.64 | 0 | 0 | 0 |
-| Cessna 172 | 75 % | 123.1 / 116.0 | −0.09 | +1.69 | +0.143 | +0.126 | +0.20 |
-| Cassutt F1 | 75 % | 159.1 / 149.9 | +0.66 | +0.45 | +0.321 | +0.115 | +0.29 |
-| Cirrus SR22 | 75 % | 162.0 / 152.7 | −0.19 | +2.25 | +0.214 | +0.096 | +0.19 |
-| DC-3 | 75 %, both CW | 152.3 / 143.5 | −0.82 | +0.70 | +0.138 | +0.081 | +0.11 |
-| Decathlon | 75 % | 107.6 / 101.4 | +0.85 | +1.93 | +0.212 | +0.211 | +0.35 |
-| Beaver floats | 75 % | 114.4 / 107.8 | +0.73 | +0.71 | +0.278 | +0.290 | +0.21 |
-| Beaver | 75 % | 123.2 / 116.1 | −0.48 | +0.89 | +0.240 | +0.246 | +0.21 |
-| Extra 300 | 75 % | 159.9 / 150.7 | +1.90 | −1.10 | +0.203 | +0.171 | +0.41 |
-| F-86 Sabre | 75 % thrust, jet | 320.2 / 301.7 | +2.22 | +2.06 | 0 | 0 | 0 |
-| Gee Bee R-2 | 75 % | 188.0 / 177.1 | −1.29 | −1.53 | +0.714 | +0.311 | +0.42 |
-| Glasair III | 75 % | 235.2 / 221.6 | −0.36 | +0.26 | +0.416 | +0.094 | +0.32 |
-| Great Lakes | 75 % | 108.5 / 102.2 | −2.44 | +0.99 | +0.441 | +0.365 | +0.40 |
-| Hughes H-4 | 75 %, 8 × CW | 150.7 / 142.0 | −0.59 | −0.31 | +0.033 | +0.017 | +0.03 |
-| J-3 Cub floats | 75 % | 55.5 / 52.3 | +4.41 | −1.81 | +0.353 | +0.462 | +0.39 |
-| J-3 Cub | 75 % | 65.5 / 61.7 | +1.23 | +0.00 | +0.246 | +0.330 | +0.35 |
-| JN-4 Jenny | 75 % | 52.4 / 49.4 | +2.41 | +0.11 | +0.447 | +0.595 | +0.26 |
-| P-51D | 75 % | 209.1 / 197.0 | +0.49 | −1.16 | +0.474 | +0.128 | +0.24 |
-| PA-18 bush | 75 % | 92.5 / 87.1 | −0.45 | +0.90 | +0.212 | +0.240 | +0.31 |
-| PA-18 Cub | 75 % | 95.6 / 90.0 | −0.90 | +1.14 | +0.200 | +0.226 | +0.31 |
-| PA-18 floats | 75 % | 88.2 / 83.2 | +0.61 | +0.43 | +0.234 | +0.264 | +0.29 |
-| Pawnee | 75 % | 110.1 / 103.8 | −1.81 | +1.29 | +0.222 | +0.212 | +0.37 |
-| PA-28 Archer | 75 % | 108.6 / 102.3 | +1.24 | +0.64 | +0.266 | +0.188 | +0.22 |
-| Pitts S-2B | 75 % | 139.2 / 131.2 | +1.99 | −1.24 | +0.368 | +0.520 | +0.59 |
-| Seminole | 75 %, counter-rotating | 142.9 / 134.7 | −0.01 | +1.73 | −0.003 | +0.000 | +0.00 |
-| Stearman PT-17 | 75 % | 107.7 / 101.5 | −3.56 | −0.20 | +0.470 | +0.277 | +0.28 |
-| Target drone | 75 % (it has a prop) | 159.1 / 149.9 | +0.66 | +0.45 | +0.321 | +0.115 | +0.29 |
-| SGS 2-33 | glider, best glide | 41.9 / 39.5 | +3.84 | +0.77 | 0 | 0 | 0 |
-| EB29R | glider, best glide | 62.3 / 58.8 | +5.54 | −3.34 | 0 | 0 | 0 |
-| Swift S-1 | glider, best glide | 62.7 / 59.1 | +4.62 | −1.31 | 0 | 0 | 0 |
+| AirCam (land) | 75 %, 2 pushers, both CW | 99.4 / 93.7 | −1.93 | +0.53 | +0.275 | +0.397 | +0.476 |
+| AirCam amphib | 75 %, both CW | 97.1 / 91.5 | −0.99 | −0.24 | +0.286 | +0.432 | +0.407 |
+| Boeing 737 | 75 % thrust, jet | 349.6 / 329.4 | −0.04 | +3.13 | 0 | 0 | 0 |
+| Cessna 172 | 75 % | 123.4 / 116.3 | −0.10 | +1.65 | +0.175 | +0.144 | +0.200 |
+| Cassutt F1 | 75 % | 159.1 / 149.9 | +0.63 | +0.45 | +0.332 | +0.161 | +0.279 |
+| Cirrus SR22 | 75 % | 162.3 / 153.0 | −0.22 | +2.16 | +0.231 | +0.104 | +0.182 |
+| DC-3 | 75 %, both CW | 152.7 / 143.9 | −0.89 | +0.62 | +0.155 | +0.137 | +0.106 |
+| Decathlon | 75 % | 105.8 / 99.7 | +0.98 | +1.86 | +0.249 | +0.348 | +0.331 |
+| Beaver floats | 75 % | 114.6 / 108.0 | +0.71 | +0.46 | +0.289 | +0.516 | +0.202 |
+| Beaver | 75 % | 123.4 / 116.3 | −0.49 | +0.74 | +0.249 | +0.423 | +0.206 |
+| Extra 300 | 75 % | 150.9 / 142.2 | +2.70 | −1.62 | +0.164 | +1.127 | +0.083 |
+| F-86 Sabre | 75 % thrust, jet | 320.2 / 301.7 | +2.22 | +1.79 | 0 | 0 | 0 |
+| Gee Bee R-2 | 75 % | 187.9 / 177.1 | −1.34 | −1.57 | +0.741 | +0.417 | +0.388 |
+| Glasair III | 75 % | 235.3 / 221.8 | −0.38 | +0.24 | +0.438 | +0.131 | +0.310 |
+| Great Lakes | 75 % | 99.8 / 94.1 | −2.03 | +0.79 | +0.251 | +1.950 | −0.003 |
+| Hughes H-4 | 75 %, 8 × CW | 151.2 / 142.5 | −0.83 | −0.59 | +0.041 | +0.033 | +0.025 |
+| J-3 Cub floats | 75 % | 62.2 / 58.6 | +2.41 | −1.06 | +0.098 | +2.005 | +0.022 |
+| J-3 Cub | 75 % | 58.9 / 55.5 | +2.76 | −1.29 | +0.094 | +2.260 | +0.023 |
+| JN-4 Jenny | 75 % | 51.3 / 48.3 | +2.74 | +0.02 | +0.487 | +0.722 | +0.217 |
+| P-51D | 75 % | 209.3 / 197.2 | +0.41 | −1.33 | +0.494 | +0.194 | +0.229 |
+| PA-18 bush | 75 % | 91.2 / 86.0 | −0.33 | +0.74 | +0.255 | +0.424 | +0.306 |
+| PA-18 Cub | 75 % | 94.2 / 88.8 | −0.78 | +1.01 | +0.239 | +0.381 | +0.297 |
+| PA-18 floats | 75 % | 87.1 / 82.1 | +0.76 | +0.16 | +0.279 | +0.458 | +0.280 |
+| Pawnee | 75 % | 108.5 / 102.2 | −1.69 | +1.16 | +0.247 | +0.330 | +0.328 |
+| PA-28 Archer | 75 % | 108.7 / 102.5 | +1.20 | +0.65 | +0.270 | +0.199 | +0.203 |
+| Pitts S-2B | 75 % | 126.2 / 119.0 | +2.41 | −2.19 | +0.096 | +1.997 | +0.056 |
+| Seminole | 75 %, counter-rotating | 143.1 / 134.9 | −0.14 | +1.72 | 0 | 0 | 0 |
+| Stearman PT-17 | 75 % | 105.0 / 98.9 | −3.45 | −0.55 | +0.514 | +0.371 | +0.221 |
+| Target drone | 75 % (it has a prop) | 159.1 / 149.9 | +0.63 | +0.45 | +0.332 | +0.161 | +0.279 |
+| SGS 2-33 | glider, best glide | 41.0 / 38.6 | +4.25 | +0.47 | 0 | 0 | 0 |
+| Grob 103 Acro | glider, best glide | 50.1 / 47.2 | +0.65 | +0.47 | 0 | 0 | 0 |
+| EB29R | glider, best glide | 62.3 / 58.8 | +5.54 | −3.31 | 0 | 0 | 0 |
+| Swift S-1 | glider, best glide | 62.7 / 59.1 | +4.62 | −1.30 | 0 | 0 | 0 |
 | Hang glider | weight shift, hands-off speed | 21.4 / 20.2 | +8.98 | −15.51 (bar) | — | — | 0 |
-| Paraglider | best glide | 19.7 / 18.6 | −0.49 | +9.53 (brakes) | — | — | 0 |
+| Paraglider | best glide | 19.7 / 18.6 | −0.49 | +9.51 (brakes) | — | — | 0 |
 
 How each kind was handled:
 
