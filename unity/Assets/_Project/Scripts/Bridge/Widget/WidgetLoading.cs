@@ -71,6 +71,16 @@ namespace FlyingGame.Bridge.Widget
 
         public void Set(double? kg, double? cgMac, bool reset)
         {
+            // NOT-A-NUMBER IS NOT A WEIGHT (pre-ship audit, 2026-11-11). The clamps below read like limits and are
+            // not: System.Math.Clamp is "if (v < min) … else if (v > max) … else return v", and NaN compares false
+            // against both, so NaN passes straight through. From here it reaches Apply, and a NaN MassKg is a NaN
+            // acceleration on the next step — the aeroplane is gone, with no error anywhere.
+            // It arrives two ways. From the network: {"cmd":"loading","grossWeightLb":NaN} parses in Json.NET
+            // without complaint (so does the string "NaN", and so does 1e400 as +∞). And from INSIDE — the W&B
+            // lessons call Set(null, FwdLimitMac, false), and CgOut already has to handle those limits being NaN
+            // ("off the chart entirely"), which says plainly that they can be.
+            // A non-finite value means "not sent": the target keeps whatever the pilot last asked for.
+            kg = FlyingGame.Core.WidgetAccess.Finite(kg); cgMac = FlyingGame.Core.WidgetAccess.Finite(cgMac);
             if (reset) { TargetKg = DefaultKg; TargetCgMac = DefaultCgMac; return; }
             if (kg.HasValue) TargetKg = System.Math.Clamp(kg.Value, 0.4 * DefaultKg, 2.0 * DefaultKg);
             if (cgMac.HasValue) TargetCgMac = System.Math.Clamp(cgMac.Value, DefaultCgMac - 40, DefaultCgMac + 40);

@@ -383,10 +383,65 @@ namespace FlyingGame.Bridge.Widget
         }
         private static readonly Dictionary<string, JObject> _fits = new();
 
+        /// <summary>
+        /// The first field in this command whose value is not a finite number, or null. Named with its JSON path
+        /// ("loading.grossWeightLb", "crowdNed[2]") so the refusal below tells the caller exactly what to fix.
+        ///
+        /// Strings are checked too, and deliberately: Json.NET converts the string "NaN" to double.NaN just as
+        /// happily as the bare literal (measured 2026-11-11, along with Infinity, -Infinity and 1e400 → +∞), so a
+        /// check that looked only at number tokens would leave the door open. The cost is that a caption of exactly
+        /// "NaN" or "Infinity" is refused; that is a price worth paying and the error says why.
+        /// </summary>
+        private static string NonFinite(JToken t, string path)
+        {
+            switch (t.Type)
+            {
+                case JTokenType.Float:
+                case JTokenType.Integer:
+                    // An integer too big for a double (Json.NET keeps it as a BigInteger) throws on the way out
+                    // rather than coming back as an infinity: that is still a number this cannot use.
+                    try { return WidgetAccess.Finite(t.Value<double>()) ? null : (path ?? "value"); }
+                    catch { return path ?? "value"; }
+                case JTokenType.String:
+                {
+                    string s = (string)t;
+                    return s != null && double.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double d)
+                           && !WidgetAccess.Finite(d) ? (path ?? "value") : null;
+                }
+                case JTokenType.Object:
+                    foreach (var p in ((JObject)t).Properties())
+                    { string r = NonFinite(p.Value, path == null ? p.Name : path + "." + p.Name); if (r != null) return r; }
+                    return null;
+                case JTokenType.Array:
+                {
+                    var a = (JArray)t;
+                    for (int i = 0; i < a.Count; i++) { string r = NonFinite(a[i], (path ?? "") + "[" + i + "]"); if (r != null) return r; }
+                    return null;
+                }
+                default: return null;
+            }
+        }
+
         private string Handle(JObject j, string src)
         {
             string cmd = (string)j["cmd"] ?? "";
             var w = Widget; var ok = new JObject { ["ok"] = true, ["cmd"] = cmd };
+            // NOT-A-NUMBER IS NOT A COMMAND (pre-ship audit, 2026-11-11). Every numeric field below is clamped on
+            // the way in and NOT ONE of those clamps stops NaN: Mathf.Clamp and Math.Clamp are both
+            // "if (v < min) … else if (v > max) … else return v", and NaN compares false against both. One NaN
+            // reaching a control deflection, a mass, an autopilot target or a camera angle is a NaN moment, a NaN
+            // quaternion, and an aeroplane that is gone for the rest of the session — from one JSON field.
+            // Guarding every read site would be ~60 edits and one of them would be missed this year or next, so the
+            // check is HERE, at the one door every command comes through, and it covers commands not yet written.
+            // The three sites that feed the physics most directly (WidgetControls.FromNetwork, WidgetLoading.Set,
+            // JoyLink's raw axes) keep their own guards: they have callers that never pass through here.
+            {
+                string bad = NonFinite(j, null);
+                if (bad != null)
+                    return new JObject { ["ok"] = false, ["cmd"] = cmd,
+                                         ["error"] = $"\"{bad}\" is not a finite number (NaN or an infinity). Every number in a command must be one." }
+                           .ToString(Newtonsoft.Json.Formatting.None);
+            }
             // A web remote names itself on every request ("from":"web-…").
             string from = (string)j["from"];
             if (from != null && from.StartsWith("web-")) { SeeRemote(from, (string)j["name"]); src = from; }

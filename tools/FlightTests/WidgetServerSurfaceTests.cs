@@ -66,6 +66,52 @@ public sealed class WidgetServerSurfaceTests
         Assert.DoesNotMatch(new Regex(@"WriteAllBytes\(\s*\(string\)"), body);
     }
 
+    // ---- non-finite numbers off the wire --------------------------------------------------------------------
+
+    [Fact]
+    public void EveryCommandIsCheckedForNaNBeforeItIsDispatched()
+    {
+        string code = Code(Source("WidgetServer.cs"));
+        // The guard is at the one door every command comes through, not sprinkled over ~60 read sites — and it is
+        // BEFORE the dispatch, not somewhere further down where only the commands that remembered it are covered.
+        int handle = code.IndexOf("private string Handle(JObject j, string src)", StringComparison.Ordinal);
+        Assert.True(handle > 0, "WidgetServer.cs no longer declares Handle(JObject, string) — this test reads it");
+        int check = code.IndexOf("NonFinite(j, null)", handle, StringComparison.Ordinal);
+        int dispatch = code.IndexOf("switch (cmd)", handle, StringComparison.Ordinal);
+        Assert.True(check > 0, "Handle no longer checks the command for non-finite numbers");
+        Assert.True(dispatch > 0 && check < dispatch, "the non-finite check must run before the command is dispatched");
+        Assert.Contains("NonFinite(JToken t, string path)", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheNaNCheckLooksAtStringsAndArraysAndNestedObjectsToo()
+    {
+        // Json.NET turns the STRING "NaN" into double.NaN as readily as the bare literal, and the widget's
+        // commands nest ({"loading":{…}}, "crowdNed":[n,e,d]) — a check that walked only top-level numbers would
+        // leave both doors open.
+        string walker = Code(Source("WidgetServer.cs"));
+        int at = walker.IndexOf("NonFinite(JToken t, string path)", StringComparison.Ordinal);
+        Assert.True(at > 0);
+        string body = walker.Substring(at, Math.Min(2000, walker.Length - at));
+        Assert.Contains("JTokenType.String", body, StringComparison.Ordinal);
+        Assert.Contains("JTokenType.Object", body, StringComparison.Ordinal);
+        Assert.Contains("JTokenType.Array", body, StringComparison.Ordinal);
+        Assert.Contains("JTokenType.Float", body, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    // The three sites the audit named, each with a caller that does NOT come through WidgetServer.Handle, so each
+    // keeps its own guard: the web remote and Glass reach FromNetwork, the W&B lessons call Loading.Set directly,
+    // and JoyLink's axes arrive as raw bytes on a UDP socket with no JSON anywhere.
+    [InlineData("Widget/WidgetControls.cs", "n.Aileron = WidgetAccess.Finite(n.Aileron)")]
+    [InlineData("Widget/WidgetLoading.cs", "kg = FlyingGame.Core.WidgetAccess.Finite(kg)")]
+    [InlineData("JoyLink.cs", "WidgetAccess.FiniteOr(System.BitConverter.ToSingle(_buf, n), 0f)")]
+    public void TheThreeSitesThatFeedThePhysicsGuardThemselves(string file, string needle)
+    {
+        string path = Path.Combine(Repo, "unity", "Assets", "_Project", "Scripts", "Bridge", file.Replace('/', Path.DirectorySeparatorChar));
+        Assert.Contains(needle, File.ReadAllText(path), StringComparison.Ordinal);
+    }
+
     [Fact]
     public void TheSnapshotDirectoryIsTheWidgetsOwnAndNotTheRepository()
     {
