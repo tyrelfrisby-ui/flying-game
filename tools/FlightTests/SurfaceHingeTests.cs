@@ -158,7 +158,15 @@ public class SurfaceHingeTests
             foreach (InstrumentLibraryTests.Glb.Node n in InstrumentLibraryTests.Glb.Nodes(glb))
             {
                 string l = n.Name.ToLowerInvariant();
-                if (l.Contains("hingeaxis") || l.Contains("cable") || l.Contains("trim") || l.Contains("pedal") || l.Contains("tab")) continue;
+                // "seam" joins the list 2026-11-10 with the beaver-v2 airframe: a seam is the gap-filler strip at a
+                // surface's root, not a flight surface. The beaver's six (AileronInboardSeam±1, ElevatorSeam±1,
+                // RudderSeam±1) read as STILL because nothing in the rig names them -- and four of them are CHILDREN
+                // of the surface they fill beside, so they move with it anyway, while the two elevator seams belong
+                // to the fixed stabiliser and are supposed to stay put. Its actual surfaces (Aileron_L, Aileron_R,
+                // Elevator, Rudder) all have rig rows. Listing the beaver in KnownStill instead would have claimed
+                // its surfaces do not move, which is false.
+                if (l.Contains("hingeaxis") || l.Contains("cable") || l.Contains("trim") || l.Contains("pedal")
+                    || l.Contains("tab") || l.Contains("seam")) continue;
                 bool surface = l.StartsWith("aileron") || l.StartsWith("elevator") || l.StartsWith("rudder");
                 if (!surface) continue;
                 bool moved = rowNodes.Contains(n.Name) || table.Contains(n.Name)

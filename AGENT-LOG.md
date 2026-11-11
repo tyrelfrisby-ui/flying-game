@@ -611,6 +611,38 @@ that is the right place to spend it, and the **oldest** marks go first.
   `FlatTheWindwardWingShadesTheOther`, `IdleSpinsAreUnchanged`, `UprightPartPowerWithoutAileronIsANormalSpinAnd
   Recovers`. **That is SIX, not the five on the session's baseline list** — base 6 failed / 4 passed of 10, branch
   the same six. None is this lane's.
+- **`lane/claude-beaver-swap`** (`cf1b3d41`) — MERGED, the last of the fourteen, and **clean: no conflicts at all.**
+  Our beaver-v2 airframe, traced from an L-20A, rigged, and `LiveryChoice.OwnModelAlways` gains
+  `dhc2-beaver-like` — Ty 2026-11-05, one word: *"Swap"*. The type had no own model at HEAD at all; the GLB and the
+  `Resources/Models/dhc2-beaver-like/` folder are both new, which is why nothing could conflict.
+  **This is the one lane of the fourteen where the brief's GLB/texture procedure actually applied, and running it
+  taught two things about the tool rather than the lane** (both fixed in `242b56ef`):
+  1. `glb_textures.py` REFUSED the beaver outright — it uses `KHR_materials_clearcoat`, in neither
+     `KNOWN_EXTENSIONS` nor `BUFFERVIEW_EXTENSIONS`, so `check_extensions` raised and `extract` died before touching
+     anything. Correct behaviour: the tool will not guess. Checked before adding it: the extension's only
+     index-bearing members are textureInfo objects holding TEXTURE indices, and this tool never reorders textures —
+     it rewrites `images[].uri` and drops the image bufferViews. In the beaver itself all 13 clearcoat materials
+     carry nothing but a scalar `clearcoatFactor`, and the file has **0 images and 0 textures**.
+  2. **`extract` is not idempotent and wiped the manifest.** Run across a tree whose textures are already sidecars —
+     the ordinary state since the ASTC work — it found nothing embedded and rewrote
+     `docs/models/glb-textures.json` to no records. Recovered with `git checkout --`, and the tool now refuses to
+     write an empty manifest (`--allow-empty-manifest` to force it).
+  **So the narrowed procedure, which is now the guidance for everyone:** `verify` only for a conflicting GLB with no
+  embedded textures; `extract` only for one that has just arrived with images in it, and on that file, not bare
+  across the tree. The beaver needed no extract at all.
+  `glb_textures.py verify`: **0 problem file(s)**, 40 GLBs, the beaver reading `[no textures, 0]`.
+  **One real failure it caused, and NOT resolved by silencing it.**
+  `SurfaceHingeTests.EveryRiggedOwnModelsFlightSurfacesAreMovedBySomething` went red: the beaver is a new rigged own
+  model, so the test examined it and found six nodes whose names start with aileron / elevator / rudder that nothing
+  in the rig moves — `AileronInboardSeam±1`, `ElevatorSeam±1`, `RudderSeam±1`. The lazy fix is to add
+  `dhc2-beaver-like-own` to that test's `KnownStill` table, which would assert the beaver's surfaces do not move.
+  **They do:** `Aileron_L`, `Aileron_R`, `Elevator` and `Rudder` all have rig rows. A *seam* is the gap-filler strip
+  at a surface's root, not a flight surface — and read in the GLB's node tree, four of the six are CHILDREN of the
+  surface they sit beside, so they move with it anyway, while the two elevator seams belong to the fixed stabiliser
+  and are supposed to stay put. So `seam` joins the test's skip list beside `hingeaxis`, `cable`, `trim`, `pedal` and
+  `tab`, with that reasoning in the comment.
+  Tests: `SurfaceHinge|C172InteriorVisible|Livery|NoRed233|OwnModel` — **52 passed, 4 failed, and the four are the
+  baseline's `J3OwnModelTests`.**
 
 ## ASTC 4x4: the textures come out of the GLBs, and the whole fleet with every livery is 0.95 GB — Claude, 2026-11-10, lane/claude-textures
 

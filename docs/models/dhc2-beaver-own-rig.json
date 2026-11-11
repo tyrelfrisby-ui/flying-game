@@ -1,0 +1,241 @@
+{
+ "model": "dhc2-beaver-like-own",
+ "livery": "talk-flying",
+ "source": "unity/Assets/_Project/Resources/Models/dhc2-beaver-like/dhc2-beaver-like-own.glb node extras; written by tools/own_models/beaver_rig_json.py",
+ "rig": [
+  {
+   "node": "Aileron_L",
+   "parent": null,
+   "param": "aileron",
+   "unit": "",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.02705,
+    0.99963
+   ],
+   "pivot_gltf": [
+    -0.9212,
+    1.0967,
+    -5.5
+   ],
+   "map": [
+    [
+     -1.0,
+     -19.47
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     11.45
+    ]
+   ],
+   "model": 0.0,
+   "desc": "",
+   "link": "",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Aileron_R",
+   "parent": null,
+   "param": "aileron",
+   "unit": "",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.02705,
+    -0.99963
+   ],
+   "pivot_gltf": [
+    -0.9212,
+    1.0967,
+    5.5
+   ],
+   "map": [
+    [
+     -1.0,
+     -11.45
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     19.47
+    ]
+   ],
+   "model": 0.0,
+   "desc": "",
+   "link": "",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Elevator_TrimTab",
+   "parent": "Elevator",
+   "param": "trim",
+   "unit": "",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.16676,
+    -0.0,
+    0.986
+   ],
+   "pivot_gltf": [
+    -6.7321,
+    0.255,
+    -1.0212
+   ],
+   "map": [
+    [
+     -1.0,
+     -16.22
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     23.98
+    ]
+   ],
+   "model": 0.0,
+   "desc": "",
+   "link": "",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Elevator",
+   "parent": null,
+   "param": "elevator",
+   "unit": "",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    -6.387,
+    0.255,
+    0.0
+   ],
+   "map": [
+    [
+     -1.0,
+     -20.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     28.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "",
+   "link": "",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Rudder",
+   "parent": null,
+   "param": "rudder",
+   "unit": "",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -5.76,
+    1.2,
+    0.0
+   ],
+   "map": [
+    [
+     -1.0,
+     -25.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     25.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "",
+   "link": "",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "TailWheel_Steer",
+   "parent": null,
+   "param": "rudder",
+   "unit": "",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -6.0685,
+    -0.35,
+    0.0
+   ],
+   "map": [
+    [
+     -1.0,
+     -25.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     25.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "",
+   "link": "rudder",
+   "note": "steerable / full-swivel tailwheel: steered by the rudder through rig_limit_deg (springs); beyond that it breaks out and casters freely (full_swivel) for ground handling. Kingpin at the aft end of the leaf spring, wheel trails aft.",
+   "extra": {}
+  }
+ ],
+ "static": [
+  {
+   "node": "Flap_L",
+   "param": "flaps",
+   "why": "no flap-angle input in ModelRig yet; flaps drawn up"
+  },
+  {
+   "node": "Flap_R",
+   "param": "flaps",
+   "why": "no flap-angle input in ModelRig yet; flaps drawn up"
+  },
+  {
+   "node": "Prop",
+   "param": "prop_rpm",
+   "why": "the propeller is spun by AirframeVisual.BindModelProp, not by the rig"
+  }
+ ],
+ "controls": []
+}

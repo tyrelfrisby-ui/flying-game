@@ -189,6 +189,15 @@ namespace FlyingGame.Bridge
             // contacts are on the drawn keel, the step one on the GLB's own lowest point (1.4496 m), so the airframe lands
             // where the landplane's does with no hold-up. check_eye_interiors.py still gates the coincidence.
             { "j3-cub-floats-like", new Spec(Vector3.right, Vector3.up, namedSurfaces: true) },
+            // flying-game-reference/out/beaver-v2 (Codex, traced from the public-domain USAF L-20A three-view; our own
+            // geometry, Ty 2026-11-05: "Swap"), rigged by tools/own_models/rig_beaver_reference.py: hinged ailerons, flaps,
+            // elevator + trim tab, rudder, swivelling tailwheel and a Prop empty, table docs/models/dhc2-beaver-own-rig.json
+            // (tools/own_models/beaver_rig_json.py). Exported nose +X in glTF like the 172, so after glTFast's x-negation
+            // the nose is the instance's -x (Vector3.left). Not AtDatum: its body datum (near the wing quarter-chord) is not
+            // the config CG, and its wheels (mains x +0.70, tail x -6.15) do not match the config's (+0.156 / -5.378), so it
+            // is span-fitted, aligned by the outer wing and stood on the config's mains. Landplane only; the floats type
+            // keeps its procedural airframe until the EDO 4930 set is approved.
+            { "dhc2-beaver-like", new Spec(Vector3.left, Vector3.up, namedSurfaces: true) },
         };
 
         /// <summary>The suffix for the file to load, and the Spec that goes with it: ours when we have one and the
