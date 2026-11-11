@@ -20,30 +20,28 @@ namespace FlyingGame.Bridge
         public const int PacketBytes = 800;   // 100 ms of 8 kHz mu-law
 
         // ---- settings (OPTIONS) ----
-        private static int _intercom = -1;
-        public static bool IntercomOn
-        {
-            get { if (_intercom < 0) _intercom = PlayerPrefs.GetInt("voice.intercom", 0); return _intercom == 1; }
-            set { _intercom = value ? 1 : 0; PlayerPrefs.SetInt("voice.intercom", _intercom); PlayerPrefs.Save(); }
-        }
+        //
+        // THE "INTERCOM" CHECKBOX THAT USED TO LIVE HERE IS GONE (2026-11-10), and so is its voice.intercom pref.
+        // It and the VOX button meant the same thing — Ty: "intercom between pilots in the same airplane or solo
+        // hearing yourself talk" IS the intercom — and keeping both is how this went wrong in the first place: a
+        // persisted tick, invisible on the flight screen, quietly doing what a button should have been showing.
+        // VOX is that control now: on screen, per session, with a red indicator while the mic is open. See VoxOn.
         private static int _narrate = -1;
         /// <summary>
         /// Put the pilot's own voice into clips so a tutorial can be talked over (Ty 2026-11-08: "next request for
         /// record is audio input (mic) for my tutorial recordings which gamers might like too").
         ///
-        /// This rides the INTERCOM's voice-activated path rather than adding a native mode of its own, and that is a
-        /// deliberate trade. VoiceIO.mm gates the mic with `ptt || (intercom &amp;&amp; vox)`, and the clip is fed the gated
-        /// signal, so narration only needs that gate opened — which the intercom already does, with its compression and
-        /// its headphones-only sidetone for monitoring. A new native entry point would mean a new export from
-        /// VoiceIO.mm, and the Mac bundle built from it is a TRACKED binary: the committed one would no longer have the
-        /// symbol and the Mac app would throw on the first call. Not worth it for a gate that exists.
+        /// ROUTING ONLY, as of 2026-11-10: it says where the voice goes, never whether anything is listening. VOX
+        /// decides that. This used to hold the microphone open the whole time it was ticked — and being persisted in
+        /// PlayerPrefs, that meant from launch, every launch, which is the bug Ty hit: "Even with audio intercom
+        /// unchecked I hear things around me so the mic is picking up sound and playing it on my shokz headset" /
+        /// "Force quit and restart did not fix it", because a force-quit reloads the tick. Narrating now means
+        /// arming VOX, which he wants anyway (he narrates in order to hear himself) and which shows red while it is
+        /// on. That closes the bug at its root instead of merely making it visible.
         ///
-        /// What that inherits: it is voice-activated, so it opens when he talks and closes between sentences, which for
-        /// narration is if anything what you want. Unlike the intercom it is NOT cut while a menu is open, because
-        /// talking through the options screen is the point (see ClipRecorder.ShowMyScreen).
-        ///
-        /// The mic is open the whole time this is ticked, because the clip buffer is always rolling — CLIP saves the
-        /// last minutes, so a voice that only arrived after REC would be too late.
+        /// It is still not cut while a menu is open: talking through the options screen is the point (see
+        /// ClipRecorder.ShowMyScreen). And it is still voice-activated, because VOX is — it opens when he talks and
+        /// closes between sentences, which for narration is if anything what you want.
         /// </summary>
         public static bool NarrateClips
         {
@@ -64,6 +62,16 @@ namespace FlyingGame.Bridge
         /// THE VOX BUTTON on the flight screen (Ty 2026-11-10: "Add a vox button on the screen"). Armed, the
         /// microphone is held open and the voice gate opens on voice activity; off, the microphone opens only while
         /// PTT is held. PTT is unchanged either way.
+        ///
+        /// VOX IS THE INTERCOM, AND THE INTERCOM IS NOT THE RADIO. Ty, asked whether it should key the transmitter:
+        /// "No vox so intercom between pilots in the same airplane or solo hearing yourself talk which would allow
+        /// me to do my narration tutorial videos. In the future we will have vox for multiple airplanes (and their
+        /// occupants) to keep radio chatter down so several pilots who are flying together can link via vox not talk
+        /// on the radio." So it is the one control for the intercom, which is why the Options checkbox went; it
+        /// never touches the transmitter; and hearing himself is the FEATURE, not a side effect — it is what he
+        /// films his tutorials with. The scope widens later from this aeroplane to a flight of them, which is a
+        /// change of N on the VOX bus in VoiceIO.mm and not a rewrite. That bus, and Ty's specification of what
+        /// makes it different from the radio, are documented there.
         ///
         /// DELIBERATELY NOT PERSISTED, and this is the one design decision here worth arguing about. Every other
         /// voice setting goes in PlayerPrefs, and that is exactly what cost Ty an evening: "Record my voice in
@@ -193,16 +201,16 @@ namespace FlyingGame.Bridge
             int n = VO_RouteOutputs(_routeBuf, _routeBuf.Length);
             string outputs = n > 0 ? System.Text.Encoding.UTF8.GetString(_routeBuf, 0, n) : "";
             // "Voice in use" means the microphone can actually be open, or a radio call can actually arrive — not
-            // that a checkbox is ticked. Narration and the VOX button are the two things that hold the mic with
-            // nobody talking (VoiceIO.mm MicWanted), so a TV cannot have the audio while either is on: play-and-
-            // record has no HDMI output to give it. Left out, the policy would ask for the mic to be released,
-            // MicWanted would ask for it straight back, and the two would fight every quarter second.
+            // that a setting is ticked. VOX is the only thing that holds the mic with nobody talking (VoiceIO.mm
+            // MicWanted), so a TV cannot have the audio while it is armed: play-and-record has no HDMI output to
+            // give it. Left out, the policy would ask for the mic to be released, MicWanted would ask for it
+            // straight back, and the two would fight every quarter second.
             //
-            // THE INTERCOM TICK IS NOT IN THIS LIST, and that is the fix for the silent TV rather than a hole in
-            // the rule. A tick with the VOX off opens no microphone and plays no sidetone, so there is nothing to
-            // keep off the TV — and counting it would hold the session in play-and-record, which is precisely how
-            // an idle intercom kept HDMI silent for ever.
-            bool voice = RadioAvailable || NarrateClips || VoxOn;
+            // NARRATION IS NOT IN THIS LIST any more, and nor is the intercom checkbox, which no longer exists.
+            // Neither opens a microphone now, so neither has anything to keep off the TV — and counting a persisted
+            // tick as voice in use would hold the session in play-and-record, which is precisely how an idle
+            // intercom kept HDMI silent for ever.
+            bool voice = RadioAvailable || VoxOn;
             var route = FlyingGame.Core.TvAudioPolicy.Decide(voice, TvOutput.ExternalDisplay, FlyingGame.Core.TvAudioPolicy.FromPortTypes(outputs));
             // A TV with nobody talking has to have the mic RELEASED, not just the route changed: play-and-record
             // has no HDMI output to offer (VoiceIO.mm ApplySession).
@@ -233,22 +241,20 @@ namespace FlyingGame.Bridge
             bool menu = SessionSettings.MenuOpen;
             bool ptt = PttHeld && !menu;
             bool vox = VoxOn && !menu;
-            if (!_micAsked && (ptt || vox || NarrateClips)) _micAsked = true;
+            // Narration is not in here any more: it opens nothing, so it needs no permission and no microphone.
+            if (!_micAsked && (ptt || vox)) _micAsked = true;
             if (_micAsked)
             {
                 int st = VO_EnsureMic();
                 MicProblem = st == -1 ? "Microphone is off - allow it in Settings > Aero Playground"
                            : st == -2 && Native ? "Microphone unavailable" : null;
             }
-            // Narration keeps the gate open through a menu: the options screen is a thing he is filming and talking
-            // over. VOX does not — a menu is not a flight, and a hot mic should not survive one.
-            //
-            // The mask is VO_SetIntercom's: bit 0 the intercom (gate + sidetone), bit 1 narration (gate, and it
-            // holds the mic), bit 2 the VOX button (holds the mic). Ty 2026-11-10: "The app is listening to my mic
-            // even when I do[n't] have PTT pressed unchecked intercom just now" — the intercom tick used to hold
-            // the mic by itself whenever a headset was attached; now only bits 1 and 2 do, and bit 2 is the one the
-            // pilot controls from the flight screen and which resets every launch.
-            VO_SetIntercom(((IntercomOn && !menu) ? 1 : 0) | (NarrateClips ? 2 : 0) | (vox ? 4 : 0));
+            // VO_SetIntercom's mask: bit 0 VOX armed (the intercom — holds the mic, opens the gate, plays the
+            // sidetone), bit 1 my voice may go into clips (routing, opens nothing). VOX is cut while a menu is open:
+            // a menu is not a flight and a hot mic should not survive one. Narration is NOT cut, because talking
+            // through the options screen is the point — and since it no longer opens anything, leaving it on through
+            // a menu costs nothing.
+            VO_SetIntercom((vox ? 1 : 0) | (NarrateClips ? 2 : 0));
             VO_SetPtt(ptt ? 1 : 0);
             // The real state, straight back out of the engine, for the VOX button's live indicator. 1 is "starting"
             // and counts as open: the mic is about to be, and an indicator like this should light early, not late.

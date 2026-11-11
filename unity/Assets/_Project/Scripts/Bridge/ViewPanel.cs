@@ -175,14 +175,21 @@ namespace FlyingGame.Bridge
         /// the mic from launch with nothing to show it — "Force quit and restart did not fix it").
         ///
         /// It does two jobs, and the second matters more. Tapping it arms or disarms VOX: armed, the microphone is
-        /// held open and the voice gate opens on voice activity; disarmed, the microphone opens only while PTT is
-        /// held. PTT is untouched either way.
+        /// held open, the voice gate opens on voice activity, and he hears himself in his own headset; disarmed, the
+        /// microphone opens only while PTT is held. PTT is untouched either way.
+        ///
+        /// VOX IS THE INTERCOM, NOT THE RADIO. Ty 2026-11-10: "No vox so intercom between pilots in the same
+        /// airplane or solo hearing yourself talk which would allow me to do my narration tutorial videos." So this
+        /// is the ONLY intercom control there is — the Options checkbox said the same thing and has gone — and it
+        /// never keys the transmitter. Hearing himself is the feature he films with, not a side effect. The scope
+        /// widens later to the other seat and then to a flight of aeroplanes; VoiceIO.mm's VOX bus note carries his
+        /// specification of why that path can never be the radio's.
         ///
         /// AND IT SHOWS THE REAL STATE, not its own. The colour follows <see cref="VoiceComms.MicOpen"/>, which is
         /// read back out of the native engine (VO_State) rather than worked out from the settings here, so it cannot
-        /// say "shut" while VoiceIO.mm has the mic. That is why it goes RED and reads MIC when narration — or the
-        /// 1.5 s unkey linger — is holding the microphone with VOX off: the pilot did not ask for that this flight,
-        /// which is exactly when he needs telling. Red is already this toolbar's "live" colour (REC, PTT held).
+        /// say "shut" while VoiceIO.mm has the mic. That is why it goes RED and reads MIC when the microphone is open
+        /// with VOX off — the PTT unkey linger — rather than only when this button did it. Red is already this
+        /// toolbar's "live" colour (REC, PTT held).
         ///
         /// Three states, so "armed" and "open" are never confused:
         ///   dull   VOX     — the microphone is shut. Nothing is listening.
