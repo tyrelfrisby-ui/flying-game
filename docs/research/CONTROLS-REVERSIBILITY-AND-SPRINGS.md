@@ -25,7 +25,7 @@ Research date: 2026-10-02. Prepared for the Aero Playground flight model (contro
 | Extra 300 | R, pushrods/torque tubes | R, pushrods | R, cables | No springs. | Big **aileron spades** give very light, near-neutral roll force. **Cable-driven trim tab on the right elevator.** Horn-balanced elevator and rudder. | M | 20, 21 |
 | Pitts S-2B | R, pushrods; ailerons on both wings joined by an interplane strut | R, pushrod/cable | R, cables | No centering springs known. Pitch trim: **unverified** whether it is a trim tab or a spring bias. Some Pitts (especially homebuilt S-1s) use spring/bungee bias trim. | **Aileron spades on the S-2B** because the ailerons are not finely balanced, so forces are unequal by direction. The S-2C has re-balanced ailerons and no spades. | M/L | 22, 23 |
 | Curtiss JN-4D (1917) | R, cables; ailerons on the **upper wing only**, joined across the centre section | R, cables | R, cables | **None on any axis.** No trim tab, no trim spring, no centering spring. Stabilizer incidence is 0° and ground-set, so pitch is trimmed on the ground with a spanner. There is no tailwheel — it has a tail **skid** — so there are no steering springs either. | **Nothing is balanced**: no horn balances, no mass balances, no tabs. Plain fabric surfaces on cables, and the ailerons are large, deep and overhung. Hinge moments are set one step heavier than the Stearman's for that reason. | L/M | 41, 42 |
-| Boeing-Stearman PT-17 | R, cables; ailerons on the **lower wing only** | R, cables | R, cables | No centering springs. Trim: in-flight **adjustable horizontal stabilizer** (crank). Moderately confident; one web hit describing an elevator tab with a hand wheel looked like a different, British type. | Horn-balanced rudder and elevator. No servo tabs. | M/L | 24, 25 |
+| Boeing-Stearman PT-17 | R, cables; ailerons on the **lower wing only** | R, cables | R, cables | No centering springs. Trim: **elevator trim tabs, ±15°, cable-driven through an irreversible mechanism at the stabiliser front spar, with a cast handle in each cockpit taking 270° of handle for full range**. The stabiliser is FIXED. | Horn-balanced rudder and elevator. No servo tabs. | H | 24, 25, 48 |
 | Gee Bee R-2 (1932) | R, cables/rods | R | R | None known. Assume no springs. | Unknown. Assume an adjustable stabilizer or a ground-bent tab. Airfoil NACA M-6 (8%). | L | 26 |
 | Cassutt F1 racer | R, pushrod/cable | R, pushrod | R, cables | None, or a simple spring bias trim. | Small surfaces, likely a ground-adjustable tab | L | 26 |
 | Glasair III | R, pushrods | R, pushrods | R, cables | Pitch trim is an **electric servo-driven trim tab** inside the elevator (factory kit). Aileron trim, if fitted, is ground-adjustable or a spring bias. | Elevator trim tab | M/L | 27 |
@@ -101,7 +101,23 @@ When a reversible control is released, the surface rotates until its aerodynamic
 - Four ailerons on two wings, joined by an interplane strut. The S-2B needs **spades** because the ailerons are not finely balanced: stick force differs left versus right. The S-2C's ailerons are balanced and need no spades (AOPA fact sheet [22]). Elevator trim mechanism not confirmed.
 
 ### Boeing-Stearman PT-17
-- Ailerons on the lower wing only. Cables throughout. Pitch trim assumed to be an adjustable stabilizer via crank (**medium-low confidence**). Wing NACA 2213.
+- Ailerons on the lower wing only. Cables throughout. Wing NACA 2213.
+- **CORRECTED 2026-11-10 (lane/claude-stearman-elev). Pitch trim is an ELEVATOR TRIM TAB and the
+  stabiliser is fixed** — not the adjustable stabilizer this table asserted at medium-low confidence, and
+  reference 25 was "(Stearman trim: no primary source found; flagged)". There are now two primary
+  sources, and the "one web hit describing an elevator tab with a hand wheel" that this document
+  dismissed as "a different, British type" was right about the Stearman. *Pilot's Handbook for Stearman
+  Airplanes N2S-1/-2/-3*, Report A75NI-9001, 20 January 1941, Stearman Aircraft Division of Boeing,
+  Bureau of Aeronautics [48], verbatim: "ELEVATOR TRIM TAB: Horizontal trim of the airplane is effected
+  by trimming tabs located in the trailing edge of the elevators. These tabs are cable operated by an
+  irreversible mechanism located near the front spar of the stabilizer. … require a total movement of 270°
+  to obtain the full tab range of 15 up and 15 down"; and under FLYING CHARACTERISTICS "A. BALANCE —
+  Longitudinal balance is maintained by the use of the elevator trim tab." Corroborated by TCDS A-743
+  Rev 16, whose Control Surface Movements table lists `Elevator trim tabs Up 15° Down 15°` and whose
+  NOTE 5 rigging list has **no** stabiliser incidence entry at all, and by the AirCorps parts catalog [24],
+  whose index carries sections 64–67 for the elevator tab control front, rear and non-reversing assembly
+  and no adjustable-stabiliser jackscrew. `docs/research/STEARMAN-PT17-DATA.md` § 1 has the sources.
+  The `trimType: "tab"` the config already uses is therefore right for the right reason.
 
 ### Gee Bee R-2, Cassutt F1
 - No reliable controls documentation found. Model them as plain reversible cable/pushrod controls with no springs. Gee Bee: tiny, highly sensitive surfaces (wing NACA M-6 8%). Cassutt: Cassutt 1107 section.
@@ -169,7 +185,7 @@ These are game-design starting points inferred from the mechanisms above and pil
 22. AOPA, Aviat Pitts S-2C fact sheet: https://AOPA.org/go-fly/aircraft-and-ownership/aircraft-fact-sheets/aviat-pitts-s2c
 23. KitPlanes, "Design Process: Pitch Force Trim" (spring trim background): https://www.kitplanes.com/design-process-pitch-force-trim/
 24. Air Corps Aviation, Stearman Airframe Parts Catalog: https://www.aircorpsaviation.com/wp-content/uploads/StearmanAirframePartsCatalogDigital.pdf
-25. (Stearman trim: no primary source found; flagged.)
+25. (Stearman trim: superseded 2026-11-10 by reference 48 — this entry read "no primary source found; flagged", and the primary source exists.)
 26. Lednicer, *The Incomplete Guide to Airfoil Usage*: https://m-selig.ae.illinois.edu/ads/aircraft.html
 27. Glasair owners, electric trim instructions: https://glasair-owners.com/download/063-09001-01-glastar-electric-trim-instructions/
 28. Schweizer SGS 2-33A Flight-Erection-Maintenance Manual: https://www.faasafety.gov/files/events/GL/GL09/2018/GL0983174/schweizer_2_33_manual.pdf
@@ -189,3 +205,10 @@ These are game-design starting points inferred from the mechanisms above and pil
     JN-2's shoulder yoke; ailerons by variant). <https://en.wikipedia.org/wiki/Curtiss_JN_Jenny>
 42. Transcribed JN-4D specification sheet — two ailerons at 17.6 sq ft, stabilizer incidence 0°, wing incidence 2°.
     <https://airminded.net/jenny/jn4_spec.html>. See docs/research/JN4-JENNY-DATA.md for how it is used.
+48. *Pilot's Handbook for Stearman Airplanes, Models N2S-1, N2S-2, N2S-3*, Report No. A75NI-9001, 20 January 1941,
+    Stearman Aircraft Division of Boeing, released by the Bureau of Aeronautics — §§ "Elevator Trim Tab" and
+    "Flying Characteristics: A. Balance", and the Table of Characteristics. Hosted in an NTSB docket:
+    <https://data.ntsb.gov/Docket/Document/docBLOB?ID=40464026&FileExtension=.PDF&FileName=Pilot's+Handbook+for+Stearman-Master.PDF>.
+    With FAA TCDS A-743 Rev 16 (25 April 2023), read 2026-11-10 out of the FAA Dynamic Regulatory System, which
+    gives the Stearman's control-surface movements, CG range, datum and rigging specifications.
+    See docs/research/STEARMAN-PT17-DATA.md § 1 for both, quoted verbatim.
