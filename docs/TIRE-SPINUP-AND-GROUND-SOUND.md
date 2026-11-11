@@ -38,7 +38,7 @@ clamp(fuselage·0.045, 0.15, 0.65), tailwheel ×0.45, bushwheels ×2):
 
 | Aircraft | mass kg | main k N/m | main c N·s/m | TireMu | main r m | note |
 |---|---|---|---|---|---|---|
-| J-3 Cub | 553 | 60 000 | 3 000 | 0.8 | 0.307 auto | tailwheel k 25 000 c 3 750 μ 0.6 |
+| J-3 Cub | 394 | 60 000 | 3 000 | 0.8 | 0.307 auto | tailwheel k 25 000 c 3 750 μ 0.6; was 553 (the 1220 lb placard) until 2026-11-11 |
 | PA-18 | 794 | 60 000 | 3 000 | 0.8 | 0.310 auto | |
 | Pitts S-2B | 737 | 80 000 | 4 000 | 0.8 | 0.170 | tailwheel r 0.075 |
 | Extra 300 | 820 | 80 000 | 4 000 | 0.8 | 0.155 | |

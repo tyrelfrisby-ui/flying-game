@@ -51,7 +51,7 @@ public class FloatStallProbe
         var c = Load("j3-cub-floats-like");
         double bare = StallMs(c, false);
         _o.WriteLine($"float Cub, {c.Mass.MassKg:F0} kg: stall WITHOUT float lift {bare * 2.23694:F1} mph");
-        _o.WriteLine("  rigged at | stall mph | reduction | floats carry at the stall");
+        _o.WriteLine("  rigged at | stall mph | reduction | floats carry at the stall (share of the seaplane exchange weight)");
         foreach (double inc in new[] { 0.0, 2.0, 4.0, 6.0, 8.0, 10.0 })
         {
             c.Floats!.IncidenceDeg = inc;
@@ -60,8 +60,12 @@ public class FloatStallProbe
             Vec3 vb = new(s * System.Math.Cos(aStall), 0, s * System.Math.Sin(aStall));
             var ff = FloatAero.Compute(c, vb, 1.225).Force;
             double lift = -(ff.Z * System.Math.Cos(aStall) - ff.X * System.Math.Sin(aStall));
-            double wFloat = (c.Mass.MassKg - 553.0) * 9.80665;
-            _o.WriteLine($"  {inc,9:F0}° | {s * 2.23694,9:F1} | {100 * (1 - s / bare),8:F1} % | {lift,6:F0} N = {100 * lift / wFloat,3:F0} % of their weight");
+            // What the float installation costs, read from the two configs rather than from a literal 553.0 that went
+            // stale the moment the J-3's authored mass moved (2026-11-11, the empty-weight lane). Note the exchange:
+            // the owner, "floats use an exchange weight removing landing gear and adding floats", so this delta is floats-on
+            // MINUS gear-off (125 lb), not what the floats alone weigh (Edo 1320s: 171-182 lb installed).
+            double wFloat = (c.Mass.MassKg - Load("j3-cub-like").Mass.MassKg) * 9.80665;
+            _o.WriteLine($"  {inc,9:F0}° | {s * 2.23694,9:F1} | {100 * (1 - s / bare),8:F1} % | {lift,6:F0} N = {100 * lift / wFloat,3:F0} % of the exchange weight");
         }
     }
 }

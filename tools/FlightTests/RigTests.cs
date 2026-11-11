@@ -381,8 +381,18 @@ public static class RigTable
         new("great-lakes-like", true, 1, 0.4741, 0.3642, 0.9951, 106.66),
         new("hang-glider-like", false, 0, 0.0000, 0.0000, -15.5066, 21.38),
         new("hughes-h4-like", true, 1, 0.0413, 0.0327, -0.5892, 151.17),
-        new("j3-cub-floats-like", true, 1, 0.0935, 2.2431, -1.5061, 59.64),
-        new("j3-cub-like", true, 1, 0.1050, 2.5570, -1.7359, 56.31),
+        // RE-SOLVED 2026-11-11, the two J-3s only, because their authored MASS moved. Both configs had been authored
+        // at their PLACARDS — 553.0 kg = 1,220 lb and 589.7 kg = 1,300 lb — and they now carry the type's published
+        // empty weight plus the one-pilot-in-the-rear-seat reference the fleet uses: 680 lb (Piper Service Memo 41)
+        // + 86 kg = 394.4 kg, and 805 lb (that plus the 125 lb seaplane exchange) + 86 kg = 451.1 kg. mass.massKg is
+        // what RigSolver flies, so a lighter aeroplane is a DIFFERENT RIG: at the same 75 % it sits faster and at a
+        // far lower alpha — the wheels Cub 56.31 → 62.58 KTAS at alpha 3.51° → −0.21°, the floats one 59.64 → 65.64
+        // at 3.08° → 0.00° — and the elevator trim crosses zero with it (−1.74° → +0.54°, −1.51° → +0.55°). The fin
+        // offsets move about a tenth of a degree (+2.557 → +2.447, +2.243 → +2.314), which is the check that this is
+        // a weight change and not a tail change: a tail change moves the fin first.
+        // Nothing else in the fleet was re-solved — RIG_ONLY=j3-cub-like,j3-cub-floats-like.
+        new("j3-cub-floats-like", true, 1, 0.1483, 2.3143, 0.5484, 65.64),
+        new("j3-cub-like", true, 1, 0.1611, 2.4467, 0.5428, 62.58),
         new("jn4-jenny-like", true, 1, 0.5127, 0.6826, -0.8444, 50.64),
         new("p51d-like", true, 1, 0.4943, 0.1943, -1.3254, 209.27),
         new("pa18-bush-like", true, 1, 0.2551, 0.4243, 0.7431, 91.25),
