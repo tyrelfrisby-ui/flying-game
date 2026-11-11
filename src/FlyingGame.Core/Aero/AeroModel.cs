@@ -615,6 +615,10 @@ public static class AeroModel
         double finSidewashK = config.SpinAero?.FinSidewashK ?? 0.0;
         double stabSidewashK = config.SpinAero?.StabSidewashK ?? 0.0;
         double controlSpoilerK = config.SpinAero?.ControlSpoilerK ?? 0.0;
+        // Where that term starts, in degrees of the strip's own flow (SpinAeroConfig.ControlSpoilerOnsetDeg, 30 by
+        // default = what shipped). It is a field because the angle belongs to the SECTION, not to the fleet: 30 was
+        // right for a NACA 0012 tail and is late for a flat plate, which stalls at 9-12 deg. See the config doc.
+        double spoilerOnsetDeg = config.SpinAero?.ControlSpoilerOnsetDeg ?? 30.0;
         double[] wingGeom = WingGeom(config);
         double slipRollK = slipRollKind.Length > 0 && wingGeom[2] > 1e-6 ? wingGeom[0] / wingGeom[2] : 0.0;
         const double SlipRollBeta20 = 20.0 * Math.PI / 180.0;
@@ -1241,8 +1245,11 @@ public static class AeroModel
                 // (sin alpha_chord). Hoerner treats spoilers and deflected plates in separated flow this way; strip
                 // theory with a plain section table cannot produce it, because the table only knows one angle.
                 //
-                // Ramped in over 30-50 deg of the strip's OWN flow angle, so attached flight, the spin entry and every
-                // normal control input are untouched; it exists only where the section law has gone flat.
+                // Ramped in over 20 deg from SpinAeroConfig.ControlSpoilerOnsetDeg (30 deg as shipped, so 30-50) of
+                // the strip's OWN flow angle, so attached flight, the spin entry and every normal control input are
+                // untouched; it exists only where the section law has gone flat. 30 deg is where that is true of a
+                // NACA 0012, whose stall is at 14; a FLAT-PLATE tail stalls at 9-12 and goes flat sooner, which is
+                // why the onset is a field now and not a constant.
                 //
                 // BOTH TAILS since 2026-11-10. It shipped on the horizontal tail alone for one build, only so that the
                 // fin's sidewash and this would not move at once; once the owner had flown that ("That is it! Now it
@@ -1257,7 +1264,7 @@ public static class AeroModel
                     double aChord = alphaBase + stripIncidence;
                     double ad = Math.Abs(aChord) * 57.2957795;
                     ad %= 360.0; if (ad > 180.0) ad = 360.0 - ad; if (ad > 90.0) ad = 180.0 - ad;
-                    double ramp = Math.Clamp((ad - 30.0) / 20.0, 0.0, 1.0);
+                    double ramp = Math.Clamp((ad - spoilerOnsetDeg) / 20.0, 0.0, 1.0);
                     if (ramp > 0.0)
                     {
                         double n = controlSpoilerK * Math.Sin(strip.Control.Gain * deflEff) * Math.Abs(Math.Sin(aChord))
