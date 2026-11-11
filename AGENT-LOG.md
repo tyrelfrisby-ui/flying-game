@@ -1,3 +1,39 @@
+## The ten orphaned lanes Ty approved, merged one at a time — Claude, 2026-11-10, lane/claude-backlog-merge
+
+<!-- orphaned-lanes-merge triage-2026-11-10 glb-sidecar-collision parity-lock -->
+
+`docs/pending/ORPHANED-LANES-TRIAGE-2026-11-10.md` classified 75 lanes in neither shipping lane. Ty approved ten of
+them for merging — the READY ones plus the NEEDS YOU ones whose question he answered. They are merged here in the
+order the brief set: trivial first, so an early failure is cheap; the riskiest last. Tests between every merge, so a
+failure is attributable to one lane. **Nothing pushed, nothing merged to `main`, no `--no-verify`.**
+
+Running record, one bullet per lane, newest last:
+
+- **`lane/claude-app-icon`** (`dd679087`) — MERGED. The AP letter icon, 1024 opaque, replacing
+  `unity/Assets/_Project/Art/AppIcon.png` in place under the same GUID `069fd8c6…`, which all 19 iPhone/iPad/App
+  Store slots in `ProjectSettings.asset` already point at — so iOS and iPad get the new icon from the PNG alone.
+  `AGENT-LOG.md` conflicted (both sides kept in full, as always). **One piece of that lane did NOT land:** its
+  `m_BuildTargetIcons` hunk, which sets the *Default* icon so Mac (OSXUniversal) and Quest/Android pick the same
+  texture up. Ty's standing rule for this run is *never commit `unity/ProjectSettings/ProjectSettings.asset`*, so
+  the file was resolved back to ours and the one-line default-icon change is left for him. Without it the Mac and
+  Quest builds keep Unity's stock icon; iOS is unaffected.
+- **`lane/claude-trigger-brakes`** (`b29dd07b`) — MERGED. The triggers become independent LEFT / RIGHT toe brakes on
+  the 8BitDo (iOS/Mac/Quest) and on the Quest Touch, proportional past a 0.05 dead zone and no expo (like a pedal,
+  half pull is half brake); the guns move off the right trigger to the right grip, the VR menu navigates on the
+  sticks with A/X select, and the always-shown MENU tab is hidden behind a `const bool`. Only `AGENT-LOG.md`
+  conflicted; the four Bridge scripts auto-merged.
+  **Two things the lane had gone stale on, both finished here rather than resolved away:**
+  1. `tools/FlightTests/QuestControlsTests.cs` still pinned the OLD mapping and failed —
+     `BrakesFollowTheLeftTrigger` (left trigger = both wheels) and the right-trigger half of
+     `SmokeTogglesOncePerSqueezeAndGunsAreHeld`. The lane updated `QuestStickFeelTests` and missed this file. Both
+     tests are re-pinned to the mapping Ty asked for: the triggers are the two toe brakes, `Fire` follows the right
+     grip.
+  2. `LocalPadControls.cs` — the split-screen second seat — did not exist when this lane was written. Its triggers
+     were a second rudder through `gp.Rudder`, which this lane narrows to the left stick alone, so P2 would have
+     lost the triggers entirely and gained nothing. Three lines put the same `CombineWheelBrakes` on that seat, so
+     both players' triggers are their own toe brakes.
+  Tests: `GamepadShaping|QuestStickFeel|QuestControls|PedalBlend|LocalPad|Brake` — **122 passed, 0 failed.**
+
 ## ASTC 4x4: the textures come out of the GLBs, and the whole fleet with every livery is 0.95 GB — Claude, 2026-11-10, lane/claude-textures
 
 <!-- astc-4x4 glb-sidecar-textures gltfast-external-texture 4gb-limit livery-policy-superseded -->
@@ -3256,6 +3292,18 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
      - `WheelWaterTests.ALightTouchAtSpeedSkims…(glider-swift-s1-like)`: the real 300×100 main tyre (r 0.15, the old auto
        rule gave 0.31) is too small to plane at 25 m/s, digs in, and the nose breaks off. It passes with the auto radius.
      - Also red, and red at the branch point too (not mine): the same water test for the SR22 and the Glasair III.
+- **TRIGGER TOE BRAKES (Claude, 2026-11-04, lane/claude-trigger-brakes off lane/claude-island-nav, local only, not
+  merged into either lane — the parity rule needs it merged into BOTH island-nav and quest-islandnav).** Decide / test:
+  1. 8BitDo (iOS/Mac/Quest): LT = LEFT wheel brake, RT = RIGHT wheel brake, analog. The old "RT − LT = rudder" is gone
+     (left stick X is still full rudder). X button still = both brakes.
+  2. Quest Touch: triggers = left / right wheel brake. DISPLACED: right trigger guns -> RIGHT GRIP (held, where guns are
+     hot; elsewhere the grip is still smoke toggle — modal, check you like it); left trigger collective brake -> split.
+  3. Quest menu: the always-shown MENU tab is hidden by logic (QuestRig MenuTabEnabled=false, art untouched); opens from
+     the left ☰ button (left stick click held 1 s still works too — say if you want it gone). Inside: sticks move,
+     A/X select, B/Y back; trigger-pointing is off for controllers, kept only for tracked hands (no sticks). iOS
+     on-screen menu button is a different component, untouched. Meta's right ☰/Meta button is system-reserved, not used.
+  4. Not built (Unity build not run by me); fly-test on iPhone + Quest.
+
 <!-- parity-merge needs-you -->
 - **PARITY MERGE DONE: BOTH LANES ARE ONE COMMIT AND LOCKED (Claude, 2026-11-04, Ty approved 07:29).**
   lane/claude-island-nav = lane/claude-quest-islandnav = **b7d1a680**; `tools/check-parity.sh --strict` PARITY: OK.
@@ -13077,3 +13125,21 @@ NEEDS YOU: Ty, approve `renders/grob103/blanc-v1/` and the proposed visual eyes.
 - Copies delivered to `/Users/tyfrisby/Developer/agent-lanes/xfer/grob-blanc-v1/`, including review images, GLBs, attribution, rig and editable Blender scene. Source STL remains in its original transfer folder. Local commit only; no push, merge, deploy or install. No forced add. Required tracked-file ignore audit must be silent immediately before commit; visual approval stays PENDING.
 
 PITTS-V2-MERGED
+
+## 2026-11-04 — lane/claude-app-icon: AP letter app icon (Ty approved)
+- Replaced unity/Assets/_Project/Art/AppIcon.png (same GUID 069fd8c6…, so all 19 iPhone/iPad/App Store icon slots in Player Settings pick it up) with the AP letter icon (aero/vector/png/ap-icon-color-1024.png): 1024×1024, opaque, no alpha (sips hasAlpha: no).
+- ProjectSettings.asset: set the Default icon (m_BuildTargetIcons) to the same texture so Mac (OSXUniversal) and Quest/Android builds get it too (Android adaptive slots stay empty → fall back to default).
+- tools/check-parity.sh: PARITY OK. Branch is off lane/claude-island-nav b7d1a680.
+- BUILD NOT RUN: the parity-merge agent was mid-tests (dotnet test pid 27644) with its iOS/Quest builds queued next; did not start a Unity/xcodebuild alongside it. No install (rides the parity-merge install).
+- NEXT: after the parity merge, merge lane/claude-app-icon into lane/claude-island-nav AND lane/claude-quest-islandnav (ProjectSettings.asset touched — merge carefully with the parity merge's ProjectSettings), then build: need ** BUILD SUCCEEDED **.
+
+## 2026-11-04 trigger toe brakes (Claude, lane/claude-trigger-brakes)
+Found: gamepad mapping in unity/Assets/_Project/Scripts/Bridge/GamepadInput.cs Read() (LT/RT fed GamepadShaping.Rudder as
+a second rudder; X = Brakes held); Quest pad -> QuestGamepadMap.ToFrame (src/FlyingGame.Core/Vr/QuestControls.cs), Touch
+LT = c.Brake, RT = c.Fire; QuestMenu selected with trigger > 0.6 and a pointer laser; QuestMenuTabView = always-shown tab.
+Sim already has differential braking (Aircraft.BrakeInput + BrakeBias, LandingGear.Compute; PedalBlend.ToSim/FromSim).
+Changed: GamepadShaping.StickRudder / TriggerBrakes / CombineWheelBrakes (Core, shared); GamepadInput Frame.BrakeLeft/
+Right; TouchFlightControls folds pad + Quest per-wheel brakes into BrakeInput/BrakeBias (max per wheel, like pedals);
+QuestControlMapper BrakeLeft/Right from triggers, Fire = right grip; Bridge grip = guns if FireAvailable else smoke;
+QuestMenu: no trigger select, pointing only HandsOnly; QuestRig tab disabled. Tests: GamepadShapingTests (+2),
+QuestStickFeelTests updated. GamepadShaping.Rudder(lx,lt,rt) left in place (tests/replication use it).

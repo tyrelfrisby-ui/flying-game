@@ -35,8 +35,10 @@ namespace FlyingGame.Core.Vr
         public double Throttle01;
         public bool ThrottleMoved;
 
-        /// <summary>Wheel brakes 0..1, held.</summary>
+        /// <summary>Wheel brakes 0..1, held (both wheels). Nothing on the Touch sets it since 2026-11-04; kept for callers.</summary>
         public double Brake;
+        /// <summary>LEFT / RIGHT wheel (toe) brakes, 0..1: the left / right trigger, proportional (Ty 2026-11-04).</summary>
+        public double BrakeLeft, BrakeRight;
 
         /// <summary>Pitch-trim rate in trim-slider units per second (TouchFlightControls._pitchTrim): positive is
         /// nose DOWN, the same sense as the slider and a joystick's TRIM DOWN.</summary>
@@ -204,7 +206,10 @@ namespace FlyingGame.Core.Vr
             c.Throttle01 = lever;
             c.ThrottleMoved = moved;
 
-            c.Brake = Clamp01(f.LeftTrigger);
+            // Triggers = toe brakes, left wheel / right wheel (Ty 2026-11-04). They no longer select in the menu or
+            // fire the guns: the menu is the ☰ button + sticks + A/B, the guns are the right grip.
+            var (bl, br) = GamepadShaping.TriggerBrakes(f.LeftTrigger, f.RightTrigger);
+            c.BrakeLeft = bl; c.BrakeRight = br;
 
             // ---- buttons ----
             c.PitchTrimRate = (f.B ? TrimRatePerSec : 0.0) - (f.A ? TrimRatePerSec : 0.0);
@@ -219,7 +224,7 @@ namespace FlyingGame.Core.Vr
             bool rg = _rightGrip ? f.RightGrip > GripOff : f.RightGrip >= GripOn;
             c.Smoke = rg && !_rightGrip;
             _rightGrip = rg;
-            c.Fire = f.RightTrigger >= TriggerFire;
+            c.Fire = rg;   // held: guns where they are hot (the Bridge uses the grip for smoke when they are not)
 
             _prev = f; _havePrev = true;
             return c;
@@ -307,12 +312,12 @@ namespace FlyingGame.Core.Vr
     ///
     ///   right stick       aileron (X) and elevator (Y; forward = push) — the Touch's right stick
     ///   left stick X      rudder;  left stick Y  the throttle lever as a rate (push to open, let go and it stays)
-    ///   left trigger      wheel brakes;  right trigger  guns (where they are hot)
+    ///   left / right trigger  LEFT / RIGHT wheel brake (proportional);  right shoulder  guns where hot, else smoke
     ///   south / east      pitch trim nose UP / nose DOWN (the Touch A / B)
     ///   west / north      flaps one step down / up (the Touch X / Y)
     ///   left stick press  gear (glider: tow / release)
     ///   right stick press recentre; held 1 s, the menu
-    ///   Start             the VR menu;  Select  recentre;  right shoulder  smoke on / off
+    ///   Start             the VR menu;  Select  recentre
     ///
     /// The sticks are Ty's mapping for every platform (2026-11-02: right stick flies, left stick X rudder, left stick
     /// Y throttle — the iPhone's GamepadShaping has the same, with the throttle a rate there too), which is the Touch
