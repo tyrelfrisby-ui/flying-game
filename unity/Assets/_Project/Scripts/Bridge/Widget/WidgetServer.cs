@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using FlyingGame.Core;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
@@ -23,6 +24,11 @@ namespace FlyingGame.Bridge.Widget
         public static readonly int TcpPort = HttpPort - 1;   // 47830 / 47831 (a capture instance: its own pair)
         public AeroWidget Widget;
         public static string LocalIp { get; private set; } = "127.0.0.1";
+
+        /// <summary>The ONE directory a <c>snapshot</c> may write into, inside the widget's own persistent data
+        /// directory (its bundle id is its own, so this is the widget's folder and not the game's). Never a path
+        /// in the repository, which is public, and never a path a caller gets to choose — see the snapshot case.</summary>
+        public static string SnapshotDir => System.IO.Path.Combine(Application.persistentDataPath, WidgetAccess.SnapshotDirName);
 
         private TcpListener _tcp;
         private HttpListener _http;
@@ -720,13 +726,25 @@ namespace FlyingGame.Bridge.Widget
                 case "snapshot":
                 {
                     // The current frame (with alpha) to a PNG — for checking the output, or a still for the show.
-                    string path = (string)j["path"] ?? System.IO.Path.Combine(System.IO.Path.GetTempPath(), "aero-widget.png");
+                    //
+                    // CONFINED TO ONE DIRECTORY (pre-ship audit, 2026-11-11). This used to be
+                    //   string path = (string)j["path"] ?? …;  File.WriteAllBytes(path, png);
+                    // which is an arbitrary file write to anywhere the widget process can reach, asked for by anyone
+                    // who can open the port — and before this lane, that was anyone on the network AND any web page
+                    // the presenter had open, because the server also sent wildcard CORS. A PNG is not an innocent
+                    // payload when you choose the path: ~/Library/LaunchAgents, a shell profile, a file the build
+                    // reads. Nothing in the widget ever needed to choose a directory, so the caller's "path" is now
+                    // read as a NAME ONLY (WidgetAccess.SnapshotPath: every directory component, "..", root and
+                    // drive letter discarded, extension forced to .png) and the write lands in SnapshotDir.
+                    // The reply still carries the full path, so a local caller knows where the file went.
+                    string path = WidgetAccess.SnapshotPath(SnapshotDir, (string)j["path"]);
+                    try { System.IO.Directory.CreateDirectory(SnapshotDir); } catch { }
                     var was = RenderTexture.active; RenderTexture.active = w.Frame;
                     var tex = new Texture2D(w.Frame.width, w.Frame.height, TextureFormat.RGBA32, false);
                     tex.ReadPixels(new Rect(0, 0, w.Frame.width, w.Frame.height), 0, 0); tex.Apply();
                     RenderTexture.active = was;
                     System.IO.File.WriteAllBytes(path, tex.EncodeToPNG()); Destroy(tex);
-                    ok["path"] = path; break;
+                    ok["path"] = path; ok["dir"] = SnapshotDir; break;
                 }
                 case "state": return StateJson().ToString(Newtonsoft.Json.Formatting.None);
                 case "subscribe": break;

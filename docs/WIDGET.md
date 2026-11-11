@@ -65,7 +65,7 @@ Newline-delimited JSON, one command per line, one JSON reply line per command (`
 | `fleet` | | Reply `fleet: [{id, name, controls}]`; `controls` = `{flaps: [detent °…], spoilers: bool, gear: fixed\|retractable, engines: n}`. |
 | `state` | | Reply with the state (below). |
 | `subscribe` | `hz`: 1…60 | Stream state lines on this connection at that rate. |
-| `snapshot` | `path` (optional) | Write the current frame (RGBA PNG) and reply with `path`. |
+| `snapshot` | `path` (optional) | Write the current frame (RGBA PNG) and reply with `path` and `dir`. `path` is a FILE NAME, not a path: every directory part, `..` and root is discarded and the file lands in the widget's own `snapshots` directory, always as `.png`. |
 | `gamepad` | `aileron`, `elevator`, `rudder`, `throttle`: joystick axis numbers 1–8; `invertElevator`, `throttleFromAxis`: bool | Remap the gamepad. |
 
 State (reply to `state`, and the `subscribe` stream):
