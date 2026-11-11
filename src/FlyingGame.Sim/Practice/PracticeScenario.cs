@@ -311,11 +311,18 @@ public sealed class PracticeScenario
             if (main is not null)
             {
                 var tables = FlyingGame.Sim.Aircraft.BuildAirfoilTables(config);
-                // THE EARLIEST-STALLING STRIP, not the root's. A wing with one table per station (the Extra's derived
-                // sections, 2026-11-10) stalls where its FIRST station lets go — mid-span, three degrees before the
-                // root. Reading Strips[0] would cap alpha past the angle at which the aeroplane has already stalled.
-                // Every other type in the fleet flies one table across the whole wing, so this is that table's angle,
-                // exactly as before, for all of them.
+                // THE EARLIEST-STALLING STRIP, not the root's. A wing with more than one table across it stalls where
+                // its FIRST station lets go, not where its root does: the Extra's derived sections (2026-11-10) stall
+                // mid-span, nearly two degrees before the root, and reading Strips[0] would cap alpha past the angle at
+                // which the aeroplane has already stalled.
+                //
+                // TWO TYPES IN THE FLEET HAVE SUCH A WING and this moves both, measured:
+                //   the Extra 300 — one derived section per station: 18.2° at s4 against 20.0° at the root;
+                //   the Grob 103 — one Eppler E583 table per Reynolds band: 20.96° outboard against 21.81° at the root,
+                //     so its cap moves 0.85° earlier. Its glide-table row does not move at all (regenerated and diffed),
+                //     because the stall is well inside the 12–28° clamp either way.
+                // Every other type flies one table across the whole wing, so for them this is that table's angle,
+                // bit-identical to before.
                 double first = double.MaxValue;
                 foreach (StripConfig st in main.Strips)
                     if (tables.TryGetValue(st.Airfoil, out AirfoilTable? t)) first = Math.Min(first, t.AlphaClMaxRad);
