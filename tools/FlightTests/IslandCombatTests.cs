@@ -6,6 +6,7 @@ using FlyingGame.Core.DataContracts;
 using FlyingGame.Core.MathTypes;
 using FlyingGame.Sim;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace FlyingGame.FlightTests;
 
@@ -17,6 +18,9 @@ namespace FlyingGame.FlightTests;
 [Collection("WorldTerrainActive")]   // swaps the global terrain: never in parallel with the legacy-world tests
 public sealed class IslandCombatTests : IDisposable
 {
+    private readonly ITestOutputHelper _o;
+    public IslandCombatTests(ITestOutputHelper o) { _o = o; }
+
     /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method
     /// does not run when the test throws, so a failing test used to leave its world installed in the global
     /// WorldTerrain.Active for the whole rest of the run — which silently changed the ground under every
@@ -222,7 +226,9 @@ public sealed class IslandCombatTests : IDisposable
             var air = new Aircraft(cfg, new RigidBodyState(new Vec3(gx, gy, -(g + 400)), new Quat(0, 0, 0, 1), new Vec3(62, 0, 0), Vec3.Zero), ControlDeflections.Neutral);
             air.SetGear(false, immediate: true);
             var wreck = new Aircraft(cfg, LandingGear.RestingState(cfg, gx, gy, g, 0), ControlDeflections.Neutral);
-            Assert.True(Cost(wreck) > Cost(air) * 1.5, "a wreck no longer costs appreciably more than a flying aeroplane");
+            double cw = Cost(wreck), ca = Cost(air);
+            _o.WriteLine($"500 steps: wreck {cw:F1} ms, flying {ca:F1} ms, ratio {cw / ca:F2}");
+            Assert.True(cw > ca * 1.5, $"a wreck no longer costs appreciably more than a flying aeroplane (ratio {cw / ca:F2})");
         }
         finally { WorldTerrain.Active = null; }
 
