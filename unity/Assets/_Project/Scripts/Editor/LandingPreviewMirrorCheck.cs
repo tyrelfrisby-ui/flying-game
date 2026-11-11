@@ -33,8 +33,9 @@ namespace FlyingGame.EditorTools
     /// <c>_ReflOn</c> = 1 exactly as in a live frame, and the preview camera looking from its own fixed bearing — the
     /// difference between those two views is what makes the ghost visible and is why both are set up.
     ///
-    /// THE EVIDENCE IS THE PICTURE. <c>_ReflectionTex</c> is replaced with solid red before the preview draws, so any
-    /// water that samples the mirror comes out unmistakably red, whatever is in the mirror:
+    /// THE EVIDENCE IS THE PICTURE. <c>_ReflectionTex</c> is replaced with solid magenta before the preview draws, so
+    /// any water that samples the mirror comes out unmistakably magenta, whatever the mirror actually holds (<see
+    /// cref="Marker"/> says why magenta and not red):
     ///  1. the frame the real path draws must have NO such texel — the preview's water does not read the mirror;
     ///  2. the CONTROL — the same camera re-rendered the pre-fix way, with the globals left as the main camera set
     ///     them — must be full of them, or there is no water in the preview's frame and this check is not watching the
@@ -56,9 +57,17 @@ namespace FlyingGame.EditorTools
         private static readonly List<(string cam, float reflOn, float depthOff)> Seen = new();
 
         private const string PreviewCam = "LandingPreviewCamera";
-        /// <summary>A texel is the marker mirror's when red beats both other channels by this much. Day water is blue
-        /// and green and its sky is blue, so nothing in an honest frame comes close.</summary>
-        private const int Redness = 40;
+
+        /// <summary>The colour the mirror is replaced with. MAGENTA, not red: the first run of this check used red and
+        /// counted 4,527 "mirrored" texels in a frame that was correct — the Pitts' own paint. Nothing in a daylight
+        /// island frame is magenta (sky and water are blue, foliage green, ground tan, the fleet's paint red, white,
+        /// yellow and blue), and white does not qualify because its green is high.</summary>
+        private static readonly Color32 Marker = new Color32(255, 0, 255, 255);
+        private static bool Mirrored(Color32 c) => c.r > 150 && c.b > 150 && c.g < 70;
+        /// <summary>A frame may hold this fraction of marked texels and still count as clean — 1/1000. The control
+        /// below measures about 70 % of its frame, so there is a factor of 700 between pass and fail: this is slack
+        /// for a stray texel at a silhouette's edge, not a tolerance for a reflection.</summary>
+        private const int CleanDivisor = 1000;
 
         private static object Call(object o, string name) =>
             o.GetType().GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).Invoke(o, null);
@@ -119,10 +128,10 @@ namespace FlyingGame.EditorTools
                 cam.Render();
                 Save(mainRt, Path.Combine(output, "main-view.png"));
 
-                // The mirror becomes solid red: from here on, water that samples it is obvious in the picture.
+                // The mirror becomes solid magenta: from here on, water that samples it is unmistakable in the picture.
                 var marker = new Texture2D(4, 4, TextureFormat.RGBA32, false) { name = "mirror marker" };
                 var px = new Color32[16];
-                for (int i = 0; i < px.Length; i++) px[i] = new Color32(255, 0, 0, 255);
+                for (int i = 0; i < px.Length; i++) px[i] = Marker;
                 marker.SetPixels32(px); marker.Apply();
                 Shader.SetGlobalTexture("_ReflectionTex", marker);
 
@@ -148,7 +157,7 @@ namespace FlyingGame.EditorTools
                 Call(preview, "LateUpdate");             // the frame this check reads
                 var shown = (RenderTexture)typeof(LandingPreview).GetProperty("Texture").GetValue(preview);
                 if (shown == null) throw new InvalidOperationException("the landing preview rendered no picture");
-                int redFixed = Marker(shown, Path.Combine(output, "preview-fixed.png"));
+                int markedFixed = Count(shown, Path.Combine(output, "preview-fixed.png"));
 
                 // 3: the main camera's frame was handed back exactly as it was found.
                 if (Shader.GetGlobalFloat("_ReflOn") != reflOnLive || Shader.GetGlobalFloat("_WaterSceneDepthOff") != 0f)
@@ -158,10 +167,13 @@ namespace FlyingGame.EditorTools
                 // 4: the thumbnail pipeline, which writes what it renders to disk.
                 Seen.Clear();
                 var card = LandingThumbnails.Render(previewCam);
-                int redCard = card == null ? -1 : Red(card.GetPixels32());
+                int markedCard = card == null ? -1 : Count(card.GetPixels32());
+                int cardTexels = card == null ? 1 : card.width * card.height;
                 if (card != null) Object.DestroyImmediate(card);
                 Report(log, Fail, PreviewCam, 0f, 1f);
-                if (redCard != 0) Fail($"the aircraft card captured {redCard} texels of the main camera's mirror: the ghost would be written to disk");
+                log.AppendLine($"the aircraft card: {markedCard} marked texels of {cardTexels}");
+                if (markedCard < 0 || markedCard * CleanDivisor > cardTexels)
+                    Fail($"the aircraft card captured {markedCard} texels of the main camera's mirror: the ghost would be written to disk and kept");
                 Seen.Clear();
                 var launchCard = LandingThumbnails.Render(cam);
                 if (launchCard != null) Object.DestroyImmediate(launchCard);
@@ -174,13 +186,13 @@ namespace FlyingGame.EditorTools
                 previewCam.targetTexture = control;
                 previewCam.Render();                      // no guard: this is the defect itself
                 previewCam.targetTexture = was;
-                int redControl = Marker(control, Path.Combine(output, "preview-control-prefix-emulated.png"));
+                int markedControl = Count(control, Path.Combine(output, "preview-control-prefix-emulated.png"));
                 int total = shown.width * shown.height;
-                log.AppendLine($"mirrored texels: control {redControl} of {total} ({100f * redControl / total:F2} %), real path {redFixed}");
-                if (redControl * 500 < total)
-                    Fail($"the control drew only {redControl} mirrored texels of {total}: no water in the preview's frame samples the mirror, so this check is not watching the defect it guards");
-                if (redFixed > 0)
-                    Fail($"{redFixed} texels of the preview's own frame came from the main camera's mirror: the ghost aeroplane is still there");
+                log.AppendLine($"marked texels: control {markedControl} of {total} ({100f * markedControl / total:F2} %), the real path {markedFixed} ({100f * markedFixed / total:F2} %)");
+                if (markedControl * 500 < total)
+                    Fail($"the control drew only {markedControl} marked texels of {total}: no water in the preview's frame samples the mirror, so this check is not watching the defect it guards");
+                if (markedFixed * CleanDivisor > total)
+                    Fail($"{markedFixed} texels of the preview's own frame came from the main camera's mirror: the ghost aeroplane is still there");
 
                 builder.Clear();
             }
@@ -212,19 +224,19 @@ namespace FlyingGame.EditorTools
         }
 
         /// <summary>How many texels came from the marker mirror, saving the frame when given a path.</summary>
-        private static int Marker(RenderTexture rt, string png)
+        private static int Count(RenderTexture rt, string png)
         {
             var tex = Read(rt);
-            int n = Red(tex.GetPixels32());
+            int n = Count(tex.GetPixels32());
             if (png != null) File.WriteAllBytes(png, tex.EncodeToPNG());
             Object.DestroyImmediate(tex);
             return n;
         }
 
-        private static int Red(Color32[] px)
+        private static int Count(Color32[] px)
         {
             int n = 0;
-            foreach (var c in px) if (c.r - Math.Max(c.g, c.b) > Redness) n++;
+            foreach (var c in px) if (Mirrored(c)) n++;
             return n;
         }
 
