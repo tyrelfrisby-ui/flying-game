@@ -11,8 +11,8 @@ namespace FlyingGame.Core;
 /// What this decides (pure, no Unity; the PilotUnderwater shader runs the same arithmetic per pixel):
 ///  - <see cref="SubmergedLength"/>: of a straight ray from the eye, how much lies under the plane y = water. That is
 ///    what murks a pixel, so the waterline on screen is exactly where the real surface crosses each part.
-///  - <see cref="ModeFor"/>: when the treatment runs at all. ONLY from the seat (the aerial and chase views are never
-///    touched, Ty t923u: "the water itself looks great"), only over water, and only once the eye is in the water or
+///  - <see cref="ModeFor"/>: when the treatment runs at all. ONLY FROM THE PILOT'S OWN EYE (the aerial and chase views
+///    are never touched, Ty t923u: "the water itself looks great"), only over water, and only once the eye is in the water or
 ///    within <see cref="NearAboveM"/> of it. A floatplane taxiing upright has its eye 1.5–2 m above the lake and gets
 ///    nothing, so the approved view from the cockpit on the water does not change either.
 ///  - With the eye above the surface (<see cref="Mode.NearField"/>) the water's own pass already tints everything
@@ -48,10 +48,21 @@ public static class UnderwaterView
         return Math.Max(0, length - eyeAboveWater / -dirUp);
     }
 
-    /// <summary>When the treatment runs: the seat view, water under the eye, the eye in it or close above it.</summary>
-    public static Mode ModeFor(bool inCockpit, double? waterY, double eyeY)
+    /// <summary>
+    /// When the treatment runs: the pilot's own eye, water under it, the eye in the water or close above it.
+    ///
+    /// <paramref name="pilotsOwnEye"/> WAS "in the cockpit" until 2026-11-10 and is now wider than that, because the
+    /// pilot can leave the aeroplane and swim (lane/claude-vr-cockpit's egress, Ty's "you can always get out"). A
+    /// seated pilot in a flooded cockpit got murk and one treading water beside it got none, which is the same bug
+    /// t922u reported one step further out. Asked which of the two underwater implementations should win, Ty chose
+    /// this one, extended: *"teach PilotUnderwater about an eye that is OUTSIDE the cockpit … one source of truth,
+    /// extended — not two layers."* So the Bridge passes true for the seat view OR a pilot who is out of the
+    /// aeroplane (PilotUnderwater), and still false for the chase and aerial cameras, which is the part t923u cares
+    /// about.
+    /// </summary>
+    public static Mode ModeFor(bool pilotsOwnEye, double? waterY, double eyeY)
     {
-        if (!inCockpit || !waterY.HasValue) return Mode.Off;
+        if (!pilotsOwnEye || !waterY.HasValue) return Mode.Off;
         double above = eyeY - waterY.Value;
         if (above < 0) return Mode.Full;
         return above <= NearAboveM ? Mode.NearField : Mode.Off;

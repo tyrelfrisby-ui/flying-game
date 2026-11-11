@@ -149,6 +149,13 @@ namespace FlyingGame.Bridge
             // The pilot's hands on the aeroplane's own controls, and his visible body: inert unless the headset is on.
             cam.gameObject.AddComponent<VrCockpitHands>();
             cam.gameObject.AddComponent<AudioListener>();
+            // The pilot's own water sounds (a light splash, lapping; muffled under) on a child of the listener, inert
+            // unless the eye is in water. The UNDERWATER VIEW is not added here: the one that ships is
+            // Bridge/PilotUnderwater (Ty t922u, 2026-11-06), installed with the camera's other render components, and
+            // lane/claude-vr-cockpit's own UnderwaterRender was dropped on merge rather than stacked on top of it.
+            var waterSound = new GameObject("Pilot water sound");
+            waterSound.transform.SetParent(cam.transform, false);
+            waterSound.AddComponent<PilotWaterSound>();
             chase.Target = aircraft.transform;
             chase.Driver = aircraft.GetComponent<FlightSimDriver>();
             chase.SnapBehind();

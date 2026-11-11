@@ -60,6 +60,8 @@ namespace FlyingGame.Bridge
         // ---- the canopy --------------------------------------------------------------------------------
         /// <summary>0 shut .. 1 fully open. Latched: it stays where the player left it.</summary>
         public float CanopyOpen01;
+        /// <summary>0..1 the cabin door, opened by the headset egress (P2d) — the rig's `door_open`.</summary>
+        public float DoorOpen01;
         /// <summary>true = the red levers are down and the canopy cannot be opened.</summary>
         public bool CanopyLocked = true;
         /// <summary>0..1 pull of the emergency release handle; the canopy goes at 1.</summary>
@@ -156,7 +158,7 @@ namespace FlyingGame.Bridge
             GFollowers.Reset(1.0); _gNow = 1.0;
             _altimeterSet = false;
             _oilTempF = 180.0; _chtF = 320.0; _fuelUsedGal = 0.0;
-            CanopyOpen01 = 0f; _canopyTarget = 0f; CanopyLocked = true;
+            CanopyOpen01 = 0f; _canopyTarget = 0f; CanopyLocked = true; DoorOpen01 = 0f;
             CanopyPull01 = 0f; _handOnRelease = 0f; CanopyGone = false;
             EgressCanopy = null;
             HandLatch?.Reset();
@@ -304,6 +306,7 @@ namespace FlyingGame.Bridge
             FlyingGame.Core.Vr.CanopyDynamics physical = EgressCanopy ?? HandCanopy;
             if (physical != null) { r.CanopyOpen = physical.Open01; r.CanopySlide = physical.Slide01; }
             else (r.CanopySlide, r.CanopyOpen) = FlyingGame.Core.Vr.CanopyDynamics.ScriptedRig(ScriptedCanopy(cfg?.Id), CanopyOpen01);
+            r.DoorOpen = DoorOpen01;
             r.CanopyLock = CanopyLocked ? 1.0 : 0.0;
             r.CanopyJettison = System.Math.Max(CanopyPull01, HandJettison?.Pulled01 ?? 0.0);
             r.CanopyLatch = FlyingGame.Core.RigInputs.CanopyLatchFor(CanopyLocked, HandLatch != null ? HandLatch.Latch01 : null);

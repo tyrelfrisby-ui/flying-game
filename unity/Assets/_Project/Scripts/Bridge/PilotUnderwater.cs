@@ -35,6 +35,21 @@ namespace FlyingGame.Bridge
         private UnderwaterView.Mode _mode;
         public UnderwaterView.Mode CurrentMode => _mode;
 
+        /// <summary>The pilot is out of the aeroplane, on foot or in the water (PilotEgress.LeaveOnFoot / the jumper).
+        /// Then THIS camera is his own eye even though ChaseCamera says it is not in a cockpit, so the treatment runs:
+        /// Ty 2026-11-10, "teach PilotUnderwater about an eye that is OUTSIDE the cockpit ... one source of truth,
+        /// extended - not two layers". Set by the egress each frame; false is the ordinary flying case.</summary>
+        public static bool PilotEyeOutOfTheAeroplane;
+
+        /// <summary>The eye is actually UNDER the surface (not merely close above it). What the pilot's water sounds
+        /// ask, so the muffling and the view agree by construction instead of by two separate measurements.</summary>
+        public static bool EyeUnder { get; private set; }
+
+        /// <summary>0 dry ... 1 fully under, with the same short blend the view uses, so the low-pass does not snap as
+        /// a head bobs through the surface (FlyingGame.Core.Vr.UnderwaterViewMode: 1 cm hysteresis, 0.25 s).</summary>
+        public static double Blend01 => _eyeBlend.Blend01;
+        private static readonly FlyingGame.Core.Vr.UnderwaterViewMode _eyeBlend = new();
+
         private void Awake() => Ensure();
 
         private void Ensure()
@@ -82,7 +97,11 @@ namespace FlyingGame.Bridge
                 Vector3 eye = transform.position;
                 // Unity (east, up, north) → sim (north, east, up).
                 double? water = FloatHydro.WaterSurfaceAt(eye.z, eye.x, eye.y);
-                _mode = UnderwaterView.ModeFor(InCockpitForTesting ?? ChaseCamera.InCockpit, water, eye.y);
+                // The pilot's own eye: the seat view, or the pilot himself once he is out of the aeroplane.
+                bool own = InCockpitForTesting ?? (ChaseCamera.InCockpit || PilotEyeOutOfTheAeroplane);
+                _mode = UnderwaterView.ModeFor(own, water, eye.y);
+                _eyeBlend.Step(eye.y, water, Time.unscaledDeltaTime);
+                EyeUnder = _eyeBlend.Under;
                 if (_mode != UnderwaterView.Mode.Off)
                 {
                     // The box only has to lie between the near and far planes; ZTest Always does the rest.
@@ -96,6 +115,7 @@ namespace FlyingGame.Bridge
                     Shader.SetGlobalColor(ColorId, Color.Lerp(DayColor, SunsetColor, Shader.GetGlobalFloat(SunsetId)));
                 }
             }
+            if (DisabledForTesting) { _eyeBlend.Reset(); EyeUnder = false; }
             _box.enabled = _mode != UnderwaterView.Mode.Off;
             Shader.SetGlobalFloat(ModeId, (float)(int)_mode);
         }

@@ -344,6 +344,54 @@ that is the right place to spend it, and the **oldest** marks go first.
   3. `ClipSelfTest.cs` — one self-test mode each (`options` ours, `landing` and `landing-thumbs` theirs). Both kept.
   `AGENT-LOG.md` and `CLAUDE.md`: both sides in full.
   Tests: `LandingFlow|AircraftLoad|WeightBalance|FleetAllowList` — **144 passed, 0 failed.**
+- **`lane/claude-vr-cockpit`** (`45bf124f`) — MERGED WHOLE **except its own underwater-view layer**, with the shipping
+  one extended instead. Ty's *"you can always get out"*: belt, then the door handle or the canopy release — whichever
+  the type has — and the exit follows BY SITUATION (`Vr/ExitTable.AutoExit.Classify`): in flight the canopy goes and
+  he leaves as the P2 jumper; stopped on the ground the door swings and he climbs down and walks; afloat he goes over
+  the sill and treads water; under water the opening waits on the water's load (`Vr/DoorWaterLoad`) and he swims up.
+  Belt latched means nothing happens, ever. New Core: `ExitTable`, `GroundEgress`, `PilotSwim`, `DoorWaterLoad`,
+  `EgressWater`, `CrashWaterSeam`; new Bridge: `VrCockpitHands.Exit.cs`, `PilotWaterSound`, `PilotEgress.LeaveOnFoot`
+  / `MoveOnFoot`.
+  **THE LANE HAD ITS OWN UNDERWATER VIEW AND THE SHIPPING LANE ALREADY HAS ONE, FOUR DAYS NEWER.** This lane
+  (2026-11-02) carries `Core/Vr/UnderwaterView.cs`'s `UnderwaterViewMode`, `Bridge/UnderwaterRender.cs`,
+  `Shaders/Underwater.shader` and `_WaterSeeThrough`/`_UwBlend` paths in `Water.shader`. The shipping lane has
+  `Core/UnderwaterView.cs` + `Bridge/PilotUnderwater.cs` + `Shaders/PilotUnderwater.shader` from **Ty's own t922u on
+  2026-11-06** (*"the instrument panel and top of the cockpit don't look different from dry areas even though
+  underwater"*), carrying t923u (*"the water itself looks great"*) as the reason it touches only the seat view. The
+  class names differ, so it would have COMPILED — and `SceneBootstrap` would then have put both renderers on the
+  main camera and double-murked a flooded cockpit, with two sets of globals on one shader. Asked, Ty chose the newer
+  one, extended: *"teach PilotUnderwater about an eye that is OUTSIDE the cockpit … one source of truth, extended —
+  not two layers."*
+  **Dropped:** `UnderwaterRender.cs` (+meta), `Underwater.shader` (+meta), the `_WaterSeeThrough` / `_UwBlend` /
+  `_UwSigma` / `_UwSurfaceY` / `_UwColor` uniforms and both their blocks in `Water.shader` with the header comment
+  that documented them, `"FlyingGame/Underwater"` from BuildScript's shader list, and the
+  `AddComponent<UnderwaterRender>()` line in `SceneBootstrap` — with a comment there saying why, so nobody re-adds it.
+  **Kept:** `Core/Vr/UnderwaterView.cs`'s `UnderwaterViewMode` and `PilotWaterAudio`. Those are pure logic with no
+  renderer in them (1 cm hysteresis, 0.25 s blend; the audio's gain and low-pass table) and `VrEgressTests` pins
+  them. Not a second layer — the state machine the one renderer now steps.
+  **THE EXTENSION, four small pieces.** `Core/UnderwaterView.ModeFor`'s first parameter widens from `inCockpit` to
+  `pilotsOwnEye`, with Ty's words in the doc comment — no signature change, so every existing call and all of
+  `UnderwaterViewTests` still passes, including the one asserting the chase and aerial views are never touched.
+  `PilotUnderwater` passes `ChaseCamera.InCockpit || PilotEyeOutOfTheAeroplane`, steps one `UnderwaterViewMode`, and
+  publishes `EyeUnder` and `Blend01`. `PilotEgress.Update` sets
+  `PilotUnderwater.PilotEyeOutOfTheAeroplane = (PilotOut || OnFoot) && _pilot.FirstPerson` every frame, both ways,
+  so climbing back into a flight resets it. `PilotWaterSound` reads those two instead of the dropped renderer, so the
+  muffling and the view agree by construction rather than by two measurements of the same water.
+  **Honest caveat:** a swimming pilot now gets the SEAT treatment's numbers — `NearAboveM` 1.0 m, extinction 0.55/m,
+  the near-field 4→8 m fade that exists to keep a nosed-in panel wet without touching the lake beyond. Those were
+  chosen for a flooded cockpit, and for a head bobbing in open water the near-field taper in particular may look
+  wrong. It is now one place to tune instead of two implementations to reconcile, which is what Ty asked for, but it
+  has not been seen in a headset and nothing here claims it is right.
+  **Conflicts: thirteen, every one of them additive on the lane's side, and two that mattered.**
+  - `CockpitGrab`'s `DoorHandle` / `CanopyRelease` could NOT keep the lane's slots 14/15: phase 3 took 14–16 for the
+    2-33's dive-brake handle, trim lever and tow release, and 32–79 for the panel controls, while this lane sat
+    unmerged. Renumbered to 17/18 with `Slots` left at 80; nothing stores them as numbers.
+  - `VrCockpitHands.Bailout.cs` — the shipping lane had just gained `ExitIsClearOfTheAeroplane` (a folded wing lies
+    across the doorway; measured with the tail-strike clearance boxes) AND refactored `Leave`'s tail into
+    `BeginJumper`, while the lane changed `Leave`'s SIGNATURE from `Leave(ClimbOut)` to `Leave(ExitSide, bool)`
+    because the automatic exit has no `ClimbOut`. Kept the shipping body and the lane's signature, and fixed the
+    caller. Taking the lane's side would have deleted the folded-wing door check — the exact thing Ty reported.
+  Tests: `VrEgress|UnderwaterView|CockpitGrab|ModelRig|Egress|Jumper` — **60 passed, 0 failed.**
 
 ## ASTC 4x4: the textures come out of the GLBs, and the whole fleet with every livery is 0.95 GB — Claude, 2026-11-10, lane/claude-textures
 
@@ -5048,6 +5096,43 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
      file must still play.
   5. **From the Mac:** `zsh tools/deploy/quest-record.sh` records the left eye with sound until Ctrl-C
      (`--full` both eyes, `--watch` a live window, `--no-audio`). Is the left-half crop right on your 3S?
+- **QUEST: YOU CAN ALWAYS GET OUT — BELT + DOOR / CANOPY RELEASE → OUT BY SITUATION; WALK, SWIM, TREAD WATER; THE PARACHUTE
+  WATER LANDING; THE EYE UNDER WATER (Claude, 2026-11-02, lane/claude-vr-cockpit, P2d) — from your 13:28, 14:30 and 14:31
+  notes. Code only: NOT built, NOT on the headset. Design and every number: docs/vr-cockpit.md "P2d". NEEDS YOU:**
+  1. **Questions for you.** (a) **The P2 hand-over-hand climb on the sill: keep it as an optional manual way out, or remove
+     it?** I KEPT it (whichever comes first wins); the automatic exit is the main path. (b) **Treading water puts the water at
+     the top of your chest only while the suit still holds its air**: physics gives eye 0.21 m clear (waterline just under
+     the notch at the base of the throat) fresh, then 0.12 m (water at the neck, chin just out) after a couple of minutes as
+     the suit's 2 L leak out, with a 60 N tread (E). True mid-chest would need the lungs out of the water — a life vest — or
+     a tread no one sustains. Without treading he floats eyes-under (−0.09 m) and then sinks. Is 60 N right for you, and
+     do you want a life vest option? (c) **The canopy on your head rule**: it lands over you only in wind below 1.1 m/s
+     (≈ 2 kt), derived from its 3.5 s fall; otherwise wind × 3.5 s downwind. OK? (d) **The Para-Cushion has no canopy release**
+     (risers sewn to the harness), so I added none — confirm, or tell me which rig you wear. (e) The exit table guesses
+     (marked G in the docs): every door side except the 172 / PA-28 / Seminole / Cub, the gliders' and warbirds' generic
+     canopy-release lever and its place, airliners (placeholder path). Correct any you know.
+  2. **Ground, in the headset.** Parked, engine at idle: release the belt(s), then unlatch the canopy (Pitts ball / Extra
+     handles, or the jettison) or, in the Cub / 172, take the door handle and pull it aft 4 cm. The canopy opens by itself
+     (or the door swings), your view rises out of the seat, over the sill, onto the wing walk / step and down onto the ground
+     on the type's side (Pitts / Extra / Great Lakes LEFT, Cub / PA-28 / Seminole RIGHT, 172 by seat), ~5–7 s. The view is
+     levelled ONCE as you stand up (the bail-out's rule). Then: left stick walks 1.4 m/s, left trigger or stick click runs
+     3.5 m/s; right stick turns as VR menu → "Turn on foot" says (Snap 30° default / Smooth / Off). You cannot walk through
+     the wings, fuselage or propeller. Does any of that make you feel ill? The levelling is the one I would look at first.
+  3. **In flight.** Belt + canopy release (or the Pitts knob alone — it counts): the canopy flings or is pushed open, you
+     rise out over the side in 1.2 s and are the P2 jumper (pull the ripcord yourself).
+  4. **Water.** Land under the canopy on a lake: you plunge about 1 m (eye) at 6.5 m/s, the view goes green-blue and foggy
+     with moving caustics and muffled sound, you come up in ~3.8 s and settle treading water in ~5 s, bobbing about 1 cm.
+     The canopy deflates and lies downwind, floats ~45 s, then sinks. Only a light splash and soft lapping — no bubbles,
+     no gurgles, ever. Look down at the water from above in the headset: it is now semi-transparent (6 m visibility).
+     A sunk-cockpit exit (door held by the water until the cabin is nearly full: 7.7 cm head difference for a 172 door)
+     exists in code and tests but **cannot happen in this lineage** (the aeroplane never sinks here) until crash-water lands.
+  **Seam:** water through `ICockpitWaterState` / `IPilotWater` only (CONTRACT.md "Egress ↔ crash-water seam"); this
+  lineage's cockpit filling is a stated stub (τ 20 s). The crash-water adapter is written and compiled out
+  (`CrashWaterSeam.cs`, `FLYINGGAME_CRASH_WATER`). crash-water was read only; nothing merged or cherry-picked.
+  **Evidence (bench only):** 19 new `VrEgressTests` green (one or more per path: in-flight belt/canopy/Pitts jettison,
+  ground climb side + ground height, walk/run speeds, turning, airframe keep-out, door Δp gate until flooded, canopy release
+  not gated, swim-up time, tread stability, plunge vs entry speed, settle + chest equilibrium, eye above while treading,
+  camera-mode switch, canopy deflation vs wind, audio cues) — literals from an independent Python sketch, which agrees with
+  the shipped Core to 4 digits. Full suite, frozen 0a1a7b4 copy then this branch, one at a time with nothing else building: **base 233 failed / 1094 passed (145 unique names), branch 120 failed / 1306 passed (116 unique)** — **no failing name only on the branch** (29 only on the base: the coupled suite's flakes). Unity batch, scripts only, final code: **Android 0 error CS, iOS 0 error CS**, both shaders imported clean (device shader compile not exercised: no player build); ProjectSettings untouched. No APK, no xcodebuild, nothing installed. **Nothing here is approved.**
 - **QUEST: THE EXTRA'S REAL LATCH, THE CANOPY FLUNG OPEN AND TORN AWAY IN FLIGHT, THE JETTISON KNOB (Claude, 2026-11-02,
   lane/claude-vr-cockpit, P2c / P2c-2 / P2c-3) — from your "the rear handle is fixed, the front handle is spring-loaded
   forward …", "suction … flings it open; above 80 KIAS on the Extra, or 80 MPH on the Pitts, the hinges fail and the canopy
