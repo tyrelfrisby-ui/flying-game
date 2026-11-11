@@ -21,6 +21,25 @@ namespace FlyingGame.EditModeTests
             Assert.AreEqual(new[] { "InTheAir", "OnTheRunway", "OnFinal", "InAeroBox", "InCombatZone", "InThermal" }, System.Enum.GetNames(typeof(Viewpoint)));
         }
 
+        /// <summary>CameraView and ChaseCamera.View convert BY VALUE (LandingSession.ApplyCameraView): same names, same
+        /// order. The landing page's VIEWPOINT menu is the game's own VIEW list, not a second one — and the names on
+        /// its cards are ChaseCamera's own names, so the page and the in-flight VIEW button cannot drift apart.</summary>
+        [Test]
+        public void TheCameraViewsAreTheChaseCamerasViewsInOrder()
+        {
+            Assert.AreEqual(System.Enum.GetNames(typeof(ChaseCamera.View)), System.Enum.GetNames(typeof(CameraView)));
+            Assert.AreEqual(new[] { "RelativeWind", "Cockpit", "Tail", "SideLeft", "SideRight", "Top", "Bottom", "Front", "Flyby", "RelativeWindAhead", "Locked" },
+                            System.Enum.GetNames(typeof(CameraView)));
+            // Every card the menu offers names a real view, and says what it is; Locked is the one that is not offered.
+            foreach (var (v, name, blurb) in LandingCatalog.CameraViews)
+            {
+                Assert.AreNotEqual(CameraView.Locked, v);
+                Assert.AreEqual(ChaseCamera.ViewNames[(int)v], name, v.ToString());
+                Assert.IsNotEmpty(blurb, v.ToString());
+            }
+            Assert.AreEqual(ChaseCamera.ViewNames.Length - 1, LandingCatalog.CameraViews.Length);
+        }
+
         private static LandingCatalog RealFleet() =>
             new LandingCatalog(SessionSettings.Fleet, new[] { ("KMEV", "KMEV", 4700.0) }, SessionSettings.Challenges.Select(c => ((string)c.id, c.name)),
                                SessionSettings.Lessons, lessonNeedsEngine: SessionSettings.LessonNeedsEngine);

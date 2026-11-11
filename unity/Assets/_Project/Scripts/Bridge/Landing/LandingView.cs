@@ -12,23 +12,39 @@ namespace FlyingGame.Bridge
     /// light/dark); its changes belong in the Draw* methods here, while every call into <see cref="LandingFlow"/> is the
     /// binding and stays.
     ///
-    ///  PAGE 1 — left: four menus (Aircraft, Configuration, Location, Viewpoint), each a tile showing the current card;
-    ///    centre: the live aeroplane (<see cref="LandingPreview"/>); right: Challenges and Lessons. A tile opens its
-    ///    thumbnail strip over the page; drag it sideways, tap a card. NEXT.
+    ///  PAGE 1 — the STACK (Aircraft, Configuration, Location, Start, Viewpoint), the live aeroplane
+    ///    (<see cref="LandingPreview"/>) and the ACTIVITIES (Challenges, Lessons). Portrait: stack on top, aeroplane in
+    ///    the middle, activities at the bottom. Landscape: stack left, aeroplane middle, activities right (Ty
+    ///    2026-11-11). A tile opens its card strip over the page; drag it sideways, tap a card. NEXT.
     ///  PAGE 2 — left: seats, fuel, baggage; centre: the aeroplane again and the weight-and-balance plot; right: time of
-    ///    day, weather, reliability. BACK, LAUNCH.
+    ///    day, weather, reliability, units. BACK, LAUNCH.
     /// "More settings" opens the classic chapters (instruments, multiplayer, runway, livery, tow plane, the exact wind):
     /// nothing that page could do is lost.
+    ///
+    /// TWO RULES ABOUT SPACE, both Ty's, both 2026-11-11:
+    ///  * NO PICTURE ON A MENU TILE ("don't show the airplane on every button it takes up too much space"). The hero in
+    ///    the middle is the aeroplane; four more thumbnails of the same aeroplane down the side bought nothing and ate
+    ///    half of every tile. Where there is no picture there is no PLACEHOLDER either: a challenge has no thumbnail
+    ///    and never will, and the grey "F" the old card drew for "Free flight" was a letter the size of a thumb.
+    ///  * THE PAGE SCROLLS ("I suspect it is just too low and the list is not scrollable"). Everything is laid out at a
+    ///    size that can be read first; if that does not fit, the page scrolls. The old rule — divide the height by the
+    ///    number of rows and live with it — never put anything below a fold, but it shrank rows until they could not be
+    ///    read, which is the same thing as missing.
     /// </summary>
     public sealed class LandingView
     {
         private readonly StartMenu _host;
         public LandingView(StartMenu host) { _host = host; }
 
-        private GUIStyle _title, _head, _label, _small, _tiny, _btn, _btnOn, _btnBig, _card, _cardOn, _cardOff;
+        private GUIStyle _title, _head, _label, _labelBold, _small, _tiny, _btn, _btnOn, _btnBig, _card, _cardOn, _cardOff;
         private Texture2D _bg, _panel, _panelLight, _btnBg, _btnOnBg, _cardBg, _cardOnBg, _white, _dim;
         private int _fs;
         private float _stripScroll, _dragX, _dragScroll; private bool _dragPossible, _dragging;
+        // The page's own vertical scroll (see the class notes). _pageContentH is last frame's measurement, which is
+        // what the clamp has to go on: IMGUI lays out and draws in one pass, so the height is not known until after.
+        private float _pageScroll, _pageContentH, _pageDragY, _pageDragScroll;
+        private bool _pageDragPossible, _pageDragging;
+        private LandingPage _scrolledPage = LandingPage.Choose;
 
         public LandingFlow Flow => LandingSession.Flow;
 
@@ -55,6 +71,7 @@ namespace FlyingGame.Bridge
             _title = S(Mathf.RoundToInt(fs * 1.35f), FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);
             _head = S(Mathf.RoundToInt(fs * 0.85f), FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.55f, 0.95f, 1f));
             _label = S(fs, FontStyle.Normal, TextAnchor.MiddleLeft, Color.white);
+            _labelBold = S(fs, FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);   // a card with no picture leads with its name
             _small = S(Mathf.RoundToInt(fs * 0.8f), FontStyle.Normal, TextAnchor.MiddleLeft, new Color(0.82f, 0.87f, 0.92f));
             _tiny = S(Mathf.RoundToInt(fs * 0.68f), FontStyle.Normal, TextAnchor.UpperLeft, new Color(0.80f, 0.85f, 0.9f));
             _tiny.wordWrap = true;
@@ -69,6 +86,22 @@ namespace FlyingGame.Bridge
         // ================================================================ frame
 
         private float _m, _gap, _bh;
+
+        /// <summary>
+        /// ONE READABLE LINE of text, in pixels — the unit every row on this page is a multiple of.
+        ///
+        /// It is not <c>_fs</c>: <see cref="UiLayout.Label"/> will not draw below <see cref="UiLayout.MinText"/>
+        /// (Ty 2026-11-08 asked for bigger menus and that is the floor it put in), so on a phone the text is often
+        /// LARGER than the font this page asked for, and a row sized from <c>_fs</c> is a row whose own letters do not
+        /// fit in it — they get clipped top and bottom, which reads as a smudge. The 1.35 is the leading that keeps a
+        /// descender inside its rectangle.
+        /// </summary>
+        private float TextLine => Mathf.Max(_fs, UiLayout.MinText) * 1.35f;
+
+        /// <summary>The least a menu tile can be: its padding, plus a caption line, a name line and a line of what
+        /// that name means (0.85 + 1.0 + 0.85 of <see cref="TextLine"/>). <see cref="DrawTile"/> splits whatever
+        /// height it is given in those same proportions.</summary>
+        private float TileMin => 2 * (_gap * 0.55f) + TextLine * 2.7f;
 
         public void Draw()
         {
@@ -87,7 +120,7 @@ namespace FlyingGame.Bridge
             float headH = _bh * 1.1f, footH = _bh * 1.35f;
             DrawHeader(new Rect(safe.x, safe.y, safe.width, headH), flow);
             var body = new Rect(safe.x, safe.y + headH + _gap, safe.width, safe.height - headH - footH - 2 * _gap);
-            if (flow.Page == LandingPage.Choose) DrawChoose(body, flow); else DrawLoad(body, flow);
+            DrawBody(body, flow);
             DrawFooter(new Rect(safe.x, safe.yMax - footH, safe.width, footH), flow);
             GUI.enabled = true;
             if (menuOpen) DrawStrip(safe, flow);
@@ -122,64 +155,178 @@ namespace FlyingGame.Bridge
             if (UiLayout.Button(new Rect(x0 + sbw * 2.25f + _gap, r.yMax - small, sbw, small), "CHART", _btn)) ChartPanel.Toggle();
         }
 
+        // ================================================================ the body, and the scroll it sits in
+
+        /// <summary>
+        /// Whichever page is showing, inside a scroll viewport. The page lays itself out as if it had the viewport's
+        /// height and reports what it actually used; anything over that scrolls, with a drag or the wheel.
+        ///
+        /// The scroll input is read BEFORE the group, in screen coordinates, because <see cref="GUI.BeginGroup"/>
+        /// moves the GUI matrix and with it <c>Event.current.mousePosition</c>. It is read only while the page itself
+        /// is live: with a menu strip or the weight-and-balance question over the page, the finger belongs to them.
+        /// </summary>
+        private void DrawBody(Rect r, LandingFlow flow)
+        {
+            if (_scrolledPage != flow.Page) { _scrolledPage = flow.Page; _pageScroll = 0f; _pageContentH = r.height; }
+            // A menu opening mid-drag would otherwise leave the drag latched (its MouseUp goes to the strip, not to
+            // us) and the next tap on a tile would be swallowed as the end of a drag that finished long ago.
+            if (GUI.enabled) PageScrollInput(r); else { _pageDragPossible = false; _pageDragging = false; }
+            float over = Mathf.Max(0f, _pageContentH - r.height);
+            _pageScroll = Mathf.Clamp(_pageScroll, 0f, over);
+            GUI.BeginGroup(r);
+            var inner = new Rect(0f, -_pageScroll, r.width, r.height);
+            _pageContentH = flow.Page == LandingPage.Choose ? DrawChoose(inner, flow) : DrawLoad(inner, flow);
+            GUI.EndGroup();
+            if (over <= 1f) return;
+            // A bar only when there IS something below the fold, so the page never claims to scroll when it does not.
+            float frac = r.height / _pageContentH, thumbH = Mathf.Max(_bh * 0.8f, r.height * frac);
+            float thumbY = r.y + (r.height - thumbH) * (_pageScroll / over);
+            float bw = _gap * 0.35f;
+            GUI.DrawTexture(new Rect(r.xMax - bw, r.y, bw, r.height), _btnBg);
+            GUI.DrawTexture(new Rect(r.xMax - bw, thumbY, bw, thumbH), _btnOnBg);
+        }
+
+        /// <summary>Drag / wheel scrolling, the same handling as the classic chapters (StartMenu.ScrollInput): a drag
+        /// past a few pixels scrolls and swallows the release, so the tile under the finger does not fire; a tap still
+        /// presses it.</summary>
+        private void PageScrollInput(Rect viewport)
+        {
+            Event e = Event.current;
+            switch (e.type)
+            {
+                case EventType.ScrollWheel:
+                    if (viewport.Contains(e.mousePosition)) { _pageScroll += e.delta.y * _bh * 0.6f; e.Use(); }
+                    break;
+                case EventType.MouseDown:
+                    if (viewport.Contains(e.mousePosition)) { _pageDragPossible = true; _pageDragging = false; _pageDragY = e.mousePosition.y; _pageDragScroll = _pageScroll; }
+                    break;
+                case EventType.MouseDrag:
+                    if (_pageDragPossible)
+                    {
+                        float dy = e.mousePosition.y - _pageDragY;
+                        if (!_pageDragging && Mathf.Abs(dy) > _bh * 0.35f) _pageDragging = true;
+                        if (_pageDragging) { _pageScroll = _pageDragScroll - dy; e.Use(); }
+                    }
+                    break;
+                case EventType.MouseUp:
+                    if (_pageDragging) { e.Use(); GUIUtility.hotControl = 0; }
+                    _pageDragPossible = false; _pageDragging = false;
+                    break;
+            }
+        }
+
         // ================================================================ page 1
 
-        private void DrawChoose(Rect r, LandingFlow flow)
+        /// <summary>The five menus of the stack, in the order they are read. START is where the flight begins (it wore
+        /// the label VIEWPOINT until 2026-11-11 while it offered "On the runway"); VIEWPOINT is the camera.</summary>
+        private static readonly (PickerKind kind, string head)[] Stack =
+        {
+            (PickerKind.Aircraft, "AIRCRAFT"), (PickerKind.Configuration, "CONFIGURATION"), (PickerKind.Location, "LOCATION"),
+            (PickerKind.Start, "START"), (PickerKind.CameraView, "VIEWPOINT"),
+        };
+
+        /// <summary>
+        /// Page 1 (Ty 2026-11-11, verbatim): "put the current left stack at the top in vertical or left landscape and
+        /// the challenges or lessons at the bottom with the airplane in the middle. On landscape airplane middle
+        /// challenge and lessons to the right."
+        ///
+        ///   PORTRAIT     stack (5 rows, full width) / aeroplane / Challenges | Lessons / the activity's note
+        ///   LANDSCAPE    stack | aeroplane | Challenges, Lessons, the note
+        ///
+        /// The tiles and the activity pair take a readable height first and the aeroplane takes what is left, with a
+        /// floor under it; where that floor bites, the page scrolls rather than squeezing the rows. That is the right
+        /// way round — a letterboxed aeroplane is a smaller loss than a row of words too short for its own letters.
+        /// Returns the height the page used.
+        /// </summary>
+        private float DrawChoose(Rect r, LandingFlow flow)
         {
             bool portrait = Screen.height > Screen.width;
-            Rect leftCol, hero, rightCol;
+            float used;
             if (portrait)
             {
-                hero = new Rect(r.x, r.y, r.width, r.height * 0.38f);
-                float below = r.height - hero.height - _gap, half = (r.width - _gap) * 0.5f;
-                leftCol = new Rect(r.x, hero.yMax + _gap, half, below);
-                rightCol = new Rect(r.x + half + _gap, hero.yMax + _gap, half, below);
+                float tileH = TileMin;
+                float stackH = Stack.Length * tileH + (Stack.Length - 1) * _gap;
+                float actH = tileH * 1.15f, noteH = TextLine * 3.4f;
+                float bottomH = actH + _gap + noteH;
+                // The aeroplane gets what is left, down to a floor: below about four lines it stops being a picture of
+                // an aeroplane and becomes a letterbox with a title band in it. Past that floor the page scrolls.
+                float heroH = Mathf.Max(TextLine * 4.5f, r.height - stackH - bottomH - 2 * _gap);
+
+                float y = r.y;
+                for (int i = 0; i < Stack.Length; i++) DrawTile(new Rect(r.x, y + i * (tileH + _gap), r.width, tileH), Stack[i].head, Stack[i].kind, flow);
+                y += stackH + _gap;
+                DrawHero(new Rect(r.x, y, r.width, heroH), flow, true);
+                y += heroH + _gap;
+                float half = (r.width - _gap) * 0.5f;
+                DrawTile(new Rect(r.x, y, half, actH), "CHALLENGES", PickerKind.Challenge, flow);
+                DrawTile(new Rect(r.x + half + _gap, y, half, actH), "LESSONS", PickerKind.Lesson, flow);
+                y += actH + _gap;
+                DrawActivityNote(new Rect(r.x, y, r.width, noteH), flow);
+                used = stackH + heroH + bottomH + 2 * _gap;   // stack · gap · hero · gap · (activities, which hold the third)
             }
             else
             {
-                float lw = r.width * 0.27f, rw = r.width * 0.23f;
-                leftCol = new Rect(r.x, r.y, lw, r.height);
-                rightCol = new Rect(r.xMax - rw, r.y, rw, r.height);
-                hero = new Rect(leftCol.xMax + _gap, r.y, r.width - lw - rw - 2 * _gap, r.height);
+                float lw = r.width * 0.27f, rw = r.width * 0.25f;
+                // Stretch the tiles to fill the column, but never past a comfortable thumb and never under the three
+                // readable lines TileMin is; whichever column needs more than the viewport is what makes the page scroll.
+                float tileH = Mathf.Clamp((r.height - (Stack.Length - 1) * _gap) / Stack.Length, TileMin, TileMin * 1.6f);
+                float stackH = Stack.Length * tileH + (Stack.Length - 1) * _gap;
+                float actH = Mathf.Clamp(r.height * 0.26f, TileMin, TileMin * 1.8f);
+                float noteH = Mathf.Max(TextLine * 3.4f, r.height - 2 * actH - 2 * _gap);
+                float rightH = 2 * actH + noteH + 2 * _gap;
+                float colH = Mathf.Max(r.height, Mathf.Max(stackH, rightH));
+
+                for (int i = 0; i < Stack.Length; i++) DrawTile(new Rect(r.x, r.y + i * (tileH + _gap), lw, tileH), Stack[i].head, Stack[i].kind, flow);
+                DrawHero(new Rect(r.x + lw + _gap, r.y, r.width - lw - rw - 2 * _gap, colH), flow, true);
+                float rx = r.xMax - rw;
+                DrawTile(new Rect(rx, r.y, rw, actH), "CHALLENGES", PickerKind.Challenge, flow);
+                DrawTile(new Rect(rx, r.y + actH + _gap, rw, actH), "LESSONS", PickerKind.Lesson, flow);
+                DrawActivityNote(new Rect(rx, r.y + 2 * (actH + _gap), rw, noteH), flow);
+                used = colH;
             }
-            DrawHero(hero, flow, true);
+            return used;
+        }
 
-            var kinds = new[] { PickerKind.Aircraft, PickerKind.Configuration, PickerKind.Location, PickerKind.Viewpoint };
-            string[] heads = { "AIRCRAFT", "CONFIGURATION", "LOCATION", "VIEWPOINT" };
-            float th = (leftCol.height - 3 * _gap) / 4f;
-            for (int i = 0; i < 4; i++) DrawTile(new Rect(leftCol.x, leftCol.y + i * (th + _gap), leftCol.width, th), heads[i], kinds[i], flow);
-
-            float rh = (rightCol.height - 2 * _gap) / 3f;
-            DrawTile(new Rect(rightCol.x, rightCol.y, rightCol.width, rh), "CHALLENGES", PickerKind.Challenge, flow);
-            DrawTile(new Rect(rightCol.x, rightCol.y + rh + _gap, rightCol.width, rh), "LESSONS", PickerKind.Lesson, flow);
-            var note = new Rect(rightCol.x, rightCol.y + 2 * (rh + _gap), rightCol.width, rh);
-            GUI.DrawTexture(note, _panel);
-            var inner = Inset(note, _gap * 0.6f);
+        /// <summary>What the chosen challenge or lesson restricts, and its own options where it has any.</summary>
+        private void DrawActivityNote(Rect r, LandingFlow flow)
+        {
+            GUI.DrawTexture(r, _panel);
+            var inner = Inset(r, _gap * 0.6f);
             var rules = flow.Rules;
             string text = flow.Activity == null ? "Free flight: every aeroplane, every place, every start."
                 : string.Join("\n", new[] { flow.Activity.Name, rules.AircraftNote, rules.FixedViewpointNote, rules.ConditionsLocked ? "Scored: the conditions are the contest's" : null }.Where(x => x != null));
-            GUI.Label(new Rect(inner.x, inner.y, inner.width, inner.height - _bh), text, _tiny);
             bool hasOptions = flow.ActivityKind == ActivityKind.Lesson || flow.ActivityId == "event:dogfight";
-            if (hasOptions && UiLayout.Button(new Rect(inner.x, inner.yMax - _bh * 0.85f, inner.width, _bh * 0.85f), flow.ActivityKind == ActivityKind.Lesson ? "Lesson options" : "Opponent", _btn))
+            float btnH = hasOptions ? _bh * 0.85f : 0f;
+            GUI.Label(new Rect(inner.x, inner.y, inner.width, Mathf.Max(0f, inner.height - btnH)), text, _tiny);
+            if (hasOptions && UiLayout.Button(new Rect(inner.x, inner.yMax - btnH, inner.width, btnH), flow.ActivityKind == ActivityKind.Lesson ? "Lesson options" : "Opponent", _btn))
                 _host.ShowClassic("Lessons");
         }
 
-        /// <summary>One menu tile: its heading, the current card's picture and name. Tap to open its strip.</summary>
+        /// <summary>
+        /// One menu tile: its heading, the current card's name and what that card is. NO PICTURE — see the class
+        /// notes. Three lines of words need about half the height the old picture tile did (the picture was 16:9 and
+        /// set the whole tile's height), which is what makes five menus fit where four did.
+        ///
+        /// ▼ says the tile opens a menu. A tile with nothing to choose (a glider's one configuration, the start a
+        /// lesson sets) has no ▼ and does not answer a tap: it is a line that reports, not a button that lies.
+        /// </summary>
         private void DrawTile(Rect r, string head, PickerKind kind, LandingFlow flow)
         {
             bool fixedOne = flow.IsFixed(kind);
             GUI.DrawTexture(r, flow.OpenPicker == kind ? _btnOnBg : _panel);
             var items = flow.Items(kind);
             var cur = items.FirstOrDefault(i => i.Selected) ?? items.FirstOrDefault();
-            float pad = _gap * 0.5f;
-            float picH = r.height - 2 * pad, picW = Mathf.Min(picH * 16f / 9f, r.width * 0.45f);
-            var pic = new Rect(r.x + pad, r.y + pad, picW, picH);
-            DrawPicture(pic, cur, kind);
-            float tx = pic.xMax + pad, tw = r.xMax - tx - pad;
-            UiLayout.Label(new Rect(tx, r.y + pad, tw, r.height * 0.3f), head, _head);
-            UiLayout.Label(new Rect(tx, r.y + r.height * 0.32f, tw, r.height * 0.34f), cur?.Title ?? "-", _label);
-            UiLayout.Label(new Rect(tx, r.y + r.height * 0.64f, tw, r.height * 0.3f), fixedOne && kind == PickerKind.Viewpoint && flow.Rules.FixedViewpointNote != null ? "set by the activity" : cur?.Subtitle ?? "", _small);
-            if (!fixedOne && GUI.Button(r, GUIContent.none, GUIStyle.none)) { flow.Open(kind); _stripScroll = 0f; ScrollToSelected(flow); }
+            var inner = Inset(r, _gap * 0.55f);
+            float caret = fixedOne ? 0f : TextLine * 0.9f;
+            // 0.85 : 1.0 : 0.85 of a line — the same split TileMin is built from, so the tile never promises a row
+            // less height than its letters need, however much or little the column gives it.
+            float headH = inner.height * (0.85f / 2.7f), rest = inner.height - headH;
+            UiLayout.Label(new Rect(inner.x, inner.y, inner.width - caret, headH), head, _head);
+            if (!fixedOne) UiLayout.Label(new Rect(inner.xMax - caret, inner.y, caret, headH), "▼", _head);
+            UiLayout.Label(new Rect(inner.x, inner.y + headH, inner.width, rest * (1f / 1.85f)), cur?.Title ?? "-", _label);
+            string sub = fixedOne && kind == PickerKind.Start && flow.Rules.FixedViewpointNote != null ? "set by the activity" : cur?.Subtitle ?? "";
+            UiLayout.Label(new Rect(inner.x, inner.yMax - rest * (0.85f / 1.85f), inner.width, rest * (0.85f / 1.85f)), sub, _small);
+            if (!fixedOne && !_pageDragging && GUI.Button(r, GUIContent.none, GUIStyle.none)) { flow.Open(kind); _stripScroll = 0f; ScrollToSelected(flow); }
         }
 
         /// <summary>The live aeroplane, with the configuration's feedback drawn over it (fuel, bags, people).</summary>
@@ -197,16 +344,18 @@ namespace FlyingGame.Bridge
             UiLayout.Label(new Rect(band.x + _gap, band.y + _bh * 0.85f, band.width - 2 * _gap, _bh * 0.6f), flow.HeroSubtitle, _small);
         }
 
-        private void DrawPicture(Rect r, PickerItem item, PickerKind kind)
+        /// <summary>The card's picture if there is one, and NOTHING if there is not (Ty 2026-11-11: "remove the giant
+        /// 'f' with challenges or lessons"). There used to be a placeholder here — a half-transparent capital of the
+        /// card's first letter, filling the picture box — on the assumption that every card would get a thumbnail
+        /// eventually. Aircraft and locations did; challenges, lessons and camera views never will, because there is
+        /// nothing to photograph, so the placeholder was permanent and a letter the size of a thumb said nothing the
+        /// card's own title did not. Returns false when the caller should give the whole card to its words.</summary>
+        private static bool DrawPicture(Rect r, PickerItem item)
         {
             Texture2D t = LandingThumbnails.Get(item);
-            if (t != null) { GUI.DrawTexture(r, t, ScaleMode.ScaleAndCrop); return; }
-            // No picture yet: a plain card with its initial, until the pipeline captures one (the visual lane's icons
-            // go here: item.IconKey).
-            GUI.DrawTexture(r, _btnBg);
-            var st = new GUIStyle(_title) { alignment = TextAnchor.MiddleCenter, fontSize = Mathf.RoundToInt(r.height * 0.42f), normal = { textColor = new Color(1f, 1f, 1f, 0.55f) } };
-            string glyph = string.IsNullOrEmpty(item?.Title) ? "?" : item.Title.Substring(0, 1).ToUpperInvariant();
-            GUI.Label(r, glyph, st);
+            if (t == null) return false;
+            GUI.DrawTexture(r, t, ScaleMode.ScaleAndCrop);
+            return true;
         }
 
         // ================================================================ the thumbnail strip (an open menu)
@@ -231,8 +380,10 @@ namespace FlyingGame.Bridge
             string title = flow.OpenPicker switch
             {
                 PickerKind.Aircraft => flow.Rules.AircraftNote != null ? $"AIRCRAFT  ·  {flow.Rules.AircraftNote}" : "AIRCRAFT",
-                PickerKind.Configuration => "CONFIGURATION  ·  " + flow.Family.Name, PickerKind.Location => "LOCATION  ·  seen from your viewpoint",
-                PickerKind.Viewpoint => "VIEWPOINT  ·  what you will see first", PickerKind.Challenge => "CHALLENGES", PickerKind.Lesson => "LESSONS", _ => "",
+                PickerKind.Configuration => "CONFIGURATION  ·  " + flow.Family.Name, PickerKind.Location => "LOCATION  ·  seen from your start",
+                PickerKind.Start => "START  ·  where the flight begins",
+                PickerKind.CameraView => "VIEWPOINT  ·  the camera you fly behind",
+                PickerKind.Challenge => "CHALLENGES", PickerKind.Lesson => "LESSONS", _ => "",
             };
             UiLayout.Label(new Rect(panel.x + _gap, panel.y + _gap * 0.4f, panel.width - _bh * 2.5f, _bh), title, _head);
             if (UiLayout.Button(new Rect(panel.xMax - _bh * 1.6f - _gap, panel.y + _gap * 0.4f, _bh * 1.6f, _bh * 0.9f), "Close", _btn)) { flow.ClosePicker(); return; }
@@ -267,26 +418,32 @@ namespace FlyingGame.Bridge
             }
         }
 
-        /// <summary>A card: picture on top, title and subtitle under it; the selected card is outlined in the accent.
-        /// Returns true when tapped.</summary>
+        /// <summary>A card: picture on top where there is one, title and subtitle under it; the selected card is
+        /// outlined in the accent. A card with no picture (a challenge, a lesson, a camera view) is all words, and the
+        /// title gets the size the picture would have had. Returns true when tapped.</summary>
         private bool DrawCard(Rect r, PickerItem it)
         {
             GUI.Box(r, GUIContent.none, it.Selected ? _cardOn : it.Enabled ? _card : _cardOff);
             var inner = Inset(r, it.Selected ? _gap * 0.35f : 2f);
             GUI.DrawTexture(inner, _cardBg);
             float picH = Mathf.Min(inner.height * 0.66f, inner.width * 9f / 16f);
-            DrawPicture(new Rect(inner.x, inner.y, inner.width, picH), it, it.Kind);
+            if (!DrawPicture(new Rect(inner.x, inner.y, inner.width, picH), it)) picH = 0f;
             var c = GUI.color; if (!it.Enabled) GUI.color = new Color(1, 1, 1, 0.45f);
             float ty = inner.y + picH + _gap * 0.3f, rest = inner.yMax - ty;
-            UiLayout.Label(new Rect(inner.x + _gap * 0.4f, ty, inner.width - _gap * 0.8f, Mathf.Min(_bh * 0.75f, rest * 0.5f)), it.Title, _label);
-            GUI.Label(new Rect(inner.x + _gap * 0.4f, ty + Mathf.Min(_bh * 0.75f, rest * 0.5f), inner.width - _gap * 0.8f, rest * 0.5f), it.Enabled ? it.Subtitle : it.DisabledReason ?? "", _tiny);
+            float titleH = picH > 0f ? Mathf.Min(_bh * 0.75f, rest * 0.5f) : Mathf.Min(_bh * 1.1f, rest * 0.35f);
+            var titleStyle = picH > 0f ? _label : _labelBold;
+            UiLayout.Label(new Rect(inner.x + _gap * 0.4f, ty, inner.width - _gap * 0.8f, titleH), it.Title, titleStyle);
+            GUI.Label(new Rect(inner.x + _gap * 0.4f, ty + titleH, inner.width - _gap * 0.8f, rest - titleH), it.Enabled ? it.Subtitle : it.DisabledReason ?? "", _tiny);
             GUI.color = c;
             return it.Enabled && !_dragging && GUI.Button(r, GUIContent.none, GUIStyle.none);
         }
 
         // ================================================================ page 2
 
-        private void DrawLoad(Rect r, LandingFlow flow)
+        /// <summary>Page 2. Returns the height it used: the settings column asks for enough room to READ its cards
+        /// (<see cref="DrawSettings"/>), and when the screen will not give it that the page scrolls rather than
+        /// shrinking the cards — which is how WEATHER came to be hard to find on a phone.</summary>
+        private float DrawLoad(Rect r, LandingFlow flow)
         {
             bool portrait = Screen.height > Screen.width;
             Rect leftCol, centre, rightCol;
@@ -304,6 +461,9 @@ namespace FlyingGame.Bridge
                 rightCol = new Rect(r.xMax - rw, r.y, rw, r.height);
                 centre = new Rect(leftCol.xMax + _gap, r.y, r.width - lw - rw - 2 * _gap, r.height);
             }
+            float settingsH = Mathf.Max(rightCol.height, SettingsHeight(flow));
+            rightCol.height = settingsH;
+            if (!portrait) { centre.height = settingsH; leftCol.height = settingsH; }
             if (portrait)
             {
                 float hw = (centre.width - _gap) * 0.5f;
@@ -318,6 +478,7 @@ namespace FlyingGame.Bridge
             }
             DrawPeopleAndLoad(leftCol, flow);
             DrawSettings(rightCol, flow);
+            return portrait ? centre.height + _gap + Mathf.Max(leftCol.height, settingsH) : settingsH;
         }
 
         private void DrawPeopleAndLoad(Rect r, LandingFlow flow)
@@ -474,6 +635,27 @@ namespace FlyingGame.Bridge
             if (UiLayout.Button(new Rect(inner.x + bw + _gap, by, bw, _bh * 1.1f), LandingFlow.WbFlyLabel, _btnBig)) flow.ConfirmLaunch(fly: true);
         }
 
+        /// <summary>The grid a block of <paramref name="n"/> cards is laid out in (<see cref="Choices"/>), and the
+        /// least height those rows can be and still be read: a card is two lines, its name and what it means.</summary>
+        private static int ChoiceColumns(int n) => n > 4 ? 3 : 2;
+        private float ChoiceRows(int n) => Mathf.CeilToInt(n / (float)ChoiceColumns(n));
+        private float BlockFloor(int n) => ChoiceRows(n) * TextLine * 1.85f + (ChoiceRows(n) - 1) * _gap * 0.4f;
+
+        /// <summary>
+        /// The least height the settings column can be drawn in. The column used to take whatever height it was given
+        /// and divide it by three, which is why WEATHER could end up as a row of cards too small to read on a phone
+        /// (Ty 2026-11-11: "The weather is missing on the landing page"). Now the floor is what a card needs, the page
+        /// scrolls if the screen will not give it that, and the extra — when there IS extra — still goes to the cards.
+        /// </summary>
+        private float SettingsHeight(LandingFlow flow)
+        {
+            float headH = _bh * 0.75f;
+            float h = 2 * (_gap * 0.6f) + 4 * headH + 4 * (_gap * 0.3f);
+            h += BlockFloor(flow.TimeItems().Count) + BlockFloor(flow.WeatherItems().Count)
+               + BlockFloor(flow.ReliabilityItems().Count) + BlockFloor(flow.UnitItems().Count);
+            return h;
+        }
+
         private void DrawSettings(Rect r, LandingFlow flow)
         {
             // Time of day lights the column itself: the light/dark feedback (the visual lane refines it).
@@ -482,13 +664,18 @@ namespace FlyingGame.Bridge
             var c = GUI.color; GUI.color = new Color(1f, 0.92f, 0.7f, 0.18f * light); GUI.DrawTexture(r, _white); GUI.color = c;
             var inner = Inset(r, _gap * 0.6f);
             float y = inner.y, headH = _bh * 0.75f;
-            // UNITS (Ty 2026-11-05 10:56): one row of two cards, Standard | Metric, under the conditions.
-            float unitsH = _bh * 1.25f;
-            float block = (inner.height - 4 * headH - unitsH - _gap * 0.3f) / 3f;
-            y = Choices(inner.x, y, inner.width, headH, block, "TIME OF DAY", flow.TimeItems(), id => flow.SetTimeOfDay((TimeOfDay)System.Enum.Parse(typeof(TimeOfDay), id)), timeTint: true);
-            y = Choices(inner.x, y, inner.width, headH, block, flow.ConditionsLocked ? "WEATHER  ·  set by the contest" : "WEATHER", flow.WeatherItems(), flow.SetWeather);
-            y = Choices(inner.x, y, inner.width, headH, block, "RELIABILITY", flow.ReliabilityItems(), id => flow.SetReliability((Reliability)System.Enum.Parse(typeof(Reliability), id)));
-            Choices(inner.x, y, inner.width, headH, unitsH, "UNITS", flow.UnitItems(), id => flow.SetUnits((UnitSystem)System.Enum.Parse(typeof(UnitSystem), id)));
+            var times = flow.TimeItems(); var weather = flow.WeatherItems(); var rel = flow.ReliabilityItems(); var units = flow.UnitItems();
+            // UNITS (Ty 2026-11-05 10:56): one row of two cards, Standard | Metric, under the conditions. It is the
+            // one block that gains nothing from being taller, so the three CONDITIONS blocks share whatever is spare.
+            float unitsH = BlockFloor(units.Count);
+            float spare = (inner.height - 4 * headH - 4 * (_gap * 0.3f) - unitsH) / 3f;
+            float timeH = Mathf.Max(BlockFloor(times.Count), spare);
+            float weatherH = Mathf.Max(BlockFloor(weather.Count), spare);
+            float relH = Mathf.Max(BlockFloor(rel.Count), spare);
+            y = Choices(inner.x, y, inner.width, headH, timeH, "TIME OF DAY", times, id => flow.SetTimeOfDay((TimeOfDay)System.Enum.Parse(typeof(TimeOfDay), id)), timeTint: true);
+            y = Choices(inner.x, y, inner.width, headH, weatherH, flow.ConditionsLocked ? "WEATHER  ·  set by the contest" : "WEATHER", weather, flow.SetWeather);
+            y = Choices(inner.x, y, inner.width, headH, relH, "RELIABILITY", rel, id => flow.SetReliability((Reliability)System.Enum.Parse(typeof(Reliability), id)));
+            Choices(inner.x, y, inner.width, headH, unitsH, "UNITS", units, id => flow.SetUnits((UnitSystem)System.Enum.Parse(typeof(UnitSystem), id)));
         }
 
         /// <summary>A heading and a grid of small cards. Returns the next y.</summary>
@@ -496,7 +683,7 @@ namespace FlyingGame.Bridge
         {
             UiLayout.Label(new Rect(x, y, w, headH), head, _head);
             y += headH;
-            int cols = items.Count > 4 ? 3 : 2, rows = Mathf.CeilToInt(items.Count / (float)cols);
+            int cols = ChoiceColumns(items.Count), rows = Mathf.CeilToInt(items.Count / (float)cols);
             float cw = (w - (cols - 1) * _gap * 0.4f) / cols, ch = (h - (rows - 1) * _gap * 0.4f) / rows;
             for (int i = 0; i < items.Count; i++)
             {
