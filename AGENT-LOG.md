@@ -87,12 +87,16 @@ read **1,498 rpm**. On a fitted type, NaN means stopped.
 the Pitts and the Extra have the SAME engine and come out at 99 and 683 N·m, because the Extra's Vne is 113 m/s and the
 Pitts' is 95 and the air's torque at rest goes as V². A peak computed from displacement (which `SmokeConfig` already
 carries for six types) would give both 326. And 22 of the 27 propeller types do not run this mechanism at all — no
-fitted blade and no fitted governor stops — so on the fleet default they land within 10 % where their stall speeds are
-ordinary and 16–42 % short on the fast ones (P-51 −42 %, DC-3 −30 %, Hughes H-4 −25 %, Seminole −24 %, SR22 −23 %).
-Those are predictions of an unfitted blade, not calibrations; each wants solving when its blade is fitted.
+fitted blade and no fitted governor stops — so on the fleet default they land inside 8 % wherever their stall speeds
+are ordinary (the worst of those is the AirCam amphibian at −10.1 %) and 16–41 % short on the fast ones: P-51 −41 %,
+DC-3 −30 %, Hughes H-4 −25 %, Seminole −25 %, SR22 −23 %, Glasair −18 %, Gee Bee −16 %. Those are predictions of an
+unfitted blade and not calibrations — each wants solving when its blade is fitted, and the pattern (every one of them
+fast) says the same thing the live five do: what the number tracks is the airframe.
 
 Local lane commit only; no push, no merge, no Unity build, no deploy. `git ls-files | git check-ignore --no-index
---stdin -v` silent before the commit, every path staged explicitly.
+--stdin -v` silent before every commit, every path staged explicitly. Two merges of `lane/claude-quest-islandnav` into
+this lane on the way, which is the parity hook's own remedy: it blocked the shared change twice because that lane moved
+while this one was being measured.
 ## The 2-33's Vne is 98 mph, the number painted on the aeroplane — Claude, 2026-11-10, lane/claude-vne-cam
 
 <!-- vne-2-33 placard-vs-config unsourced-scaffolding-number asi-face-fifth overspeed-events -->
