@@ -165,16 +165,29 @@ public class PropPhysicsTests : IDisposable
     // ---- 3. IDLE AGAINST MIXTURE CUT-OFF -----------------------------------------------------------------------------
 
     /// <summary>
-    /// THE TWO WINDMILLING CASES DIFFER, AND THEY DIFFER FOR A REASON RATHER THAN BY A COEFFICIENT. At the idle stop
-    /// the engine is firing: the cracked plate makes real positive torque (PistonEngine.IdleBleedThrottle — the Pitts'
-    /// idle stop is 10.66 inHg against a 10 inHg friction intercept, +22.6 N.m), the oil is up, the governor is alive
-    /// and holding the blade on its low stop. At cut-off the engine is a brake: no firing, the motoring torque of the
-    /// power curve's own friction intercept MULTIPLIED by the dry boundary excess because there is no oil film
-    /// (PistonEngine.BoundaryFrictionFactor), and the governor has gone with it so the blade springs to whichever stop
-    /// this installation is plumbed to.
+    /// THE TWO WINDMILLING CASES DIFFER, AND THE SIGN OF THE DIFFERENCE REVERSED ON 2026-11-11. This test used to
+    /// assert that cutting the mixture costs drag, and justified it like this:
     ///
-    /// So the cut-off propeller must drag MORE, at every speed, and it does. Both numbers come out of the same blade
-    /// solve against the same engine; neither is written down.
+    ///     "At the idle stop the engine is firing: the cracked plate makes real positive torque
+    ///      (PistonEngine.IdleBleedThrottle — the Pitts' idle stop is 10.66 inHg against a 10 inHg friction
+    ///      intercept, +22.6 N.m)"
+    ///
+    /// THAT +22.6 N.m IS THE BUG lane/claude-fmep-pmep removed. It was the engine's torque at a cracked throttle with
+    /// no rpm term in it — the same +22.6 at 700 rpm and at 2,500 — so an idling engine was a mild helper at any
+    /// speed. It is not: at the idle stop a real engine at 2,453 rpm is pumping against a 3 inHg manifold and
+    /// BRAKING hard, and the governor is holding the blade on its FINE stop where the propeller is a 2,453 rpm disc.
+    ///
+    /// So the measured order is now the other way round and it is the physical one: on all three aerobatic types the
+    /// IDLE case drags more (Pitts -610.6 N at 50 m/s against -304.3 at cut-off; Extra -519.6 against -326.6; Great
+    /// Lakes -371.2 against -211.6). That is the well-known pair of facts a pilot uses — a windmilling propeller at
+    /// FINE pitch with the throttle closed is the biggest drag disc on the aeroplane, and an aerobatic installation
+    /// is plumbed COARSE on oil loss (PropModel.OilLossPitchDeg, Ty 2026-11-10) precisely so that a dead engine's
+    /// blade springs to 31-34 degrees and stops being one. The cut-off propeller turns at 689-1,121 rpm instead of
+    /// 2,240-2,453, and the rpm is where the drag was.
+    ///
+    /// What is asserted is therefore the relationship, not a coefficient: both are real windmilling cases, the idle
+    /// one spins far faster on a far finer blade and drags more for it, and both come out of the same blade solve
+    /// against the same engine.
     /// </summary>
     [Theory]
     [InlineData("pitts-s2b-like")]
@@ -198,8 +211,13 @@ public class PropPhysicsTests : IDisposable
 
             _o.WriteLine($"{id} {v,4:F0} m/s: idle {idle.ShaftRpm,6:F0} rpm / {idle.BladePitchDeg,5:F2} deg  X {fIdle.X,8:F1} N   |   " +
                          $"cut-off {wm,6:F0} rpm / {PropModel.OilLossPitchDeg(p),5:F2} deg  X {fCut.X,8:F1} N");
-            Assert.True(fCut.X < fIdle.X - 20.0,
-                        $"{id} at {v:F0} m/s: cutting the mixture must cost real drag ({fCut.X:F1} N against {fIdle.X:F1} N)");
+            Assert.True(idle.ShaftRpm > wm + 500.0,
+                        $"{id} at {v:F0} m/s: the governed idle case must spin far faster than the coarse dead one " +
+                        $"({idle.ShaftRpm:F0} rpm against {wm:F0})");
+            Assert.True(fIdle.X < fCut.X - 20.0,
+                        $"{id} at {v:F0} m/s: a fine-pitch governed propeller with the throttle shut must drag MORE " +
+                        $"than a dead one sprung coarse ({fIdle.X:F1} N against {fCut.X:F1} N)");
+            Assert.True(fIdle.X < 0.0 && fCut.X < 0.0, $"{id} at {v:F0} m/s: both cases are drag");
         }
     }
 

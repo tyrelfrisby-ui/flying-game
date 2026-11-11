@@ -405,6 +405,8 @@ namespace FlyingGame.Bridge
             _tele.PropShakeHz = aircraft != null ? (float)aircraft.PropVibrationHz : 0f;
             // And the cylinder it broke a ring in: its exhaust pulse goes missing from the firing order.
             _tele.DeadCylinders = aircraft != null ? aircraft.DeadCylinders : 0;
+            _tele.BearingKnock01 = aircraft != null ? (float)aircraft.BearingDamage01 : 0f;
+            _tele.ImpulseEngaged = aircraft != null && aircraft.ImpulseCouplingEngaged;
             _tele.Spoiler01 = aircraft != null ? (float)aircraft.CurrentDeflections.SpoilerFraction : 0f;
             var spoilerCfg = aircraft?.Config?.Controls?.Spoiler;
             _tele.SpoilerRoar = spoilerCfg != null ? (float)spoilerCfg.SoundLevel : 1f;
@@ -544,6 +546,7 @@ namespace FlyingGame.Bridge
             PropStrikeMixer strikes = _propStrikes;
             strikes?.Prepare();
             engine?.SetDeadCylinders(t.DeadCylinders);
+            engine?.SetDamage(t.BearingKnock01, t.ImpulseEngaged);
             engine?.Prepare(rpm, thr);
 
             // Fully ducked and settled: emit silence without rendering.

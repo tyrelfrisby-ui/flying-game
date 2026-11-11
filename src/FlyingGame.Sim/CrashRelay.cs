@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using FlyingGame.Core;
 using FlyingGame.Core.MathTypes;
 using FlyingGame.Core.Wreck;
@@ -127,7 +128,12 @@ public sealed class CrashRelay
 
     private WreckPiece Spawn(string name, AirframeComponent c, List<HydroElement> els)
     {
-        WreckPiece p = Wreck.Add(name, c, els, Aircraft.Config.Mass.CgVec(), Aircraft.State);
+        // A SURFACE THAT FLUTTERED OFF IS A THROWN PIECE, not a shed one. It leaves with no kick of its own — it
+        // simply lets go — but at 250 kt the aeroplane flies on past it, and that relative motion carries it down
+        // the fuselage exactly as it carries a departed engine. A break-up piece drifts away from an aeroplane that
+        // is moving with it; this does not, so it gets strike-tested (WreckStrike) and the rest do not.
+        WreckPiece p = Wreck.Add(name, c, els, Aircraft.Config.Mass.CgVec(), Aircraft.State,
+                                 Vec3.Zero, thrown: Aircraft.WasFlutterShed(c));
         // What broke it off may hold it: a trunk the piece struck stops it there (after it has left with the airframe's own
         // velocity field, so momentum is conserved at the separation and the stop is the piece's alone).
         if (Aircraft.TakeSeparationStop(c, out Vec3 stopAt, out Vec3 stopN)) p.StopAt(stopAt, stopN);
@@ -164,10 +170,217 @@ public sealed class CrashRelay
         return p;
     }
 
+    /// <summary>
+    /// DOES ANYTHING THAT HAS LEFT THE AEROPLANE HIT IT ON THE WAY PAST? Ty 2026-11-11: "The engine and prop while
+    /// separating should follow an accurate flight path and if that path contacts the airframe it should damage it
+    /// appropriately", and "Yes thrown blade also follows physics and causes damage".
+    ///
+    /// It is general on purpose. The blade and the engine are what prompted it, but a departed wing panel, a canopy
+    /// and a gear leg all leave the same way and all fly down the same fuselage, so the test belongs to every piece
+    /// in the air rather than to the two that asked for it. <see cref="WreckStrike"/> does the geometry against the
+    /// intact airframe's own boxes (<see cref="AirframeHydroModel"/>), and the only thing decided here is what a
+    /// strike COSTS.
+    ///
+    /// AND THE STRIKE DOES NOT END THE PIECE'S FLIGHT. Ty: "And falls from the sky [unt]il it hits the ground". It
+    /// is deflected by the impulse it just delivered and carries on, to the ground or the water, exactly as it would
+    /// have done — <see cref="WreckSim"/> has no lifetime and no distance cull, so the two are the same simulation.
+    /// </summary>
+    private void StepStrikes(double dt)
+    {
+        if (Wreck.Pieces.Count == 0 || Aircraft.Structure.WingsFailed) return;
+        bool anyThrown = false;
+        foreach (WreckPiece tp in Wreck.Pieces) if (tp.Thrown && tp.Phase == WreckPhase.InAir && !tp.Asleep) { anyThrown = true; break; }
+        if (!anyThrown) return;                            // the common case: nothing was flung, nothing to test
+        IReadOnlyList<HydroElement> airframe = AirframeBoxes();
+        if (airframe.Count == 0) return;
+        if (_airframeReachM <= 0.0)
+            foreach (HydroElement e in airframe)
+                _airframeReachM = System.Math.Max(_airframeReachM, (e.Centre - Aircraft.Config.Mass.CgVec()).Length + e.Half.Length);
+        RigidBodyState s = Aircraft.State;
+        Vec3 cg = Aircraft.Config.Mass.CgVec();
+        foreach (WreckPiece p in Wreck.Pieces)
+        {
+            if (!p.Thrown || p.Phase != WreckPhase.InAir || p.Asleep) continue;
+            // BROAD PHASE, and it is not an optimisation for its own sake: a departed piece spends 47 seconds
+            // falling and all but the first fraction of one of them a long way from the aeroplane, so without this
+            // the slab test runs over every airframe box for the whole fall. One distance check retires it — the
+            // piece cannot reach the aeroplane this step if it is further off than both their reaches plus how far
+            // the two can close in dt. MEASURED: a blade and the engine that followed it off the mount, falling from
+            // 1,000 m, cost 4,278 ms of CPU before this and 1,576 ms after — for the same 47.4 s trajectory to the
+            // same landing point, 247 m downrange. What is left is the two pieces' own 6-DOF aero, which is the
+            // thing actually being asked for; the strike test is no longer most of the bill.
+            Vec3 rel = p.State.Position - s.Position;
+            double close = p.ReachM + _airframeReachM + (p.State.Attitude.Rotate(p.State.Velocity) - s.Attitude.Rotate(s.Velocity)).Length * dt;
+            if (rel.LengthSquared > close * close) { _clear.Add(p.Id); continue; }
+            // A PIECE THAT HAS JUST BROKEN OFF IS TOUCHING THE AEROPLANE BY DEFINITION, and must not be read as
+            // striking it: it was part of the airframe a moment ago and it spawns exactly where its parts were
+            // (WreckSim.Add). Without this every break-up tore further components off on its first step — measured,
+            // ten crash and break-up tests went red at once, which is the model telling the truth about a rule it
+            // had not been given. So a piece has to get CLEAR of the airframe before it can come back and hit it.
+            if (!_clear.Contains(p.Id))
+            {
+                if (Clear(p, s, cg, airframe)) _clear.Add(p.Id);
+                continue;
+            }
+            WreckStrike.Hit hit = WreckStrike.Test(p, s, cg, airframe, dt);
+            if (!hit.Any) continue;
+            // The impulse the piece delivers, through its own mass and inertia (inelastic). The piece is deflected
+            // by it; the aeroplane is judged by it.
+            Vec3 atWorld = s.Position + s.Attitude.Rotate(hit.AtBody - cg);
+            double j = p.StopAt(atWorld, s.Attitude.Rotate(hit.NormalBody));
+            if (j <= 0.0) continue;
+            OnStruckBy(p, hit, j);
+        }
+    }
+
+    /// <summary>What a strike costs the aeroplane: the moment it puts on the joint that holds the struck component
+    /// on, against that joint's own ultimate (<see cref="WreckStrike.Severs"/>). Over it, the component goes — which
+    /// spawns a piece of its own, so a thrown blade taking an elevator off is two things in the air, both falling.
+    /// Under it, the blow is reported and nothing is removed: there is no partial-damage channel for a strike yet,
+    /// and inventing one would be a table of outcomes rather than the numbers Ty asked for.</summary>
+    private void OnStruckBy(WreckPiece piece, WreckStrike.Hit hit, double impulseNs)
+    {
+        Joint? joint = null;
+        foreach (Joint jt in HydroModel().Joints)
+            foreach (WreckAtom a in jt.Atoms)
+                if (a == hit.Atom) { joint = jt; break; }
+        LastStrike = (piece.Name, hit.Atom, hit.EnergyJ, impulseNs, joint?.UltimateNm ?? 0.0);
+        if (joint is null || !WreckStrike.Severs(impulseNs, hit.AtBody, joint)) return;
+        Aircraft.LoseComponent(joint.Component);
+    }
+
+    /// <summary>The last strike on the airframe by one of its own departed pieces (name, what it hit, the energy and
+    /// impulse it arrived with, and the ultimate it was judged against). Probes and tests read it.</summary>
+    public (string Piece, WreckAtom Atom, double EnergyJ, double ImpulseNs, double UltimateNm)? LastStrike { get; private set; }
+
+    /// <summary>
+    /// THROW A PROPELLER BLADE. Ty 2026-11-11: a 25 % over-rev held three cumulative seconds "throws a single prop
+    /// blade on a cs prop and 50% of a single prop blade on a fixed pitch prop", and "Yes thrown blade also follows
+    /// physics and causes damage".
+    ///
+    /// Everything about it is derived and nothing is chosen. The MASS is Ty's blade rule inverted out of the
+    /// authored propeller inertia; WHERE it was is the shaft angle the sim has been integrating all along; HOW FAST
+    /// it leaves is the tangential speed that centre of mass already had; and WHICH WAY is the tangent at that
+    /// azimuth. From there it is an ordinary wreck piece: it tumbles on <see cref="DebrisAero"/>'s flat-plate
+    /// forces, it is tested against the airframe every step by <see cref="StepStrikes"/>, and it falls until it
+    /// reaches ground or water. The same over-rev at a different crank angle throws it somewhere else.
+    ///
+    /// It does NOT take the engine with it. The unbalance it leaves is enormous and computable
+    /// (<see cref="FlyingGame.Core.Engine.EngineOverspeed.ThrownBladeUnbalanceN"/> — 225 kN on the Pitts), but what
+    /// it has to be compared against is the engine MOUNT's limit, and that is an open question this project has
+    /// deliberately not answered. Separating the engine on an invented limit would be the assumed baseline all over
+    /// again, so the load is computed and left for Ty.
+    /// </summary>
+    public WreckPiece? ThrowPropellerBlade(double shaftRpm, double shaftAngleRad)
+    {
+        if (Aircraft.Config.Propulsion is not { PropDiameterM: > 0, PropInertia: > 0 } p) return null;
+        bool cs = p.ConstantSpeed;
+        double bladeKg = FlyingGame.Core.Engine.EngineOverspeed.BladeMassKg(p.PropInertia, p.PropDiameterM, p.PropBladeCount);
+        double massKg = cs ? bladeKg : 0.5 * bladeKg;
+        if (massKg <= 0.0) return null;
+
+        Vec3 hub = new(p.HubXM, 0.0, p.ThrustLineZ);
+        Vec3 radius = FlyingGame.Core.Engine.EngineOverspeed.ThrowRadiusBody(shaftAngleRad, p.PropDiameterM);
+        if (!cs) radius *= 1.5;                               // the OUTER half's centre of mass sits further out
+        double speed = FlyingGame.Core.Engine.EngineOverspeed.ThrowSpeedMs(p.PropDiameterM, shaftRpm, cs);
+        Vec3 velocity = FlyingGame.Core.Engine.EngineOverspeed.ThrowDirectionBody(shaftAngleRad, p.RotationSign) * speed;
+
+        // One box, the size of the piece that went: a blade's span along its own radius, a chord and a thickness.
+        double span = cs ? 0.5 * p.PropDiameterM : 0.25 * p.PropDiameterM;
+        var e = new HydroElement("prop-blade", WreckAtom.Nose, hub + radius,
+                                 new Vec3(0.02, 0.5 * span, 0.5 * span * 0.18), 0.5 * span * 0.18 * 0.04, massKg, 0.0);
+        WreckPiece piece = Wreck.Add("prop-blade", AirframeComponent.Propeller, new List<HydroElement> { e },
+                                     Aircraft.Config.Mass.CgVec(), Aircraft.State, velocity);
+        Aircraft.ShedMass(massKg, hub + radius);              // the aeroplane is that much lighter, at that station
+        LastThrownBlade = (massKg, speed, shaftAngleRad % (2.0 * System.Math.PI));
+        PieceSpawned?.Invoke(piece);
+
+        // AND THEN THE MOUNT. The blade leaves a rotating unbalance of m·r·omega² and the mount is asked to carry it
+        // (FlyingGame.Core.Engine.EngineOverspeed.MountFails). It cannot, by one to two orders of magnitude — which
+        // is why the limit's exact value does not matter and why this can ship on a DERIVED one; the reasoning is
+        // written out on MountLimitG. Ty 2026-11-11: "with accurate physics that will almost always result in engine
+        // separation from the airplane but should be based on the loads and structural limits".
+        double unbalance = FlyingGame.Core.Engine.EngineOverspeed.ThrownBladeUnbalanceN(
+            p.PropInertia, p.PropDiameterM, p.PropBladeCount, shaftRpm, cs);
+        LastUnbalanceN = unbalance;
+        if (FlyingGame.Core.Engine.EngineOverspeed.MountFails(unbalance, InstalledEngineKg())) SeparateEngine();
+        return piece;
+    }
+
+    /// <summary>The rotating unbalance the last thrown blade left, N — what the mount was asked to carry.</summary>
+    public double LastUnbalanceN { get; private set; }
+
+    /// <summary>The installed engine's mass, kg: the wreck model's own engine box, which is the same mass the
+    /// flooding and break-up models carry for it rather than a second estimate.</summary>
+    private double InstalledEngineKg()
+    {
+        foreach (HydroElement e in HydroModel().Elements) if (e.Name == "engine") return e.MassKg;
+        return HydroModel().EngineDryKg * 1.4;
+    }
+
+    /// <summary>
+    /// THE ENGINE LEAVES THE AEROPLANE. Ty 2026-11-11: "The engine and prop while separating should follow an
+    /// accurate flight path and if that path contacts the airframe it should damage it appropriately."
+    ///
+    /// It gets no kick of its own. It leaves at the velocity it already had (v + ω × r at its own station), and what
+    /// carries it AFT down the fuselage is the aeroplane continuing to fly forward — which is the whole of why it
+    /// does not fall clear, and which is measured in WreckStrikeTests: a J-3's engine released at the nose strikes
+    /// the Cabin. It is marked thrown so it is strike-tested; from there it is an ordinary wreck piece and falls
+    /// until it reaches ground or water.
+    ///
+    /// AND THE AEROPLANE IS NOW A DIFFERENT AEROPLANE. Taking the engine off the nose of a light single is an
+    /// enormous AFT CG shift, not merely a mass change, and ShedMass carries both: the mass, the parallel-axis share
+    /// of the inertia, and the CG moved away from where it was (Aircraft.CgShiftBody enters the force sum as the
+    /// remaining weight's moment). That shift, not the separation, is what happens to the pilot next — it is
+    /// measured in ThrownBladeTests.
+    /// </summary>
+    public WreckPiece? SeparateEngine()
+    {
+        if (EngineGone) return null;
+        HydroElement? src = null;
+        foreach (HydroElement e in HydroModel().Elements) if (e.Name == "engine") { src = e; break; }
+        if (src is null) return null;
+        EngineGone = true;
+        WreckPiece piece = Wreck.Add("engine", AirframeComponent.Propeller, new List<HydroElement> { src.Clone() },
+                                     Aircraft.Config.Mass.CgVec(), Aircraft.State, Vec3.Zero, thrown: true);
+        Aircraft.ShedMass(src.MassKg, src.Centre);
+        PieceSpawned?.Invoke(piece);
+        return piece;
+    }
+
+    /// <summary>The engine has left the airframe (an over-rev threw a blade and the mount could not carry it).</summary>
+    public bool EngineGone { get; private set; }
+
+    /// <summary>The last blade this aeroplane threw: its mass, the speed it left at and the azimuth it left from.</summary>
+    public (double MassKg, double SpeedMs, double AzimuthRad)? LastThrownBlade { get; private set; }
+
+    /// <summary>Is this piece outside every airframe box (expanded by its own reach)? Once it is, it has separated,
+    /// and from then on it can strike the aeroplane like anything else in the air.</summary>
+    private static bool Clear(WreckPiece p, RigidBodyState s, Vec3 cg, IReadOnlyList<HydroElement> airframe)
+    {
+        Vec3 pb = s.Attitude.Conjugate().Rotate(p.State.Position - s.Position) + cg;
+        foreach (HydroElement e in airframe)
+        {
+            Vec3 d = pb - e.Centre;
+            if (System.Math.Abs(d.X) <= e.Half.X + p.ReachM &&
+                System.Math.Abs(d.Y) <= e.Half.Y + p.ReachM &&
+                System.Math.Abs(d.Z) <= e.Half.Z + p.ReachM) return false;
+        }
+        return true;
+    }
+
+    private readonly HashSet<int> _clear = new();
+    /// <summary>How far the airframe reaches from its CG, m — the broad phase's radius, built once.</summary>
+    private double _airframeReachM;
+    private AirframeHydroModel? _hydroModel;
+    private AirframeHydroModel HydroModel() => _hydroModel ??= AirframeHydroModel.Build(Aircraft.Config, Aircraft.Load);
+    private IReadOnlyList<HydroElement> AirframeBoxes() => HydroModel().Elements;
+
     /// <summary>Advance the wreck and report the airframe's flooding. Call once per frame/step with the elapsed time.</summary>
     public void Step(double dt)
     {
         if (_subscribed && !_wingsHandled && Aircraft.Structure.WingsFailed) OnWingsFailed();
+        StepStrikes(dt);
         Wreck.Advance(dt);
         AirframeFlooding h = Aircraft.Hydro;
         if (!h.EverWet) return;

@@ -35,7 +35,7 @@ public class AltitudeRpmProbe
             double pressureRatio = Atmosphere.PressureAtAltitude(m) / Atmosphere.SeaLevelPressurePa;
             double ias = 70.0 / MphPerMs;
             double tas = ias / System.Math.Sqrt(rho / Rho0);
-            double rpm = PistonEngine.BalancedRpm(g, p.MaxPowerW, p.MaxRpm, p.IdleRpm, 1.0, pressureRatio, tas, rho, rho / Rho0);
+            double rpm = PistonEngine.BalancedRpm(g, p, 1.0, pressureRatio, tas, rho, rho / Rho0);
             _o.WriteLine($"  {ft,8:F0} ft | {rho,6:F3} | {tas * MphPerMs,7:F1} | {PistonEngine.AltitudePowerFraction(rho / Rho0),19:F3} | {rho / Rho0,17:F3} | {rpm,6:F0}");
         }
         _o.WriteLine("\nAnd the same thing held at constant TRUE airspeed, which is NOT what a pilot sees:");
@@ -44,7 +44,7 @@ public class AltitudeRpmProbe
             double m = ft / 3.28084;
             double rho = Atmosphere.DensityAtAltitude(m);
             double pressureRatio = Atmosphere.PressureAtAltitude(m) / Atmosphere.SeaLevelPressurePa;
-            double rpm = PistonEngine.BalancedRpm(g, p.MaxPowerW, p.MaxRpm, p.IdleRpm, 1.0, pressureRatio, 70.0 / MphPerMs, rho, rho / Rho0);
+            double rpm = PistonEngine.BalancedRpm(g, p, 1.0, pressureRatio, 70.0 / MphPerMs, rho, rho / Rho0);
             _o.WriteLine($"  {ft,8:F0} ft, 70 mph TRUE: {rpm:F0} rpm");
         }
     }

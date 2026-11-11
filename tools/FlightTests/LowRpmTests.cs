@@ -37,6 +37,21 @@ public class LowRpmTests : IDisposable
     private static AircraftConfig Load(string n) =>
         AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", n + ".json"));
 
+    /// <summary>
+    /// BELOW THE TYPE'S OWN STALL SPEED, which is where Ty's anchor says a dead propeller stops: "Cranking
+    /// resistance should be calibrated such that at fine pitch the prop stops right at level flight stall speed."
+    ///
+    /// These tests used to hold every type at a flat 25 m/s, and that worked only for as long as every type in them
+    /// stalled above it — the Pitts does (29.5 m/s) and the Extra does (28.5). The J-3 stalls at 16.3, so 25 m/s is
+    /// 1.5 times its stall speed, and asking its propeller to stop there asks for the OPPOSITE of the anchor: above
+    /// the stall the air is supposed to keep it turning. The flat speed was a type-independent premise under a
+    /// type-dependent physics, and it survived only because the propeller model stopped the J-3's blade far too
+    /// early. Correcting the blade's post-stall section (2026-11-11) brought the stopping speed down onto the
+    /// anchor and the contradiction surfaced.
+    /// </summary>
+    private static RigidBodyState HeldBelowStall(AircraftConfig c)
+        => Held(0.9 * FlyingGame.Sim.Practice.PracticeScenario.EstimateVso(c, 0.0, 0.0));
+
     private static RigidBodyState Held(double vx)
         => new(new Vec3(0, 0, -1500), Quat.Identity, new Vec3(vx, 0, 0), Vec3.Zero);
 
@@ -57,13 +72,15 @@ public class LowRpmTests : IDisposable
     [InlineData("extra-300-like")]
     public void ADeadEngineWindsDownAndStaysStopped(string id)
     {
-        var ac = new Aircraft(Load(id), Held(25.0), ControlDeflections.Neutral);
+        AircraftConfig cfg = Load(id);
+        RigidBodyState held = HeldBelowStall(cfg);
+        var ac = new Aircraft(cfg, held, ControlDeflections.Neutral);
         ac.MixtureLever = 0.0;                                  // idle cut-off
         double twitched = 0.0, stoppedAt = double.NaN, t = 0.0;
         for (int i = 0; i < 6000; i++)                          // 30 s
         {
             ac.Step(new ControlInputs(0, 0, 0, 1.0), SimLoop.DefaultFixedDtSec);
-            ac.State = Held(25.0);
+            ac.State = held;
             t += SimLoop.DefaultFixedDtSec;
             if (double.IsNaN(stoppedAt) && ac.ShaftRpm <= 0.0) stoppedAt = t;
             else if (!double.IsNaN(stoppedAt) && ac.ShaftRpm > twitched) twitched = ac.ShaftRpm;
@@ -81,15 +98,24 @@ public class LowRpmTests : IDisposable
     [Fact]
     public void ARelightTakesItBackUpThroughTheFloor()
     {
-        var ac = new Aircraft(Load("j3-cub-like"), Held(25.0), ControlDeflections.Neutral);
+        AircraftConfig cfg = Load("j3-cub-like");
+        RigidBodyState held = HeldBelowStall(cfg);
+        var ac = new Aircraft(cfg, held, ControlDeflections.Neutral);
         ac.MixtureLever = 0.0;
         var sim = new SimLoop(ac);
-        for (int i = 0; i < 4000; i++) { ac.Step(new ControlInputs(0, 0, 0, 1.0), SimLoop.DefaultFixedDtSec); ac.State = Held(25.0); }
+        for (int i = 0; i < 4000; i++) { ac.Step(new ControlInputs(0, 0, 0, 1.0), SimLoop.DefaultFixedDtSec); ac.State = held; }
         Assert.Equal(0.0, ac.ShaftRpm, 9);
         Assert.True(ac.ShaftHeldByStaticFriction);
 
+        // AND THE RELIGHT NEEDS AIR, which is why this half is flown faster than the half above. Winding a dead
+        // propeller to a stop happens below the stall (that is Ty's anchor); getting a STOPPED one turning again is
+        // a windmill start, and the air has to be able to shove it over a compression. The two halves of this test
+        // are therefore at two speeds, and what it is pinning is neither of them: it is that the 300 rpm static
+        // friction floor catches a DECELERATING shaft only and does not trap a shaft on its way back up.
+        var relight = Held(25.0);
+        ac.State = relight;
         ac.MixtureLever = 1.0;                                   // mixture back in, throttle open
-        for (int i = 0; i < 4000; i++) { ac.Step(new ControlInputs(0, 0, 0, -1.0), SimLoop.DefaultFixedDtSec); ac.State = Held(25.0); }
+        for (int i = 0; i < 4000; i++) { ac.Step(new ControlInputs(0, 0, 0, -1.0), SimLoop.DefaultFixedDtSec); ac.State = relight; }
         _o.WriteLine($"J-3 after 20 s with the mixture back in and the throttle open: {ac.ShaftRpm:F0} rpm, running {ac.EngineRunning}");
         Assert.True(ac.ShaftRpm > ImpulseCoupling.StaticFrictionStopRpm,
                     $"the floor must not trap a restart ({ac.ShaftRpm:F0} rpm)");
@@ -128,7 +154,9 @@ public class LowRpmTests : IDisposable
     [Fact]
     public void TheAeroplaneReportsTheCouplingWhileItWindsDown()
     {
-        var ac = new Aircraft(Load("j3-cub-like"), Held(25.0), ControlDeflections.Neutral);
+        AircraftConfig cfg = Load("j3-cub-like");
+        RigidBodyState held = HeldBelowStall(cfg);
+        var ac = new Aircraft(cfg, held, ControlDeflections.Neutral);
         Assert.False(ac.ImpulseCouplingEngaged);                 // running: well above cut-out
         Assert.Equal(ImpulseCoupling.NormalAdvanceDeg, ac.IgnitionAdvanceDeg);
 
@@ -138,7 +166,7 @@ public class LowRpmTests : IDisposable
         for (int i = 0; i < 4000; i++)
         {
             ac.Step(new ControlInputs(0, 0, 0, 1.0), SimLoop.DefaultFixedDtSec);
-            ac.State = Held(25.0);
+            ac.State = held;
             if (ac.ImpulseCouplingEngaged)
             {
                 sawEngaged = true;

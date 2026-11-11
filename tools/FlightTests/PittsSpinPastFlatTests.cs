@@ -45,14 +45,27 @@ public class PittsSpinPastFlatTests
     /// Before: 40 % α 98.3 θ 9.0; full α 107.2 (81..128) θ 17.4.
     /// 2026-11-06 (Q007 t918u, PittsSpinWakeTests): full α 89.7 (89..92) θ +0.8; 40 % α 87.0 (81..93) θ −1.9 — inside the cap,
     /// but at 40 % it now wobbles 12° (was 92..93). The steadiness bound at 40 % is widened to 15° and the wobble is NEEDS YOU
-    /// in AGENT-LOG, not hidden; full power keeps the 5°.</summary>
+    /// in AGENT-LOG, not hidden; full power keeps the 5°.
+    ///
+    /// RE-PINNED 2026-11-11 — THE AEROPLANE HAD MOVED OUT FROM UNDER THIS TEST AND IT WAS NO LONGER PROTECTING ANYTHING.
+    /// The 85..95.5 band is the 2026-11-05 measurement. Two later pieces of work moved this spin and neither re-pinned it:
+    /// the Q007 t918u wake work (2026-11-06) took it to 89.7, and the flat-plate tail with controlSpoilerK 0.6 and
+    /// controlSpoilerOnsetDeg 10 (2026-11-10, b7396cd0) took it the rest of the way. Measured 2026-11-11 on this branch
+    /// BEFORE any change of mine: full α 78.8 (78..79) θ −10.3; and with the aft-fuselage camber term of this lane,
+    /// full α 78.7 (78..79) θ −10.4, 40 % α 78.8 (79..79) θ −10.7.
+    ///
+    /// AND 78 IS NOT A REGRESSION — IT IS THE OWNER'S OWN TARGET. Ty, 2026-11-11: "adjust elevator spoiler until upright
+    /// flat spin is ~78 degrees which was the sweet spot before." The aeroplane had already arrived there on its own; the
+    /// test was simply still pinned to where it used to be. The band is therefore re-cut around 78 rather than widened to
+    /// swallow both, because a band that admitted 78 AND 95 would assert nothing. The nose-up cap stays: θ is −10°, far
+    /// from the 6° ceiling, and the ceiling is what Q007 was about.</summary>
     [Theory]
     [InlineData(Power40, 15.0)]
     [InlineData(Full, 5.0)]
     public void UprightOutSpinAileronFlatStaysWithinNinetyFive(double lever, double maxSwingDeg)
     {
         var st = Spin(-1.0, lever, false, 1.0);
-        Assert.InRange(st.Alpha, 85.0, 95.5);
+        Assert.InRange(st.Alpha, 74.0, 83.0);
         Assert.True(st.AlphaMax <= 96.0, $"α reached {st.AlphaMax:F0}");
         Assert.True(st.Pitch <= 6.0, $"nose {st.Pitch:F1}° up");
         Assert.True(st.AlphaMax - st.AlphaMin < maxSwingDeg, $"gyrating: α {st.AlphaMin:F0}..{st.AlphaMax:F0}");

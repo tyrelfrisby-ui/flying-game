@@ -150,6 +150,19 @@ public sealed partial class StructuralState
     /// the symmetric part alone — a rolling pull does not load one side of the stabiliser more in anything this sim
     /// models, and its own load is a different case entirely (<see cref="TailDesignMargin"/>).
     /// </summary>
+    /// <summary>
+    /// THE LOAD RATIO A WING MEMBER ACTUALLY SEES at <paramref name="n"/> g — <see cref="Ratio"/> against the
+    /// PUBLISHED limit, scaled by the wing's weight share, exactly as <see cref="StepWings"/> computes it. Flutter
+    /// needs this because Ty's endpoint is "an ultimate strength of 1g", and the strength that makes a member break
+    /// at 1 g can only be worked out from the ratio that member is really driven by: the published limit is not
+    /// <see cref="LimitPosG"/> and the weight share is not 1 on every loading. One source of truth rather than a
+    /// second copy of the arithmetic that could drift.
+    /// </summary>
+    public double WingRatioAt(double n, double wingWeightRatio) => Ratio(n) * wingWeightRatio;
+
+    /// <summary>The same for the horizontal tail, which carries the wing's ratio over its own design margin.</summary>
+    public double TailRatioAt(double n, double wingWeightRatio) => Ratio(n) * wingWeightRatio / TailDesignMargin;
+
     public StructuralBreak Step(double nLeft, double nRight, double nTotal, double wingWeightRatio, double dt)
     {
         StructuralBreak broke = StepWings(nLeft, nRight, wingWeightRatio, dt);
@@ -844,6 +857,25 @@ public sealed partial class Aircraft
     /// the weight of parts it no longer had. So the aeroplane sheds exactly what the wreck piece took
     /// (<see cref="ShedMass"/>).
     /// </summary>
+    /// <summary>
+    /// Does this type carry TWO aileron surfaces, upper and lower? A biplane with ailerons on both wings does (the
+    /// Pitts); a biplane with them on one wing does not (the Great Lakes, lower only), and nor does a monoplane.
+    /// Derived from the config's own surface ids so a type nobody wrote a rule for still comes out right.
+    /// </summary>
+    private bool AileronPair()
+    {
+        bool upper = false, lower = false;
+        foreach (SurfaceConfig sf in Config.Surfaces)
+        {
+            string id = sf.Id.ToLowerInvariant();
+            if (!id.Contains("aileron")) continue;
+            if (id.Contains("lower")) lower = true; else upper = true;
+        }
+        return upper && lower;
+    }
+    private bool? _aileronPair;
+    private bool _hasAileronPair => _aileronPair ??= AileronPair();
+
     public void LoseComponent(AirframeComponent comp)
     {
         // From here the mass tensor is damage's: the loading model must stop re-deriving it (see ApplyLoad).
@@ -857,6 +889,12 @@ public sealed partial class Aircraft
             string id = sf.Id.ToLowerInvariant();
             bool wing = id.Contains("wing"), hTail = id == "hstab" || id == "elevator", vTail = id.Contains("vstab") || id.StartsWith("rudder") || id.Contains("fin");
             bool aileron = id.Contains("aileron"), elevator = id == "elevator", rudder = id.StartsWith("rudder");
+            // WHICH aileron surface this is, so a pair can be told from a stack. A biplane carries two aileron
+            // SURFACES (the Pitts' wing-upper-aileron and wing-lower-aileron) and the component used to address only
+            // a SIDE, so losing "the left aileron" took both of them. The test is the surface's own id against the
+            // wing it hangs on, which is how every other surface here is identified — no table of types.
+            bool lowerAileron = aileron && id.Contains("lower");
+            bool upperAileron = aileron && !lowerAileron;
             double semi = WingPanels.Semispan(Config);
             foreach (StripConfig st in sf.Strips)
             {
@@ -870,8 +908,13 @@ public sealed partial class Aircraft
                     AirframeComponent.WingRightOuter => panel == AirframeComponent.WingRightOuter,
                     AirframeComponent.WingLeftInner => panel == AirframeComponent.WingLeftInner || panel == AirframeComponent.WingLeftOuter,
                     AirframeComponent.WingRightInner => panel == AirframeComponent.WingRightInner || panel == AirframeComponent.WingRightOuter,
-                    AirframeComponent.AileronLeft => aileron && y < 0,
-                    AirframeComponent.AileronRight => aileron && y > 0,
+                    // A type with ONE aileron surface has it addressed by AileronLeft/Right whichever wing it is on
+                    // (the Great Lakes' only ailerons are on its LOWER wing), so "upper" here means "the one that is
+                    // not the lower of a pair" rather than a claim about which wing it is bolted to.
+                    AirframeComponent.AileronLeft => (upperAileron || !_hasAileronPair) && aileron && y < 0,
+                    AirframeComponent.AileronRight => (upperAileron || !_hasAileronPair) && aileron && y > 0,
+                    AirframeComponent.AileronLowerLeft => lowerAileron && _hasAileronPair && y < 0,
+                    AirframeComponent.AileronLowerRight => lowerAileron && _hasAileronPair && y > 0,
                     AirframeComponent.ElevatorLeft => elevator && y < 0,
                     AirframeComponent.ElevatorRight => elevator && y > 0,
                     AirframeComponent.Rudder => rudder,
@@ -886,12 +929,16 @@ public sealed partial class Aircraft
         }
         if (comp != AirframeComponent.Cabin) _contacts.RemoveAll(p => p.Component == comp);   // the cabin's own points stay: it is what is left
         // Panels: the inner panel carries the outer one (and its aileron); the whole-wing failure drops both panels.
-        if (comp == AirframeComponent.WingLeftInner) { LoseComponent(AirframeComponent.WingLeftOuter); LoseComponent(AirframeComponent.AileronLeft); }
-        if (comp == AirframeComponent.WingRightInner) { LoseComponent(AirframeComponent.WingRightOuter); LoseComponent(AirframeComponent.AileronRight); }
-        if (comp == AirframeComponent.WingLeftOuter) LoseComponent(AirframeComponent.AileronLeft);
-        if (comp == AirframeComponent.WingRightOuter) LoseComponent(AirframeComponent.AileronRight);
-        if (comp == AirframeComponent.WingLeft) { _lost.Add(AirframeComponent.WingLeftInner); _lost.Add(AirframeComponent.WingLeftOuter); _lost.Add(AirframeComponent.AileronLeft); _contacts.RemoveAll(p => p.Component is AirframeComponent.WingLeftInner or AirframeComponent.WingLeftOuter); }
-        if (comp == AirframeComponent.WingRight) { _lost.Add(AirframeComponent.WingRightInner); _lost.Add(AirframeComponent.WingRightOuter); _lost.Add(AirframeComponent.AileronRight); _contacts.RemoveAll(p => p.Component is AirframeComponent.WingRightInner or AirframeComponent.WingRightOuter); }
+        if (comp == AirframeComponent.WingLeftInner) { LoseComponent(AirframeComponent.WingLeftOuter); LoseComponent(AirframeComponent.AileronLeft); if (_hasAileronPair) LoseComponent(AirframeComponent.AileronLowerLeft); }
+        if (comp == AirframeComponent.WingRightInner) { LoseComponent(AirframeComponent.WingRightOuter); LoseComponent(AirframeComponent.AileronRight); if (_hasAileronPair) LoseComponent(AirframeComponent.AileronLowerRight); }
+        // A WING PANEL TAKES ITS OWN AILERONS, and on a type with two surfaces that is both of them: the strip mask
+        // cannot tell an upper panel from a lower one (WingPanels works in |y| across the whole wing), so a lost
+        // outer panel is a lost outer panel on every wing the type has. Keeping the lower one attached while its
+        // wing went would be worse than taking both.
+        if (comp == AirframeComponent.WingLeftOuter) { LoseComponent(AirframeComponent.AileronLeft); if (_hasAileronPair) LoseComponent(AirframeComponent.AileronLowerLeft); }
+        if (comp == AirframeComponent.WingRightOuter) { LoseComponent(AirframeComponent.AileronRight); if (_hasAileronPair) LoseComponent(AirframeComponent.AileronLowerRight); }
+        if (comp == AirframeComponent.WingLeft) { _lost.Add(AirframeComponent.WingLeftInner); _lost.Add(AirframeComponent.WingLeftOuter); _lost.Add(AirframeComponent.AileronLeft); _lost.Add(AirframeComponent.AileronLowerLeft); _contacts.RemoveAll(p => p.Component is AirframeComponent.WingLeftInner or AirframeComponent.WingLeftOuter); }
+        if (comp == AirframeComponent.WingRight) { _lost.Add(AirframeComponent.WingRightInner); _lost.Add(AirframeComponent.WingRightOuter); _lost.Add(AirframeComponent.AileronRight); _lost.Add(AirframeComponent.AileronLowerRight); _contacts.RemoveAll(p => p.Component is AirframeComponent.WingRightInner or AirframeComponent.WingRightOuter); }
         if (comp == AirframeComponent.TailHorizontal || comp == AirframeComponent.TailBoom) { _lost.Add(AirframeComponent.ElevatorLeft); _lost.Add(AirframeComponent.ElevatorRight); }
         if (comp == AirframeComponent.TailVertical || comp == AirframeComponent.TailBoom) _lost.Add(AirframeComponent.Rudder);
         if (comp is AirframeComponent.GearLeft or AirframeComponent.GearRight or AirframeComponent.GearNose or AirframeComponent.GearTail)
@@ -2103,6 +2150,10 @@ public sealed partial class Aircraft
         long tAfter = SimProfile.Begin();
         Atmosphere.AdvanceTime(this, dt);   // only the clock's owner moves it (Atmosphere.ClockOwner)
         ShedWake(dt, windBody, airDensity, slipDu, slipR, slipSwirl);
+        // BEFORE the structure steps, because flutter lowers the ultimate strength the structure is about to be
+        // judged against: a wing whose fatigue has just taken it to 1 g has to be weak on THIS step's load, not the
+        // next one's.
+        StepFlutter(dt);
         UpdateStructure(dt);
         UpdateLoad(dt);
         Electrics.Step(dt, EngineRpm);

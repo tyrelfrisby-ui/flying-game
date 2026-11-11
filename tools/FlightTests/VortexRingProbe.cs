@@ -116,12 +116,12 @@ public class VortexRingProbe
             if (p is null || p.PropDiameterM <= 0.0) continue;
             double pitch = PistonCompression.FinePitchDeg(p);
             var g = new BladeElement.Geometry(p.PropBladeCount, 0.5 * p.PropDiameterM, pitch, p.ActivityFactor);
-            double idleThrottle = PistonEngine.IdleBleedThrottle(g, p.MaxPowerW, p.MaxRpm, p.IdleRpm, 1.0, rho);
+            double idleThrottle = PistonEngine.IdleBleedThrottle(g, p, 1.0, rho);
             foreach (double rpm in new[] { 350.0, 500.0, 700.0, 900.0 })
                 foreach (double v in Sweep)
                 {
                     double qProp = BladeElement.Solve(g, v, 0.0, rpm, rho).TorqueNm;
-                    double qEng = PistonEngine.TorqueNm(p.MaxPowerW, p.MaxRpm, rpm, idleThrottle, 1.0);
+                    double qEng = PistonEngine.TorqueNm(p, rpm, idleThrottle, 1.0);
                     sb.AppendLine(string.Create(CultureInfo.InvariantCulture,
                         $"{id},{rpm:F0},{v:F1},{qProp:F3},{qEng:F3},{qEng - qProp:F3}"));
                 }
@@ -219,11 +219,11 @@ public class VortexRingProbe
                     PropulsionConfig p = c.Propulsion!;
                     double fitted = p.BladePitch75Deg;
                     var g = new BladeElement.Geometry(p.PropBladeCount, 0.5 * p.PropDiameterM, fitted, p.ActivityFactor);
-                    double staticRpm = PistonEngine.BalancedRpm(g, p.MaxPowerW, p.MaxRpm, p.IdleRpm, 1.0, 1.0, 0.0, rho);
+                    double staticRpm = PistonEngine.BalancedRpm(g, p, 1.0, 1.0, 0.0, rho);
                     // 84 mph = 37.55 m/s, full throttle: the rpm it reaches there.
-                    double rpm84 = PistonEngine.BalancedRpm(g, p.MaxPowerW, p.MaxRpm, p.IdleRpm, 1.0, 1.0, 37.55, rho);
+                    double rpm84 = PistonEngine.BalancedRpm(g, p, 1.0, 1.0, 37.55, rho);
                     double refit = PistonEngine.FitPitchForStaticRpm(p.PropBladeCount, 0.5 * p.PropDiameterM, p.ActivityFactor, 0.15,
-                                                                     2150.0, p.MaxPowerW, p.MaxRpm, p.IdleRpm);
+                                                                     2150.0, PistonEngine.Spec.For(p), p.IdleRpm);
                     sb.AppendLine($"  {id,-22} pitch {fitted:F2} deg: static {staticRpm,7:F1} rpm (anchor 2150), " +
                                   $"at 84 mph {rpm84,7:F1} rpm (redline {p.MaxRpm:F0}); refit would want {refit:F2} deg");
                 }
@@ -406,6 +406,66 @@ public class VortexRingProbe
             BladeElement.LegacyInnerLoop = false; BladeElement.LegacyPostStall = false;
         }
         Emit("flag-attribution.txt", sb);
+    }
+
+
+    /// <summary>
+    /// ITEM 9. THE COMBINED REFIT, and the test of whether the composed model is right. Two lanes refitted the J-3's
+    /// blade against the SAME anchor on the same day for different reasons — 15.49 here, for the corrected
+    /// post-stall section, and 15.62 on lane/claude-fmep-pmep, for FMEP and PMEP replacing the friction intercept —
+    /// and neither is correct once both land. This fits one pitch with both in place.
+    ///
+    /// AND IT IS A TEST, NOT JUST A FIT. Ty gives two figures: 2,150 rpm static at full power, which he measured,
+    /// and the 2,575 rpm redline reached at 84 mph full throttle, which he confirmed. They are independent — the
+    /// static point has a stalled root and the 84 mph point does not — so one blade angle holding BOTH is a check on
+    /// the composed model, and one that cannot hold both is a finding about it. Printed as both columns across a
+    /// pitch sweep, so where they each land is visible rather than asserted.
+    /// </summary>
+    [Fact]
+    public void TheCombinedRefitAndWhetherOnePitchHoldsBothAnchors()
+    {
+        if (Environment.GetEnvironmentVariable("VRS") != "1") return;
+        double rho = Atmosphere.SeaLevelDensityKgM3;
+        var sb = new StringBuilder();
+        foreach (string id in new[] { "j3-cub-like", "j3-cub-floats-like" })
+        {
+            AircraftConfig c = Load(id);
+            PropulsionConfig p = c.Propulsion!;
+            sb.AppendLine($"\n### {id}, config now at {p.BladePitch75Deg:F2} deg");
+            sb.AppendLine("  pitch | static rpm (anchor 2150) | at 84 mph (redline 2575)");
+            foreach (double pitch in new[] { 15.33, 15.49, 15.62, 15.70, 15.78, 15.85, 16.00 })
+            {
+                var g = new BladeElement.Geometry(p.PropBladeCount, 0.5 * p.PropDiameterM, pitch, p.ActivityFactor);
+                double st = PistonEngine.BalancedRpm(g, p, 1.0, 1.0, 0.0, rho);
+                double r84 = PistonEngine.BalancedRpm(g, p, 1.0, 1.0, 37.55, rho);
+                sb.AppendLine(string.Create(CultureInfo.InvariantCulture,
+                    $"  {pitch,5:F2} | {st,8:F1} ({st - 2150.0,+6:F1}) | {r84,8:F1} ({r84 - 2575.0,+6:F1})"));
+            }
+            // WHOSE CHANGE MOVED THE STATIC POINT. Both lanes raised the static rpm at a fixed pitch while leaving
+            // the 84 mph point alone, which is what makes the two anchors disagree; this splits the move between
+            // them by forcing the section back to the old branch under the NEW engine.
+            try
+            {
+                var g33 = new BladeElement.Geometry(p.PropBladeCount, 0.5 * p.PropDiameterM, 15.33, p.ActivityFactor);
+                BladeElement.LegacyPostStall = true;
+                double sOld = PistonEngine.BalancedRpm(g33, p, 1.0, 1.0, 0.0, rho);
+                double oOld = PistonEngine.BalancedRpm(g33, p, 1.0, 1.0, 37.55, rho);
+                BladeElement.LegacyPostStall = false;
+                double sNew = PistonEngine.BalancedRpm(g33, p, 1.0, 1.0, 0.0, rho);
+                double oNew = PistonEngine.BalancedRpm(g33, p, 1.0, 1.0, 37.55, rho);
+                sb.AppendLine($"  at 15.33 deg with the NEW engine: old section static {sOld:F1} / 84 mph {oOld:F1}; " +
+                              $"plate section static {sNew:F1} / 84 mph {oNew:F1}  (the section's own share: {sNew - sOld:+0.0;-0.0} static)");
+            }
+            finally { BladeElement.LegacyPostStall = false; }
+
+            double fit = PistonEngine.FitPitchForStaticRpm(p.PropBladeCount, 0.5 * p.PropDiameterM, p.ActivityFactor, 0.15,
+                                                           2150.0, PistonEngine.Spec.For(p), p.IdleRpm);
+            var fg = new BladeElement.Geometry(p.PropBladeCount, 0.5 * p.PropDiameterM, fit, p.ActivityFactor);
+            double fs = PistonEngine.BalancedRpm(fg, p, 1.0, 1.0, 0.0, rho);
+            double f84 = PistonEngine.BalancedRpm(fg, p, 1.0, 1.0, 37.55, rho);
+            sb.AppendLine($"  FIT to the 2,150 static anchor: {fit:F2} deg -> static {fs:F1}, at 84 mph {f84:F1} ({f84 - 2575.0:+0.0;-0.0} of the redline)");
+        }
+        Emit("combined-refit.txt", sb);
     }
 
     internal readonly struct Run

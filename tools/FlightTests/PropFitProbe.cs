@@ -59,7 +59,7 @@ public class PropFitProbe
             {
                 double mid = 0.5 * (lo + hi);
                 var g = new BladeElement.Geometry(blades, rad, mid, af);
-                double rpm = PistonEngine.BalancedRpm(g, p.MaxPowerW, p.MaxRpm, p.IdleRpm, c.Rig.ThrottleFraction, rho / 1.225, c.Rig.TasMs, rho);
+                double rpm = PistonEngine.BalancedRpm(g, p, c.Rig.ThrottleFraction, rho / 1.225, c.Rig.TasMs, rho);
                 var res = BladeElement.Solve(g, c.Rig.TasMs, 0.0, rpm, rho);
                 bestRpm = rpm; bestEta = res.Efficiency;
                 if (res.ThrustN > drag) hi = mid; else lo = mid;

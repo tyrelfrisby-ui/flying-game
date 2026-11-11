@@ -12,6 +12,8 @@ namespace FlyingGame.Bridge
         /// <summary>Cylinders that have stopped making power (Aircraft.DeadCylinders). Only a piston engine has any;
         /// the default does nothing so a jet needs no opinion about it.</summary>
         public virtual void SetDeadCylinders(int dead) { }
+        /// <summary>A spun bearing's knock and the impulse coupling's snap — piston engines only, for the same reason.</summary>
+        public virtual void SetDamage(float bearingKnock01, bool impulseEngaged) { }
         /// <summary>Jump the smoothed state to the targets (new aircraft: no spool sweep).</summary>
         public abstract void Snap(float rpm, float throttle);
     }
@@ -71,6 +73,8 @@ namespace FlyingGame.Bridge
             _detune = detune;
             _lagA = Dsp.Tau(0.15f, fs);
             _decay = Dsp.DecayCoef(P.PulseDecayS, fs);
+            _knockDecay = Dsp.DecayCoef(0.012f, fs);     // a hammer blow: twelve milliseconds and gone
+            _snapDecay = Dsp.DecayCoef(0.004f, fs);      // the impulse spring: shorter still, a crack
             _pulsesPerRev = P.Cylinders * 0.5f;
             _harm = (float[])P.Harmonics.Clone();
             float sum = 0f;
@@ -115,6 +119,32 @@ namespace FlyingGame.Bridge
 
         /// <summary>What is left of a dead cylinder's exhaust pulse: the pumping puff, with the combustion gone.</summary>
         private const float DeadCylinderPulse = 0.12f;
+
+        /// <summary>
+        /// THE TWO OTHER THINGS THE ENGINE CAN BE DOING, both of which are events on the pulse train this voice
+        /// already runs and neither of which is a new oscillator.
+        ///
+        /// THE SPUN BEARING KNOCKS AT CRANK FREQUENCY. Ty 2026-11-11: "The spun bearing needs a sound too[,] these
+        /// are plain pressure bearings so apply an appropriate sound that gets progressively worse until it sieves
+        /// [seizes] and is rpm related". He is ruling out the wrong sound by naming the bearing type: a rolling
+        /// element fails with a whine at a ball-pass frequency, but a plain hydrodynamic journal normally rides on an
+        /// oil wedge with no metal contact at all, so when the film collapses the journal HAMMERS the shell once per
+        /// revolution. That is a deep knock at crank rate and its harmonics, not a whine — and this voice already
+        /// turns a crank-rate phase for the radial thump, so the knock sits straight on it.
+        ///
+        /// THE IMPULSE COUPLING SNAPS once per firing impulse while it is engaged (below 400 rpm, Ty's figure): the
+        /// spring is wound and released, and the release is the characteristic crack of a prop coming round by hand.
+        /// It is the same event as the exhaust pulse, so it is triggered off the same phase wrap.
+        /// </summary>
+        public override void SetDamage(float bearingKnock01, bool impulseEngaged)
+        {
+            _knock = bearingKnock01 < 0f ? 0f : bearingKnock01 > 1f ? 1f : bearingKnock01;
+            _snapOn = impulseEngaged;
+        }
+
+        private float _knock, _knockEnv, _snapEnv;
+        private bool _snapOn;
+        private readonly float _knockDecay, _snapDecay;
 
         public override void Prepare(float rpmTarget, float throttleTarget)
         {
@@ -176,6 +206,8 @@ namespace FlyingGame.Bridge
                 _firePhase -= 1f;
                 if (++_fireIdx >= P.Cylinders) _fireIdx = 0;
                 _env = _cylAmp[_fireIdx] * (1f + _jitter * _noise.Next()) * (1f + 3f * lope);
+                // The impulse coupling lets go on this same event while it is engaged.
+                if (_snapOn) _snapEnv = 1f;
             }
             _env *= _decay;
             float n = _noise.Next();
@@ -201,12 +233,28 @@ namespace FlyingGame.Bridge
             eng += P.Formant1Gain * _f1.Process(eng) + P.Formant2Gain * _f2.Process(eng);
             eng = _lp.Process(eng);
 
-            // radial: once-per-rev thump (+ half-order) from the master-rod geometry
-            if (_thumpGain > 0f)
+            // radial: once-per-rev thump (+ half-order) from the master-rod geometry, and a spun bearing's knock on
+            // the same crank-rate phase — a plain journal hammers its shell once a revolution, so that is where it is.
+            if (_thumpGain > 0f || _knock > 0f)
             {
+                float wasPhase = _crankPhase;
                 _crankPhase += rpmA / 60f / _fs;
                 if (_crankPhase >= 1f) _crankPhase -= 1f;
-                eng += _thumpGain * (Dsp.Sin01(_crankPhase) + 0.5f * Dsp.Sin01(_crankPhase * 0.5f));
+                if (_thumpGain > 0f) eng += _thumpGain * (Dsp.Sin01(_crankPhase) + 0.5f * Dsp.Sin01(_crankPhase * 0.5f));
+                if (_knock > 0f && _crankPhase < wasPhase) _knockEnv = _knock;   // one hammer blow per revolution
+            }
+            if (_knockEnv > 1e-5f)
+            {
+                // A metal-on-metal blow: a short burst of noise with a low body to it, decaying fast. It grows with
+                // the damage because the clearance it is hammering across grows, and it rides the rpm because the
+                // blow happens once a turn.
+                _knockEnv *= _knockDecay;
+                eng += _knockEnv * (0.7f * _noise.Next() + 0.6f * Dsp.Sin01(_crankPhase * 4f));
+            }
+            if (_snapEnv > 1e-5f)
+            {
+                _snapEnv *= _snapDecay;
+                eng += _snapEnv * 0.5f * _noise.Next();      // the spring letting go: a bright, very short crack
             }
 
             // prop: blade-pass thrum + chop AM + tip noise
@@ -401,6 +449,12 @@ namespace FlyingGame.Bridge
         public void SetDeadCylinders(int dead)
         {
             for (int i = 0; i < _voices.Length; i++) _voices[i].SetDeadCylinders(dead);
+        }
+
+        /// <summary>A spun bearing's knock (0..1 of its life gone) and whether the impulse coupling is engaged.</summary>
+        public void SetDamage(float bearingKnock01, bool impulseEngaged)
+        {
+            for (int i = 0; i < _voices.Length; i++) _voices[i].SetDamage(bearingKnock01, impulseEngaged);
         }
 
         public void Next(out float l, out float r)

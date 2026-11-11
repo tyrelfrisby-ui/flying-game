@@ -198,14 +198,14 @@ public class PropPhysicsProbe
             PropulsionConfig p = c.Propulsion!;
             double pitch = p.ConstantSpeed ? p.FineStopDeg : p.BladePitch75Deg;
             var g = new BladeElement.Geometry(p.PropBladeCount, 0.5 * p.PropDiameterM, pitch, p.ActivityFactor);
-            double bleed = PistonEngine.IdleBleedThrottle(g, p.MaxPowerW, p.MaxRpm, p.IdleRpm, 1.0, rho, 1.0);
-            _o.WriteLine($"\n=== {id} blade {pitch:F2} deg  idle stop throttle {bleed:F4}  MP {PistonEngine.ManifoldInHg(bleed, 1.0):F2} inHg " +
-                         $"(closed {PistonEngine.ManifoldInHg(0.0, 1.0):F2}, friction intercept {PistonEngine.FrictionManifoldInHg:F1})");
+            double bleed = PistonEngine.IdleBleedThrottle(g, p, 1.0, rho, 1.0);
+            _o.WriteLine($"\n=== {id} blade {pitch:F2} deg  idle stop throttle {bleed:F4}  MP {PistonEngine.ManifoldInHg(bleed, 1.0, p.IdleRpm, p.MaxRpm):F2} inHg " +
+                         $"(closed {PistonEngine.ManifoldInHg(0.0, 1.0, p.IdleRpm, p.MaxRpm):F2}, friction intercept {PistonEngine.FrictionManifoldInHg:F1})");
             foreach (double rpm in new[] { 700.0, 1200.0, 1800.0, 2500.0 })
             {
-                double qFire = PistonEngine.TorqueNm(p.MaxPowerW, p.MaxRpm, rpm, bleed, 1.0, 1.0);
+                double qFire = PistonEngine.TorqueNm(p, rpm, bleed, 1.0, 1.0);
                 double qMotorDry = PistonEngine.MotoringTorqueNm(p, rpm, 0.0, 1.0, 1.0);
-                double qMotorOiled = PistonEngine.MotoringTorqueNm(p.MaxPowerW, p.MaxRpm, rpm, 0.0, 1.0, 1.0, 0.0);
+                double qMotorOiled = PistonEngine.MotoringTorqueNm(PistonEngine.Spec.For(p), rpm, 0.0, 1.0, 1.0, 0.0);
                 double qBlade50 = BladeElement.Solve(g, 50.0, 0.0, rpm, rho).TorqueNm;
                 _o.WriteLine($"   {rpm,5:F0} rpm | engine at the idle stop {qFire,7:F1} N.m | motoring, oiled {qMotorOiled,7:F1} | " +
                              $"motoring, dry {qMotorDry,7:F1} | blade at 50 m/s {qBlade50,8:F1}");
