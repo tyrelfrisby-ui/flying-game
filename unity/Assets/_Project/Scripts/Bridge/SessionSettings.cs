@@ -251,6 +251,13 @@ namespace FlyingGame.Bridge
         public static int TurbulenceLevel = 0;            // 0 calm .. 3 severe
         public static float IsaDeviationC = 0f;           // hot/cold day
         public static float ThermalScale = 1f;            // 0 off .. 2 strong
+        /// <summary>TIME OF DAY (landing v2, Ty 2026-11-05): the sun's local hour the page chose (TimeOfDayLighting draws it).
+        /// Lighting only: nothing in the sim reads it.</summary>
+        public static float TimeOfDayHour = 12.5f;
+        /// <summary>ENGINE RELIABILITY (landing v2): the multiplier on EngineReliability's standard failure rate, 0 = never
+        /// fails. STORED ONLY: EngineReliability is not wired to the flying aeroplane yet (ElectricalSystem's notes say
+        /// the same), and wiring it is sim work outside the landing lane. AGENT-LOG NEEDS YOU / Q queue.</summary>
+        public static double EngineUnreliability = 0.0;
 
         // ---- badges and scores over other people's aeroplanes (owner 2026-10-18) ----
         /// <summary>Show badges and scores on OTHER pilots' tags. Their handle is shown either way.</summary>

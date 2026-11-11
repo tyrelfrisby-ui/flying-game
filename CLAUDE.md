@@ -775,3 +775,8 @@ tests and failing 211. Worse, a first run taken while three other worktrees were
 the same tree re-run on a quiet machine gave 211: the numbers disagree with each other, not just with the log.
 Counts in this repo decay, and two runs of the same tree are not comparable unless both say what else was
 running. Re-run the branch point yourself, record what the machine was doing, and compare BY NAME.
+### A gate that sleeps after its last check is 20 seconds stale when it fires
+The landing-units wait loop was `check; sleep 20` three times, then `deploy.sh`. Its last idle check was 20 s old
+when the build started, and an island-nav install to Ty's devices had started in that gap: two deploys into the same
+/private/tmp/flyinggame-ios, one second apart. Put the sleep FIRST and the check last (`sleep 20; check`), so the
+build starts on the heels of an idle reading, and count `devicectl` (`pgrep -x`) as busy: an install holds the slot too.

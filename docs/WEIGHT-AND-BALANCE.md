@@ -116,6 +116,18 @@ The J-3's two seats are at stations +9 and +36 on a 61-inch chord, so which one 
 nearly half the whole range. That is why a Cub is soloed from the back seat, and it falls out of the published data
 rather than being written in.
 
+### 2026-11-06: the envelopes are read again, as body-x rows (landing page, Ty t880u)
+
+The `envelope` arrays above (percent MAC, kg) stopped being read when `LoadingConfig` was replaced, so the landing
+page drew no limits for any of these types. They are now written as `loading.cgLimits` rows in body x metres, straight
+from each certificate's stations through the anchors above, and the percent-MAC arrays are left in place, unread. On
+today's wing geometry the percent-MAC figures map back to round certificate stations for all four (Pitts 86.35 / 89.58
+/ 90.50, J-3 +10.6 / +22.7, Great Lakes +20.0 / +23.8), which is the check that the conversion was right. The Swift
+uses EASA's mm-aft-of-datum figures (257 / 414) rather than percent MAC, which differ by 3–6 mm because our MAC is
+970 mm against 984. The 172's envelope (above) is NOT re-added: its config's 877 kg derived empty weight would put any
+two-person load over the real 2300 lb gross; that is a mass-model decision for the owner. `LandingFlowTests`
+(`TheVerifiedEnvelopesAreTheCertificatesOwnNumbers`, `OnlyTheVerifiedTypesHaveAnEnvelope`) hold all of it.
+
 ### `pa28-archer-like` is blocked, and why — now with the evidence
 
 The factory POH gives everything except the one thing the mapping needs. Arms (front 80.5, rear 118.1, fuel 95.0,
