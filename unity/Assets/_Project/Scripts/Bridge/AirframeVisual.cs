@@ -698,7 +698,7 @@ namespace FlyingGame.Bridge
             var go = new GameObject("Bent-" + comp);
             pivot = go.transform;
             pivot.SetParent(transform, false);
-            pivot.localPosition = new Vector3(0f, 0f, (float)stationX);
+            pivot.localPosition = new Vector3(0f, 0f, (float)(stationX - cfg.Mass.CgVec().X));   // root-local z is sim x from the CG
             pivot.localRotation = Quaternion.identity;
             cut.transform.SetParent(pivot, true);
             _bentPanels[comp] = pivot;
@@ -1460,7 +1460,9 @@ namespace FlyingGame.Bridge
             if ((nose || tailBoom) && cfg != null)
             {
                 (double n, double t) = FlyingGame.Core.AirframeContact.FuselageStations(cfg);
-                noseCut = (float)n; tailCut = (float)t;
+                // Root-local z is sim x from the CG (the root sits at the CG, as in WingBand), the stations are in the config frame.
+                double cgx = cfg.Mass.CgVec().X;
+                noseCut = (float)(n - cgx); tailCut = (float)(t - cgx);
             }
             bool Matches(string n)
             {
