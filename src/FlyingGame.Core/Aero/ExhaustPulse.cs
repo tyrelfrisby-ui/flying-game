@@ -33,6 +33,13 @@ public static class ExhaustPulse
     /// <summary>Pulses a second at <paramref name="rpm"/>.</summary>
     public static double PulseHz(int cylinders, double rpm) => EventsPerRev(cylinders) * System.Math.Max(0, rpm) / 60.0;
 
+    /// <summary>PUFFS A SECOND FROM ONE SMOKE PIPE (Ty 2026-11-11: "one puff per pipe every other combustion stroke").
+    /// Derived from the engine, never a chosen rate: the combustion strokes a pipe could see
+    /// (<see cref="PulseHz"/>) divided by <paramref name="strokesPerPuff"/>. A six at 2,700 rpm every other stroke is
+    /// 67.5 Hz a pipe - unresolvable at cruise, which is the point: it pulses at idle and dies with the engine.</summary>
+    public static double PuffHz(int cylinders, double rpm, int strokesPerPuff)
+        => PulseHz(cylinders, rpm) / System.Math.Max(1, strokesPerPuff);
+
     /// <summary>One event's bell, normalised to unit area over x ∈ [0, 1]; 0 outside the window.</summary>
     public static double Shape(double x) => x <= 0 || x >= 1 ? 0 : x * x * System.Math.Pow(1 - x, ShapeB) / BetaNorm;
 

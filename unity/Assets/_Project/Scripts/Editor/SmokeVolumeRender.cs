@@ -84,8 +84,7 @@ namespace FlyingGame.EditorTools
             var ex = SmokeTrail.ExhaustsFor(cfg, "pitts-s2b-like", builder.PropHubsBody(), lengthM, bodyRadiusM, out var jet);
             smoke.SetExhausts(ex, jet);
             smoke.Flow = new FlyingGame.Core.Aero.AirframeFlow(cfg, 0.4 * lengthM, bodyRadiusM);
-            smoke.PipeDiameterM = cfg.Smoke.PipeDiameterIn * 0.0254;
-            smoke.Cylinders = cfg.Smoke.Cylinders;
+            smoke.ApplyConfig(cfg);
             Atmosphere.SimTimeSec = total;
             // -smokePowers idle,cruise,full: the same flight at each power (idle 700 rpm closed, cruise 2,400 rpm 0.65, full
             // 2,700 rpm open), files <power>_<view>.png. Without it, one "show" setting (0.85, 2,565 rpm) as <tag>_<view>.png.

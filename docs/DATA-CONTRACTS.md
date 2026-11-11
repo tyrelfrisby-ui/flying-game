@@ -72,6 +72,46 @@ canisters and configs without a measured outlet retain their existing paths.
 
 See [the measured fleet and annotated renders](pending/smoke-renders/README.md).
 
+#### `smoke.pipes`: a measured bank, which supersedes all of the above
+
+Ty, 2026-11-11: *"The extras smoke comes out too far forward it needs to come out about the
+firewall and it comes out of two pipes 2 inch dia each separated by 1 ft on center pointed
+down at 45 degrees with one puff per pipe every other combustion stroke"*, and of the Pitts
+*"the same problem but the pipes are 1.5 dia each and separated by 8 inches on center"*,
+*"two pipes centered at the firewall"*, *"1.5 dia each 45 degrees Down"*.
+
+Where `smoke.pipes` is authored it is the whole answer for WHERE the smoke is born and WHICH
+WAY it blows: `SmokeTrail.ExhaustsFor` reads it before `outletBodyM`, before `aftOfNoseM` and
+before the prop-hub estimate, and its `downDeg` replaces the smoke block's. Fields: `count`,
+`firewallXM`, `mouthZM`, `spacingIn` (on centre), `diameterIn`, `downDeg`,
+`combustionStrokesPerPuff`, plus `source` (Ty's numbers) and `stationSource` (how the station
+was measured). A half-authored or non-finite block is ignored whole, so the type falls back
+rather than drawing smoke at NaN. `outletBodyM` and `aftOfNoseM` stay authored beside it
+because `Wreck.AirframeHydroModel` locates the nose for the water model from the two of them.
+
+`firewallXM` and `mouthZM` are in the **config reference frame** — the frame the gear
+stations, the surface strips and the drawn GLB are in, which is the frame the fleet's
+`outletBodyM` values are actually authored in. They are measured off the model, never off a
+scaled drawing: `extra-300-like` reads its `Cockpit_FirewallPlate` plane straight out of the
+GLB, and `pitts-s2b-like` has to reject the plate its builder labels "firewall" (it is buried
+inside the same model's engine, and moving the smoke onto it would push the outlet further
+forward, not aft) and take the aft face of the drawn engine instead — the convention
+`CONTROL-SURFACES.md` already uses on this fleet. Each config's `stationSource` carries the
+whole derivation and its cross-checks against the AEIO-540's published length.
+
+The mouths are placed symmetrically about the centreline (the bank's mean `y` is 0 whatever
+`count` is), all at `firewallXM` and `mouthZM`, each aimed `downDeg` below the aft
+longitudinal direction with no lateral angle.
+
+`combustionStrokesPerPuff` is a **visual timing, derived from the engine, never a chosen
+rate**. `ExhaustPulse.PuffHz(cylinders, rpm, strokesPerPuff)` divides the pipe's combustion
+strokes among the puffs: a six at 2,700 rpm lets out 135 strokes a second, so 2 gives 67.5
+puffs a second from each of two pipes, and the pair fire alternately, so no stroke is invented
+or lost. 67 Hz is not resolvable, which is the point — the cadence is keyed to the crank, so
+the column pulses visibly at idle (17.5 Hz), goes ragged when the engine does and stops when
+it stops. `diameterIn` drives the column's starting width (`SmokeTrail.PlumeDiameterM`); the
+jet that carries it is still the exhaust's, out of `pipeDiameterIn`.
+
 ## ChallengeDefinition
 New challenges = new JSON, not new C#.
 

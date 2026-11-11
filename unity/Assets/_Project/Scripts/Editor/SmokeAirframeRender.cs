@@ -147,9 +147,8 @@ namespace FlyingGame.EditorTools
                     trail.Flow = new FlyingGame.Core.Aero.AirframeFlow(cfg, 0.4 * lengthM, bodyR);
                     if (after && measured) trail.Flow.SetFuselage(xs, rs, zs);
                     trail.ClearAirframe = after;
-                    trail.PipeDiameterM = (cfg.Smoke?.PipeDiameterIn ?? 4) * 0.0254;
+                    trail.ApplyConfig(cfg);
                     trail.Stream = cfg.Propulsion == null;
-                    trail.Cylinders = cfg.Smoke?.Cylinders ?? 6;
                     cam.transform.position = cowl + top * 3.2f + fwd * 2.2f + right * 1.6f;
                     cam.transform.rotation = Quaternion.LookRotation(cowl - cam.transform.position, top);
                     System.Func<int, SmokeTrail.Sample?> sample = k => { int i = hist.Count - 1 - k; return i < 0 ? (SmokeTrail.Sample?)null : hist[i]; };
@@ -228,7 +227,7 @@ namespace FlyingGame.EditorTools
             float lengthM = (float)cfg.Fuselage.Crossflow.LengthM, bodyR = (float)cfg.Fuselage.Crossflow.BodyRadiusM;
             var ex = SmokeTrail.ExhaustsFor(cfg, id, builder.PropHubsBody(), lengthM, bodyR, out var jet);
             trail.SetExhausts(ex, jet); trail.Flow = new FlyingGame.Core.Aero.AirframeFlow(cfg, 0.4 * lengthM, bodyR);
-            trail.PipeDiameterM = cfg.Smoke.PipeDiameterIn * 0.0254; trail.Cylinders = cfg.Smoke.Cylinders;
+            trail.ApplyConfig(cfg);
             Vector3 mid = CoordinateMap.ToUnity(new Vec3(50 * 6.5, 0, -300));
             cam.transform.position = mid + new Vector3(-110f, -12f, 0f); cam.transform.rotation = Quaternion.LookRotation(mid - cam.transform.position, Vector3.up);
             cam.fieldOfView = 50f;
