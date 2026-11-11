@@ -185,10 +185,19 @@ public sealed class QuestControlsTests
     // ---- buttons ----
 
     [Fact]
-    public void BrakesFollowTheLeftTrigger()
+    public void TriggersAreTheLeftAndRightToeBrakes()
     {
-        Assert.Equal(0.7, Once(new QuestControllerFrame { LeftTrigger = 0.7 }).Brake, 9);
-        Assert.Equal(0.0, Once(new QuestControllerFrame()).Brake, 9);
+        // Ty 2026-11-04: the triggers are the LEFT / RIGHT wheel brake, proportional past a 0.05 dead zone. Nothing
+        // on the Touch sets the both-wheels Brake any more.
+        var c = Once(new QuestControllerFrame { LeftTrigger = 0.7 });
+        Assert.Equal(0.65 / 0.95, c.BrakeLeft, 9);
+        Assert.Equal(0.0, c.BrakeRight, 9);
+        Assert.Equal(0.0, c.Brake, 9);
+        var d = Once(new QuestControllerFrame { RightTrigger = 0.7 });
+        Assert.Equal(0.0, d.BrakeLeft, 9);
+        Assert.Equal(0.65 / 0.95, d.BrakeRight, 9);
+        var e = Once(new QuestControllerFrame());
+        Assert.Equal(0.0, e.BrakeLeft, 9); Assert.Equal(0.0, e.BrakeRight, 9); Assert.Equal(0.0, e.Brake, 9);
     }
 
     [Fact]
@@ -221,8 +230,10 @@ public sealed class QuestControlsTests
         Assert.False(m.Step(new QuestControllerFrame { RightGrip = 0.5 }, Dt, 0.5).Smoke);   // hysteresis: still held
         Assert.False(m.Step(new QuestControllerFrame { RightGrip = 0.0 }, Dt, 0.5).Smoke);
         Assert.True(m.Step(new QuestControllerFrame { RightGrip = 0.9 }, Dt, 0.5).Smoke);
-        Assert.True(m.Step(new QuestControllerFrame { RightTrigger = 0.8 }, Dt, 0.5).Fire);
-        Assert.False(m.Step(new QuestControllerFrame { RightTrigger = 0.3 }, Dt, 0.5).Fire);
+        // The guns moved to the RIGHT GRIP when the right trigger became the right wheel brake (Ty 2026-11-04):
+        // held, and the Bridge uses the same grip for smoke only when the guns are not hot.
+        Assert.True(m.Step(new QuestControllerFrame { RightGrip = 1.0 }, Dt, 0.5).Fire);
+        Assert.False(m.Step(new QuestControllerFrame { RightTrigger = 0.8 }, Dt, 0.5).Fire);
     }
 
     // ---- hands ----

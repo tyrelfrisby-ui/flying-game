@@ -456,8 +456,8 @@ namespace FlyingGame.Bridge
             // The font has no ☰, so the button is named in words. On the landing page the line says how to get
             // back here from the air, which is the thing Ty could not find on his first flight.
             string hint = XrHeadset.HandsOnly ? "point and pinch  -  hold a left pinch to close"
-                        : OnLanding ? "trigger / A selects   < > changes   in flight: MENU tab or left MENU button"
-                        : "point + trigger / A   stick < > changes   B or MENU closes";
+                        : OnLanding ? "A / X selects   < > changes   in flight: MENU tab or left MENU button"
+                        : "stick moves   A / X selects   stick < > changes   B or MENU closes";
             if (_hint.text != hint) _hint.text = hint;
             Place(_hint, -top + RowHeight * 0.55f);
             _highlight.localPosition = new Vector3(0f, top - RowHeight * (_sel + 1.75f), 0.001f);
@@ -475,7 +475,10 @@ namespace FlyingGame.Bridge
 
             // Pointing: the right hand if it is there, else the left.
             int pointed = -1;
-            bool aimed = Aim(false, out Vector3 o, out Vector3 d) || Aim(true, out o, out d);
+            // Ty 2026-11-04: controllers navigate with the sticks + A/X select, B/Y back (the triggers are the brakes);
+            // only tracked hands, which have no sticks, still point and pinch.
+            Vector3 o = default, d = default;
+            bool aimed = f.HandsOnly && (Aim(false, out o, out d) || Aim(true, out o, out d));
             if (aimed && HitRow(o, d, out pointed, out Vector3 hit))
             {
                 _laser.enabled = true;
@@ -497,7 +500,7 @@ namespace FlyingGame.Bridge
             if (Repeat(System.Math.Abs(sx) > 0.6 && System.Math.Abs(sx) >= System.Math.Abs(sy), ref _cycleHeld, dt) && _sel < _shown.Count)
                 _shown[_sel].Cycle?.Invoke(sx > 0 ? 1 : -1);
 
-            bool trig = f.RightTrigger > 0.6 || f.LeftTrigger > 0.6;
+            bool trig = false;   // triggers no longer select (they are the wheel brakes)
             bool pinch = f.HandsOnly && (f.RightPinch > 0.8 || f.LeftPinch > 0.8);
             bool select = (trig && !_prevTrig) || (f.A && !_prevA) || (f.X && !_prevX) || (pinch && !_prevPinch);
             bool back = (f.B && !_prevB) || (f.Y && !_prevY);
