@@ -113,6 +113,41 @@ the Cubs and the Decathlon 3–5°, in ten seconds. Seven configs had been rewri
 measured-slipstream commit) without re-copying this table, which is the only reason the literal check was red at all;
 it was green for the other twenty-seven, which were just as stale. See "`--filter RigTool` is the WRITER" above.
 
+**RE-SOLVED AGAIN, 2026-11-10, for the five FITTED-BLADE types only** — both Cubs (`bladePitch75Deg` 15.33) and the
+three constant-speed types with fitted stops (Pitts, Extra, Great Lakes). **The rig was solving a propeller the sim
+does not fly**, three ways, and every one of them reaches only a SOLVED propeller, which is why they landed on these
+five and nothing else:
+
+1. `RigSolver.SteadyForces` took its drive from `PropModel.SteadyDrive`, which governs a constant-speed blade
+   unconditionally and so carries a shaft rpm, while `AircraftEngine.SolvesShaft` leaves a GOVERNING constant-speed
+   type on the throttle law. `PropModel.IsSolved` was therefore true in the solve and false in flight for the Pitts,
+   the Extra and the Great Lakes — not two estimates of one propeller but two different propellers, and that
+   predicate also decides whether the FIN stands in the slipstream's geometric swirl or takes the bulk
+   `Parts.SlipYaw` moment. The predicate now lives in one place (`PropModel.IntegratesShaft`) and the rig asks it
+   through `PropModel.SteadyFlownDrive`.
+2. The shaft was seeded at `max(IdleRpm, 500)` rather than at its torque balance, so every in-air start spooled up
+   through the wrong torque, P-factor and swirl — the J-3 from 724 rpm against the rig's 2,068.6.
+3. `SteadyDrive` fed `PistonEngine` the DENSITY ratio where the parameter is the ambient PRESSURE ratio (0.888
+   against 0.864 at 4,000 ft, an engine 3 % stronger in the solve), and `SteadyForces` left `PropulsionForces`'
+   `noseBody` at its default, so the arm the disc's in-plane force swings on was −cg instead of nose − cg.
+
+**The three constant-speed types' fin offsets fall from ~1.94° to 0.36–0.49° and their rig speeds rise 7–8 %**,
+because the rig no longer stands their fin in a geometric swirl the sim never applies to them. The two Cubs, which
+are fixed-pitch and solved on both sides, keep their large offsets (J-3 2.557°, and Ty measured about 1.76° of
+fin-chord-plane offset on his own aeroplane). **The other thirty rows reproduced to the last digit**, which is both
+the idempotence check and the predicate: only a type whose blade is fitted goes anywhere near the solved propeller.
+
+With this the rig and the sim agree at the rig point for every type in the fleet — the moment the flown model applies
+that the solve did not see is |L| ≤ 0.005 N·m, |M| ≤ 0.001 and |N| ≤ 0.005, where for the Pitts it had been L −577
+N·m and N +512, the Extra L −418 and N +844 and the Great Lakes L −300 and N +664.
+
+**STILL OPEN, and it is the better physics rather than a bug**: the three constant-speed types never run the
+blade-element propeller in normal flight at all, because `SolvesShaft` is gated on the governor having lost its oil.
+Integrating the governed shaft would make them solved everywhere, which is the direction the blade fitting has been
+going and which the Cubs' measured-supported fin offsets argue for. It is not done here: it moves the propeller
+blast over their tails by about 17 % and takes six `EngineStateTests` pins and a `FuelValveTests` pin with it, and
+that is a handling change for three aerobatic types rather than a bookkeeping fix.
+
 Fin + = leading edge left. Aileron + = right-roll deflection. Elevator + = trailing edge down. 4,000 ft ISA.
 
 | aircraft | power | rig speed KTAS / KIAS | α ° | elevator trim ° | aileron rig ° | fin offset ° | bank ° |
@@ -127,14 +162,14 @@ Fin + = leading edge left. Aileron + = right-roll deflection. Elevator + = trail
 | Decathlon | 75 % | 105.8 / 99.7 | +0.98 | +1.86 | +0.249 | +0.348 | +0.331 |
 | Beaver floats | 75 % | 114.6 / 108.0 | +0.71 | +0.46 | +0.289 | +0.516 | +0.202 |
 | Beaver | 75 % | 123.4 / 116.3 | −0.49 | +0.74 | +0.249 | +0.423 | +0.206 |
-| Extra 300 | 75 % | 150.9 / 142.2 | +2.70 | −1.62 | +0.164 | +1.127 | +0.083 |
+| Extra 300 | 75 % | 162.8 / 153.5 | +2.35 | −1.41 | +0.274 | +0.163 | +0.305 |
 | F-86 Sabre | 75 % thrust, jet | 320.2 / 301.7 | +2.22 | +1.79 | 0 | 0 | 0 |
 | Gee Bee R-2 | 75 % | 187.9 / 177.1 | −1.34 | −1.57 | +0.741 | +0.417 | +0.388 |
 | Glasair III | 75 % | 235.3 / 221.8 | −0.38 | +0.24 | +0.438 | +0.131 | +0.310 |
-| Great Lakes | 75 % | 99.8 / 94.1 | −2.03 | +0.79 | +0.251 | +1.950 | −0.003 |
+| Great Lakes | 75 % | 106.7 / 100.6 | −2.36 | +0.98 | +0.472 | +0.358 | +0.343 |
 | Hughes H-4 | 75 %, 8 × CW | 151.2 / 142.5 | −0.83 | −0.59 | +0.041 | +0.033 | +0.025 |
-| J-3 Cub floats | 75 % | 62.2 / 58.6 | +2.41 | −1.06 | +0.098 | +2.005 | +0.022 |
-| J-3 Cub | 75 % | 58.9 / 55.5 | +2.76 | −1.29 | +0.094 | +2.260 | +0.023 |
+| J-3 Cub floats | 75 % | 59.6 / 56.2 | +3.08 | −1.51 | +0.094 | +2.243 | +0.024 |
+| J-3 Cub | 75 % | 56.3 / 53.1 | +3.51 | −1.74 | +0.105 | +2.557 | +0.028 |
 | JN-4 Jenny | 75 % | 51.3 / 48.3 | +2.74 | +0.02 | +0.487 | +0.722 | +0.217 |
 | P-51D | 75 % | 209.3 / 197.2 | +0.41 | −1.33 | +0.494 | +0.194 | +0.229 |
 | PA-18 bush | 75 % | 91.2 / 86.0 | −0.33 | +0.74 | +0.255 | +0.424 | +0.306 |
@@ -142,7 +177,7 @@ Fin + = leading edge left. Aileron + = right-roll deflection. Elevator + = trail
 | PA-18 floats | 75 % | 87.1 / 82.1 | +0.76 | +0.16 | +0.279 | +0.458 | +0.280 |
 | Pawnee | 75 % | 108.5 / 102.2 | −1.69 | +1.16 | +0.247 | +0.330 | +0.328 |
 | PA-28 Archer | 75 % | 108.7 / 102.5 | +1.20 | +0.65 | +0.270 | +0.199 | +0.203 |
-| Pitts S-2B | 75 % | 126.2 / 119.0 | +2.41 | −2.19 | +0.096 | +1.997 | +0.056 |
+| Pitts S-2B | 75 % | 137.0 / 129.1 | +2.08 | −1.99 | +0.413 | +0.490 | +0.534 |
 | Seminole | 75 %, counter-rotating | 143.1 / 134.9 | −0.14 | +1.72 | 0 | 0 | 0 |
 | Stearman PT-17 | 75 % | 105.0 / 98.9 | −3.45 | −0.55 | +0.514 | +0.371 | +0.221 |
 | Target drone | 75 % (it has a prop) | 159.1 / 149.9 | +0.63 | +0.45 | +0.332 | +0.161 | +0.279 |
@@ -299,6 +334,11 @@ aileron trim" anyway. Three things keep it narrow, each with a test in `tools/Fl
 **Only the aileron.** The fin offset drifts with height too — more than the aileron on several types — and cancelling
 it would want preset rudder trim as well. Ty was offered "aileron/rudder trim" and chose "preset aileron trim", so
 the yaw keeps whatever small heading drift the fixed fin leaves.
+
+**SUPERSEDED, 2026-11-10 (the section below is kept for the measurements, not the diagnosis).** The four types it
+describes were not failing because their stored rigs were stale — the rig was being SOLVED against a propeller the
+sim does not fly, and the re-solve at the top of this document is the fix. `HandsOffLevelAtRigPower` is down from
+five red to one (the J-3 alone), and the preset aileron trim can be reconsidered for the three that now pass.
 
 **IT CANNOT SAVE FOUR TYPES, AND THEY ARE A DIFFERENT FAULT.** The Pitts, the Extra, the Great Lakes and the J-3
 roll tens of degrees in ten seconds hands off at **every** height, the rig altitude included — the Pitts **36.1° at

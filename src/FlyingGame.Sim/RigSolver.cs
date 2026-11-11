@@ -337,7 +337,11 @@ public static class RigSolver
         // against the full-strength slipstream yaw while the sim applied the traced share, which cost sixty rig tests
         // earlier the same night — and it bit twice, because the propeller's FORCES were put on the solved drive while
         // its WASH over the tail was left on the old one.
-        PropModel.PropDrive drive = PropModel.SteadyDrive(c.Propulsion, throttle, vBody.X, rho);
+        // THE DRIVE THE SIM FLIES, not merely where the shaft would settle: PropModel.SteadyFlownDrive asks the one
+        // shared predicate (PropModel.IntegratesShaft) so a governing constant-speed type is solved on the throttle law
+        // here exactly as AircraftEngine flies it. Solved on SteadyDrive instead, PropModel.IsSolved was TRUE here and
+        // FALSE in flight for the Pitts, the Extra and the Great Lakes - a different propeller AND a different fin.
+        PropModel.PropDrive drive = PropModel.SteadyFlownDrive(c.Propulsion, throttle, vBody.X, rho);
         bool solved = c.Propulsion is not null && PropModel.IsSolved(c.Propulsion, drive);
         BladeElement.SwirlProfile prof = _swirlScratch ??= new BladeElement.SwirlProfile();
         (double du, double r, double swirl) = Aircraft.TailSlipstream(c, throttle, vBody, Vec3.Zero, rho, drive, false, prof);
@@ -351,7 +355,12 @@ public static class RigSolver
         // every powered type wandering ~25 deg of heading in a minute hands off. The old scalar hid this by returning
         // exactly 1 whenever the wing was attached, so solve and sim agreed by accident.
         double share = PropJet.TailShare(c, vBody, Vec3.Zero, c.Mass.CgVec(), du, r, swirl);
-        (Vec3 pf, Vec3 pm) = Aircraft.PropulsionForces(c, throttle, vBody, Vec3.Zero, rho, false, default, null,
+        // THE HUB WHERE THE SIM PUTS IT (Aircraft.NoseBody), not `default`. Left at the default, the arm the disc's
+        // in-plane force swings on came out as -cg instead of nose - cg, wrong in magnitude and in SIGN; and because
+        // PropModel.Parts.InPlane exists only on a SOLVED propeller, that landed on exactly the five blade-fitted
+        // types and nowhere else, as a pitching moment the rig had never seen - Extra +126 N.m, Pitts +42, both Cubs
+        // +10, Great Lakes -5, against 0.000 on every type still on the throttle law.
+        (Vec3 pf, Vec3 pm) = Aircraft.PropulsionForces(c, throttle, vBody, Vec3.Zero, rho, false, Aircraft.NoseBody(c), null,
             drive, share);
         return (f + pf, m + pm);
     }
