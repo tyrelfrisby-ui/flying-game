@@ -162,6 +162,10 @@ namespace FlyingGame.Bridge
 
         public static IEnumerator Thumbnails(StartMenu menu)
         {
+            // Every card here is a picture of the aeroplane where it would START, and the launch-view captures below
+            // happen a second after the settle rather than at it — by which time the page's display circle would have
+            // it banked round somewhere else entirely (LandingPreview.FlyPose). Stand it still for the whole pass.
+            LandingPreview.HoldAtStart = true;
             yield return new WaitForSecondsRealtime(3f);
             menu.Open(); menu.ShowLanding();
             Screen.SetResolution(1920, 1080, FullScreenMode.Windowed);
@@ -195,6 +199,7 @@ namespace FlyingGame.Bridge
                     LandingPreview.CaptureLaunchView($"loc/{ThumbnailKeys.Any}/{ThumbnailKeys.Safe(loc.Id)}/{v}");
                     n++;
                 }
+            LandingPreview.HoldAtStart = false;
             Debug.Log($"[LandingSelfTest] DONE thumbnails: {n} poses, folder {LandingThumbnails.Dir}");
             if (System.Environment.GetEnvironmentVariable("AERO_SELFTEST_QUIT") == "1") Application.Quit();
         }

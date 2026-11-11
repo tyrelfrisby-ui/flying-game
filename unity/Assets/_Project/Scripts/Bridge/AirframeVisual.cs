@@ -36,6 +36,11 @@ namespace FlyingGame.Bridge
         private bool _builtModels, _builtOwn;
         // ...and which livery: the landing page's livery picker likewise shows on the aeroplane at once (owner 2026-10-28).
         private string _builtLivery;
+        // ...and what it is standing on. The gear options are NOT part of the aircraft id: "Bushwheels" and "Wheel-skis"
+        // on a type with no file of its own fly the very same config with AircraftConfig.Bushwheels / Skis set
+        // (UnityAircraftConfigLoader reads them off the session on every load), and those two flags change the drawn
+        // tyre's diameter (TireCatalog) and hang a pair of hinged skis beside the model (BuildSkis). See OnAircraftChanged.
+        private bool _builtBush, _builtSkis;
         private bool _wingsDetached;   // wing meshes have left the hierarchy (structural failure)
 
         private void Awake()
@@ -55,9 +60,26 @@ namespace FlyingGame.Bridge
             if (_driver != null) { _driver.AircraftChanged -= OnAircraftChanged; _driver.AirframeReplaced -= OnAirframeReplaced; }
         }
 
+        /// <summary>
+        /// Rebuild on anything that changes the SHAPE, not only on a change of type.
+        ///
+        /// THE GEAR OPTIONS DO NOT CHANGE THE ID (Ty 2026-11-11: "when I select bushwheels or wheel skis they are not
+        /// shown I want them to show on the plane"). The landing page's configurator respawns the aeroplane on every
+        /// pick — LandingPreview's spawn signature carries Gear.Bushwheels and Gear.Skis, LandingSession.ApplyPreview
+        /// writes them to the session, and the config the sim then loads has them set — but this method compared the
+        /// id alone, so for every type whose bushwheels and wheel-skis are the GENERIC option (LandingCatalog: the same
+        /// AircraftId with a flag, which is all of them bar the PA-18's own bushwheel file) the id was unchanged, the
+        /// rebuild never ran, and the standard tyres stayed on screen whatever he picked. The PA-18 appearing to work
+        /// is what made this look like a per-type gap rather than one missing comparison.
+        ///
+        /// Read off the config the sim is NOW flying rather than off SessionSettings, because that object is what
+        /// Build() is handed at the bottom of Rebuild: if the two ever disagree it is the config that is drawn.
+        /// </summary>
         private void OnAircraftChanged()
         {
-            if (_driver.AircraftId != _builtId || ShowsDamage) Rebuild();
+            AircraftConfig now = _driver.Sim?.Aircraft?.Config;
+            bool gearChanged = now != null && (now.Bushwheels != _builtBush || now.Skis != _builtSkis);
+            if (_driver.AircraftId != _builtId || gearChanged || ShowsDamage) Rebuild();
         }
 
         /// <summary>A new sim Aircraft is intact, so a model still showing an old one's damage is rebuilt NOW, before the new
@@ -1848,6 +1870,8 @@ namespace FlyingGame.Bridge
             _builtModels = SessionSettings.UseAirframeModels;
             _builtOwn = SessionSettings.UseOwnModels;
             _builtLivery = SessionSettings.LiveryFor(_builtId);
+            _builtBush = _builtConfig?.Bushwheels ?? false;
+            _builtSkis = _builtConfig?.Skis ?? false;
             _wingsDetached = false;
             _componentsDetached = false;
             _fuselageBent = false;
