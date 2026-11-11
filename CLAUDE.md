@@ -104,6 +104,24 @@ process-wide, so a long run leaves failures that pass in isolation. The number o
 own. Run the same suite on the branch point, diff the unique failing names, and re-run anything "introduced"
 alone before calling it a regression.
 
+### Re-measure a stale red before you loosen the bound it justified
+A lane's own report said merging it dropped a water break-up case from 1.45 to 0.90 m/s against a 1.0 floor, and the
+authorised fix was to re-band the floor. Four days later the same merge moved the same case from **1.6 to 2.1 m/s** --
+it does not reproduce, and loosening the floor would have thrown away the one assertion that catches the water zeroing
+an aeroplane's velocity. In a suite where physics lands daily, a measurement more than a day old is a hypothesis about
+the code that exists now. Re-run both sides yourself, in one filter, twice, before you widen a bound on the strength
+of somebody else's number -- and when the re-measurement removes the reason, say so instead of doing the work anyway.
+
+### A function the VIEW reads and the PHYSICS reads is a physics interface
+`AirframeContact.FuselageStations` returns two numbers: where the fuselage is cut into nose / cabin / tail cone. The
+crash camera reads them (it follows the piece with the seats in it) and so does `AirframeHydroModel.Build`, which sizes
+those three pieces and derives each joint's strength from the mass beyond it. So a change sold as "the crash camera
+stays on the pilot" moved the Extra's tail-cone break load from 9.4 to 8.7 kN and changed how it comes apart in the
+water. That is not feedback from the view into the simulation -- nothing in `FlyingGame.Core` knows a camera exists --
+it is one shared definition read in one direction, and it is a physics change whatever the commit title says. Before
+changing a number for a visual reason, grep every reader; and describe such a change by what it MOVES, not by the
+symptom that made you look.
+
 ### A test that reads the file it is checking proves nothing
 Expected values belong in the test as literals, copied by hand from the source document. `AircraftLoadTests.ArmTable`
 and `CockpitEyeTests.ApprovedEyes` are the pattern: moving a number in a config then has to be a deliberate edit
@@ -694,3 +712,14 @@ behind (152 classes, 90 minutes, two more leakers; `IslandWorldScope` is the res
 fixed-order replay (producer, then consumer, fail; producer, clear only that global, consumer, pass), and give the
 restore a regression row that fails on the old class. An isolated pass only proves the test is order-dependent;
 it says nothing about what it depends on.
+
+### "The camera follows the cabin" is only true if the cabin is where the seats are
+The 2026-11-06 fuselage-follow fix proved the camera's Target is the sim's Aircraft and that the Aircraft keeps the
+cabin, and Ty's Pitts crash still left the camera on the wrong piece. The cabin was the span between two cuts set off
+the WING ROOT alone (`AirframeContact.FuselageStations`), and the Pitts' solo pilot sits in the rear seat 0.43 m aft of
+the tail cut: 100 % of the drawn rear cockpit went with the tail section, on a break and on a tail BEND, which cuts at
+the same station. The Extra's and Great Lakes' rear seats and the Grob's front seat were outside too. A test that
+checks "the part named X stays" must also check that X contains the thing the user means (here, the seats); measure
+the drawn geometry around the seat (`CrashCamOccupantShots`), not the name of the object it hangs on. And the visual
+compared root-local z (from the CG) with config-frame stations, so its cut sat `cg.x` off the sim's (0.76 m on the
+Great Lakes): when two systems cut at "the same" station, check they share a frame.
