@@ -694,3 +694,14 @@ behind (152 classes, 90 minutes, two more leakers; `IslandWorldScope` is the res
 fixed-order replay (producer, then consumer, fail; producer, clear only that global, consumer, pass), and give the
 restore a regression row that fails on the old class. An isolated pass only proves the test is order-dependent;
 it says nothing about what it depends on.
+
+### "The camera follows the cabin" is only true if the cabin is where the seats are
+The 2026-11-06 fuselage-follow fix proved the camera's Target is the sim's Aircraft and that the Aircraft keeps the
+cabin, and Ty's Pitts crash still left the camera on the wrong piece. The cabin was the span between two cuts set off
+the WING ROOT alone (`AirframeContact.FuselageStations`), and the Pitts' solo pilot sits in the rear seat 0.43 m aft of
+the tail cut: 100 % of the drawn rear cockpit went with the tail section, on a break and on a tail BEND, which cuts at
+the same station. The Extra's and Great Lakes' rear seats and the Grob's front seat were outside too. A test that
+checks "the part named X stays" must also check that X contains the thing the user means (here, the seats); measure
+the drawn geometry around the seat (`CrashCamOccupantShots`), not the name of the object it hangs on. And the visual
+compared root-local z (from the CG) with config-frame stations, so its cut sat `cg.x` off the sim's (0.76 m on the
+Great Lakes): when two systems cut at "the same" station, check they share a frame.
