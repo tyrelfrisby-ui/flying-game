@@ -232,6 +232,7 @@ public static class PistonEngine
             TorqueNm(ratedPowerW, ratedRpm, rpm, throttle01, pressureRatio, densityRatio)
             - BladeElement.Solve(blade, vAxialMs, 0.0, rpm, rhoKgM3).TorqueNm;
 
+        throttle01 = Math.Max(throttle01, IdleBleedThrottle(g, ratedPowerW, ratedRpm, idleRpm, pressureRatio, rhoKgM3, densityRatio));
         double lo = Math.Max(200.0, idleRpm * 0.5), hi = ratedRpm * 1.35;
         if (Excess(hi) > 0) return hi;          // the blade cannot hold it back: an overspeed
         if (Excess(lo) < 0) return lo;          // it cannot even turn it
@@ -239,6 +240,42 @@ public static class PistonEngine
         {
             double mid = 0.5 * (lo + hi);
             if (Excess(mid) > 0) lo = mid; else hi = mid;
+        }
+        return 0.5 * (lo + hi);
+    }
+
+    /// <summary>
+    /// THE IDLE STOP IS NOT A CLOSED THROTTLE. A throttle lever at its idle stop leaves the plate cracked — plus,
+    /// on most installations, a drilled idle air bleed — and what it is set to is exactly what holds the published
+    /// idle rpm. This returns that throttle fraction: the one that balances THIS blade at <paramref name="idleRpm"/>
+    /// standing still, found by bisection on the same torque excess <see cref="BalancedRpm"/> uses.
+    ///
+    /// WITHOUT IT A SOLVED PROPELLER HAS NO IDLE. The old throttle law read idle rpm straight off
+    /// <c>PropulsionConfig.IdleRpm</c>, so a closed throttle making literally zero power never mattered; a blade-
+    /// element propeller asks the engine for torque instead, gets none, and the shaft decays until only friction is
+    /// left. Measured on the ground at the idle stop, 2026-11-11: the J-3, solved since the blade fitting landed,
+    /// idles at <b>89.8 rpm</b> against its authored 700 — and the three constant-speed types joined it the moment
+    /// they began solving their governed shafts (Pitts 249.5, Extra 165.8, Great Lakes 216.6). The two types still on
+    /// the old law, the PA-18 and the 172, read exactly 700, which is the tell: it was never the engine, it was the
+    /// lever's bottom end.
+    ///
+    /// IdleRpm is published for every type in the fleet and was being bypassed; this makes it mean something again.
+    /// </summary>
+    public static double IdleBleedThrottle(BladeElement.Geometry g, double ratedPowerW, double ratedRpm, double idleRpm,
+                                           double pressureRatio, double rhoKgM3, double densityRatio = 0.0)
+    {
+        if (idleRpm <= 1.0 || ratedRpm <= 1.0) return 0.0;
+        BladeElement.Geometry blade = g;
+        double demand = BladeElement.Solve(blade, 0.0, 0.0, idleRpm, rhoKgM3).TorqueNm;
+        if (demand <= 0.0) return 0.0;
+        double Excess(double t) => TorqueNm(ratedPowerW, ratedRpm, idleRpm, t, pressureRatio, densityRatio) - demand;
+        if (Excess(0.0) >= 0.0) return 0.0;            // a closed throttle already holds it
+        double lo = 0.0, hi = 1.0;
+        if (Excess(hi) < 0.0) return hi;               // it cannot hold idle at all: say so by asking for everything
+        for (int i = 0; i < 28; i++)
+        {
+            double mid = 0.5 * (lo + hi);
+            if (Excess(mid) < 0.0) lo = mid; else hi = mid;
         }
         return 0.5 * (lo + hi);
     }

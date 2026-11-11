@@ -338,9 +338,11 @@ public static class RigSolver
         // earlier the same night — and it bit twice, because the propeller's FORCES were put on the solved drive while
         // its WASH over the tail was left on the old one.
         // THE DRIVE THE SIM FLIES, not merely where the shaft would settle: PropModel.SteadyFlownDrive asks the one
-        // shared predicate (PropModel.IntegratesShaft) so a governing constant-speed type is solved on the throttle law
-        // here exactly as AircraftEngine flies it. Solved on SteadyDrive instead, PropModel.IsSolved was TRUE here and
-        // FALSE in flight for the Pitts, the Extra and the Great Lakes - a different propeller AND a different fin.
+        // shared predicate (PropModel.IntegratesShaft), so whatever the sim integrates is what the rig is solved
+        // against. Solved on SteadyDrive instead, PropModel.IsSolved was TRUE here and FALSE in flight for the Pitts,
+        // the Extra and the Great Lakes - a different propeller AND a different fin. Since 2026-11-11 the three of
+        // them integrate their governed shafts in normal flight too, so both sides now say SOLVED and the agreement
+        // is on the blade rather than on the coefficient (PropModel.IntegratesShaft).
         PropModel.PropDrive drive = PropModel.SteadyFlownDrive(c.Propulsion, throttle, vBody.X, rho);
         bool solved = c.Propulsion is not null && PropModel.IsSolved(c.Propulsion, drive);
         BladeElement.SwirlProfile prof = _swirlScratch ??= new BladeElement.SwirlProfile();

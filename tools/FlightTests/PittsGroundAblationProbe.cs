@@ -60,7 +60,7 @@ namespace FlyingGame.FlightTests;
 ///     J = 0.2-0.4 makes 15-20 % less than static over that range; -15 % of power gives 156.2 m, and -15 % at
 ///     1700 lb gives 176.0 m against the published 170. The Pitts shows it worst because its static T/W, 0.545,
 ///     is the second highest in the fleet behind the Gee Bee. The Pitts never solves its blade in flight
-///     (PropModel.IntegratesShaft needs bladePitch75Deg, which this type has not got, or a governor with no oil),
+///     (PropModel.IntegratesShaft needs bladePitch75Deg, which this type has not got, or fitted governor stops),
 ///     so it is on the estimated law for every metre of its takeoff.
 ///   AND THE TARGET IS THE WRONG AEROPLANE'S. The 554/557 ft ground roll and 750 ft landing roll in
 ///   AerobatGroundHandlingTests' own doc comments are published for the Pitts S-2C, at 1700 lb; no source
