@@ -1041,11 +1041,14 @@ public sealed partial class Aircraft
         if (Config.Floats is null || FloatFlood is null) return;
         double vso = VsoCache.GetOrAdd(Config.Id ?? "", _ => Practice.PracticeScenario.EstimateVso(Config, 0.0));
         int floats = Config.Floats.Count == 1 ? 1 : 2;
-        double wLb = Config.Mass.MassKg * 2.20462 / floats;
+        // THE DESIGN GROSS, not the weight it is flying at: 14 CFR 23.527's water load is certificated once, and a
+        // float does not get weaker because the aeroplane is light today (StructuralGrossKg, in AircraftOverstress.cs).
+        double designKg = StructuralGrossKg(Config);
+        double wLb = designKg * 2.20462 / floats;
         double vKt = vso * 1.943844;
         double beta = Config.Floats.DeadriseDeg * System.Math.PI / 180;
         FloatLimitWaterLoadFactor = 0.012 * vKt * vKt / (System.Math.Pow(System.Math.Tan(beta), 2.0 / 3.0) * System.Math.Pow(wLb, 1.0 / 3.0));
-        FloatUltimateWaterLoadN = 1.5 * FloatLimitWaterLoadFactor * Config.Mass.MassKg * 9.81 / floats;
+        FloatUltimateWaterLoadN = 1.5 * FloatLimitWaterLoadFactor * designKg * 9.81 / floats;
     }
 
     /// <summary>Peak water load each main float has carried, N (tests and the log).</summary>

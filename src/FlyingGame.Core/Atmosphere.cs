@@ -240,13 +240,39 @@ public static class Atmosphere
     public static MathTypes.Vec3 MeanWindAtPosition(MathTypes.Vec3 worldPosition) => WindAt(worldPosition, false);
 
     /// <summary>Wind speed grows with height (surface friction slows the low layers): the power-law boundary
-    /// layer U(z) = U10 · (z/10 m)^0.14 over open country, so the wind at 900 m — the first wall's crest — is
-    /// about 1.9× the 10 m wind. Referenced to height above the valley floor (the sea-level datum here) and
-    /// capped at 2.2×, so lift up the ridge is stronger the higher you go.</summary>
+    /// layer U(z) = U10 · (z/10 m)^0.14 over open country, so the wind 900 m ABOVE THE GROUND is about 1.9× the
+    /// 10 m wind. Capped at 2.2×, so lift up a ridge is stronger the higher you go.
+    ///
+    /// ABOVE THE GROUND, NOT ABOVE THE SEA. This used to read height straight off the world z — "referenced to
+    /// height above the valley floor (the sea-level datum here)", which was true of the valley world where the
+    /// floor WAS sea level, and silently wrong the moment the island arrived with fields at 1,000 to 7,000 ft.
+    /// A boundary layer is a property of the SURFACE: the air 10 m above a 7,000 ft runway is 10 m into that
+    /// runway's boundary layer, not 2,134 m into one. Measured before the fix, on the ground:
+    ///
+    ///     a 1,000 ft field   z 305 m   ×1.61   a 5 m/s setting blew 8.07 m/s
+    ///     AP8, 7,000 ft      z 2134 m  ×2.12   a 5 m/s setting blew 10.59 m/s  (the 2.2 cap, nearly)
+    ///
+    /// — so the windsock on a mountain strip was reading double what the player asked for, and in the air it was
+    /// worse: at 1,000 m a 10 m/s wind was applied as 19.05. Found by a challenge-signal test whose airspeed came
+    /// out 59.06 where the arithmetic said 50, which is the gradient to the decimal.
+    ///
+    /// The ground lookup is memoised per thread over a 25 m cell: a boundary-layer profile does not need
+    /// metre-accurate terrain, and this is on the path that also carries smoke and bubbles.</summary>
     public static double WindGradientFactor(MathTypes.Vec3 worldPosition)
     {
-        double z = System.Math.Max(10.0, -worldPosition.Z);
+        double z = System.Math.Max(10.0, -worldPosition.Z - GroundNear(worldPosition.X, worldPosition.Y));
         return System.Math.Min(2.2, System.Math.Pow(z / 10.0, 0.14));
+    }
+
+    [System.ThreadStatic] private static double _gX, _gY, _gH;
+    [System.ThreadStatic] private static bool _gHas;
+    /// <summary>Terrain height at (x, y), remembered while the query stays inside a 25 m cell.</summary>
+    private static double GroundNear(double x, double y)
+    {
+        if (_gHas && System.Math.Abs(x - _gX) < 25.0 && System.Math.Abs(y - _gY) < 25.0) return _gH;
+        _gH = WorldTerrain.GroundHeightAt(x, y);
+        _gX = x; _gY = y; _gHas = true;
+        return _gH;
     }
 
     private static MathTypes.Vec3 WindAt(MathTypes.Vec3 worldPosition, bool withGusts)
