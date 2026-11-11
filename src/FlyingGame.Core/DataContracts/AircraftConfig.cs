@@ -870,7 +870,10 @@ public sealed class SmokeConfig
 {
     /// <summary>Measured outlet in body axes (+x forward, +y right, +z down), metres from the CG.
     /// Optional: overrides the prop-hub estimate, whose hub need not coincide with the placed model.
-    /// A single smoke-fed pipe may be selected on an airframe with paired exhausts.</summary>
+    /// A single smoke-fed pipe may be selected on an airframe with paired exhausts.
+    /// SUPERSEDED BY <see cref="Pipes"/> where that is authored — but not dead there:
+    /// <see cref="Wreck.AirframeHydroModel"/> locates the nose for the water model from this plus
+    /// <see cref="AftOfNoseM"/>, so the pair stays authored on the Extra and the Pitts.</summary>
     public double[]? OutletBodyM { get; set; }
     /// <summary>Return a measured outlet only when all three coordinates are finite.</summary>
     public bool TryOutlet(out MathTypes.Vec3 outlet)
@@ -881,9 +884,11 @@ public sealed class SmokeConfig
         outlet = new MathTypes.Vec3(OutletBodyM[0], OutletBodyM[1], OutletBodyM[2]);
         return true;
     }
-    /// <summary>The exhaust's distance aft of the nose (spinner tip), m.</summary>
+    /// <summary>The exhaust's distance aft of the nose (spinner tip), m. Also the water model's handle on where the
+    /// nose is (<see cref="Wreck.AirframeHydroModel"/>), which is why it outlives <see cref="Pipes"/>.</summary>
     public double AftOfNoseM { get; set; }
-    /// <summary>The exhaust's line below the longitudinal axis, pointing aft (°).</summary>
+    /// <summary>The exhaust's line below the longitudinal axis, pointing aft (°). Superseded by
+    /// <see cref="SmokePipesConfig.DownDeg"/> where <see cref="Pipes"/> is authored.</summary>
     public double DownDeg { get; set; } = 30;
     /// <summary>The engine's displacement (in³) and the exhaust pipe's diameter (in): the jet's exit velocity comes from
     /// the engine's mass flow (<see cref="Aero.ExhaustJet"/>). 0 = estimated from the power (≈ 0.56 hp/in³).</summary>
@@ -896,6 +901,79 @@ public sealed class SmokeConfig
     public int Cylinders { get; set; } = 6;
     /// <summary>Compression ratio, for the part-throttle residual gas (<see cref="Aero.ExhaustJet.ExitVelocity(double, double, double, double, double, double, double, double, double)"/>).</summary>
     public double CompressionRatio { get; set; } = 8.7;
+    /// <summary>THE SMOKE PIPES THEMSELVES, where a type has a measured bank rather than one outlet
+    /// (<see cref="SmokePipesConfig"/>). When this is given it supersedes <see cref="OutletBodyM"/>,
+    /// <see cref="AftOfNoseM"/> and <see cref="DownDeg"/> for placing and aiming the smoke.</summary>
+    public SmokePipesConfig? Pipes { get; set; }
+}
+
+/// <summary>
+/// A MEASURED PAIR OF SMOKE PIPES, at the firewall station, centred on the aeroplane's centreline.
+///
+/// Ty, 2026-11-11, the Extra: "The extras smoke comes out too far forward it needs to come out about the firewall and
+/// it comes out of two pipes 2 inch dia each separated by 1 ft on center pointed down at 45 degrees with one puff per
+/// pipe every other combustion stroke"; then the Pitts: "The pitts has the same problem but the pipes are 1.5 dia each
+/// and separated by 8 inches on center" ... "The pitts is two pipes centered at the firewall" ... "1.5 dia each 45
+/// degrees Down".
+///
+/// So: TWO pipes, at the FIREWALL station (the complaint was that the smoke was born ahead of it), spaced symmetrically
+/// about the centreline, aimed 45 deg down from the longitudinal axis, each one puffing on every other combustion stroke.
+///
+/// THE CADENCE IS A VISUAL TIMING, not a mass flow. A six-cylinder four-stroke lets out
+/// <see cref="Aero.ExhaustPulse.EventsPerRev"/> = cylinders / 2 = 3 combustion strokes a crank revolution, so "every
+/// other one" is 1.5 puffs a revolution per pipe - about 67 Hz at 2,700 rpm, far too fast to resolve. What it buys is
+/// that the column PULSES at idle, and when the engine is rough or dying, because the puffs are keyed to the crank
+/// (<see cref="Aero.ExhaustPulse"/>) rather than to a timer: they slow with the engine and stop when it stops. With two
+/// pipes and every other stroke the pair fire ALTERNATELY, which is also what a flat six does - one bank per pipe.
+/// </summary>
+public sealed class SmokePipesConfig
+{
+    /// <summary>How many pipes. 2 on both aerobatic types.</summary>
+    public int Count { get; set; } = 2;
+    /// <summary>The pipes' station: the FIREWALL, body x (m, + forward) in the config's own frame - the frame the gear,
+    /// the strips and the drawn model are in. Measured off the GLB; see <see cref="StationSource"/>.</summary>
+    public double FirewallXM { get; set; }
+    /// <summary>The pipe mouths' line below the datum, body z (m, + down): the local belly skin plus half a pipe
+    /// diameter plus clearance, so the whole mouth stands in clear air. Measured; see <see cref="StationSource"/>.</summary>
+    public double MouthZM { get; set; }
+    /// <summary>Pipe centres, inches ON CENTRE (Extra 12, Pitts 8).</summary>
+    public double SpacingIn { get; set; }
+    /// <summary>Each pipe's bore, inches (Extra 2.0, Pitts 1.5): the smoke column's diameter where it is born.</summary>
+    public double DiameterIn { get; set; }
+    /// <summary>Degrees below the longitudinal axis, pointing aft. 45 on both types.</summary>
+    public double DownDeg { get; set; } = 45;
+    /// <summary>Combustion strokes between one pipe's puffs. 2 = "one puff per pipe every other combustion stroke".</summary>
+    public int CombustionStrokesPerPuff { get; set; } = 2;
+    /// <summary>Where the count, diameter, spacing, aim and cadence came from.</summary>
+    public string Source { get; set; } = "";
+    /// <summary>Where <see cref="FirewallXM"/> and <see cref="MouthZM"/> were measured.</summary>
+    public string StationSource { get; set; } = "";
+
+    public double SpacingM => SpacingIn * 0.0254;
+    public double DiameterM => DiameterIn * 0.0254;
+
+    /// <summary>The mouths (body axes, m from the datum) and the way each one blows (unit, body axes). False - and
+    /// nothing written - unless every number needed is present and finite, so a half-authored block falls back to the
+    /// single outlet rather than drawing smoke at NaN.</summary>
+    public bool TryPipes(out MathTypes.Vec3[] mouths, out MathTypes.Vec3[] aim)
+    {
+        mouths = Array.Empty<MathTypes.Vec3>(); aim = Array.Empty<MathTypes.Vec3>();
+        if (Count < 1 || DiameterIn <= 0) return false;
+        if (Count > 1 && !(SpacingIn > 0)) return false;
+        foreach (double v in new[] { FirewallXM, MouthZM, SpacingIn, DownDeg })
+            if (double.IsNaN(v) || double.IsInfinity(v)) return false;
+        double down = DownDeg * Math.PI / 180;
+        var dir = new MathTypes.Vec3(-Math.Cos(down), 0, Math.Sin(down));   // body z is DOWN
+        var m = new MathTypes.Vec3[Count]; var a = new MathTypes.Vec3[Count];
+        for (int i = 0; i < Count; i++)
+        {
+            // Centred on the centreline: the bank's mean y is 0 whatever the count is.
+            double y = (i - 0.5 * (Count - 1)) * SpacingM;
+            m[i] = new MathTypes.Vec3(FirewallXM, y, MouthZM); a[i] = dir;
+        }
+        mouths = m; aim = a;
+        return true;
+    }
 }
 
 public sealed class EngineMount

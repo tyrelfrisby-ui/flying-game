@@ -59,8 +59,11 @@ public class SmokeClearanceTests
         var cfg = Load(file);
         var flow = FlowFor(cfg, out double len, out double span);
         var exhausts = new List<Vec3>();
+        // A measured bank of pipes (the Extra and the Pitts, Ty 2026-11-11) releases smoke from every mouth, so every
+        // mouth is a start this sweep has to cover.
+        if (cfg.Smoke?.Pipes != null && cfg.Smoke.Pipes.TryPipes(out Vec3[] mouths, out _)) exhausts.AddRange(mouths);
         if (cfg.Smoke != null && cfg.Smoke.TryOutlet(out Vec3 outlet)) exhausts.Add(outlet);
-        else exhausts.Add(new Vec3(0.4 * len - 0.16 * len, 0, flow.RadiusAt(0.24 * len) + 0.05));
+        if (exhausts.Count == 0) exhausts.Add(new Vec3(0.4 * len - 0.16 * len, 0, flow.RadiusAt(0.24 * len) + 0.05));
         var dirs = new List<Vec3> { new(1, 0, 0), new(0, 0, 1), new(0, 1, 0), new Vec3(1, 0, 1) * (1 / System.Math.Sqrt(2)), new Vec3(-0.3, 0.8, -0.5) };
         int pieces = 0, trimmed = 0, untouchedChecked = 0;
         uint rng = 12345;

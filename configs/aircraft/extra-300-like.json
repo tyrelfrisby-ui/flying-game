@@ -5028,7 +5028,18 @@
     "downDeg": 30,
     "displacementCuIn": 540,
     "pipeDiameterIn": 4,
-    "exhaustTempK": 900
+    "exhaustTempK": 900,
+    "pipes": {
+      "count": 2,
+      "firewallXM": 0.605,
+      "mouthZM": 0.664,
+      "spacingIn": 12.0,
+      "diameterIn": 2.0,
+      "downDeg": 45,
+      "combustionStrokesPerPuff": 2,
+      "source": "TY 2026-11-11, verbatim: \"The extras smoke comes out too far forward it needs to come out about the firewall and it comes out of two pipes 2 inch dia each separated by 1 ft on center pointed down at 45 degrees with one puff per pipe every other combustion stroke\". Count, diameter, spacing, aim and cadence are all his, unaltered. The CADENCE is a visual timing and not a mass flow: it is derived from the engine (SmokeConfig.cylinders 6 -> ExhaustPulse.EventsPerRev 3 combustion strokes a crank revolution), so every other stroke is 1.5 puffs a revolution per pipe = 67.5 Hz at 2,700 rpm (ExhaustPulse.PuffHz). Unresolvable at cruise, which is the point - it is keyed to the crank, so the column pulses at idle, goes ragged when the engine does and stops when it stops.",
+      "stationSource": "MEASURED off unity/Assets/_Project/Resources/Models/extra-300-like/extra-300-like-own.glb, not off a drawing. Cockpit_FirewallPlate is a single plane at glTF x -0.605; the export is (-x, z, y) of the builder frame (nose +X, port +Y, up +Z, tools/own_models/build_ea300.py), so the firewall stands at body x +0.605. Corroborated by Footwell_Liner's forward face (glTF x -0.600) and by tools/own_models/ea_cockpit.py's X_FW = 0.60. The builder frame IS the config body frame: the GLB's main-wheel contact measures x +0.341 / y 0.890 / z 1.413 against gear.pos [0.347, 0.882, 1.407], and the wing-root LE measures +0.454 against the config's own +0.4518 (first wing strip quarter-chord +0.1013 plus 0.25 x 1.4021 chord). Engine cross-check: the spinner backplate (the prop flange) is at +1.651, which puts the firewall 1.046 m behind it against the AEIO-540's published 38.93 in = 0.989 m length - a 6 cm engine-bay clearance. mouthZM: the belly skin at x 0.605, y +-0.1524 (the fuselage rings in tools/own_models/ea300_ref_tables.json) is 0.6188 below the datum, and the mouth centre sits half a pipe diameter (0.0254 m) plus 20 mm below that, so the whole 2 in mouth stands in clear air. WHAT WAS WRONG: this type had no measured outlet at all, so SmokeTrail.ExhaustsFor fell back to the prop-hub estimate - propulsion.hubXM 1.921 minus (aftOfNoseM 1.22 - 0.25) - and the smoke was born at body x ~ +0.95, 0.35 m AHEAD of the firewall. That is the \"too far forward\" Ty reported. THIS BLOCK SUPERSEDES the aftOfNoseM / downDeg beside it for placing and aiming the smoke (SmokeTrail.ExhaustsFor reads pipes first); aftOfNoseM is retained because Wreck/AirframeHydroModel.Build reads it with a single outlet to locate the nose, and nothing else reads either."
+    }
   },
   "propulsion": {
     "displacementCuIn": 540,

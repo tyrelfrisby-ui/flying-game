@@ -168,6 +168,14 @@ namespace FlyingGame.Bridge
             jet = System.Array.Empty<Vec3>();
             if (cfg == null || (id ?? "").Contains("drone")) return System.Array.Empty<Vec3>();
             if (cfg.Propulsion == null) { var tips = WingtipsFor(cfg); jet = new Vec3[tips.Length]; return tips; }
+            // A MEASURED BANK OF PIPES at the firewall station (Ty 2026-11-11, the Extra and the Pitts: two pipes,
+            // centred on the centreline, 45° down — the smoke was being born ahead of the firewall). This comes first:
+            // nothing below it may put the smoke back on a prop-hub estimate or on one off-centre stack.
+            if (cfg.Smoke?.Pipes != null && cfg.Smoke.Pipes.TryPipes(out Vec3[] mouths, out Vec3[] aim))
+            {
+                jet = aim;
+                return mouths;
+            }
             var list = new List<Vec3>(); var dirs = new List<Vec3>();
             double down = (cfg.Smoke?.DownDeg ?? 30) * System.Math.PI / 180;
             var aftDown = new Vec3(-System.Math.Cos(down), 0, System.Math.Sin(down));   // body z is DOWN
@@ -221,6 +229,21 @@ namespace FlyingGame.Bridge
         /// <summary>Cylinders feeding the smoke pipe (<see cref="SmokeConfig.Cylinders"/>): cylinders / 2 pulses a revolution.</summary>
         public int Cylinders = 6;
 
+        /// <summary>COMBUSTION STROKES BETWEEN ONE PIPE'S PUFFS (Ty 2026-11-11: "one puff per pipe every other combustion
+        /// stroke", <see cref="SmokePipesConfig.CombustionStrokesPerPuff"/>). 1 = every pipe on every event, which is what
+        /// a single-stack type has always done. 2 with two pipes makes the pair fire ALTERNATELY — pipe i takes the events
+        /// whose index is i (mod this) — so every stroke still shows up somewhere and each pipe runs at
+        /// <see cref="FlyingGame.Core.Aero.ExhaustPulse.PuffHz"/>: 67.5 Hz on a six at 2,700 rpm, and audibly/visibly
+        /// slower the moment the engine is. It is keyed to the CRANK, so it stops when the engine does.</summary>
+        public int StrokesPerPuff = 1;
+
+        /// <summary>The smoke pipe's own bore (m): the column's diameter where it is born
+        /// (<see cref="SmokePipesConfig.DiameterIn"/>). This is NOT <see cref="PipeDiameterM"/>, which is the 4 in exhaust
+        /// stack the jet model was fitted to (Ty 2026-10-13) and still carries the jet's momentum and spread. The two are
+        /// deliberately separate: his 2026-11-11 pipes are 1.5–2 in, and the question of whether those ARE the exhaust
+        /// stacks is his to settle, not something to decide by quietly re-scaling the jet.</summary>
+        public double PlumeDiameterM = 0.1016;
+
         // EXHAUST PULSE TUBES (Ty 2026-11-04: "each exhaust pulse leaves the stack as a TUBE … fat/dense mid-pulse and tapers at
         // both ends … then it decays into the voluminous, near-opaque trail over about 1 s"). Right behind the aeroplane the
         // smoke is drawn per valve event, not per frame: a 540 at 2,700 rpm lets out 135 tubes a second. Each tube is the gas of
@@ -242,6 +265,20 @@ namespace FlyingGame.Bridge
         public int TubeCount { get; private set; }
 
         public void SetExhausts(Vec3[] body, Vec3[] jet = null) { _exhaust = body ?? System.Array.Empty<Vec3>(); _jet = jet ?? new Vec3[_exhaust.Length]; _defl.Clear(); }
+
+        /// <summary>Every per-type number the trail reads, from one place: the exhaust stack the jet model is fitted to,
+        /// the smoke pipe's own bore, the cylinder count and the puff cadence. Every consumer (the flight scene, the Aero
+        /// Widget — a parity target, Ty 2026-11-10 — and the review plates) calls this, so none of them can drift.</summary>
+        public void ApplyConfig(AircraftConfig cfg)
+        {
+            SmokeConfig sm = cfg?.Smoke;
+            PipeDiameterM = (sm?.PipeDiameterIn ?? 4) * 0.0254;
+            Cylinders = sm?.Cylinders ?? 6;
+            SmokePipesConfig pipes = sm?.Pipes;
+            bool banked = pipes != null && pipes.TryPipes(out _, out _);
+            PlumeDiameterM = banked ? pipes.DiameterM : PipeDiameterM;
+            StrokesPerPuff = banked ? System.Math.Max(1, pipes.CombustionStrokesPerPuff) : 1;
+        }
         public void Hide() { if (_go.activeSelf) _go.SetActive(false); }
 
         /// <summary>The pulse tubes of the last <see cref="TubeAgeS"/> s: one per exhaust-valve event between each pair of
@@ -275,6 +312,10 @@ namespace FlyingGame.Bridge
                     if (hand <= 0.001f) continue;
                     for (int ei = 0; ei < _exhaust.Length; ei++)
                     {
+                        // ONE PUFF PER PIPE EVERY Nth COMBUSTION STROKE: pipe ei takes the events whose index is ei
+                        // (mod N), so two pipes on every other stroke fire alternately and nothing is invented — the
+                        // rate is the crank's, divided among the pipes (ExhaustPulse.PuffHz).
+                        if (StrokesPerPuff > 1 && (int)(((j % StrokesPerPuff) + StrokesPerPuff) % StrokesPerPuff) != ei % StrokesPerPuff) continue;
                         Vec3 e = _exhaust[ei], jd = ei < _jet.Length ? _jet[ei] : Vec3.Zero;
                         double jl = jd.Length; if (jl < 1e-6) continue;                                   // a canister has no pulses
                         Vec3 dir = jd * (1.0 / jl);
@@ -287,7 +328,7 @@ namespace FlyingGame.Bridge
                         float len = (float)spanW.Length;
                         Vec3 axisW = len > 1e-4f ? spanW * (1.0 / len) : velW * (1.0 / v);
                         Vector3 axis = CoordinateMap.ToUnity(axisW);
-                        float width = (float)PipeDiameterM + 0.22f * (float)pen50 + TubeDiffusion * Mathf.Sqrt(age50);
+                        float width = (float)PlumeDiameterM + 0.22f * (float)pen50 + TubeDiffusion * Mathf.Sqrt(age50);
                         // ... widening toward the trail's own puff at that age (the same law as below), so the handover is one
                         // column getting fatter, not a thin one fading inside a fat one.
                         float d0 = Mathf.Clamp(PuffD0 * Mathf.Sqrt(flow / v), PuffD0Min, PuffD0Max);

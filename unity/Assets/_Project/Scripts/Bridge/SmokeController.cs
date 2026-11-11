@@ -105,9 +105,8 @@ namespace FlyingGame.Bridge
             _exhausts = SmokeTrail.ExhaustsFor(cfg, Driver.AircraftId, PropHubs(), lengthM, bodyRadiusM, out _jet);
             _smoke.SetExhausts(_exhausts, _jet);
             _smoke.Flow = new FlyingGame.Core.Aero.AirframeFlow(cfg, 0.4 * lengthM, bodyRadiusM);
-            _smoke.PipeDiameterM = (cfg.Smoke?.PipeDiameterIn ?? 4) * 0.0254;
+            _smoke.ApplyConfig(cfg);                                          // stack, pipe bore, cylinders, puff cadence
             _smoke.Stream = cfg.Propulsion == null;                           // a glider's canisters stream, they do not puff
-            _smoke.Cylinders = cfg.Smoke?.Cylinders ?? 6;
             _crank = 0; _crankT = double.NaN;
             _measuredModel = _triedModel = null; _measureTries = 0;
         }

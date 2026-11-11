@@ -566,7 +566,7 @@ namespace FlyingGame.Bridge.Widget
             else for (int i = 0; i < ex.Length; i++) ex[i] += VisualOffset;
             _smoke.SetExhausts(ex, jet);
             _smoke.Flow = BuildAirframeFlow();
-            _smoke.PipeDiameterM = (Config.Smoke?.PipeDiameterIn ?? 4) * 0.0254;
+            _smoke.ApplyConfig(Config);   // stack, pipe bore, cylinders, puff cadence (one place, so the widget cannot drift)
             SmokeExhausts = ex;
             _smoke.Stream = Config.Propulsion == null;   // a glider's wingtip canisters
         }

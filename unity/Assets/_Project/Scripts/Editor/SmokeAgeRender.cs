@@ -45,8 +45,7 @@ namespace FlyingGame.EditorTools
                 _s = new SmokeTrail(parent, 0);
                 _s.SetExhausts(ex, jet);
                 _s.Flow = new FlyingGame.Core.Aero.AirframeFlow(cfg, 0.4 * lengthM, bodyRadiusM);
-                _s.PipeDiameterM = cfg.Smoke.PipeDiameterIn * 0.0254;
-                _s.Cylinders = cfg.Smoke.Cylinders;
+                _s.ApplyConfig(cfg);
             }
             private List<SmokeTrail.Sample> _ring;
             public void Build(List<Point> h, double nowT, Camera cam)
