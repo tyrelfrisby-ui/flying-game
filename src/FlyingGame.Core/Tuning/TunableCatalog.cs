@@ -457,28 +457,42 @@ public static class TunableCatalog
             Set = (c, v) => c.Fuselage.Crossflow!.SectionCamberCl = v,
         });
 
-        // ------------------------------------------------------------------------------------------------------
-        // RESERVED: fuselage.crossflow.aftCamberGain — the aft-fuselage sideslip-camber gain being added on another
-        // lane. Its field does not exist in this checkout yet, so this registration is written out rather than
-        // live: C# cannot compile a reference to a property that is not there, and ADDING the property here as
-        // well would give the merge two declarations of the same member, which is worse than a conflict because it
-        // compiles on neither side. The moment CrossflowConfig.AftCamberGain lands, delete this comment and
-        // uncomment the block — that is the entire integration, which is the point of a registry.
-        //
-        // TunableRegistry.Register(new Tunable
-        // {
-        //     Id = "fuselage.crossflow.aftCamberGain",
-        //     Group = g,
-        //     Label = "Aft fuselage sideslip camber gain",
-        //     Min = 0, Max = 3, Step = 0.05, FineStep = 0.01, Decimals = 2,
-        //     Description = "How hard the aft fuselage pitches the nose DOWN when the air comes at it sideways, as it "
-        //                 + "does in a spin. Bigger flattens the inverted spin and steepens the upright one. 1.0 is as "
-        //                 + "shipped; 0 switches the term off entirely.",
-        //     Applies = c => c.Fuselage.Crossflow != null,
-        //     Get = c => c.Fuselage.Crossflow!.AftCamberGain,
-        //     Set = (c, v) => c.Fuselage.Crossflow!.AftCamberGain = v,
-        // });
-        // ------------------------------------------------------------------------------------------------------
+        TunableRegistry.Register(new Tunable
+        {
+            Id = "fuselage.crossflow.aftCamberGain",
+            Group = g,
+            Label = "Aft fuselage sideslip camber gain",
+            Min = 0, Max = 3, Step = 0.05, FineStep = 0.01, Decimals = 2,
+            Description = "How hard the aft fuselage pitches the nose DOWN when the air comes at it sideways, as it does in a "
+                        + "spin. Bigger flattens the inverted spin and steepens the upright one — one term, opposite effects, "
+                        + "which is why an inverted spin can sit flatter than an upright one. 1.0 is as shipped; 0 switches the "
+                        + "term off entirely. Measured on the Pitts at full power: 0 gives an inverted spin at 81.5° and an "
+                        + "upright one at 78.8°, 1.0 gives 85.3° and 78.7°.",
+            Live = true,
+            Applies = c => c.Fuselage.Crossflow != null,
+            Get = c => c.Fuselage.Crossflow!.AftCamberGain,
+            Set = (c, v) => c.Fuselage.Crossflow!.AftCamberGain = v,
+        });
+
+        TunableRegistry.Register(new Tunable
+        {
+            Id = "fuselage.crossflow.aftCamberBroadsideCl",
+            Group = g,
+            Label = "Aft fuselage broadside lift",
+            Min = 0, Max = 1.5, Step = 0.05, FineStep = 0.01, Decimals = 2,
+            Description = "The same aft body, but lifting because it is lying BROADSIDE to the air rather than because it is "
+                        + "sideslipping — a flat-bellied, round-topped fuselage does that whether or not it is slipping. It is the "
+                        + "only thing measured so far that reaches a 95° inverted spin, and it is SHIPPED OFF at 0 because unlike "
+                        + "the knob above it also acts with no sideslip at all, so it moves the stall break and the trim of every "
+                        + "aeroplane. Measured on the Pitts, upright and inverted: 0 gives 78.7 and −85.3; 0.40 gives 76.0 and "
+                        + "−89.1; 0.80 gives 74.1 and −91.7; 1.20 gives 72.4 and −95.6. Ty's targets are 78 and 95, and no single "
+                        + "value here reaches both — 0.80 gives his 17° spread, 1.20 his inverted number.",
+            Live = true,
+            Applies = c => c.Fuselage.Crossflow != null,
+            Get = c => c.Fuselage.Crossflow!.AftCamberBroadsideCl,
+            Set = (c, v) => c.Fuselage.Crossflow!.AftCamberBroadsideCl = v,
+        });
+
 
         TunableRegistry.Register(new Tunable
         {

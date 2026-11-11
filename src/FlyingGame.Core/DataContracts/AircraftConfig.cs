@@ -1197,6 +1197,98 @@ public sealed class CrossflowConfig
     public double SharpSectionFraction { get; set; }
     public double CowlCamberArea { get; set; }
     public double CowlCamberCenterX { get; set; }
+
+    /// <summary>
+    /// AFT-FUSELAGE SIDESLIP CAMBER IN CROSSFLOW (owner Ty, 2026-11-11: "Fuselage crossflow should trigger the
+    /// sideslip camber on the aft fuselage and produce a pronounced negative pitching moment on the pitts and extra
+    /// which should result in flatter inverted spins than upright").
+    ///
+    /// WHAT IT IS. <see cref="SectionCamberCl"/> already models the aft body as a cambered section to SIDESLIP flow,
+    /// but its dynamic pressure is the lateral velocity alone. NACA TN 4176 / NASA TR R-29 (Polhamus) gives the
+    /// three-dimensional crossflow term for exactly this effect as
+    /// (C_Y)_nonpotential = c_y'(S/A)(cos²α·sin²β + sin²α) — and the model carries only the first half. The sin²α
+    /// share is the one that matters in a spin, where the body is broadside: at α 80° it is 0.97 against the
+    /// cos²α·sin²β half's 0.03. docs/aircraft/CM-BETA.md §6 measures the gap at 2.41× at α −40° / β 45° alone.
+    ///
+    /// THE LAW. The missing share is carried here, weighted by the SAME sideslip dependence the camber force already
+    /// has, so it reduces to the existing lateral-velocity force multiplied by sin² of the station's own flow angle:
+    ///     body-up force = ½ρ·AftCamberCl·AftCamberGain·A_aft·v_local²·(w_local² / (u² + w_local²))
+    /// at the aft body's own centroid, with v_local and w_local including the rotation terms r·arm and −q·arm. That
+    /// is Ty's sentence literally: the crossflow (w_local) TRIGGERS the sideslip camber (v_local²).
+    ///
+    /// DELIBERATE DEVIATION FROM THE PUBLISHED FORM, recorded rather than hidden: TN 4176 writes the second share as
+    /// "+ sin²α", with no sin²β on it. Taken bare it would make a pitching moment at ZERO sideslip at any α, which
+    /// this term — a SIDESLIP camber — must not do, and which would move every type's stall break. Carrying the same
+    /// sin²β weight keeps both limits the source requires of a sideslip effect (zero at β 0) and that the existing
+    /// low-α behaviour requires (zero at α 0), so SectionCamberCl's pinned normal-flight numbers are untouched by
+    /// construction: at α 5° / β 15° this term is 0.8 % of the old one, at α 80° / β 40° it is 32× it.
+    ///
+    /// NOT APPLIED to the φ-coefficient question. The same source's sketch 13 says the flat section's force PEAKS at
+    /// φ 60–70° and is ZERO at φ 90° (pure sideslip at α 0, i.e. ordinary knife-edge), where the model today makes
+    /// ~4.5 kN. CM-BETA §8 calls that the owner's call and not an agent's, because it is his flight feel on the
+    /// aeroplane he flies and 26 types' balance. This term changes nothing at α 0, so it leaves that decision open.
+    ///
+    /// GEOMETRIC, NOT PER-TYPE. A_aft and its arm are derived from the fuselage's own silhouette
+    /// (<see cref="FlyingGame.Core.Aero.AeroModel.AftBody"/>: the part of the side view behind the CG), so every type
+    /// gets the term and no area or station is authored anywhere. ONE THING COULD NOT BE MADE GEOMETRIC and is
+    /// reported rather than disguised: the camber COEFFICIENT. The only fleet-wide shape fields are lengthM,
+    /// sideArea, planArea and their centroids, and side/plan area does not discriminate the aerobatic types at all
+    /// (Pitts 1.33, Extra 1.30 — but Great Lakes 1.31, Pawnee 1.32, and the fleet's two highest are the Hughes H-4
+    /// flying boat at 1.71 and the 737 at 1.38). The only field that could express "rounded turtledeck over flat
+    /// belly" is the station shape (StationX/MidZ/HalfY/HalfZ), which exists on two configs and on NEITHER the Pitts
+    /// nor the Extra. So this is one fleet constant, not a per-type fit, and the Pitts and the Extra come out
+    /// pronounced because of where they FLY — the term needs high α and high local β at once, which is a spin.
+    /// </summary>
+    public double AftCamberCl { get; set; } = DefaultAftCamberCl;
+
+    /// <summary>
+    /// THE KNOB (Ty 2026-11-11: "give me a knob on the game to adjust it so I can tune it rather that asking you
+    /// to"). A plain scalar on the aft-fuselage camber moment. 1.0 = <see cref="AftCamberCl"/> as fitted, 0 = the
+    /// term off entirely. Registered for the Developer page as `fuselage.crossflow.aftCamberGain`, range 0…3.
+    /// Live without plumbing: AeroModel.ApplyFuselage re-reads Fuselage.Crossflow on every Compute, so writing this
+    /// on the running aircraft's config takes effect on the next frame.
+    /// </summary>
+    public double AftCamberGain { get; set; } = 1.0;
+
+    /// <summary>
+    /// THE BROADSIDE SHARE — <b>OFF BY DEFAULT (0.0), AND IT IS A DECISION FOR THE OWNER, NOT AN AGENT.</b>
+    ///
+    /// WHY IT EXISTS. <see cref="AftCamberCl"/> carries the published crossflow share weighted by sin²β, which keeps
+    /// it silent at zero sideslip. MEASURED 2026-11-11, that weighting also makes it almost powerless in the thing
+    /// Ty actually asked about: a developed flat spin has β of only 2–4° (Pitts, −4.3° upright and −1.8° inverted),
+    /// so the whole camber family contributes 1–2 % of the spin's pitch budget (−11 N·m upright, −25 N·m inverted,
+    /// against 940 and −2216 N·m total). Polhamus' own governing variable tan φ = tan β / tan α puts that spin at
+    /// φ ≈ 0.85°, and his sketch 13 says the force is near zero there. So the sourced, safely-gated term CANNOT
+    /// deliver the "pronounced" moment Ty predicts, and no coefficient of plausible size will make it.
+    ///
+    /// WHAT THIS IS INSTEAD. The bare form TN 4176 actually publishes is "+ sin²α" with NO sin²β on it: a body that
+    /// is broadside to the crossflow and asymmetric top-to-bottom makes a normal force whether or not it is
+    /// sideslipping. That is not camber lift — it is the asymmetric separation of a bluff, flat-bellied,
+    /// round-topped body at broadside — and it is the share that is large in a spin, where the crossflow q factor
+    /// measures 0.96 of free stream against the sideslip share's 0.0002.
+    ///     body-up force = ½ρ·AftCamberBroadsideCl·AftCamberGain·A_aft·V_local²·sin²(local α)
+    /// Always body-up aft of the CG, hence always nose-DOWN in body axes: it steepens an upright spin and FLATTENS
+    /// an inverted one, which is exactly the asymmetry Ty predicts and the acceptance test he set (upright ~78°,
+    /// inverted ~95°).
+    ///
+    /// WHY IT IS NOT ON. It is non-zero at ZERO SIDESLIP, so it changes the pitching moment at every high-α
+    /// condition on all 35 types — the stall break, the trim curve and the spin of the whole fleet. docs/aircraft/
+    /// CM-BETA.md §8 reserved precisely this to the owner: "that is your flight feel on the aeroplane you fly and it
+    /// is 26 types' balance, so it is your call, not mine." Shipped at 0.0 so the model is unchanged, with the
+    /// measurement in the report and one knob to turn it on.
+    /// </summary>
+    public double AftCamberBroadsideCl { get; set; }
+
+    /// <summary>
+    /// The fleet value of <see cref="AftCamberCl"/>. 0.6 is the PITTS' own authored turtledeck coefficient
+    /// (<see cref="SectionCamberCl"/>), carried unchanged to the fleet rather than refitted per type — the same move
+    /// SpinAeroConfig.ControlSpoilerK 0.6 made from the Pitts to eleven types on 2026-11-10, and for the same
+    /// reason: the argument is about the SECTION, and nothing in the repo distinguishes one type's aft-body section
+    /// from another's (see <see cref="AftCamberCl"/> for the survey that establishes that). It is safe fleet-wide by
+    /// construction, not by luck: the term carries sin²α·sin²β, so at a 3°/15° slipping approach — the condition
+    /// SideslipCamberTests pins — it is under 1 N·m against that test's 450–800 N·m band.
+    /// </summary>
+    public const double DefaultAftCamberCl = 0.6;
 }
 
 public sealed class DampingConfig
