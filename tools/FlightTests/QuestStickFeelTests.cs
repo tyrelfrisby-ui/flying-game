@@ -84,8 +84,10 @@ public sealed class QuestStickFeelTests
         var m = new QuestControlMapper();
         var c = m.Step(f, 0.1, 0.5);
         Assert.True(c.Aileron > 0); Assert.True(c.Elevator > 0);          // right roll, push
-        Assert.Equal(0.3, c.Brake, 9);
-        Assert.True(c.Fire);
+        // Triggers are the toe brakes (2026-11-04): 0.3 past the 0.05 zone = 0.25/0.95, 0.8 = 0.75/0.95.
+        Assert.Equal(0.25 / 0.95, c.BrakeLeft, 9); Assert.Equal(0.75 / 0.95, c.BrakeRight, 9);
+        Assert.Equal(0.0, c.Brake, 9);
+        Assert.False(c.Fire);   // the trigger no longer fires
         Assert.True(c.ThrottleMoved && c.Throttle01 > 0.5);              // left stick forward opens the lever
     }
 
@@ -114,7 +116,7 @@ public sealed class QuestStickFeelTests
         Assert.True(f.A); Assert.True(f.X); Assert.True(f.RightStickClick); Assert.True(f.Menu); Assert.Equal(1.0, f.RightGrip);
         var c = new QuestControlMapper().Step(f, 0.02, 0.5);
         Assert.True(c.Menu); Assert.Equal(QuestMenuTrigger.MenuButton, c.MenuBy);   // Start opens the menu
-        Assert.True(c.FlapsDown); Assert.True(c.Gear); Assert.True(c.Smoke);
+        Assert.True(c.FlapsDown); Assert.True(c.Gear); Assert.True(c.Smoke); Assert.True(c.Fire);   // RB: smoke, or guns where hot
         Assert.True(c.PitchTrimRate < 0);                                           // south = A = nose up
         var r = QuestGamepadMap.ToFrame(new GamepadState { RightStickPress = true });
         Assert.True(r.LeftStickClick);                                              // the other stick's click recentres

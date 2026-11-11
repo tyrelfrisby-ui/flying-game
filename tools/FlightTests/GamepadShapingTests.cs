@@ -141,6 +141,32 @@ public sealed class GamepadShapingTests
     }
 
     [Fact]
+    public void TriggersAreTheLeftAndRightToeBrakes()
+    {
+        Assert.Equal((0.0, 0.0), GamepadShaping.TriggerBrakes(0.04, 0.0));          // resting triggers: nothing
+        Assert.Equal((1.0, 0.0), GamepadShaping.TriggerBrakes(1.0, 0.0));
+        Assert.Equal((0.0, 1.0), GamepadShaping.TriggerBrakes(0.0, 1.0));
+        Assert.Equal(0.5, GamepadShaping.TriggerBrakes(0.525, 0.0).Left, Tol);     // proportional: (0.525 − 0.05) / 0.95
+        Assert.Equal(0.0, GamepadShaping.StickRudder(0.0), Tol);                    // and they are not rudder any more
+        Assert.Equal(0.25625, GamepadShaping.StickRudder(0.51), Tol);
+    }
+
+    [Fact]
+    public void WheelBrakesReachTheSimPerWheel()
+    {
+        var (b, bias) = GamepadShaping.CombineWheelBrakes(0.0, 0.0, 1.0, 0.0);
+        var (l, r) = PedalBlend.FromSim(b, bias);
+        Assert.Equal(1.0, l, Tol); Assert.Equal(0.0, r, Tol);                        // left trigger: left wheel only
+        (b, bias) = GamepadShaping.CombineWheelBrakes(0.0, 0.0, 0.3, 0.6);
+        (l, r) = PedalBlend.FromSim(b, bias);
+        Assert.Equal(0.3, l, Tol); Assert.Equal(0.6, r, Tol);
+        (b, bias) = GamepadShaping.CombineWheelBrakes(1.0, 0.0, 0.2, 0.0);           // X button (both) still wins
+        (l, r) = PedalBlend.FromSim(b, bias);
+        Assert.Equal(1.0, l, Tol); Assert.Equal(1.0, r, Tol);
+        Assert.Equal((0.4, 0.1), GamepadShaping.CombineWheelBrakes(0.4, 0.1, 0.0, 0.0));
+    }
+
+    [Fact]
     public void StickAndTriggersSumAndTheSumIsClamped()
     {
         Assert.Equal(1.0, GamepadShaping.Rudder(1.0, 0.0, 1.0), Tol);     // both full right: still only full

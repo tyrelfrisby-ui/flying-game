@@ -6,7 +6,8 @@ namespace FlyingGame.Bridge
     /// LOCAL 2-PLAYER: the second player's hands — their gamepad (<see cref="GamepadInput.For"/>) and nothing else. The
     /// flying is <see cref="FlyingGame.Sim.LocalPadPilot"/> (Core-tested, the same numbers as the first player's pad
     /// path); this reads the pad, hands the result to the driver and works the buttons. Same mapping as P1's pad:
-    /// right stick roll / pitch, left stick X + triggers rudder, left stick Y and RB / LB power, d-pad up / down trim,
+    /// right stick roll / pitch, left stick X rudder, the triggers the LEFT / RIGHT toe brakes (2026-11-04), left
+    /// stick Y and RB / LB power, d-pad up / down trim,
     /// left / right flaps, X brakes, B smoke, Y next view; L3 + d-pad looks and R3 recentres in the cockpit (CockpitView reads
     /// this player's pad). Menu opens the shared OPTIONS.
     ///
@@ -57,8 +58,12 @@ namespace FlyingGame.Bridge
             // Real time, as the first player's pad: the lever and the trim move at the same rate in slow motion.
             var r = _pilot.Step(pad, Time.unscaledDeltaTime, ac.Config.Controls, SessionSettings.GamepadStickFree);
             Driver.Inputs = r.Inputs;
-            ac.BrakeInput = r.Brake01;
-            ac.BrakeBias = 0;
+            // The triggers are this seat's toe brakes too (Ty 2026-11-04). P1's path is TouchFlightControls; this
+            // lane predates split screen, so without these three lines P2's triggers would do nothing at all -- they
+            // stopped being a second rudder when GamepadInput.Rudder became the left stick alone.
+            (double p2Brake, double p2Bias) = FlyingGame.Core.GamepadShaping.CombineWheelBrakes(r.Brake01, 0.0, gp.BrakeLeft, gp.BrakeRight);
+            ac.BrakeInput = p2Brake;
+            ac.BrakeBias = p2Bias;
             if (r.FlapStep != 0 && Driver.HasFlaps) ac.FlapFraction = FlyingGame.Sim.LocalPadPilot.NextFlap(ac.FlapFraction, r.FlapStep);
             if (!gp.Connected) return;
             if (gp.SmokePressed && (_smoke != null || (_smoke = GetComponent<SmokeController>()) != null)) _smoke.Toggle();
