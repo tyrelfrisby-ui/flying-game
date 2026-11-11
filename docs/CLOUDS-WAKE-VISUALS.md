@@ -146,6 +146,89 @@ centreline, upwash 2.1 / 1.2 m/s at 12 m out where the 3 m atlas texel straddles
 pass over flat ground: the pair sinks to 3.4-3.9 m and spreads to ±6.1 m at 4.5 s, ±13.6 m at 14.8 s. The
 zero-lift, zero-thrust pass leaves 0 segments, 0 jets and fog identical to undisturbed.
 
+## The cull and the depth pre-pass: built, measured, and one of them shipped off — Claude, 2026-11-11
+
+Ty, on the cost table below: **"build it and measure it"**. Both were built. Neither turned out to be what it
+looked like from the outside, and the measurements are why.
+
+### The 19 km cull: free, correct, and it saves nothing TODAY
+
+`Cumulus.CullRangeM` = 19 km, the same range the playground's banks have always used, so a cumulus and a bank
+disappear at the same distance now that they are the same cloud. It is not a visibility choice and there is no
+pop to check for: the impostor shader already fades every lobe to zero between 15 and 18 km, so nothing is on
+the screen out there — the cull only stops the GPU rasterising quads that are guaranteed to clip away.
+
+**Measured: it disables no cloud at either camera.** The lobe count is identical with and without it (1,247 worst
+case, 651 cruise), because `SoaringScenery` puts all 34 thermals near the airports and every one of them is
+inside 19 km of both viewpoints. The frame-time differences between the cull rows and the baseline rows are
+smaller than the run-to-run noise and point in both directions across two runs. It is kept because it is one
+constant, it is correct, and it will matter the day a thermal is placed out on the coast — not because it bought
+anything.
+
+### Where the fill actually is, which says what a tighter fade could ever reach
+
+| | under 3 km | 3–6 km | 6–10 km | beyond 10 km |
+|---|---|---|---|---|
+| worst case | **9.70x** | 1.55x | 0.55x | 0.17x |
+| 3 km cruise | **6.28x** | 4.22x | 1.00x | 0.11x |
+
+Eighty per cent of the bill is inside 6 km in both views. Nothing that fades distant clouds can touch it; the
+only levers that reach it are fewer or smaller lobes near the eye, or occlusion.
+
+### The depth pre-pass: it works, it is worth ~40 %, and it costs the look
+
+`CloudPlayground.shader` has two passes now. The first writes DEPTH ONLY, and only where a lobe's alpha has
+already reached `_CoreAlpha` — the part of the lobe that is opaque enough to hide what is behind it. The second
+blends as before and ZTests against it, so lobes buried behind a core die before they are shaded. Both passes
+share `lobeAlpha()` in a `CGINCLUDE`: a divergence of one noise term between them would seam every overlap.
+
+**A trap worth recording: the colour pass multiplies alpha by .96, so a lobe can never be more than 0.96 opaque
+and a threshold of 0.97 writes nothing, ever.** It was set to 0.97 first and measured as "the pre-pass does
+nothing", which was exactly true and entirely my own bug.
+
+Measured on this Mac, best of four passes of sixty frames, clouds-off measured once per camera (measuring it per
+configuration put 0.6 ms of GPU clock drift into every delta — which is the size of the effects being compared,
+and is why the cull rows are not trustworthy on their own):
+
+| configuration | worst case | 3 km cruise |
+|---|---|---|
+| no thermal clouds at all | 3.85 ms | 3.30 ms |
+| baseline: no cull, no pre-pass | +3.51 ms | +2.19 ms |
+| + 19 km cull only | +3.23 ms | +1.74 ms |
+| + pre-pass, core 0.94 | **+2.19 ms** | +1.62 ms |
+| + pre-pass, core 0.90 | +1.99 ms | +1.72 ms |
+| + pre-pass, core 0.80 | +1.98 ms | +1.50 ms |
+| + both, core 0.94 | +2.00 ms | +1.52 ms |
+
+So the pre-pass is worth **about 40 % of the thermal clouds' GPU cost in the worst case** and perhaps a quarter
+at cruise, and the threshold barely matters between 0.94 and 0.80.
+
+**It ships OFF (`Cumulus.CoreAlpha = 2`), and that is a decision, not an omission.** Two reasons, both in the
+renders:
+
+1. **It hardens the silhouette.** Killing the lobe behind a core truncates the soft falloff that makes the cloud
+   read as billowing, and the cut shows as a scalloped cut-out edge. Compare `core_off_backlit` with
+   `core_094_backlit`. There is no threshold that is both effective and invisible: the ceiling is 0.96, and 0.94
+   already shows. This is the look Ty approved an hour earlier, so it is not mine to trade for a millisecond.
+2. **It does not make a cloud opaque against the TERRAIN**, which is what the view from above wanted. Terrain is
+   drawn in the opaque queue long before the cloud blends over it; no depth written afterwards can undo that.
+   `core_094_above` still shows the ground through the cloud, with harder edges than `core_off_above`.
+
+### The banks keep it off too, and that is measured as well
+
+Armed for the banks it costs **+0.10 ms and saves nothing** (3.51 → 3.61 ms for the playground alone), and
+`bank_prepass_armed` has a visible hard cut through the upper-right cloud where one lobe's core clipped its
+neighbour, against `bank_prepass_inert` which does not. The shipped default `_CoreAlpha = 2` on the material
+keeps every bank and low patch exactly as it was.
+
+### Still no device number
+
+Everything above is an M-series Mac GPU and can only RANK these options. All of Ty's physical devices report
+`unavailable` to `devicectl`, so no on-device frame timing was possible. What it would take: one device awake
+and attached, then `tools/deploy/deploy.sh` to install and `AERO_SELFTEST=perf` (`ClipSelfTest.PerfTest`, which
+already logs per-second fps with the CPU and GPU frame times from `FrameTimingManager`) flown at a thermal
+cumulus — the Options switch for thermals gives the clouds-off half of the comparison for free.
+
 ## Ty overturned it the same day: ONE cloud renderer, and the painted sky deck deleted — Claude, 2026-11-11
 
 Ty, after seeing the renders above: *"Delete painted sky deck I don't like that one and make the playground clouds
