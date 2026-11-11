@@ -5,13 +5,14 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>Ty on the Quest, 2026-11-02: the stick is "far too sensitive, especially around neutral". The headset's
 /// default feel (QuestStickFeel) and the gamepad that shares the controllers' path (QuestGamepadMap). Numbers are
-/// literals worked by hand from out = (1 − k)·u + k·u³.</summary>
+/// literals worked by hand from out = (1 − k)·u + k·u³. Since 2026-11-04 k is the shared stick expo (InputExpo), 0.30
+/// by default on every platform; it was a headset-only 0.65 before.</summary>
 public sealed class QuestStickFeelTests
 {
     [Fact]
-    public void TheDefaultsAreHeavyExpoAndASmallDeadZone()
+    public void TheDefaultsAreTheSharedExpoAndASmallDeadZone()
     {
-        Assert.Equal(0.65, QuestStickFeel.DefaultExpo);
+        Assert.Equal(0.30, QuestStickFeel.DefaultExpo);   // Ty 2026-11-04, parity: was 0.65 in a headset only
         Assert.Equal(0.0, QuestStickFeel.DefaultExtraDeadZone);
         Assert.Equal(0.05, QuestControlMapper.StickDeadZone);
     }
@@ -22,8 +23,9 @@ public sealed class QuestStickFeelTests
         Assert.Equal(0.0, QuestStickFeel.StickToCommand(0.0));
         Assert.Equal(1.0, QuestStickFeel.StickToCommand(1.0), 12);
         Assert.Equal(-1.0, QuestStickFeel.StickToCommand(-1.0), 12);
-        Assert.Equal(1.0, QuestStickFeel.Curve(1.0, 0.65, 0.0), 12);
-        Assert.Equal(1.0, QuestStickFeel.Curve(1.3, 0.65, 0.05), 12);   // past the stop: still full, not more
+        Assert.Equal(1.0, QuestStickFeel.Curve(1.0, 0.30, 0.0), 12);
+        Assert.Equal(1.0, QuestStickFeel.Curve(1.3, 0.30, 0.05), 12);   // past the stop: still full, not more
+        Assert.Equal(1.0, QuestStickFeel.Curve(1.0, 0.70, 0.0), 12);    // the slider's top too
     }
 
     [Fact]
@@ -50,18 +52,15 @@ public sealed class QuestStickFeelTests
     }
 
     [Fact]
-    public void SmallMovementsDoAThirdOfWhatTheyDid()
+    public void TheHeadsetFliesTheSharedCurveAfterTheReadersDeadZone()
     {
-        // Slope at neutral: (1 − k) / (1 − dz) = 0.35 / 0.95.
+        // Slope at neutral: (1 − k) / (1 − dz) = 0.70 / 0.95.
         double x = 0.06, y = QuestStickFeel.StickToCommand(x);
-        Assert.Equal(0.35 * (0.01 / 0.95) + 0.65 * System.Math.Pow(0.01 / 0.95, 3), y, 12);
-        // Half stick: u = 0.45 / 0.95 = 0.47368…, out = 0.35u + 0.65u³ = 0.23487…: a quarter of the travel.
-        Assert.Equal(0.234874, QuestStickFeel.StickToCommand(0.5), 5);
-        // Against the old Quest feel for the Pitts' aileron (0.10 stick dead zone, then its own 0.03 / 30 %):
-        // at 0.3 of stick it was 0.141 of the travel, now 0.104.
-        double oldU = (0.3 - 0.10) / 0.90, oldV = (oldU - 0.03) / 0.97, old = 0.7 * oldV + 0.3 * oldV * oldV * oldV;
-        Assert.Equal(0.1411, old, 3);
-        Assert.Equal(0.1038, QuestStickFeel.StickToCommand(0.3), 3);
+        Assert.Equal(0.70 * (0.01 / 0.95) + 0.30 * System.Math.Pow(0.01 / 0.95, 3), y, 12);
+        // Half stick: u = 0.45 / 0.95 = 0.47368…, out = 0.70u + 0.30u³ = 0.36346….
+        Assert.Equal(0.363464, QuestStickFeel.StickToCommand(0.5), 5);
+        // 0.3 of stick: u = 0.25 / 0.95 = 0.26316…, out = 0.18968 (it was 0.1038 at the old headset-only 0.65).
+        Assert.Equal(0.18968, QuestStickFeel.StickToCommand(0.3), 5);
     }
 
     [Fact]

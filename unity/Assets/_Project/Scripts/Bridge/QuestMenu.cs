@@ -261,10 +261,11 @@ namespace FlyingGame.Bridge
             AddRow(() => $"Display:  {(XrHeadset.Prefer90Hz ? "90 Hz" : "72 Hz")}" + (XrHeadset.CurrentRefreshHz > 0f ? $"   (running {XrHeadset.CurrentRefreshHz:F0})" : ""),
                 () => XrHeadset.Prefer90Hz = !XrHeadset.Prefer90Hz, _ => XrHeadset.Prefer90Hz = !XrHeadset.Prefer90Hz);
             AddRow(() => $"Rudder pedals:  {PedalSummary()}   >", OpenPedals);
-            // STICK FEEL (Ty 2026-11-02: "far too sensitive, especially around neutral"). The Options → Controls expo,
-            // all three axes at once; unset means the headset's own default (QuestStickFeel). Select puts it back.
-            AddRow(() => $"Stick expo:  {StickExpo() * 100:0} %" + (SessionSettings.FeelExpo[0] < 0f ? "  (default)" : "") + "   < >",
-                () => SetStickExpo(-1f), d => SetStickExpo(Mathf.Clamp(Mathf.Round(StickExpo() * 20f + d) / 20f, 0f, 0.9f)));
+            // STICK FEEL (Ty 2026-11-02: "far too sensitive, especially around neutral"; 2026-11-04: one expo on every
+            // platform). The same "Stick expo" as Options → Controls (SessionSettings.StickExpo, 0…70 %, rudder 2/3 of
+            // it), applied by the sim's shared InputExpo. Select puts it back to the default 30 %.
+            AddRow(() => $"Stick expo:  {SessionSettings.StickExpo * 100:0} %" + (Mathf.Approximately(SessionSettings.StickExpo, (float)FlyingGame.Core.InputExpo.DefaultPitchRoll) ? "  (default)" : "") + "   < >",
+                () => SetStickExpo((float)FlyingGame.Core.InputExpo.DefaultPitchRoll), d => SetStickExpo(Mathf.Round(SessionSettings.StickExpo * 20f + d) / 20f));
             AddRow(() => $"Gamepad:  {XrControllers.GamepadLine}", null);
             // THE COCKPIT'S OWN (Ty 2026-11-05): the IAC card (poke the card itself to go to the next), the cards copied into
             // the headset's inbox, and the altimeter's Kollsman setting (< > a hundredth; select = field elevation / zero).
@@ -740,16 +741,14 @@ namespace FlyingGame.Bridge
             SessionSettings.AircraftId = now;
         }
 
-        /// <summary>The expo the three axes fly with now: the pilot's setting, else the headset default.</summary>
-        private static float StickExpo() => SessionSettings.FeelExpo[0] >= 0f ? SessionSettings.FeelExpo[0] : (float)FlyingGame.Core.Vr.QuestStickFeel.DefaultExpo;
-
-        /// <summary>Set aileron, elevator and rudder expo together (&lt; 0 = back to the default) and fly it at once.</summary>
+        /// <summary>Set the stick expo (pitch and roll; the rudder follows at 2/3), save it and fly it at once.</summary>
         private void SetStickExpo(float expo)
         {
-            for (int i = 0; i < 3; i++) SessionSettings.FeelExpo[i] = expo;
+            SessionSettings.LoadFeel();
+            SessionSettings.StickExpo = (float)FlyingGame.Core.InputExpo.PitchRoll(expo);
             SessionSettings.SaveFeel();
             SessionSettings.ReapplyFeel(Driver?.Sim?.Aircraft?.Config);
-            Debug.Log($"[QuestInput] stick expo {(expo < 0f ? $"default ({FlyingGame.Core.Vr.QuestStickFeel.DefaultExpo * 100:0} %)" : $"{expo * 100:0} %")}");
+            Debug.Log($"[QuestInput] stick expo {SessionSettings.StickExpo * 100:0} % (rudder {FlyingGame.Core.InputExpo.Yaw(SessionSettings.StickExpo) * 100:0} %)");
         }
 
         private static void CycleAircraft(int step)
