@@ -152,6 +152,51 @@ public class FloatLandingTests
         finally { FloatHydro.FlatWaterOverride = null; }
     }
 
+    /// <summary>
+    /// BOTH SIDES OF 23.527 ARE AT THE DESIGN GROSS — the W and the V_S0 (Aircraft.DesignGrossVsoMs). A float is
+    /// certificated once; it does not get weaker because the aeroplane is light today, and that is as true of the
+    /// stall speed in n_w as it is of the weight beside it.
+    ///
+    /// The regression this pins: on 2026-11-11 the J-3's authored mass went 589.67 → 451.142 kg (the aeroplane as
+    /// flown, not its placard). The W in n_w was moved to the placard the same day; the V_S0 was not, and went on
+    /// reading PracticeScenario.EstimateVso, which trims at the as-flown mass — 33.24 kt where the certificated
+    /// 1,300 lb stall is 38.0. n_w goes as V_S0², so the float came out 3.139 / 13.62 kN against the 4.12 / 17.9 kN
+    /// this class derives by hand from A-691, 24 % weak, and split both bottoms on a 98 fpm touchdown.
+    ///
+    /// So the measurement is: loading the SAME type lighter must not change its float's strength at all.
+    /// </summary>
+    [Fact]
+    public void AFloatsUltimateLoadIsItsCertificatesAndDoesNotFollowTodaysWeight()
+    {
+        AircraftConfig heavy = Load("j3-cub-floats-like");
+        var atRest = new RigidBodyState(new Vec3(0, 0, -(heavy.Floats!.KeelZ - 0.25)), new Quat(0, 0, 0, 1), Vec3.Zero, Vec3.Zero);
+        double designKg = heavy.Loading!.MaxTakeoffMassKg;
+        var full = new Aircraft(heavy, atRest, ControlDeflections.Neutral);
+
+        // The same aeroplane flown 100 kg lighter still (one pilot out, say). Nothing structural may move.
+        AircraftConfig light = Load("j3-cub-floats-like");
+        light.Mass.MassKg -= 100.0;
+        var lean = new Aircraft(light, atRest, ControlDeflections.Neutral);
+
+        _out.WriteLine($"design gross {designKg:F2} kg; as flown {heavy.Mass.MassKg:F3} and {light.Mass.MassKg:F3} kg -> "
+                       + $"n_w {full.FloatLimitWaterLoadFactor:F3} / {lean.FloatLimitWaterLoadFactor:F3}, "
+                       + $"ultimate {full.FloatUltimateWaterLoadN / 1000:F2} / {lean.FloatUltimateWaterLoadN / 1000:F2} kN per float");
+        Assert.Equal(full.FloatLimitWaterLoadFactor, lean.FloatLimitWaterLoadFactor, 9);
+        Assert.Equal(full.FloatUltimateWaterLoadN, lean.FloatUltimateWaterLoadN, 6);
+
+        // And the figure itself is the certificate's, not the as-flown one: 23.527 closed form at the design gross,
+        // C1 0.012, W half of 1,300 lb per float, β 18.8°, with the type's OWN sim stall scaled to that weight.
+        double vKt = FlyingGame.Sim.Practice.PracticeScenario.EstimateVso(heavy, 0.0)
+                     * Math.Sqrt(designKg / heavy.Mass.MassKg) * 1.943844;
+        double wLb = designKg * 2.20462 / 2.0;
+        double nw = 0.012 * vKt * vKt / (Math.Pow(Math.Tan(18.8 * Math.PI / 180), 2.0 / 3.0) * Math.Pow(wLb, 1.0 / 3.0));
+        _out.WriteLine($"by hand: V_S0 at the design gross {vKt:F2} kt, W {wLb:F1} lb/float -> n_w {nw:F3}, ultimate {1.5 * nw * designKg * 9.81 / 2 / 1000:F2} kN");
+        Assert.Equal(nw, full.FloatLimitWaterLoadFactor, 6);
+        // The hand figure in this class's own summary: V_S0 38 kt, n_w 4.12, 17.9 kN ultimate per float.
+        Assert.InRange(vKt, 37.0, 39.0);
+        Assert.InRange(full.FloatUltimateWaterLoadN / 1000.0, 17.0, 18.5);
+    }
+
     /// <summary>A step taxi at 30–40 mph: from rest, full power until 35 mph, then power to hold it at a 7° attitude.
     /// It stays on the step — no porpoising worth the name, never airborne, nothing damaged.</summary>
     [Fact]
