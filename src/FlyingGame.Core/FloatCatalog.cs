@@ -445,13 +445,49 @@ public static class FloatExchange
     /// </summary>
     public static double? GearRemovedLb(string? aircraftId) => aircraftId switch
     {
-        "j3-cub-like" or "j3-cub-floats-like" => 50,    // Ty: and 700 + 175 - 50 = 825, his own aeroplane's two weights
-        "pitts-s2b-like" => 100,                        // Ty
-        "extra-300-like" => 100,                        // Ty
-        "glider-2-33-like" => 25,                       // Ty: "tyre and brakes" - a 2-33 has one wheel and a skid
-        "c172-like" => 137,                             // 305 lb 2350-class system - 168 lb published seaplane exchange weight
+        // TY'S OWN AEROPLANE, and it stays his: 700 + 175 - 50 = 825, the two weights he has actually put his Cub on
+        // a scale for. THE CERTIFICATES SAY 41 lb FOR THE TYPE, three times over -- FAA Aircraft Specification A-691
+        // prints both an absolute float weight and a weight CHANGE for the same float, and the difference is the gear
+        // that came off: 171-130 = 41 on the Edo 60-1320, 147-106 = 41 on the 54-1140, 118-77 = 41 on the McKinley
+        // PF-2, and A-698 and A-692 repeat it on other J-3 models. The 9 lb gap is real and is NOT resolved here: his
+        // floats weigh 175 lb where the certificate says 171, and his gear may carry brakes a 1940s J-3 did not. A
+        // measurement of the actual aeroplane beats a type certificate for the actual aeroplane, so 50 stands and the
+        // certificate figure is written down beside it rather than lost.
+        "j3-cub-like" or "j3-cub-floats-like" => 50,
+
+        // PUBLISHED, derived the way the maker says to: the float maker prints "Exchange weight is equal to the float
+        // installation weight minus aircraft landing gear weight" on every guide, and the amphibian and seaplane rows
+        // of the same sheet give two independent subtractions that have to agree. Both agreed to the pound.
+        "pa18-cub-like" or "pa18-bush-like" or "pa18-floats-like" => 98,   // 427-329 and 280-182, 2100-class floats
+        "c172-like" => 137,                             // 433-296 and 289-152 (2100); 468-331 and 305-168 (2350)
+
+        // TY'S, from his own knowledge of the airframes, with no published figure found for any of them. The one
+        // cross-check available: a one-piece bow gear's LEGS ALONE run 2.0-2.4 % of gross on the maker's published
+        // table (21.0 lb on a Pitts S-1, 32.9 lb on an S1-11B), so 100 lb for a complete S-2B assembly is not
+        // unreasonable -- but that is inference from another model, not evidence, and these stay his numbers.
+        "pitts-s2b-like" => 100,
+        "extra-300-like" => 100,
+        // A 2-33 has one wheel and a skid. Ty's 25 lb; the component figures from the certificates (a 6.00-6 wheel
+        // and brake 6-7.25 lb, tyre and tube 8.5-9 lb) would put a smaller 5.00-5 nearer 13-15, but that is
+        // arithmetic from another aeroplane's parts and the glider's own manual publishes no equipment weights.
+        "glider-2-33-like" => 25,
+
+        // THE BEAVER IS DELIBERATELY UNKNOWN, and it is the one place a plausible number was available and refused.
+        // Its published float guide prints the Cessna 206 sheet's system totals by mistake -- its own stated
+        // amphibian exchange weight EXCEEDS its stated system total, which is impossible -- so the subtraction that
+        // works on every other sheet gives a wrong answer here, and a wrong answer that looks right is worse than
+        // none.
         _ => null,
     };
+
+    /// <summary>
+    /// Landing gear as a fraction of maximum weight, for a type with no published figure. NOT used to fill
+    /// <see cref="GearRemovedLb"/> — an unknown stays unknown there — but it is the band any new entry should land
+    /// in, and what a component build-up should check itself against. Twelve published points run 3.4 % (a J-3) to
+    /// 6.7 % (a Caravan), centred near 5 %, with pre-war fabric taildraggers at the bottom and modern tricycle
+    /// singles at the top. It brackets Raymer's commonly quoted general-aviation figure of 0.057 W.
+    /// </summary>
+    public const double GearFractionOfGrossTypical = 0.05, GearFractionOfGrossLo = 0.034, GearFractionOfGrossHi = 0.067;
 
     /// <summary>
     /// The EXCHANGE weight, lb: what the aeroplane's empty weight changes BY. Positive on every real conversion —
