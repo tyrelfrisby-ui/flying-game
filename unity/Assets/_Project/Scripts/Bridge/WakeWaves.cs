@@ -22,7 +22,7 @@ namespace FlyingGame.Bridge
         private int _lake = -1;
         private float _cell, _width, _depth, _acc, _sinceForcing = 1e9f;
         private Vector2 _min;   // Unity xz of the grid's corner
-        private readonly Vector4[] _foamOrigins = new Vector4[2], _foamMotion = new Vector4[2], _foamWake = new Vector4[2];
+        private readonly Vector4[] _foamOrigins = new Vector4[2], _foamMotion = new Vector4[2], _foamWake = new Vector4[2], _foamTrack = new Vector4[2];
         private readonly Vector4[] _src = new Vector4[8];
         private static readonly int WakeTexId = Shader.PropertyToID("_WakeTex"), WakeRectId = Shader.PropertyToID("_WakeRect"),
             WakeOnId = Shader.PropertyToID("_WakeOn"), WakeYId = Shader.PropertyToID("_WakeY"), WakeTexelId = Shader.PropertyToID("_WakeTexel");
@@ -131,7 +131,7 @@ namespace FlyingGame.Bridge
             float beam = (float)fl.BeamM;
             Vector3 forward = CoordinateMap.ToUnity(ac.State.Attitude.Rotate(new FlyingGame.Core.MathTypes.Vec3(1, 0, 0)));
             forward.y = 0; forward.Normalize();
-            for (int i = 0; i < 2; i++) { _foamOrigins[i] = Vector4.zero; _foamMotion[i] = Vector4.zero; _foamWake[i] = Vector4.zero; }
+            for (int i = 0; i < 2; i++) { _foamOrigins[i] = Vector4.zero; _foamMotion[i] = Vector4.zero; _foamWake[i] = Vector4.zero; _foamTrack[i] = Vector4.zero; }
             for (int i = 0; i < floats && n < 7; i++)
             {
                 var f = FloatHydro.Floats[i];
@@ -153,6 +153,14 @@ namespace FlyingGame.Bridge
                 // z: where the rooster crest stands; w: how far the crest rises above the undisturbed water.
                 _foamWake[i] = new Vector4((float)wake.CavityDepthM, (float)wake.CavityLengthM,
                                            (float)wake.CrestDistanceM, (float)wake.CrestHeightM);
+                // The AERATED KEEL TRACK, which is the white water: where the keel drags air under, how fast the
+                // bubble track widens, and how far astern the bubbles last before they have risen back out. Ty
+                // 2026-11-11: "directly behind and in line with the floats keels and widens at a narrower rate
+                // than the wake does ... the mixing of air and water together as the keels rub along the water
+                // surface forming bubbles (white)". One per float, from that float's own draft — not a band
+                // behind the aeroplane.
+                _foamTrack[i] = new Vector4((float)wake.TrackHalfWidthM, (float)wake.TrackSpreadPerM,
+                                            (float)wake.AeratedLengthM, 0f);
                 bool planing = f.PlaningLiftN > f.BuoyancyN && speed > 4f;
                 // Height pushed per step: a displacement hull heaps water at the bow; planing, the step throws the bigger
                 // wave. Scaled by beam (a 7.6 m H-4 hull makes a far bigger wake than a 0.66 m Cub float).
@@ -164,6 +172,7 @@ namespace FlyingGame.Bridge
             Shader.SetGlobalVectorArray("_FoamOrigins", _foamOrigins);
             Shader.SetGlobalVectorArray("_FoamMotion", _foamMotion);
             Shader.SetGlobalVectorArray("_FoamWake", _foamWake);
+            Shader.SetGlobalVectorArray("_FoamTrack", _foamTrack);
             return n;
         }
 

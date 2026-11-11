@@ -144,15 +144,104 @@ public static class PlaningWake
         return speedMs * rise / x;
     }
 
+    // ---- the aerated keel track: the WHITE water, and it is not spray ------------------------------------------
+    //
+    // Ty, 2026-11-11, naming the mechanism: "The spray is directly behind and in line with the floats keels and
+    // widens at a narrower rate than the wake does it is the mixing of air and water together as the keels rub
+    // along the water surface forming bubbles (white)".
+    //
+    // That is AIR ENTRAINMENT at a surface-piercing contact line, and it is a third thing, distinct from the two
+    // this file and FloatHydro already model:
+    //
+    //   chine / whisker spray   thrown from the spray root, OUTWARD and FORWARD, droplets in air
+    //                           (FloatHydro.SprayRoots, Savitsky 1964 — not touched here)
+    //   the AERATED KEEL TRACK  bubbles dragged under at the keel, straight ASTERN, aerated WATER
+    //                           (this block — it is white because it is full of air, not because it is spray)
+    //   the Kelvin wake         the gravity-wave pattern, half-angle asin(1/3) = 19.47 deg
+    //                           (the solver's height field, and the foam arms in Water.shader)
+    //
+    // Conflating the second with the third is exactly what a single fitted "1.6 beams wide" band did. The three
+    // have three different widths and three different spreading rates, and the ratio between two of them is
+    // testable — see <see cref="TrackHalfAngleRad"/> against <see cref="KelvinHalfAngleRad"/>.
+
+    /// <summary>Kelvin's half-angle, asin(1/3) = 19.47 deg. Set by the dispersion of deep-water gravity waves and
+    /// so independent of speed — which is precisely why it is the right thing to measure the bubble track against:
+    /// one angle is fixed by wave physics, the other by turbulence, and they are not the same number.</summary>
+    public static double KelvinHalfAngleRad => Math.Asin(1.0 / 3.0);
+
+    /// <summary>Visual spreading rate dδ/dx of a PLANE TURBULENT MIXING LAYER with one stream at rest (Brown and
+    /// Roshko 1974, J. Fluid Mech. 64, the velocity-ratio-1 limit, which is the case here: the water next to the
+    /// keel is dragged along with it and the water outside is still). The TRACK's half-width grows at half of
+    /// this, because δ is the whole layer.</summary>
+    public const double MixingLayerGrowth = 0.17;
+
+    /// <summary>How fast the track's half-width grows with distance astern, m per m: 0.085.</summary>
+    public static double TrackSpreadPerM => 0.5 * MixingLayerGrowth;
+
+    /// <summary>The track's own half-angle, 4.86 deg — a quarter of Kelvin's. This is Ty's "widens at a narrower
+    /// rate than the wake does", and it comes out of turbulence rather than out of a fitted constant.</summary>
+    public static double TrackHalfAngleRad => Math.Atan(TrackSpreadPerM);
+
+    /// <summary>
+    /// Half-width of the aerated track where it leaves the keel, m: the float's OWN wetted half-width, not a
+    /// multiple of the beam. A V bottom of deadrise β immersed to a keel depth d is wetted out to d/tan β, and no
+    /// further than the chine, so the contact line that drags the air under is at
+    /// <c>min(d/tan β, B/2)</c>. On the Cub float (B = 0.5358 m, β = 18.8°) both the 15 mph plow (d = 0.171 m)
+    /// and the 40 mph planing run (d = 0.149 m) are chine-limited, so the track starts exactly one beam wide —
+    /// which is the answer, not a coincidence: a hull on its step is wetted to the chine by definition.
+    /// </summary>
+    public static double TrackHalfWidthM(double stepDraftM, double beamM, double deadriseDeg)
+    {
+        if (!(stepDraftM > 0) || !(beamM > 0)) return 0.0;
+        double tan = Math.Tan(Math.Clamp(deadriseDeg, 1.0, 60.0) * Math.PI / 180.0);
+        return Math.Min(stepDraftM / tan, 0.5 * beamM);
+    }
+
+    /// <summary>Terminal rise speed of the bubbles the keel entrains, m/s. Millimetre bubbles in water sit on the
+    /// plateau of the rise-velocity curve where speed is nearly independent of size — about 0.25 m/s over roughly
+    /// 0.7 to 5 mm (Clift, Grace and Weber, <i>Bubbles, Drops and Particles</i>; the same number Clausen and Wüest
+    /// use for lake plumes). This is why a ship's white wake persists for hundreds of metres and a Cub's for a few:
+    /// the physics is the same and only the speed and the entrainment depth differ.</summary>
+    public const double BubbleRiseMs = 0.25;
+
+    /// <summary>
+    /// How far astern the white water lasts, m. The bubbles were dragged under to the keel's own immersion, and
+    /// they are gone when they have risen back out: that takes <c>d / v_rise</c> seconds, during which the
+    /// aeroplane has run <c>V·d / v_rise</c> further on. So the track is longer the faster you go AND the deeper
+    /// the keel is in — 4.6 m at the 15 mph plow, 10.6 m at 40 mph on the step — and it is zero the moment the
+    /// float leaves the water. Nothing here is fitted; it is a rise time against a ground speed.
+    /// </summary>
+    public static double AeratedLengthM(double speedMs, double stepDraftM) =>
+        speedMs > 0 && stepDraftM > 0 ? speedMs * stepDraftM / BubbleRiseMs : 0.0;
+
+    /// <summary>How much of the entrained column is still down there at <paramref name="xAftM"/> astern, 0..1.
+    /// The bubbles rise at a constant speed, so the aerated column's depth falls LINEARLY and the whiteness with
+    /// it — it does not decay exponentially, and it ends, at <see cref="AeratedLengthM"/>.</summary>
+    public static double AeratedFraction01(double xAftM, double speedMs, double stepDraftM)
+    {
+        double length = AeratedLengthM(speedMs, stepDraftM);
+        if (!(length > 0) || xAftM < 0) return 0.0;
+        return Math.Clamp(1.0 - xAftM / length, 0.0, 1.0);
+    }
+
+    /// <summary>The track's half-width at <paramref name="xAftM"/> astern, m.</summary>
+    public static double TrackHalfWidthAtM(double xAftM, double stepDraftM, double beamM, double deadriseDeg) =>
+        TrackHalfWidthM(stepDraftM, beamM, deadriseDeg) + Math.Max(0, xAftM) * TrackSpreadPerM;
+
     /// <summary>Everything the water shader and the spray need for one float, in one call, so the caller does not
     /// repeat the trim/beam/draft arithmetic five times.</summary>
     public readonly struct Shape
     {
         public readonly double Cv, WhiteWater01, CavityDepthM, CavityLengthM, CrestDistanceM, CrestHeightM, CrestRiseMs;
-        public Shape(double cv, double white, double depth, double length, double crestX, double crestZ, double rise)
+        /// <summary>The aerated keel track: its half-width where it leaves the keel, how fast that half-width grows
+        /// with distance astern, and how far astern the bubbles last.</summary>
+        public readonly double TrackHalfWidthM, TrackSpreadPerM, AeratedLengthM;
+        public Shape(double cv, double white, double depth, double length, double crestX, double crestZ, double rise,
+                     double trackHalfWidth, double trackSpread, double aerated)
         {
             Cv = cv; WhiteWater01 = white; CavityDepthM = depth; CavityLengthM = length;
             CrestDistanceM = crestX; CrestHeightM = crestZ; CrestRiseMs = rise;
+            TrackHalfWidthM = trackHalfWidth; TrackSpreadPerM = trackSpread; AeratedLengthM = aerated;
         }
     }
 
@@ -168,6 +257,9 @@ public static class PlaningWake
             CavityLengthM(stepDraftM, beamM, lambda, trimDeg, cv, deadriseDeg),
             CrestDistanceM(beamM, cv),
             CrestHeightM(stepDraftM, beamM, lambda, trimDeg, deadriseDeg),
-            CrestRiseSpeedMs(speedMs, stepDraftM, beamM, lambda, trimDeg, cv, deadriseDeg));
+            CrestRiseSpeedMs(speedMs, stepDraftM, beamM, lambda, trimDeg, cv, deadriseDeg),
+            TrackHalfWidthM(stepDraftM, beamM, deadriseDeg),
+            TrackSpreadPerM,
+            AeratedLengthM(speedMs, stepDraftM));
     }
 }
