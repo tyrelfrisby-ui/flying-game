@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "glasair3-like",
   "displayName": "Glasair III-like",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "Glasair III: ASSUMED (conservative), 2026-11-11: no source gathered for this type's canopy fittings. The cheap mistake is this one - the pilot shoves the canopy open and climbs out past it. QUESTION FOR TY."
+  },
   "structureType": "composite",
   "structureTypeSource": "Glasair III: glass-fibre composite fuselage shell (Stoddard-Hamilton builder manual).",
   "spawnIasMs": 100,

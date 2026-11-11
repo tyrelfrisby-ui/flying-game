@@ -18,6 +18,13 @@ namespace FlyingGame.Bridge
     /// <see cref="FlightAudio.CanopyImpact"/> and breaks the drawn glass through
     /// <see cref="GlassShatter.ShatterDeparted"/>. After that it goes on flying as one body, because a quasi-steady
     /// shell model has nothing true to say about shards.
+    ///
+    /// HOW HARD IT HITS NOW DECIDES WHETHER IT BREAKS (2026-11-11). It used to be that ANY contact at ANY speed
+    /// shattered the glass, so a shell leaning on the turtledeck of a parked aeroplane broke exactly as hard as one
+    /// that caught the fin at 60 m/s — which is what Ty flew into: "the canopy shattered even though it didn't hit
+    /// anything". The test is the CLOSING speed against this aeroplane (<see cref="PlaneObstacle.VelocityAt"/>, not
+    /// the shell's speed through the air) against the type's own glazing
+    /// (<see cref="FlyingGame.Core.Glazing.ShatterClosingMs"/>), and a touch below it leaves the glass whole.
     /// </summary>
     internal sealed class CanopyFlight : MonoBehaviour
     {
@@ -26,7 +33,7 @@ namespace FlyingGame.Bridge
         private Quaternion _q0, _frame0Inv;
         private Vector3 _offsetLocal;
         private float _rest, _age;
-        private bool _down, _struck;
+        private bool _down, _struck, _touched;
         private PlaneObstacle _obstacle;
         private string _ignore;
         private FlightAudio _audio;
@@ -71,13 +78,42 @@ namespace FlyingGame.Bridge
         {
             private readonly FlyingGame.Core.Vr.EgressClearance _clear;
             private readonly Transform _plane;
-            public PlaneObstacle(FlyingGame.Core.Vr.EgressClearance clear, Transform plane) { _clear = clear; _plane = plane; }
+            private Matrix4x4 _was;
+            private float _dt;
+            public PlaneObstacle(FlyingGame.Core.Vr.EgressClearance clear, Transform plane)
+            {
+                _clear = clear; _plane = plane;
+                _was = plane != null ? plane.localToWorldMatrix : Matrix4x4.identity;
+            }
+
+            /// <summary>Once a frame BEFORE the body is stepped: how long since the pose in <c>_was</c> was taken.
+            /// <c>_was</c> itself is last frame's, kept by <see cref="EndFrame"/>.</summary>
+            public void BeginFrame(float dt) { _dt = dt; }
+
+            /// <summary>And once AFTER: this frame's pose becomes the one the next frame differences against.</summary>
+            public void EndFrame() { if (_plane != null) _was = _plane.localToWorldMatrix; }
 
             public string Hit(Vec3 at, double radiusM)
             {
                 if (_clear == null || _plane == null) return null;
                 Vector3 local = _plane.InverseTransformPoint(new Vector3((float)at.X, (float)at.Y, (float)at.Z));
                 return _clear.Hit(CoordinateMap.ToSim(local), radiusM);
+            }
+
+            /// <summary>
+            /// THE AEROPLANE'S OWN VELOCITY AT THAT POINT, world axes — what the shell is closing on it at, which is
+            /// what breaks the glass (Core CanopyFreeBody.ShatterSpeedMs). Finite-differenced through the point's
+            /// place on the airframe rather than taken from the CG, so a rolling aeroplane's fin is moving as fast as
+            /// it really is. With no previous pose (dt 0) it answers zero, which is the old behaviour: the shell's
+            /// speed through the world stands in, and in the air that is far above any threshold anyway.
+            /// </summary>
+            public Vec3 VelocityAt(Vec3 at)
+            {
+                if (_plane == null || _dt <= 1e-6f) return Vec3.Zero;
+                var w = new Vector3((float)at.X, (float)at.Y, (float)at.Z);
+                Vector3 local = _plane.InverseTransformPoint(w);
+                Vector3 v = (w - _was.MultiplyPoint3x4(local)) / _dt;
+                return new Vec3(v.x, v.y, v.z);
             }
         }
 
@@ -89,7 +125,9 @@ namespace FlyingGame.Bridge
             if (_body == null || _down || dt <= 0f) return;
             Vector3 p = U(_body.Position);
             Vector3 w = EgressAir.Wind(p);
+            if (_obstacle != null) _obstacle.BeginFrame(dt);
             _body.Step(dt, EgressAir.Density(p.y), new Vec3(w.x, w.y, w.z), new Vec3(0, -EgressAir.G, 0), _obstacle, _ignore);
+            if (_obstacle != null) _obstacle.EndFrame();
             Vector3 com = U(_body.Position);
             Quaternion q = Quaternion.LookRotation(U(_body.Forward), U(_body.Up)) * _frame0Inv * _q0;
             float surf = EgressAir.SurfaceHeight(com);
@@ -100,17 +138,41 @@ namespace FlyingGame.Bridge
             }
             transform.SetPositionAndRotation(com + q * _offsetLocal, q);
             if (_body.Shattered && !_struck) Struck();
+            else if (_body.Touched && !_touched) Touched();
         }
 
-        /// <summary>It has just hit the aeroplane: the mechanical sound and the glass, once. Done after the move, so the
-        /// shell is drawn where it struck before anything is spawned at that point.</summary>
+        /// <summary>It has just hit the aeroplane hard enough: the mechanical sound and the glass, once. Done after the
+        /// move, so the shell is drawn where it struck before anything is spawned at that point.</summary>
         private void Struck()
         {
             _struck = true;
-            float speed = (float)_body.StrikeSpeedMs;
-            _audio?.CanopyImpact(speed);
-            _glass?.ShatterDeparted(transform, U(_body.StrikeAt), U(_body.Velocity), speed);
-            Debug.Log($"[Canopy] struck {_body.StruckWhat} at {_body.StrikeAtSec:0.00} s, {speed:0.0} m/s, {_body.StrikeSpinRadS:0.0} rad/s");
+            // The IMPACT's own speed drives the sound and the shards, not the shell's speed through the air: a shell
+            // brushing the fin at 150 kt is closing on it at nothing, and should not sound like a sledgehammer.
+            float closing = (float)_body.StrikeClosingMs;
+            _audio?.CanopyImpact(closing);
+            _glass?.ShatterDeparted(transform, U(_body.StrikeAt), U(_body.Velocity), closing);
+            Debug.Log($"[Canopy] struck {_body.StruckWhat} at {_body.StrikeAtSec:0.00} s, closing {closing:0.0} m/s " +
+                      $"(threshold {_body.ShatterSpeedMs:0.0}), {_body.StrikeSpeedMs:0.0} m/s through the air, " +
+                      $"{_body.StrikeSpinRadS:0.0} rad/s");
+        }
+
+        /// <summary>
+        /// IT HAS MET THE AEROPLANE AND NOT BROKEN — below <see cref="CanopyFreeBody.ShatterSpeedMs"/> of closing
+        /// speed. A canopy is tough plastic (Ty 2026-11-05: it "breaks/shatters ONLY if it takes a hard enough DIRECT
+        /// impact"), so nothing is broken and nothing is heard.
+        ///
+        /// WHETHER IT STAYS THERE depends on whether there is any air to carry it off again: lying on the turtledeck
+        /// of an aeroplane that is barely moving, it has nowhere to go, so it comes to rest where it is. In flight it
+        /// has a slipstream and goes on falling back past the tail, which is what the drag model is for.
+        /// </summary>
+        private void Touched()
+        {
+            _touched = true;
+            bool stays = _body.Velocity.Length < _body.ShatterSpeedMs;
+            if (stays) _down = true;
+            Debug.Log($"[Canopy] touched {_body.TouchedWhat} at {_body.TouchAtSec:0.00} s, closing {_body.TouchClosingMs:0.0} m/s " +
+                      $"— under the {_body.ShatterSpeedMs:0.0} m/s that breaks it, so the glass is whole" +
+                      (stays ? "; it comes to rest on the aeroplane" : ""));
         }
     }
 }

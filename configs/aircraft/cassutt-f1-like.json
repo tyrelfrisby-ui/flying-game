@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "cassutt-f1-like",
   "displayName": "Cassutt-like Racer",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "Cassutt F1: ASSUMED (conservative), 2026-11-11: no source gathered for this type's canopy fittings. The cheap mistake is this one - the pilot shoves the canopy open and climbs out past it. QUESTION FOR TY."
+  },
   "structureType": "steelTube",
   "structureTypeSource": "Cassutt IIIM: welded 4130 steel-tube fuselage, fabric covered; wooden wing (Cassutt plans / EAA Formula One notes).",
   "spawnIasMs": 70,

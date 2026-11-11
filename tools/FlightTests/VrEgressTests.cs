@@ -16,6 +16,15 @@ namespace FlyingGame.FlightTests;
 /// </summary>
 public sealed class VrEgressTests
 {
+
+    /// <summary>A config that authors a jettison (Core CanopyConfig), for the tests that used to get the answer from
+    /// the aircraft id: the id has not said since 2026-11-11.</summary>
+    private static FlyingGame.Core.DataContracts.AircraftConfig Cfg(string id, bool jettison) =>
+        new FlyingGame.Core.DataContracts.AircraftConfig
+        {
+            Id = id,
+            Canopy = new FlyingGame.Core.DataContracts.CanopyConfig { Jettison = jettison, JettisonSource = "test" },
+        };
     private const double G = 9.80665;
     private static readonly FlatPilotWater Lake = new(0.0);
 
@@ -59,7 +68,7 @@ public sealed class VrEgressTests
     {
         // The knob pulled through its 8 mm breakout and its 90 % firing point (8 + 38 × 0.9 = 42.2 mm of hand; 50 mm is past it), the ball
         // latch still LOCKED: the exit control has still been worked, and the bail-out starts.
-        JettisonPull j = JettisonPull.For("pitts-s2b-like", modelHasPull: true)!;
+        JettisonPull j = JettisonPull.For(Cfg("pitts-s2b-like", true), modelHasPull: true)!;
         var axis = new Vec3(-1, 0, 0);
         j.Grab(Vec3.Zero, axis);
         bool fired = false;

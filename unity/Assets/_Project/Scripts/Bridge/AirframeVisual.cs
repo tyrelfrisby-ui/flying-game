@@ -385,10 +385,18 @@ namespace FlyingGame.Bridge
             if (parts.Count == 0) return null;
             if (Cockpit.HandCanopy != null) return Cockpit.HandCanopy;
             string id = _driver != null ? _driver.AircraftId : "";
-            if (FlyingGame.Core.Vr.CanopySpec.Known(id)) return new FlyingGame.Core.Vr.CanopyDynamics(FlyingGame.Core.Vr.CanopySpec.For(id));
+            // WHETHER IT CAN BE JETTISONED IS THE CONFIG'S (Core CanopyConfig; Ty 2026-11-11: "The extra has no
+            // jettison feature"), never the aircraft id's. A spec built without a config has no jettison, which is the
+            // conservative answer: the pilot shoves the canopy open and climbs out past it.
+            FlyingGame.Core.DataContracts.AircraftConfig cfg = _driver != null && _driver.Sim != null && _driver.Sim.Aircraft != null
+                ? _driver.Sim.Aircraft.Config : null;
+            bool jettison = FlyingGame.Core.Vr.CanopySpec.HasJettisonIn(cfg);
+            if (FlyingGame.Core.Vr.CanopySpec.Known(id))
+                return new FlyingGame.Core.Vr.CanopyDynamics(FlyingGame.Core.Vr.CanopySpec.For(id).WithJettison(jettison));
             Bounds lb = LocalBounds(parts);
             // Aeroplane axes: x right (span across the cockpit), y up, z nose (length along the flow).
-            return new FlyingGame.Core.Vr.CanopyDynamics(FlyingGame.Core.Vr.CanopySpec.ForPart(lb.size.z, lb.size.x, lb.size.y));
+            return new FlyingGame.Core.Vr.CanopyDynamics(
+                FlyingGame.Core.Vr.CanopySpec.ForPart(lb.size.z, lb.size.x, lb.size.y).WithJettison(jettison));
         }
 
         /// <summary>
@@ -433,6 +441,13 @@ namespace FlyingGame.Bridge
             }
             static FlyingGame.Core.MathTypes.Vec3 C(Vector3 v) => new(v.x, v.y, v.z);
             var body = new FlyingGame.Core.Vr.CanopyFreeBody(canopy, C(b.center), C(velocityWorld), C(upWorld), C(transform.forward), C(spinWorld));
+            // HOW HARD IT HAS TO MEET THE AIRFRAME TO BREAK: this type's own glazing, through the same constant the
+            // crash model uses for a pane arriving on something (Core Glazing.ShatterClosingMs — 6 m/s cast acrylic,
+            // 8 for the fighters' stretched). Before 2026-11-11 there was no threshold at all and the shell broke on
+            // any contact at any speed, which is how a canopy let go on a parked aeroplane "shattered even though it
+            // didn't hit anything" (Ty).
+            body.ShatterSpeedMs = FlyingGame.Core.Glazing.ShatterClosingMs(
+                FlyingGame.Core.Glazing.MaterialFor(_driver != null ? _driver.AircraftId : ""));
             // WHAT IT CAN RUN INTO on the way past, and who to tell when it does (Ty 2026-11-10: "if it hits the tail
             // or other structure use a mechanical sound for impact and shatter the glass both audibly and visually").
             // The clearance boxes are this aeroplane's own surfaces in its body frame, and the transform is read every

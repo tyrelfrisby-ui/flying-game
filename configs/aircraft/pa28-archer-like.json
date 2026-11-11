@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "pa28-archer-like",
   "displayName": "Archer-like",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "No canopy: an enclosed cabin whose doors stay on their hinges, so there is nothing to jettison."
+  },
   "structureType": "aluminumMonocoque",
   "structureTypeSource": "Piper PA-28 Archer: all-metal aluminium semi-monocoque (Piper PA-28 service manual).",
   "spawnIasMs": 55,
