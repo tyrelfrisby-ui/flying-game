@@ -1,3 +1,23 @@
+## The ten orphaned lanes Ty approved, merged one at a time — Claude, 2026-11-10, lane/claude-backlog-merge
+
+<!-- orphaned-lanes-merge triage-2026-11-10 glb-sidecar-collision parity-lock -->
+
+`docs/pending/ORPHANED-LANES-TRIAGE-2026-11-10.md` classified 75 lanes in neither shipping lane. Ty approved ten of
+them for merging — the READY ones plus the NEEDS YOU ones whose question he answered. They are merged here in the
+order the brief set: trivial first, so an early failure is cheap; the riskiest last. Tests between every merge, so a
+failure is attributable to one lane. **Nothing pushed, nothing merged to `main`, no `--no-verify`.**
+
+Running record, one bullet per lane, newest last:
+
+- **`lane/claude-app-icon`** (`dd679087`) — MERGED. The AP letter icon, 1024 opaque, replacing
+  `unity/Assets/_Project/Art/AppIcon.png` in place under the same GUID `069fd8c6…`, which all 19 iPhone/iPad/App
+  Store slots in `ProjectSettings.asset` already point at — so iOS and iPad get the new icon from the PNG alone.
+  `AGENT-LOG.md` conflicted (both sides kept in full, as always). **One piece of that lane did NOT land:** its
+  `m_BuildTargetIcons` hunk, which sets the *Default* icon so Mac (OSXUniversal) and Quest/Android pick the same
+  texture up. Ty's standing rule for this run is *never commit `unity/ProjectSettings/ProjectSettings.asset`*, so
+  the file was resolved back to ours and the one-line default-icon change is left for him. Without it the Mac and
+  Quest builds keep Unity's stock icon; iOS is unaffected.
+
 ## ASTC 4x4: the textures come out of the GLBs, and the whole fleet with every livery is 0.95 GB — Claude, 2026-11-10, lane/claude-textures
 
 <!-- astc-4x4 glb-sidecar-textures gltfast-external-texture 4gb-limit livery-policy-superseded -->
@@ -13077,3 +13097,10 @@ NEEDS YOU: Ty, approve `renders/grob103/blanc-v1/` and the proposed visual eyes.
 - Copies delivered to `/Users/tyfrisby/Developer/agent-lanes/xfer/grob-blanc-v1/`, including review images, GLBs, attribution, rig and editable Blender scene. Source STL remains in its original transfer folder. Local commit only; no push, merge, deploy or install. No forced add. Required tracked-file ignore audit must be silent immediately before commit; visual approval stays PENDING.
 
 PITTS-V2-MERGED
+
+## 2026-11-04 — lane/claude-app-icon: AP letter app icon (Ty approved)
+- Replaced unity/Assets/_Project/Art/AppIcon.png (same GUID 069fd8c6…, so all 19 iPhone/iPad/App Store icon slots in Player Settings pick it up) with the AP letter icon (aero/vector/png/ap-icon-color-1024.png): 1024×1024, opaque, no alpha (sips hasAlpha: no).
+- ProjectSettings.asset: set the Default icon (m_BuildTargetIcons) to the same texture so Mac (OSXUniversal) and Quest/Android builds get it too (Android adaptive slots stay empty → fall back to default).
+- tools/check-parity.sh: PARITY OK. Branch is off lane/claude-island-nav b7d1a680.
+- BUILD NOT RUN: the parity-merge agent was mid-tests (dotnet test pid 27644) with its iOS/Quest builds queued next; did not start a Unity/xcodebuild alongside it. No install (rides the parity-merge install).
+- NEXT: after the parity merge, merge lane/claude-app-icon into lane/claude-island-nav AND lane/claude-quest-islandnav (ProjectSettings.asset touched — merge carefully with the parity merge's ProjectSettings), then build: need ** BUILD SUCCEEDED **.
