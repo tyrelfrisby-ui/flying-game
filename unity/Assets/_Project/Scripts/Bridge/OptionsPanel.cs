@@ -926,7 +926,10 @@ namespace FlyingGame.Bridge
             FlightAudio.MasterVolume = GUI.HorizontalSlider(new Rect(_x + _cw * 0.4f, y + _lh * 0.35f, _cw * 0.6f, _lh * 0.4f), FlightAudio.MasterVolume, 0f, 1f);
             y += _lh + _gap * 0.4f;
             // Intercom + radio (owner 2026-10-01): intercom = voice-activated, heard in headphones; radio = hold TALK.
-            if (Check("Intercom: talk and hear yourself (headphones)", VoiceComms.IntercomOn, ref y)) VoiceComms.IntercomOn = !VoiceComms.IntercomOn;
+            // The tick no longer opens the microphone on its own (VoiceIO.mm MicWanted, 2026-11-10): it says the
+            // sidetone MAY play, and the VOX button on the flight screen decides whether anything is listening. The
+            // label has to say so, because the old one promised a hot mic that the checkbox no longer gives.
+            if (Check("Intercom: hear yourself in your headphones — arm VOX in flight to use it", VoiceComms.IntercomOn, ref y)) VoiceComms.IntercomOn = !VoiceComms.IntercomOn;
             // Q7 (Ty 2026-11-04): with a TV connected the radio and intercom stay here or in the headset.
             if (VoiceComms.RouteNote.Length > 0) Note(VoiceComms.RouteNote, ref y);
             UiLayout.Label(new Rect(_x, y, _cw * 0.38f, _lh), "Radio frequency", _label);
