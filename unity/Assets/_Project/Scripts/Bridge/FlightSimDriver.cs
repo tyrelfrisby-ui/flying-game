@@ -227,6 +227,12 @@ namespace FlyingGame.Bridge
             }
             var config = UnityAircraftConfigLoader.LoadFromStreamingAssets(AircraftId);
             SessionSettings.ApplyFeel(config);   // the user's expo / dead-zone tuning (OPTIONS)
+            // The Developer page's knobs, put back on the aeroplane that has just been read off disk. THIS CALL IS
+            // WHAT MAKES THEM PERSIST AT ALL: the config is re-read from StreamingAssets on every spawn, so a value
+            // written onto the live config is gone by the next FLY without it. It also captures this aeroplane's
+            // shipped defaults the first time it is seen, which is what RESET goes back to, and it runs before the
+            // Aircraft is built because the g limits and the tyre are read into the airframe at construction.
+            TuningPrefs.ApplyTo(config);
             // (The 2026-10-30 SessionLoading.Apply stood here. The 2026-10-31 loading model applies the load
             // through Sim's setter instead - SessionSettings.ApplyLoadTo - which also covers AdoptSim.)
             AircraftName = string.IsNullOrEmpty(config.DisplayName) ? AircraftId : config.DisplayName;
