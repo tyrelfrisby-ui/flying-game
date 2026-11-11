@@ -239,8 +239,11 @@ agree.
   trailing edge, cable-connected across the centre section.
 - **No trim tab, no trim spring, no centering spring on any axis.** Stabilizer incidence is 0° and ground-set. The
   config therefore uses `trimType: "tab"` — the repo's default, which sets the elevator's free-float angle, the
-  same choice the Super Cub and the Stearman use for their adjustable stabilizers. **[E]** on there being no
-  in-flight adjustment.
+  same choice the Super Cub uses for its adjustable stabilizer. **[E]** on there being no in-flight
+  adjustment. (This line said "the Super Cub and the Stearman … for their adjustable stabilizers" until
+  2026-11-10; **the Stearman has no adjustable stabiliser** — its pitch trim is a ±15° elevator trim tab and
+  its stabiliser is fixed, per TCDS A-743 Rev 16 and the 1941 Pilot's Handbook. See
+  docs/research/STEARMAN-PT17-DATA.md § 1.)
 - **Unbalanced plain surfaces** — no horn balances, no mass balances. Hinge-moment coefficients are set one step
   heavier than the horn-balanced Stearman's for that reason (aileron Ch_δ −0.55 against the Stearman's −0.45,
   elevator and rudder −0.50 against −0.40): **[E]**, a class estimate from the documented absence of balance, which
@@ -290,7 +293,7 @@ Two candidates, and the measurement rules one of them out.
 
   | | sim Vso | book stall | |
   |---|---|---|---|
-  | Stearman PT-17 | 53 mph | 52 mph | on the nose |
+  | Stearman PT-17 | 53 mph | 52 mph | on the nose — **but see below: both halves of this row were wrong** |
   | Pitts S-2B | 68 mph | 56 mph | reads 21 % **high** |
   | Jenny JN-4D | 38 mph | 45 mph (minimum level) | reads 16 % **low** |
   | C172 — the monoplane control | 62 mph | 55 mph | reads 13 % **high** |
@@ -301,6 +304,19 @@ Two candidates, and the measurement rules one of them out.
   The Stearman and the Pitts are both limited by **elevator authority** before their wings stall (the known item:
   full aft stick pins the Pitts at α 13° and the Stearman at α 10°), so neither of them is actually measuring its
   wing. The Jenny has the elevator to reach its wing's real peak, which is why it is the type that exposes this.
+
+  **2026-11-10, and this is now evidence FOR the interference term rather than against it** (lane/claude-stearman-elev, docs/research/STEARMAN-PT17-DATA.md). The Stearman row above is wrong twice over.
+  The "book stall 52 mph" is **Jane's LANDING speed**, not a stall; the primary stall figure is the 1941
+  Pilot's Handbook's **53 mph at 50 % fuel and oil**, i.e. at about 2529 lb, which at the model's 2646 lb
+  is **54.2 mph**. And the reason the Stearman is elevator-limited is diagnosed: its CG sits at +0.24 in aft
+  of the TCDS datum in an envelope that runs −1.0 to +7.1 in, and its stagger is 17.7 in against a
+  certificated 26-13/16 in, between them leaving it with **25.4 % of static margin** — the highest in the
+  fleet. Put the CG where A-743's own loading arms put this mass and fix the stagger, and the wing DOES
+  reach its stall on 60 % of the travel — at **49.0 mph, 9.6 % BELOW** the weight-corrected book, a trimmed
+  CLmax of 1.47 where the book speed needs 1.20. So the Stearman, once it is measuring its wing, reads
+  **22 % high** on CLmax: the same direction as the Jenny and the same direction the missing interference
+  term would move. Two of the three biplanes now read high and the "no biplane-wide bias" argument above
+  rests on the Jenny alone.
 
 Pinned by `JennyPerformanceTests.StallsBelowItsPublishedMinimumLevelSpeed`, which asserts the stall stays below
 45 mph and inside 34–45, so the gap cannot widen unnoticed in either direction.

@@ -643,6 +643,453 @@ that is the right place to spend it, and the **oldest** marks go first.
   `tab`, with that reasoning in the comment.
   Tests: `SurfaceHinge|C172InteriorVisible|Livery|NoRed233|OwnModel` — **52 passed, 4 failed, and the four are the
   baseline's `J3OwnModelTests`.**
+## Three flight reports, measured: the spoiler is not the roll-out, the Great Lakes was never given the Pitts' recovery, and the 2-33's pitch mode — Claude, 2026-11-10, lane/claude-stearman-elev
+
+<!-- rudder-roll-coupling flat-spin-recovery fin-sidewash stab-high-alpha pitch-damping 2-33-phugoid -->
+
+Three reports arrived from Ty while the spoiler coefficient was going on to the ten plate-tailed types, each of
+which could have meant the sweep was wrong. Each is answered here with a measurement rather than a story, and
+**no coefficient was fitted to any of them**: all eleven types carry the Pitts' 0.6 unchanged.
+
+> "Inverted spins roll out again and flat spins do[n't] recover beggs mueller and are very difficult to recover at
+> all so go ahead with the spoiler work"
+> "The inverted spin with right rudder rolls to knife edge then upright"
+> "The Great Lakes has similar overly flat and overly difficult upright flat spin recovery. Inverted is fine"
+> "The 2-33 has negative dynamic stability about the lateral axis" / "Ie in pitch" / "It has had negative dynamic
+> stability for quite some time now"
+
+### 1. The inverted roll-out is not the spoiler, and the geometry says it cannot be
+
+`RudderRollCouplingProbe`, RUDDER_ROLL=1. For a VERTICAL surface `AeroModel` builds `dragDir = (dx, dy, 0)` and
+`liftDir = (dy, -dx, 0)` — both strictly in the body x-y plane — so the spoiler force has **no z component**. A
+force (Fx, Fy, 0) at (x, y≈0, z) makes roll `Mx = −z·Fy` and yaw `Mz = x·Fy`: **one force on two fixed arms**, the
+fin's height above the CG and its station aft. So the roll:yaw ratio of the rudder's own contribution is geometric
+and `k` cannot touch it. Measured, area-weighted over every vertical strip:
+
+| | Pitts | Extra | Decathlon | Great Lakes | 2-33 | Stearman |
+|---|---|---|---|---|---|---|
+| fin above CG / aft of CG | 0.166 | 0.128 | 0.174 | 0.156 | 0.132 | 0.158 |
+| so \|p_dot\|/\|r_dot\| | **0.49** | 0.47 | 0.44 | 0.27 | 0.22 | 0.36 |
+
+**The rudder never makes more roll than yaw on any of them, at any k.** And measured through the sweep: the
+|p/r| ratio at k 0.6 stays within a few hundredths of that geometric value across α −90 to −30 and +30 to +90,
+on the Pitts and on the types that gained k alike. Roll damping at those same attitudes is healthy — dL/dp −2.0
+to −2.5 /s on the Pitts, −3.6 to −5.1 on the Decathlon, −6 to −13 on the 2-33 — anti-damped only at α ±30, which
+is the autorotation band and is what makes a spin a spin. **So the roll axis is neither anti-damped nor
+over-coupled to the rudder, and the spoiler is not the roll-out.** Ty's own third report settles it independently:
+the Great Lakes has the identical tail treatment and its inverted spin is fine.
+
+**ONE THING THE PROBE FOUND THAT NOBODY HAD ASKED.** At zero sideslip and no rates the two k columns come out
+BIT-IDENTICAL at every alpha on every type, and the reason matters for how this term is reasoned about: a vertical
+strip's `alphaBase` is `atan2(v, u)` — its own **in-plane** angle, i.e. the local sideslip — not the body alpha.
+With no yaw and no rotation that angle is zero, so **the rudder's spoiler ramp never opens however broadside the
+aeroplane is**. Body alpha alone does not reach it. In a spin it opens because the ROTATION gives the fin local
+sideslip. Where it does open, the effect is large: at α ±90 with a 4.5 rad/s spin the Pitts' rudder goes from
+exactly **0.00 deg/s² at k 0 to 5.26 at k 0.6** — from dead to alive — and the Decathlon and 2-33 the same.
+
+### 2. The Great Lakes' flat spin: it has one of the three terms the Pitts' recovery was built from
+
+`BeggsTimingProbe` now takes BEGGS_TYPE, so the second type can be flown with Ty's own Pitts entry (stall, two
+turns of normal spin left, then power and right aileron). Great Lakes, spoiler k 0 against 0.6:
+
+| k | flat spin α | r | s/turn | rotation stopped | out at α |
+|---|---|---|---|---|---|
+| 0.0 | 83.5° | −4.18 | 1.50 | **never** | 69.6° |
+| 0.6 | 84.8° | −4.23 | 1.49 | **never** | 71.5° |
+
+**The spoiler coefficient does not recover the Great Lakes' flat spin, and makes it 1.3° flatter.** That is the
+honest answer to the report, and it is not a surprise once the configs are laid side by side:
+
+| | finSidewashK | stabHighAlphaK | controlSpoilerK |
+|---|---|---|---|
+| Pitts | **0.5** | **1.9** | 0.6 |
+| Great Lakes | 0 | 1.0 | 0.6 (this commit) |
+
+The Pitts' own `finSidewashKSource` says the recovery needs the combination and not any one of them — *"the
+recovery needs BOTH 1.9 of stab and 0.5 of sidewash"*, and *"the recovery is affordable at 0.5 only because
+ControlSpoilerK reaches the rudder now"*. **The Great Lakes was never given the first two.** So "the Great Lakes
+has the same problem" is not a second instance of an unexplained defect; it is an aeroplane carrying one of three
+terms.
+
+Whether to give it the other two is **not a mechanical port and not a lane's call**: on the Pitts those same two
+knobs set the flat-spin ATTITUDE and broke then fixed the inverted flat spin, and Ty judged every one of those
+values by flying them (0.9 of sidewash was reverted the same day — *"it is too nose low and too easy to recover
+from both upright and inverted flat spins"*). The Great Lakes' inverted spin is the one he says is **fine**, and
+these knobs are exactly what would move it. It is also a second shared config change, which the parity lock does
+not allow this lane. The sweep is measured above for whoever takes it.
+
+### 3. AND WHAT THE GREAT LAKES ACTUALLY NEEDS, swept — both halves of his complaint move with ONE knob
+
+`BeggsTimingProbe` with BEGGS_TYPE=great-lakes-like, BEGGS_SPOIL=0.6, sweeping the Pitts' two recovery knobs:
+
+| finSidewashK | stabHighAlphaK | flat spin α | s/turn | turns to stop rotating | out at α |
+|---|---|---|---|---|---|
+| **0 / 1.0 (as shipped)** | | **84.8°** | 1.49 | **never** | 69.6° (still spinning) |
+| 0 | **1.9** | **78.7°** | 1.49 | **4.70** | 19.1° (recovered) |
+| 0.5 | 1.0 | 83.2° | 1.56 | never | 68.9° |
+| **0.5** | **1.9** | **75.3°** | 1.62 | **3.34** | 19.7° |
+| 0.9 | 1.0 | 81.9° | 1.62 | 9.24 | 18.7° |
+| 0.9 | 1.9 | 72.3° | 1.73 | 2.50 | 20.9° |
+
+**`stabHighAlphaK` is the term, and it moves BOTH halves of what he said.** "Overly flat": 84.8° → 78.7° at 1.9
+alone. "Overly difficult to recover": never → 4.70 turns at 1.9 alone, and the fin sidewash then shortens it
+(3.34 turns at 0.5, 2.50 at 0.9) rather than causing it. At stabHighAlphaK 1.0 it does not recover at any fin
+sidewash below 0.9. **That is the Great Lakes' version of the Pitts' trade, measured, and ready for whoever gets
+the sync** — and it is a flying judgement, not a port, for the reason in § 2: those same knobs are what moved the
+Pitts' inverted flat spin over a cliff between 0.8 and 0.9, and the Great Lakes' inverted spin is the one Ty says
+is FINE.
+
+### 4. The 2-33's pitch mode is not the flat-plate tail, and his own words said so first
+
+`PitchDampingProbe`, PITCH_DAMP=1. Ty: *"It has had negative dynamic stability for quite some time now"* — and the
+flat-plate conversion landed **the same day** (b7396cd0), so "quite some time" ruled the plate out before anything
+was measured, however well the mechanism reads on paper. (It does read well: the plate's table peaks at Cl 0.900
+at α 9° and declines monotonically past 50°, so a tail working on the declining branch contributes pitch damping
+with the WRONG sign.)
+
+**The branch is not reached.** The 2-33's hStab is rigged at **−5.0°**, so with the downwash its tail sits far
+below the body alpha — measured at trim and across the band it flies. And measured both ways, plate against the
+`naca0012-like` tail it had before b7396cd0, about the TRIMMED state rather than at a round alpha with the
+controls neutral. The numbers are in the probe; the conclusions are:
+
+**ALL TWELVE PLATE-TAILED TYPES HAVE HEALTHY PITCH DAMPING ABOUT THEIR OWN TRIM**, and the tail nowhere near the
+plate's declining branch. dM/dq per Iyy, 1/s, with the elevator held where trim put it (negative = damped):
+
+| | 2-33 | Gt Lakes | Decathlon | J-3 | J-3 flt | PA-18 | PA-18 bush | PA-18 flt | Stearman | Jenny | Pawnee | Pitts |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| tail's own α at trim | −0.93° | −0.90° | −0.11° | +0.82° | +2.09° | +0.42° | +1.54° | +1.80° | −2.76° | +0.95° | −1.28° | +1.19° |
+| dM/dq, plate | −2.013 | −2.843 | −3.474 | −2.421 | −1.880 | −2.102 | −1.946 | −1.608 | −3.333 | −2.964 | −2.263 | −2.312 |
+| dM/dq, 0012 | −2.010 | −2.836 | −3.468 | −2.415 | −1.877 | −2.097 | −1.941 | −1.605 | −3.316 | −2.955 | −2.259 | −2.308 |
+
+**The plate changes the trimmed pitch damping by under 0.3 % on every type**, and every tail sits between −2.8°
+and +2.1° of its own local angle — the 9° branch is not reached in trimmed flight on any of the twelve. Masking the
+VERTICAL tail out changes dM/dq in the fourth decimal, so the fin is ruled out too, as asked.
+
+Across the 2-33's own band the plate holds −2.01 from body α −4 to +12 and only goes anti-damped at body **α 18**
+(+0.015, where its tail is at 15.5°) — against the 0012's −0.517 there. So the plate IS worse, past the stall, and
+only past the stall.
+
+**WHAT HIS REPORT ACTUALLY IS: THE FREE ELEVATOR, NOT THE TAIL SECTION.** Flown — trimmed, hands off, a 1 s pull at
+t = 30 s, then hands off, with the speed trace's turning points counted as phugoid half-cycles:
+
+| | growth per cycle | |
+|---|---|---|
+| 2-33, **stick-free**, plate | **1.120** | DIVERGENT |
+| 2-33, **stick-free**, 0012 | **1.200** | DIVERGENT — **worse without the plate** |
+| 2-33, stick-fixed, plate | 0.965 | damped |
+| 2-33, stick-fixed, 0012 | 0.980 | damped |
+| **Swift S-1**, stick-free, its own never-converted composite tail | **1.345** | DIVERGENT |
+| Swift S-1, stick-fixed | 0.996 | damped |
+
+So: the 2-33's pitch mode **diverges only with the controls FREE**, it diverges **more** with the old 0012 tail
+than with the plate, and it diverges **worse still on the Swift S-1, whose tail was never converted at all**. The
+flat plate is not the cause and never was — it is a small improvement. The cause is the reversible free-floating
+elevator, which is old code, which is what "quite some time" means.
+
+**AND THE SUITE HAS BEEN PERMITTING IT BY DESIGN.** `ReversibleControlTests.HandsOffHoldsTrimAndReturnsAfterAPull`
+asserts, for a glider, only `free.late < 2.0 * free.early` — *"glider: stick-free phugoid must not run away"* — with
+its own comment explaining that a glider's phugoid is nearly undamped by real physics (ζ ≈ 1/(√2·L/D) ≈ 0.03 at
+L/D 23) and that "the 2-33 stick-FIXED barely damps". A 1.12 growth per cycle passes that threshold comfortably. So
+this is not an unnoticed regression; it is a tolerance somebody chose, and Ty has now flown it and does not accept
+it. **That is his call to make and the threshold is where to make it**, and it belongs on the free-control model
+(hinge moments, `freeTauS`, the float angle), not on the tail section. Nothing here was changed.
+
+### 5. The rig pin is NOT broken — it is red, on seven types, and nobody's filter was running it
+
+Asked whether `RigTests.ConfigRigMatchesTheHandCopiedTable` is passing against a stale table or simply not being
+run, the answer is the second, and it was one command to find out. Run on this lane's tip, `RigTests` gives
+**8 failures of 35**, none of them in anyone's known-failure list:
+
+```
+  pitts-s2b-like:         aileron rig 0.0947° vs table 0.386°
+  great-lakes-like:       aileron rig 0.2375° vs table 0.441°
+  j3-cub-floats-like:     aileron rig 0.1005° vs table 0.377°
+  j3-cub-like:            aileron rig 0.0978° vs table 0.279°
+  extra-300-like:         aileron rig 0.1244° vs table 0.202°
+  pa18-floats-like:       aileron rig 0.2716° vs table 0.234°
+  dhc2-beaver-floats-like: aileron rig 0.2895° vs table 0.278°
+  RigTests.EveryConfigIsInTheTable: glider-grob103-acro-like has a config and NO RigTable row
+```
+
+Two things to note. **It fails on the AILERON rig, which is asserted before the fin**, so the fin-offset
+discrepancies reported elsewhere are real but this test has not reached them — it stops at the first line. And
+**`EveryConfigIsInTheTable` is red for a different reason entirely**: the Grob 103 has a config and no table row,
+which is a gap in the table rather than a stale value in it.
+
+**Re-running `RigTool` for the twelve is not possible on this lane.** It is a change to twelve shared configs and
+the parity lock allows a lane exactly one leading shared commit while the lanes are in sync; `controlSpoilerK` has
+taken it. It needs a sync first, and it is a change that should land on its own anyway.
+
+**The authority and damping numbers in this lane are NOT contaminated by the rig, and that is structural rather
+than lucky.** `config.Rig.FinOffsetRad` enters `AeroModel` as a constant additive incidence on every vertical
+strip and `config.Rig.AileronRad` as a constant addition to the aileron deflection (AeroModel.cs:865-866). Every
+number measured here is a DIFFERENCE taken at one flight condition — `m(−e) − m(+e)` for authority,
+`m(q+) − m(q−)` for damping, `m(rudder) − m(neutral)` for the rudder coupling — so a constant cancels exactly.
+What the rig CAN move is the flown work: the Beggs-Mueller runs and the phugoid, and the trim-solved Vso (the
+Stearman's own fin offset is 0.277°). Those should be re-measured after a re-rig; the static tables should not.
+
+### What was NOT done, and why
+
+The history bisect of the 2-33's divergence is not needed — the stick-free/stick-fixed and plate/0012 splits above
+localise it without walking commits, and a bisect would have landed on whenever reversible controls arrived.
+`PittsSpinWakeTests.IdleSpinsAreUnchanged` was NOT bisected: that is a day's work on a loaded machine and it is
+not this lane's job. But the baseline failure messages say something about those assertions that should not wait,
+because what they actually assert is not what it has been taken to be. Measured on this lane's pristine tip:
+
+| failing assertion (pristine lane tip) | range | actual | direction |
+|---|---|---|---|
+| `UprightFullPowerOutSpinFlatStaysWithinTheCapAndRecovers` | 86 – 95 | **83.02** | **shallower** than the floor |
+| `UprightFullPowerWithoutAileronIsJustShyOfFlat` | 82 – 87.5 | **78.36** | **shallower** |
+| `IdleSpinsAreUnchanged` | 30 – 33 | **28.26** | **shallower** |
+| `UprightPartPowerWithoutAileronIsANormalSpinAndRecovers` | 30 – 40 | **56.02** | **far FLATTER** |
+
+**So it is NOT four assertions saying the Pitts is too flat.** Three say its spins are 2–4° SHALLOWER than their
+pins and one says a part-power spin is 16° FLATTER. What they have in common is that **the attitude spread between
+part power and full power has collapsed**: the pins want a part-power spin at 30–40° and a full-power one at
+86–95°, 46–65° apart, and the model now gives 56° and 83° — 27° apart. The Pitts' spin attitude has stopped
+depending on power the way it was pinned to.
+
+That matters two ways. It is a coherent single signature rather than four separate breakages, and the obvious
+candidates both landed today and both REDUCE the tail's force — `daf52725` moved all 26 fins to `fin-lowAR` (2-D
+6.30/rad down to 3.724/rad) and `b7396cd0` made twelve horizontal tails flat plates — so `IdleSpinsAreUnchanged`
+is more likely reporting today's section changes than an old regression, and a bisect should start there. And it
+means **only ONE of the four agrees with Ty's "overly flat"** — the part-power case — while the full-power cases
+read shallower than the numbers somebody set for them. Before anything is tuned toward "less flat", that
+disagreement between his report and three of these pins has to be resolved, or the tuning will chase both ways at
+once.
+
+**Three things are measured here and need a PARITY SYNC before they can land, because each is a shared config
+change and NO shared change can land on this lane at all: the lock refuses one while a lane already differs from
+the other, and this lane differs from `lane/claude-quest-islandnav` in 120 shared files (23 shared commits this
+lane lacks). `controlSpoilerK` itself is a saved patch for that reason.** the Great Lakes' `stabHighAlphaK`
+(§ 3, the numbers are swept and ready), `RigTool` re-run for the twelve plate-tailed types (§ 5), and the
+Stearman's CG and stagger (its own AGENT-LOG entry, and Q162).
+
+**And one thing is Ty's and not a lane's:** the 2-33's stick-free phugoid growth. The mechanism is named (§ 4),
+the threshold that permits it is named, and both halves are a judgement about how a reversible glider should feel
+hands-off — his, and he has flown the real one.
+
+## The Stearman's CG is 3.3 inches too far forward, and its stagger is 9 inches short — Claude, 2026-11-10, lane/claude-stearman-elev
+
+<!-- stearman tcds-a-743 forward-cg stagger static-margin elevator-limited-vso biplane-interference -->
+
+Ty, told that at its own Vso the Stearman needs 27.4° of elevator against a 29.8° stop so what the sim reports as
+its stall speed is an elevator-limited minimum trim speed: **"Investigate it properly"**, explicitly over *"just
+give it more travel"*, with the reasoning he gave and accepted: *something is wrong — either the elevator is too
+small, the travel too limited, the CG too far forward, or the tail volume is off — and raising the stop would hide
+whichever of the four it is.* He added that it is legitimate for the answer to be that the aeroplane is right and
+the test is measuring an elevator limit.
+
+**IT IS THE THIRD OF HIS FOUR — THE CG — AND THERE IS A SOURCED CAUSE UNDERNEATH IT THAT IS NOT ON HIS LIST: THE
+STAGGER IS 9 INCHES SHORT.** Both come out of one primary document. Full sourcing, verbatim, in
+`docs/research/STEARMAN-PT17-DATA.md`; the measurements are `StearmanElevatorLimitProbe` (`STEARMAN_ELEV=1`).
+
+**The document is FAA TCDS A-743 Rev 16 (25 April 2023), read page by page out of the FAA Dynamic Regulatory
+System** (`rgl.faa.gov` is dead). `Datum — Leading edge of lower wing`. `C.G. Range — (-1.0) to (+7.1)` inches,
+identical in Section I and Section II (A75N1 = PT-17). `Elevator — Up 24° — Down 22°`. NOTE 5: `Incidence — Upper
+wing 4°, lower wing 3°`, `Stagger — 26-13/16" plus or minus 1/8" at strut point`.
+
+**THE TRAVEL IS RULED OUT, AND BACKWARDS.** The certificate allows **24° up**; the config has **29.8° symmetric**,
+which is this repo's generic default (0.52 rad on 21 of 35 types), not a PT-17 figure. The model already has 24 %
+MORE up travel than the real aeroplane. Setting the real stops makes it worse (Vso 55.9 mph at 97 % of 24°), so
+"give it more travel" would have taken the model *further* from the aeroplane — the instruction not to do it was
+right for a stronger reason than the one it was given for.
+
+**THE CG, IN THE CERTIFICATE'S OWN INCHES.** The model's lower-wing leading edge — A-743's datum — is at model
+station x −0.044 m and the CG is at x −0.050 m, so **the CG sits at +0.24 in aft of datum, 15 % of the way into an
+8.1-inch envelope.** A-743 gives no empty weight but gives every loading arm (engine −55, seats +19 and +55, fuel
+−5, oil −26), so the loaded CG can be computed the way the certificate intends: with 170 lb a seat, full fuel and
+oil, **a dual load off a ~2000 lb empty airframe weighs 2649 lb — this model's own 1200 kg — and sits at +3.53 in.**
+The model's CG is **3.3 in (0.084 m) too far forward**, and only an aeroplane at the extreme −4.4 in empty CG would
+sit as far forward as the config does.
+
+| CG, in aft of A-743 datum | Vso | elevator | body α (wing CLmax at 13.50°) | static margin |
+|---|---|---|---|---|
+| −1.00 — certificate FORWARD limit | 56.1 mph | 98 % | 8.05° | 27.5 % |
+| **+0.24 — as configured** | **54.4 mph** | **98 %** | 9.02° | **25.4 %** |
+| +3.53 — this mass on A-743's arms | 50.3 mph | 89 % | 11.80° | 19.9 % |
+| **+7.10 — certificate AFT limit** | **49.2 mph** | **71 %** | 12.38° | **14.0 %** |
+
+**That is the aft-CG number: at the certificate's aft limit it stalls at 49.2 mph on 71 % of travel, and the stall
+is the wing's.** (98 %, not the 92 % this opened with — the game's Vso scan steps 0.5 m/s = 1.1 mph and happened to
+stop just short of the stop. At 0.1 m/s it is pinned from 24.0 m/s down.)
+
+**THE STATIC MARGIN IS THE TELL, AND IT POINTS AT THE STAGGER.** 25.4 % of chord is the **highest in the fleet** —
+PA-18 17.7, Pitts 11.2, Great Lakes 11.1, Jenny 6.3 — and `AeroModel`'s own note on the hinged-section rework calls
+25–70 % the symptom of the 2-D-slope bug it fixed and **5–20 % the real light-aeroplane band**. The cause: the
+model's leading-edge stagger is **17.7 in** against a certificated **26-13/16 in**, so the upper wing is 0.231 m
+too far aft, dragging the cellule's area-weighted lift 0.117 m aft of where it belongs. `git log` says where it
+came from: on **2026-09-08 (630ba1d4, "wings re-centred on the CG")** both wings were moved aft 0.274 m and the CG
+was left where it was. Before that move the CG was 11.0 in aft of datum — *outside* the aft limit — and the move
+overshot by about 0.07 m. Which wing is misplaced is decided by the certificate too: move the LOWER wing aft
+0.231 m instead and the datum moves with it, putting the CG **8.9 in FORWARD** of datum — far outside the
+−1.0 in forward limit — while moving the cellule's lift centroid aft as well, so the static margin gets worse.
+So it is the upper wing, forward. A-743's own arms corroborate 26-13/16: the fuel tank is in the upper-wing centre section at
+(−5) in, and a tank at ~40 % of a 60 in chord puts the upper leading edge about 29 in forward of the lower one.
+
+| variant | Vso | elevator | body α | static margin |
+|---|---|---|---|---|
+| as shipped | 54.4 mph | 98 % | 9.02° | 25.4 % |
+| decalage to A-743 (upper 4 / lower 3 — **the config has them reversed**) | 53.0 mph | 98 % | 9.88° | 25.7 % |
+| **stagger to 26-13/16 in** | 49.7 mph | 87 % | 12.28° | **18.6 %** |
+| **decalage + stagger + CG at +3.53 in** | **49.0 mph** | **60 %** | 12.33° | **13.4 %** |
+
+**THE OTHER TWO OF THE FOUR, AND THE FIFTH THING HE ASKED ABOUT.** *Elevator too small*: it is 32.0 % of the
+horizontal tail's area where its contemporaries here are 43.4 % (Great Lakes, Jenny) and the Cubs 38.6 %, and
+moving chord from the hStab row to the elevator row at constant tail area (32 → 43 %) cuts the deflection needed
+from 27.5° to 23.7° and **does not move Vso at all** — it changes how much stick, not what speed. *Tail volume
+off*: Vh 0.383 is the lowest of the powered fleet (next 0.425, the rest 0.44–0.48) and the tail span is 11 ft 10 in
+against a type-club 12 ft 6 in, but the 2-33 flies at Vh 0.316 using 28 % of its travel, so Vh is not what sets the
+margin. **Both are open items and NEITHER can be settled**: the real stabiliser area, elevator area, total tail
+area and moment arm are **genuinely unpublished** — not in A-743, not in the 1941 Navy handbook, not in Jane's, not
+in the parts catalog, and there is no NACA report on the Model 75. They are in AN 01-70AC-4, which is paid paper.
+**Nothing in this investigation guesses them.** *Downwash and tail q*: ruled out — at the limiting condition every
+hStab strip reads local α 2.74°, downwash 3.49°, **η_t 0.823**, i.e. dε/dα ≈ 0.40 and a healthy tail q.
+
+**THE Vso THE MODEL WAS BEING MEASURED AGAINST WAS THE WRONG NUMBER.** The "book 52" is **Jane's LANDING speed**.
+The primary stall figure is the *Pilot's Handbook for Stearman Airplanes N2S-1/-2/-3* (Report A75NI-9001, 20 Jan
+1941), Table of Characteristics: **53 mph "*With 50% Fuel and Oil Consumed"** at a 2682.7 lb normal gross — so at
+about 2529 lb, where this model flies at 2646 lb. The comparable figure is **54.2 mph**, and the model reads 54.4.
+
+**SO THE NUMBER WAS RIGHT AND THE MECHANISM WAS WRONG, AND FIXING THE MECHANISM BREAKS THE NUMBER.** Corrected
+(CG + stagger + decalage) the Stearman stalls at 49.0 mph — **9.6 % BELOW** the weight-corrected book — on a
+trimmed CLmax of **1.47** where the book speed needs **1.20**, i.e. **22 % high**. The forward CG and the aft wing
+have been masking a cellule CLmax that is too high, and the right stall speed has been coming out of two
+compensating errors. That is exactly the item `docs/research/JN4-JENNY-DATA.md` logs as *"biplane interference,
+which the strip model does not have at all"*, whose own reason for doubt was that *"neither [the Stearman nor the
+Pitts] is actually measuring its wing"*. It isn't; now we know what it reads when it is, and it reads high in the
+same direction as the Jenny. That file is corrected.
+
+**NOTHING WAS CHANGED IN ANY CONFIG FOR THIS.** Moving the CG and the stagger changes the whole aeroplane — static
+margin, trim, the rig, the glide table, the STOL spawn, the approach speeds, even the taildragger stance angle
+(7.9° of nose-over margin now, 11.0° at the correct CG) — and whether to do it *together* with the cellule CLmax or
+to leave the two compensating errors standing until an interference term exists is Ty's call, not a lane's. The
+parity lock is harder than the brief assumed: it refuses ANY shared change while a lane already differs from the
+other, and this lane differs from `lane/claude-quest-islandnav` in **120 shared files** (23 shared commits this
+lane lacks). So **no config on this lane can move at all until a sync** — `controlSpoilerK` is sitting as a saved
+patch for the same reason. Queued for Ty as **Q162**.
+
+**ALSO FOUND AGAINST A-743 AND NOT ACTED ON.** Load factors: the certificate's NOTE 7 gives **+6.67 / −2.67**, the
+config has +5.5 / −2.5. Wing area 27.30 m² against 297.6 sq ft = 27.65 m² (−1.3 %). And **the Stearman has no
+in-flight adjustable stabiliser** — its pitch trim is a ±15° elevator trim tab through an irreversible mechanism at
+the stabiliser front spar, 270° of handle for full range, per both the 1941 handbook and A-743;
+`docs/research/CONTROLS-REVERSIBILITY-AND-SPRINGS.md` asserted an adjustable stabilizer at "medium-low confidence"
+with reference 25 reading "(Stearman trim: no primary source found; flagged)", and dismissed "one web hit
+describing an elevator tab with a hand wheel" as "a different, British type". That web hit was right. Corrected in
+that file and in the Jenny's, which repeated it. The `trimType: "tab"` the config already uses is right, for the
+right reason now.
+
+## The spoiler coefficient reaches the other ten plate-tailed types, and the onset stops being inert — Claude, 2026-11-10, lane/claude-stearman-elev
+
+<!-- control-spoiler-k fabric-fleet plate-tail elevator-authority damping-unchanged -->
+
+Ty, told that last night's flat-plate tails gave twelve types `controlSpoilerOnsetDeg` 10 but that the onset was
+**INERT on ten of them** because `AeroModel`'s spoiler block is gated on `controlSpoilerK > 0.0` and only the Pitts
+and the Extra carried a non-zero k, and told the argument that the restriction to two types had been **staging
+rather than a finding** now that all twelve fly a plate tail: **"Do it"**.
+
+**ELEVEN CONFIGS TAKE `controlSpoilerK: 0.6`** — the Pitts' value, carried unchanged rather than refitted,
+because the argument for the term is about the SECTION and not the airframe. Great Lakes, J-3 Cub, J-3 floats,
+PA-18 cub, PA-18 bush, PA-18 floats, 2-33, Jenny, Stearman, Decathlon, Pawnee (ten airframes; the PA-18 cub and
+bush share a tail).
+
+> **IT IS NOT IN THIS COMMIT, AND THAT IS THE PARITY LOCK AND NOT A DOUBT ABOUT THE CHANGE.** The lock refuses
+> ANY shared change while a lane already differs from the other, and this lane differs from
+> `lane/claude-quest-islandnav` in **120 shared files**: the Quest lane carries **23 shared commits this lane does
+> not have**. The brief for this work assumed the lanes were in sync and allowed one leading shared commit; they
+> are not. `tools/check-parity.sh --hook` was run against the staged change and printed BLOCKED, and the change
+> was **not** moved to a `wip/` branch to get round it (docs/PARITY.md names that as the way people dodge the
+> lock). The measured, finished change is saved instead, with its commit message and the three commands that land
+> it, at `~/Developer/agent-lanes/patches/claude-stearman-elev-controlSpoilerK.{diff,msg}` — outside the repo, so
+> it carries no repository hygiene with it. **A sync, then one `git apply`.**
+
+**MEASURED BOTH WAYS IN ONE RUN off the same loaded config** (`SpoilerFleetProbe`, `SPOILER_FLEET=1`), so the two
+columns cannot differ by anything but the coefficient. Authority is the pitching moment the stick's whole travel
+commands at 30 m/s, as a fraction of its own α 0 value; the floor is the worst of it over α 10–60 at a 0.5° step.
+
+| | floor, k 0 → 0.6 | α 45 | α 60 |
+|---|---|---|---|
+| J-3 floats | 0.110 @42 → **0.182** @28 | 0.131 → 0.221 | 0.216 → 0.326 |
+| Great Lakes | 0.109 @40 → **0.214** @40 | 0.192 → 0.308 | 0.261 → 0.403 |
+| J-3 Cub | 0.117 @43 → **0.225** @42 | 0.126 → 0.237 | 0.229 → 0.364 |
+| PA-18 floats | 0.121 @43 → **0.192** @28 | 0.129 → 0.222 | 0.220 → 0.333 |
+| PA-18 cub / bush | 0.126 @45 → **0.240** @44 | 0.126 → 0.241 | 0.232 → 0.373 |
+| 2-33 | 0.146 @40 → **0.256** @40 | 0.199 → 0.319 | 0.302 → 0.449 |
+| Jenny | 0.150 @42 → **0.250** @28 | 0.193 → 0.315 | 0.313 → 0.462 |
+| Stearman | 0.152 @29 → **0.211** @28 | 0.176 → 0.270 | 0.279 → 0.394 |
+| Pawnee | 0.158 @40 → **0.212** @28 | 0.180 → 0.271 | 0.267 → 0.379 |
+| Decathlon | 0.160 @28 → **0.213** @28 | 0.182 → 0.274 | 0.270 → 0.383 |
+
+Between 1.33× and 1.96× on the floor, and about 1.4–1.9× at α 45. **It also moves WHERE the floor is**: on four of
+the ten (Jenny, Pawnee, both floatplanes) the worst point was α 40–43 and is now α 28 — the term fills the hole the
+44° blend left, and the ordinary spin's α becomes the weakest place rather than the deep one.
+
+**THE DAMPING CLAIM WAS VERIFIED, NOT ASSERTED.** The claim is that this costs the pitch damping nothing for a
+MECHANICAL reason: the term carries `sin(gain·deflEff)` and is gated on a non-zero deflection, so it cannot appear
+in a controls-neutral quantity, and dM/dq is one. If it had moved anywhere, the gate would not be what we think it
+is and nothing should have shipped. The worst dM/dq over α 10–60 is **BIT-IDENTICAL at k 0 and k 0.6 on all
+thirteen configs measured** — the eleven that gained it and the Pitts and Extra that already had it. Not "within
+tolerance": the same double.
+
+**Vso, TRIM α AND TRIM ELEVATOR ARE UNCHANGED ON EVERY TYPE, and that had to be measured rather than argued.**
+Unlike `stabHighAlphaK`'s 60–90° band, this term opens at 10° of the strip's OWN flow angle, and a tail strip with
+the stick near its aft stop at the stall is not self-evidently below that. It is: measured on the Stearman at its
+own Vso, the stabiliser's local angle is **2.74°** against the 10° onset, because the downwash there (3.49°) and
+the stabiliser's own negative incidence take it out of the body α. So the ramp never opens in any ordinary flight
+condition, and every one of the thirteen reads the same Vso, trim α and trim elevator to the digit.
+
+**WHAT IT DOES CHANGE is high-alpha pitch authority and therefore the spin on ten types Ty may fly tomorrow.**
+Nothing below the ramp moves at all. The one that is worth his attention in the air: the four Cubs and the two
+floatplanes roughly double their authority at α 45, and the pro-spin-elevator effect he described on the Pitts
+("pushing the stick forward during a spin accelerates the spin") now exists on them too.
+
+**NOTED WHILE MEASURING, NOT CHANGED: the Extra's authority floor is 0.064, at α 60.** It already carries k 0.6
+but keeps the default onset of 30 because its tail is a NACA 0012 and not a plate — and between α 50 and 60 the
+stick's whole travel commands 6 % of what it commands at α 0 (0.217 at α 45, 0.064 at α 60; without the spoiler
+term the same floor would be 0.002). Lowest in the fleet by a wide margin. That is its own question, it is about a
+0012 section and not a plate, and it was not touched.
+
+**ALSO NOTED WHILE MEASURING, AND IT IS NOT FROM THIS CHANGE — the plate tails left real pitch ANTI-damping on
+three types just below the stall.** The worst dM/dq over α 10–60, divided by each type's own Iyy so the types are
+comparable (positive = the tail drives the motion; units 1/s, so it is a divergence rate):
+
+| Jenny | Extra | Pawnee | J-3 | J-3 floats | PA-18 | PA-18 floats | Decathlon | 2-33 | Stearman | Great Lakes | Pitts |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| **+2.57 @α13** | **+1.25 @α15** | **+1.03 @α13** | +0.158 | +0.147 | +0.103 | +0.091 | +0.087 | +0.044 | +0.036 | −0.041 | −0.129 |
+
+The Jenny's +2.57/s is a pitch rate growing e-fold every 0.4 s, at α 13 against a 16.5° stall. The flat-plate
+commit's own note rejected the 9°/0.80 fit because it gave "+448 N·m per rad/s at α 20 — anti-damping right where
+he flies aerobatics"; unnormalised, the Jenny is at **+4781** and the Pawnee at **+2687** on the fit that shipped,
+and the Extra is at +2547 on a 0012 tail that was never converted. **These numbers are bit-identical before and
+after this change** — that is the damping check above — so this is a report about last night's section fit and the
+Extra's own tail, not about `controlSpoilerK`. It is logged, not acted on.
+
+**WHAT ELSE MOVES, AND IT IS THE NUMBER TO KNOW BEFORE HE FLIES THEM.** The same filter run before and after, on
+pristine and on changed configs, moves `StallAuthorityTests`' own per-type figure — **how far past its stall full
+aft stick holds each aeroplane**, which is the handling consequence a pilot feels:
+
+| | Decathlon | J-3 Cub | 2-33 | J-3 flt | PA-18 cub | PA-18 bush | PA-18 flt | Jenny | Pawnee | Gt Lakes | *Pitts* | *Stearman* |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| before | 21.2° | 21.2° | 21.0° | 19.5° | 18.5° | 18.5° | 17.0° | 18.8° | 18.8° | 16.0° | *20.5°* | *9.2°* |
+| after | **22.0°** | **21.8°** | **21.5°** | **19.8°** | **18.8°** | **18.8°** | **17.2°** | **19.0°** | **19.0°** | **16.2°** | *20.5°* | *9.2°* |
+
+**The two unchanged entries are the controls, and both are informative.** The Pitts' config was not touched and it
+reads 20.5° both times, so nothing leaked. And **the Stearman does not move at all** — it sits at 9.2° against a
+16.5° stall either way, because the Stearman is limited by its elevator STOP and its CG and not by the
+coefficient, which is the separate finding in this lane's other entry and is cross-confirmed here: the one type
+whose limit is mechanical is the one type this change cannot help.
+
+**AND IT HAS A COST, named rather than buried.** `StallAuthorityTests.FullAftHoldsJustPastTheStallForEveryAircraft`
+is the suite's known pre-existing failure (red at HEAD on pristine sources, naming six types). After this change it
+names **eight**: the PA-18 cub and bush cross its allowance on that 18.5 → 18.8° step, and the Jenny's entry moves
+18.8 → 19.0. Nothing else in the compared set changes — `GlideTableTests.GlideTableIsCurrent...` fails with a
+**byte-identical** message (the Decathlon's pre-existing stale row), confirming the glide tables do not move, and
+`CreditsReachTheUser`, `SpinTests.TomRecoveryStopsTheSpin` and the Pitts spin classes fail identically before and
+after. Both sides run **18 failures of 82 passed of 101**, and the failing SETS are name-for-name identical. Baseline on
+this lane's pristine tip, for whoever needs the real number: **18 failures of 101** across
+`StallAuthority`, `TailSection`, `StallBreak`, `TrimConvergence`, `SpawnSpeed`, `BestGlidePolar`, `AsiUnits`,
+`ControlPolarity`, `ControlTravel`, `SpinTests`, `GlideTableTests` and the four Pitts spin classes — larger than
+any known-failure list in circulation today, and `RigTests` adds 8 more that nobody's filter was running.
 
 ## ASTC 4x4: the textures come out of the GLBs, and the whole fleet with every livery is 0.95 GB — Claude, 2026-11-10, lane/claude-textures
 
