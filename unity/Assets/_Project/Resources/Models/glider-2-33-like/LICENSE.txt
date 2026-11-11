@@ -1,0 +1,12 @@
+Source: built here, not downloaded. tools/own_models/build_sgs233.py (Blender).
+Model: Schweizer SGS 2-33, two liveries: glider-2-33-like-own.glb (factory yellow; the default) and
+glider-2-33-like-own-tf.glb (the same yellow with Talk Flying markings).
+Author: this project
+License: same as the rest of this repository
+Commercial use: ours to allow
+CREDIT LINE: "SGS 2-33" modelled for this project with tools/own_models/build_sgs233.py
+Note: the geometry is OURS BUT TRACED, not clean-room. The airframe is traced in the builder's own pixel
+frame from a published three-view, with photographs used as the independent check — the wing-root/door
+frame station measured 0.657 m off the drawing against 0.676 m scaled off a photograph, 19 mm apart.
+No third-party mesh was copied. The red-and-white stand-ins and the unused Grob Astir download were
+removed 2026-11-03 at Ty's instruction.

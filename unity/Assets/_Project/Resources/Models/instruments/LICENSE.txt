@@ -1,0 +1,11 @@
+Source: built here, not downloaded. The project's own instrument tooling in tools/own_models/
+(see docs/models/instrument-library.json and docs/models/instrument-style.md).
+Model: the shared instrument library — airspeed, altimeter, attitude, g-meter, heading,
+turn-coordinator and vertical-speed, used across the fleet's cockpits.
+Author: this project
+License: same as the rest of this repository
+Commercial use: ours to allow
+CREDIT LINE: cockpit instruments modelled for this project
+Note: no third-party mesh was downloaded, opened, traced or measured. Dial faces are drawn from
+published markings and ranges; the type-specific values come from each aeroplane's own documents.
+Any lettering is pre-rendered into the paint and no font file ships.
