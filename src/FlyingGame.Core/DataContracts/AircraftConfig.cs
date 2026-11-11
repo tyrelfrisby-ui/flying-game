@@ -763,8 +763,20 @@ public sealed class SpinAeroConfig
 
     /// <summary>
     /// A DEFLECTED CONTROL ON A BROADSIDE SURFACE ACTS AS A SPOILER. Adds a force normal to the FIXED surface's own
-    /// plane, k·sin(δ)·|sin α_chord|·q·S per hinged horizontal-tail strip, ramped in over 30°–50° of the strip's own
-    /// flow angle. 0 = off, which is every type until one is flown with it.
+    /// plane, k·sin(δ)·|sin α_chord|·q·S per hinged horizontal-tail strip, ramped in over 20° from
+    /// <see cref="ControlSpoilerOnsetDeg"/>. 0 = off.
+    ///
+    /// THIRTEEN CONFIGS CARRY 0.6 since 2026-11-10: the Pitts and the Extra, which it was fitted on, and the eleven
+    /// of the fabric fleet whose horizontal tails became flat plates the same day. It is NOT refitted per type —
+    /// the argument below is about the SECTION, not the airframe, so when a type's tail became a plate the argument
+    /// started applying to it, and the restriction to two types had been staging rather than a finding (Ty, shown
+    /// that: "Do it"). On the other eleven it had a second, sharper consequence: the
+    /// <see cref="ControlSpoilerOnsetDeg"/> of 10 they were given with the plate was INERT, because the block in
+    /// <see cref="FlyingGame.Core.Aero.AeroModel"/> is gated on k &gt; 0 — the onset was moving the start of a term
+    /// multiplied by zero. It roughly doubles their post-stall authority floor, costs their pitch damping nothing
+    /// (dM/dq comes out bit-identical at k 0 and 0.6, because this term is gated on a DEFLECTED control and dM/dq
+    /// is controls-neutral) and leaves every type's Vso and trim untouched, which was measured rather than assumed
+    /// (SpoilerFleetProbe, SPOILER_FLEET=1; the per-type numbers are in each config's `controlSpoilerKSource`).
     ///
     /// WHY IT EXISTS: post-stall the section law is CN = Cd_max·sin θ, which is flat at θ ≈ 90°, so a strip model
     /// gives a control on a broadside surface no normal force to command — measured on the Pitts, the elevator's
