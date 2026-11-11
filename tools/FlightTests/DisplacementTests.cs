@@ -53,9 +53,20 @@ public class DisplacementTests
     public void ReserveBuoyancyMeetsTheRule(string id, double minRatio, double maxRatio)
     {
         AircraftConfig c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));
-        double w = c.Mass.MassKg * Atmosphere.GravityMs2;
+        // 23.751 SAYS MAXIMUM WEIGHT, and this test used to read today's loading. The rule is "80 percent in excess
+        // of the buoyancy required by that float to support its MAXIMUM WEIGHT in fresh water" — a float is approved
+        // once, against the placard, exactly as 23.527's water load is (Aircraft.InitFloatWaterLoads). Harmless while
+        // every config authored mass.massKg AS its gross; on 2026-11-11 the J-3 on floats went 589.67 → 451.142 kg,
+        // the aeroplane as flown, and its reserve read 2.67 W against a window of 1.8-2.3 that the row's own comment
+        // derives from the certificate: "Edo 60-1320 floats ... maximum weight 1,300 lb ... 2,640 lb on a 1,300 lb
+        // aeroplane". At the 1,300 lb the comment names it is 2.04. The float did not grow; the divisor shrank.
+        // Every other row here is authored at its own gross, so its placard is its mass and nothing moves.
+        double placardKg = new AircraftLoad(c).PlacardGrossKg;
+        double grossKg = placardKg > 0 ? placardKg : c.Mass.MassKg;
+        double w = grossKg * Atmosphere.GravityMs2;
         (double main, double tip) = FullyImmersed(c);
-        _out.WriteLine($"{id}: weight {c.Mass.MassKg:F0} kg; main floats/hull fully immersed displace {main / 9.81:F0} kg = {main / w:F2} x weight ({main / 9.81 * 2.2046 / (c.Floats!.Count == 1 ? 1 : 2):F0} lb per float){(tip > 0 ? $"; one tip float {tip / 9.81:F0} kg = {tip / w * 100:F1} % of weight" : "")}");
+        _out.WriteLine($"{id}: maximum weight {grossKg:F0} kg{(placardKg > 0 ? " (placard)" : " (authored, no placard)")}, as flown {c.Mass.MassKg:F0} kg; "
+                       + $"main floats/hull fully immersed displace {main / 9.81:F0} kg = {main / w:F2} x weight ({main / 9.81 * 2.2046 / (c.Floats!.Count == 1 ? 1 : 2):F0} lb per float){(tip > 0 ? $"; one tip float {tip / 9.81:F0} kg = {tip / w * 100:F1} % of weight" : "")}");
         Assert.InRange(main / w, minRatio, maxRatio);
     }
 }
