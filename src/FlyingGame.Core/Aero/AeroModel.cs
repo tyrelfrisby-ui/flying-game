@@ -85,20 +85,53 @@ public static class AeroModel
     /// </summary>
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, double[]> _systemAr = new();
     public static double SystemAspectRatio(AircraftConfig config, int surfaceIndex, bool isVertical) =>
-        _systemAr.GetValue(config, cfg =>
+        _systemAr.GetValue(config, cfg => MeasureSystemAspectRatios(cfg, null))[surfaceIndex];
+
+    /// <summary>
+    /// The same, measured over only the strips that are STILL THERE (<paramref name="stripMask"/>, AeroModel strip
+    /// order; null = the aeroplane as authored, which is what the per-config cache above holds).
+    ///
+    /// A WING THAT HAS LOST ITS OUTBOARD PANELS IS A DIFFERENT WING (Ty 2026-11-10, flying a J-3 whose outer panels he
+    /// had torn off: "the glide ratio was inexplicably good it should be bad with short stubby wing roots I assume it
+    /// is counting the missing wing in the aero"). He was right, and about the induced drag rather than the lift: the
+    /// lift of a departed strip really does go (the strip mask drops it from the sum), but the stub that remained went
+    /// on flying at the WHOLE wing's aspect ratio, because this was a per-config cache measured once from the strips as
+    /// authored. Induced drag is cl²/(π·A·e), so a stub flying at A = 6.96 instead of its own 4.17 pays two thirds of
+    /// the induced drag it should — and induced drag is most of the drag at best glide, which is exactly where the
+    /// glide ratio is read.
+    ///
+    /// Measured, J-3: span 10.74 m and A 6.96 whole; with both outboard panels gone the wing is 6.80 m of span and
+    /// 11.09 m² , so A is 4.17. Not cached per config, because the mask is the AIRCRAFT's and two aeroplanes of a type
+    /// are damaged differently; the aeroplane rebuilds this when its mask changes and hands it to
+    /// <see cref="Compute"/> through <see cref="StripFlowState.SystemAspectRatio"/>.
+    /// </summary>
+    public static double[] MeasureSystemAspectRatios(AircraftConfig cfg, bool[]? stripMask)
+    {
+        var start = new int[cfg.Surfaces.Count];
+        for (int i = 0, n = 0; i < cfg.Surfaces.Count; i++) { start[i] = n; n += cfg.Surfaces[i].Strips.Count; }
+        var ar = new double[cfg.Surfaces.Count];
+        for (int i = 0; i < cfg.Surfaces.Count; i++)
         {
-            var ar = new double[cfg.Surfaces.Count];
-            for (int i = 0; i < cfg.Surfaces.Count; i++)
+            string key = SystemKey(cfg.Surfaces[i].Id);
+            bool vert = cfg.Surfaces[i].Id.Contains("vstab", StringComparison.OrdinalIgnoreCase) || cfg.Surfaces[i].Id.Contains("vertical", StringComparison.OrdinalIgnoreCase);
+            var group = new SurfaceConfig { Id = key, Strips = new List<StripConfig>() };
+            for (int j = 0; j < cfg.Surfaces.Count; j++)
             {
-                string key = SystemKey(cfg.Surfaces[i].Id);
-                bool vert = cfg.Surfaces[i].Id.Contains("vstab", StringComparison.OrdinalIgnoreCase) || cfg.Surfaces[i].Id.Contains("vertical", StringComparison.OrdinalIgnoreCase);
-                var group = new SurfaceConfig { Id = key, Strips = new List<StripConfig>() };
-                foreach (SurfaceConfig other in cfg.Surfaces)
-                    if (SystemKey(other.Id) == key) group.Strips.AddRange(other.Strips);
-                ar[i] = GeometricAspectRatio(group, vert);
+                SurfaceConfig other = cfg.Surfaces[j];
+                if (SystemKey(other.Id) != key) continue;
+                for (int k = 0; k < other.Strips.Count; k++)
+                {
+                    int idx = start[j] + k;
+                    if (stripMask is not null && idx < stripMask.Length && !stripMask[idx]) continue;
+                    group.Strips.Add(other.Strips[k]);
+                }
             }
-            return ar;
-        })[surfaceIndex];
+            // A system with nothing left of it keeps its authored ratio: it makes no lift either way, and a zero would
+            // divide into the induced drag of whatever still reads it.
+            ar[i] = group.Strips.Count > 0 ? GeometricAspectRatio(group, vert) : SystemAspectRatio(cfg, i, vert);
+        }
+        return ar;
+    }
 
     /// <summary>
     /// HINGED-SECTION tails (owner 2026-10-06: "research both control power and stick free control position now that the
@@ -638,7 +671,10 @@ public static class AeroModel
             bool isVertical = surface.Id.Contains("vstab", StringComparison.OrdinalIgnoreCase)
                                || surface.Id.Contains("vertical", StringComparison.OrdinalIgnoreCase);
 
-            double aspectRatio = SystemAspectRatio(config, surfaceIndex, isVertical);
+            // The aeroplane's own, where it has one: a wing that has lost panels flies the aspect ratio of what is
+            // LEFT of it (MeasureSystemAspectRatios). Falls back to the config's cache on an undamaged aeroplane.
+            double aspectRatio = flowState?.SystemAspectRatio is { } sysAr && surfaceIndex < sysAr.Length
+                ? sysAr[surfaceIndex] : SystemAspectRatio(config, surfaceIndex, isVertical);
 
             // Wing-body crossflow (dihedral effect of wing position): sideslip flow wraps around the
             // fuselage like 2D potential flow past a cylinder of radius R. A wing root ABOVE the axis
@@ -1211,12 +1247,14 @@ public static class AeroModel
                     double f = 1.0 + (stabHighAlphaK - 1.0) * ramp;
                     lift *= f; drag *= f;
                 }
-                if (flowState?.LiftFactor is { } lf && idx < lf.Length)
-                {
-                    // Branch damage (dented leading edge, torn fabric): less lift and more drag from this strip.
-                    lift *= lf[idx];
-                    if (flowState.ExtraCd is { } xcd && idx < xcd.Length) drag += q * strip.Area * xcd[idx];
-                }
+                // Branch damage (dented leading edge, torn fabric): less lift and more drag from this strip.
+                // THE TWO ARE READ SEPARATELY. ExtraCd used to be nested inside the LiftFactor test, so a strip given
+                // extra drag and no lift loss was silently charged nothing — which is every drag-only damage there
+                // can be, among them the torn end of a wing that has lost its outboard panel
+                // (AircraftContactDamage.AddTornEndDrag, Ty 2026-11-10). Nothing in the fleet wrote one without the
+                // other before, so this changes no existing number: ExtraCd is zero where it is not set.
+                if (flowState?.LiftFactor is { } lf && idx < lf.Length) lift *= lf[idx];
+                if (flowState?.ExtraCd is { } xcd && idx < xcd.Length) drag += q * strip.Area * xcd[idx];
                 double momentC4 = q * strip.Area * strip.Chord * (coeffs.Cm + flapCm);
 
                 Vec3 force = liftDir * lift - dragDir * drag;

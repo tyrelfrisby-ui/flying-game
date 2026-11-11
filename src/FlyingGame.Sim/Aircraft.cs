@@ -886,10 +886,24 @@ public sealed partial class Aircraft
         }
         // Wing panels outboard of their structural station, and what their ailerons and slave struts do (contact damage).
         OnComponentLostStructure(comp);
+        // WHAT IS LEFT IS A DIFFERENT WING (Ty 2026-11-10, having torn the outer panels off a J-3: "the glide ratio was
+        // inexplicably good it should be bad with short stubby wing roots I assume it is counting the missing wing in
+        // the aero"). The LIFT of a departed strip does go — the strip mask drops it from the sum — but the induced
+        // drag of what remains is set by the trailing-vortex system's ASPECT RATIO, and that was measured once per
+        // config from the strips as authored. So the stub went on flying the whole wing's aspect ratio and paying two
+        // thirds of the induced drag it owed, which is most of the drag at best glide. Remeasured here, where the mask
+        // changes, rather than per step: it loops the strips, and it only moves when something breaks off.
+        RemeasureAspectRatios();
         // The volumes it takes with it (CrashRelay turns them into a wreck piece), and their mass with them.
         ShedMass(Hydro.Detach(comp));
         ComponentLost?.Invoke(comp);
     }
+
+    /// <summary>Re-measure every surface's trailing-vortex system aspect ratio over the strips this aeroplane STILL
+    /// HAS, and hand it to the aero model through the flow state (<see cref="StripFlowState.SystemAspectRatio"/>).
+    /// Null while nothing has broken off, where the config's own cache is right.</summary>
+    private void RemeasureAspectRatios() =>
+        _flowState.SystemAspectRatio = _stripMask is null ? null : AeroModel.MeasureSystemAspectRatios(Config, _stripMask);
 
     /// <summary>
     /// Take the mass of elements that have left the airframe off the rigid body. Every force and moment in this class
