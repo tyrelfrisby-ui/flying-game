@@ -543,7 +543,7 @@ public sealed partial class Aircraft
         Damage = new FlyingGame.Core.Combat.DamageState(LoseComponent, IsLost);
         foreach (GearConfig g in config.Gear) if (g.IsTailwheel && g.IsSteerable) { Tailwheel = new LandingGear.TailwheelState(); break; }
         Guns = FlyingGame.Core.Combat.Armament.For(config);
-        foreach (ContactPoint cp in _contacts) if (cp.Name == "nose") _noseBody = cp.Body;
+        _noseBody = NoseIn(_contacts);   // the points this constructor already built; NoseBody(config) is the same answer
         Structure = new StructuralState(config.Limits, config.Mass.MassKg, StructuralGrossKg(config), HasHorizontalTail(config), HasEngineMount(config));
         // Which failure ladder each wing is on, and what would hold a folded one up (WingFailureLaw). InitContactDamage
         // has already built the panels, so their authored Braced flag and construction are to hand.
@@ -1069,7 +1069,39 @@ public sealed partial class Aircraft
         _hydroArmed = true;
         Hydro.Prepare(State, w);
     }
-    private Vec3 _noseBody = new(1.5, 0, 0);
+    private Vec3 _noseBody = DefaultNoseBody;
+    private static readonly Vec3 DefaultNoseBody = new(1.5, 0, 0);
+
+    /// <summary>
+    /// WHERE THE PROPELLER HUB IS, body frame — the airframe's "nose" contact point, or 1.5 m ahead of the origin for a
+    /// config that authors none. It is the arm <see cref="PropulsionForces"/> swings the disc's normal and in-plane
+    /// forces on, so a caller that leaves <c>noseBody</c> at its default is not evaluating this aeroplane's propeller:
+    /// the arm comes out as −cg instead of nose − cg, wrong in magnitude and in SIGN.
+    ///
+    /// Static, and shared with <see cref="RigSolver.SteadyForces"/>, because that is exactly how the rig and the sim
+    /// came apart. <see cref="PropModel.Parts.InPlane"/> only exists on a SOLVED (blade-element) propeller, so the
+    /// error was invisible until the blades were fitted and then appeared only on the five types that have them,
+    /// measured at their own rig points as a pitching moment the rig had never seen: Extra +126 N·m, Pitts +42, both
+    /// Cubs +10, Great Lakes −5, against 0.000 on every unfitted type.
+    /// </summary>
+    public static Vec3 NoseBody(AircraftConfig config)
+    {
+        // CACHED PER CONFIG. AirframeContact.BuildPoints walks every strip and builds the wing panels, and the rig
+        // solver asks this inside a Jacobian — and AileronForZeroRoll's secant asks it at every spawn, where the same
+        // file already records what a re-solve per spawn costs (3,189 ms against 198). The nose is fixed geometry, so
+        // it is built once for the config and never again.
+        if (_noseCache.TryGetValue(config, out object? hit)) return (Vec3)hit;
+        Vec3 nose = NoseIn(AirframeContact.BuildPoints(config));
+        _noseCache.AddOrUpdate(config, nose);
+        return nose;
+    }
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, object> _noseCache = new();
+
+    private static Vec3 NoseIn(List<ContactPoint> points)
+    {
+        foreach (ContactPoint cp in points) if (cp.Name == "nose") return cp.Body;
+        return DefaultNoseBody;
+    }
     private PropModel.PropDrive _drive = PropModel.PropDrive.Running;
     /// <summary>The wash over the tail the last step flew with (axial m/s, tube radius m, swirl m/s): 0 with no prop turning.</summary>
     public (double DeltaU, double Radius, double Swirl) LastTailSlipstream { get; private set; }

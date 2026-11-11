@@ -347,6 +347,18 @@ public static class RigTable
     public static readonly Row[] Rows =
     {
         //  id                         powered prop  aileron°  fin°     elevator°  KTAS      (all re-solved 2026-11-10)
+        // RE-SOLVED AGAIN 2026-11-10, the five FITTED-BLADE types only, because the rig was solving a propeller the
+        // sim does not fly. Three faults, all of them reaching only a SOLVED propeller, which is why they landed on
+        // these five and on nothing else: RigSolver.SteadyForces took its drive from PropModel.SteadyDrive, which
+        // governs a constant-speed blade unconditionally, while AircraftEngine.SolvesShaft leaves a GOVERNING
+        // constant-speed type on the throttle law — so PropModel.IsSolved was true in the solve and false in flight
+        // for the Pitts, the Extra and the Great Lakes, which is a different propeller AND a different fin; the shaft
+        // was seeded at idle rather than at its torque balance, so every spawn spooled up through the wrong torque,
+        // P-factor and swirl; and SteadyDrive was fed the DENSITY ratio where PistonEngine wants the ambient PRESSURE
+        // ratio (0.888 against 0.864 at 4,000 ft). The three constant-speed types' fin offsets fall from ~1.94 deg to
+        // ~0.36-0.49 and their rig speeds rise, because the rig no longer stands their fin in a geometric swirl the
+        // sim never applies to them. The other thirty rows reproduced to the last digit, which is both the
+        // idempotence check and the predicate.
         new("aircam-amphib-like", true, 1, 0.2857, 0.4318, -0.2374, 97.09),
         new("aircam-like", true, 1, 0.2746, 0.3972, 0.5291, 99.41),
         new("boeing-737-like", true, 0, 0.0000, 0.0000, 3.1262, 349.57),
@@ -357,7 +369,7 @@ public static class RigTable
         new("decathlon-8kcab-like", true, 1, 0.2491, 0.3482, 1.8646, 105.78),
         new("dhc2-beaver-floats-like", true, 1, 0.2893, 0.5155, 0.4559, 114.60),
         new("dhc2-beaver-like", true, 1, 0.2493, 0.4228, 0.7352, 123.37),
-        new("extra-300-like", true, 1, 0.1638, 1.1271, -1.6185, 150.92),
+        new("extra-300-like", true, 1, 0.2738, 0.1628, -1.4098, 162.79),
         new("f86-sabre-like", true, 0, 0.0000, 0.0000, 1.7871, 320.17),
         new("geebee-r2-like", true, 1, 0.7412, 0.4168, -1.5728, 187.93),
         new("glasair3-like", true, 1, 0.4384, 0.1313, 0.2363, 235.31),
@@ -366,11 +378,11 @@ public static class RigTable
         // The Grob 103's FIRST rig (2026-11-10): it had a config, no rig block and no row, so nothing tested it.
         new("glider-grob103-acro-like", false, 0, 0.0000, 0.0000, 0.4746, 50.13),
         new("glider-swift-s1-like", false, 0, 0.0000, 0.0000, -1.3028, 62.69),
-        new("great-lakes-like", true, 1, 0.2511, 1.9497, 0.7935, 99.80),
+        new("great-lakes-like", true, 1, 0.4724, 0.3579, 0.9753, 106.67),
         new("hang-glider-like", false, 0, 0.0000, 0.0000, -15.5066, 21.38),
         new("hughes-h4-like", true, 1, 0.0413, 0.0327, -0.5892, 151.17),
-        new("j3-cub-floats-like", true, 1, 0.0977, 2.0048, -1.0632, 62.19),
-        new("j3-cub-like", true, 1, 0.0941, 2.2597, -1.2871, 58.85),
+        new("j3-cub-floats-like", true, 1, 0.0935, 2.2431, -1.5061, 59.64),
+        new("j3-cub-like", true, 1, 0.1050, 2.5570, -1.7359, 56.31),
         new("jn4-jenny-like", true, 1, 0.4871, 0.7219, 0.0171, 51.30),
         new("p51d-like", true, 1, 0.4943, 0.1943, -1.3254, 209.27),
         new("pa18-bush-like", true, 1, 0.2551, 0.4243, 0.7431, 91.25),
@@ -379,7 +391,7 @@ public static class RigTable
         new("pa25-pawnee-like", true, 1, 0.2472, 0.3302, 1.1592, 108.46),
         new("pa28-archer-like", true, 1, 0.2701, 0.1986, 0.6536, 108.74),
         new("paraglider-en-b-like", false, 0, 0.0000, 0.0000, 9.5138, 19.74),
-        new("pitts-s2b-like", true, 1, 0.0961, 1.9970, -2.1872, 126.23),
+        new("pitts-s2b-like", true, 1, 0.4125, 0.4896, -1.9929, 136.95),
         new("seminole-like", true, 0, 0.0000, 0.0000, 1.7195, 143.09),
         new("stearman-pt17-like", true, 1, 0.5143, 0.3708, -0.5492, 104.99),
         new("target-drone-like", true, 1, 0.3319, 0.1609, 0.4464, 159.08),
