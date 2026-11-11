@@ -40,8 +40,12 @@ public sealed class WidgetServerSurfaceTests
     /// <summary>The body of one `case "x": { … }` arm of WidgetServer.Handle, by brace counting.</summary>
     private static string CommandCase(string src, string cmd)
     {
-        int at = src.IndexOf($"case \"{cmd}\":", StringComparison.Ordinal);
-        Assert.True(at >= 0, $"WidgetServer.cs no longer has a `case \"{cmd}\":` — this test reads it");
+        // Anchored on the arm's own indentation: Handle's switch is at 16 spaces, and `case "start":` also exists
+        // INSIDE the joystick arm's wizard switch at 24. Without this the test read the wrong arm and still passed
+        // its other assertion, which is the failure mode a source-reading test has to be built against.
+        var m = Regex.Match(src, $"^ {{16}}case \"{Regex.Escape(cmd)}\":", RegexOptions.Multiline);
+        Assert.True(m.Success, $"WidgetServer.cs no longer has a top-level `case \"{cmd}\":` — this test reads it");
+        int at = m.Index;
         int open = src.IndexOf('{', at);
         Assert.True(open > 0);
         int depth = 0, i = open;
@@ -110,6 +114,23 @@ public sealed class WidgetServerSurfaceTests
     {
         string path = Path.Combine(Repo, "unity", "Assets", "_Project", "Scripts", "Bridge", file.Replace('/', Path.DirectorySeparatorChar));
         Assert.Contains(needle, File.ReadAllText(path), StringComparison.Ordinal);
+    }
+
+    // ---- the fleet check ------------------------------------------------------------------------------------
+
+    [Fact]
+    public void EveryCommandThatLoadsAnAeroplaneChecksTheFleet()
+    {
+        // "start" has always checked; "scenario" did not, and the id reaches
+        // LoadFromStreamingAssets -> "aircraft/" + id + ".json", so it was a read of any .json file the process
+        // could reach — and the key of two static caches that nothing bounds.
+        string code = Code(Source("WidgetServer.cs"));
+        foreach (string cmd in new[] { "scenario", "start" })
+        {
+            string body = CommandCase(code, cmd);
+            Assert.Contains("SessionSettings.Fleet", body, StringComparison.Ordinal);
+            Assert.Contains("unknown aircraft", body, StringComparison.Ordinal);
+        }
     }
 
     // ---- request sizes --------------------------------------------------------------------------------------

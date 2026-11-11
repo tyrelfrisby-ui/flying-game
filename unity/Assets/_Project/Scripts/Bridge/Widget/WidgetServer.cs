@@ -512,10 +512,21 @@ namespace FlyingGame.Bridge.Widget
             {
                 case "scenario":
                 {
+                    // THE AIRCRAFT ID IS CHECKED AGAINST THE FLEET, the way "start" has always checked it (see the
+                    // start case below). This arm did not, and the id goes straight into
+                    // UnityAircraftConfigLoader.LoadFromStreamingAssets, which builds "aircraft/" + id + ".json"
+                    // and reads it — so "../../../../something" was a read of any .json file the widget process
+                    // could reach, from any origin (pre-ship audit, 2026-11-11). It is also the key of the static
+                    // _fits / _ldFits caches, so an endless supply of invented ids was an endless supply of
+                    // dictionary entries. Two commands that load an aeroplane must not disagree about what an
+                    // aeroplane is.
+                    string acId = (string)j["aircraft"];
+                    if (acId != null && System.Array.FindIndex(SessionSettings.Fleet, f => f.id == acId) < 0)
+                    { ok["ok"] = false; ok["error"] = "unknown aircraft"; break; }
                     w.Lessons.Stop();
                     string n = ((string)j["name"] ?? w.Current.ToString()).ToLowerInvariant();
                     var sc = n == "spin" ? AeroWidget.Scenario.Spin : n == "cruise" ? AeroWidget.Scenario.Cruise : AeroWidget.Scenario.Flare;
-                    w.Load(sc, (string)j["aircraft"] ?? w.AircraftId, j["flaps"]?.Value<double>() ?? w.Flaps);
+                    w.Load(sc, acId ?? w.AircraftId, j["flaps"]?.Value<double>() ?? w.Flaps);
                     break;
                 }
                 case "controls":
