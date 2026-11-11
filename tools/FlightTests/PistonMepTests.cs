@@ -164,6 +164,34 @@ public class PistonMepTests
     }
 
     /// <summary>
+    /// THE IDLE BISECTION STILL CONVERGES, AND STILL LANDS ON THE PUBLISHED FIGURE, on every type that solves its
+    /// own shaft. AircraftEngine.IdleBleedThrottle bisects for the throttle that holds IdleRpm at V = 0, and once
+    /// braking rises with rpm that bisection is solving a different problem than it was: the engine's torque now
+    /// falls away above the idle point instead of being flat, so the crossing it is looking for is a real one rather
+    /// than a formality. This is the check that it is still found.
+    ///
+    /// It also prints the manifold pressure each idle stop lands on, which is a PREDICTION of the model rather than
+    /// an input to it — nothing here is fitted to it — and the one published figure to hold it against is
+    /// Continental's 12.9 inHg for the C-85 (X30012 Table XXI). The J-3 comes out at 11.9.
+    /// </summary>
+    [Theory]
+    [InlineData("pitts-s2b-like")] [InlineData("j3-cub-like")] [InlineData("extra-300-like")]
+    [InlineData("great-lakes-like")] [InlineData("j3-cub-floats-like")]
+    public void TheIdleStopStillHoldsThePublishedIdleRpm(string id)
+    {
+        PropulsionConfig p = Load(id).Propulsion!;
+        double pitch = p.BladePitch75Deg > 0 ? p.BladePitch75Deg
+                     : p.ConstantSpeed ? Math.Max(1.0, PropModel.OilLossPitchDeg(p)) : 15.0;
+        var g = new BladeElement.Geometry(p.PropBladeCount, 0.5 * p.PropDiameterM, pitch, p.ActivityFactor);
+        double bleed = PistonEngine.IdleBleedThrottle(g, p, 1.0, 1.225, 1.0);
+        Assert.InRange(bleed, 1e-4, 0.999);                       // it found a real crossing, not a bound
+        double rpm = PistonEngine.BalancedRpm(g, p, 0.0, 1.0, 0.0, 1.225, 1.0);
+        _o.WriteLine($"{id}: idle stop {bleed:F4} -> {PistonEngine.ManifoldInHg(bleed, 1.0, p.IdleRpm, p.MaxRpm):F2} inHg, " +
+                     $"holds {rpm:F1} rpm against a published {p.IdleRpm:F0}");
+        Assert.Equal(p.IdleRpm, rpm, 1);                          // the published figure, to a tenth of an rpm
+    }
+
+    /// <summary>
     /// GAGG AND FERRAR ARE DERIVED NOW, NOT APPLIED. The altitude lapse used to be a factor multiplying the power
     /// curve; the 0.117 in it is a friction statement, so PistonEngine.Spec reads it that way to set FMEP at the
     /// rating and the lapse falls out of the decomposition instead. The two agree closely but not exactly, and the
