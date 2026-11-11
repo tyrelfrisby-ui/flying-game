@@ -69,7 +69,10 @@ public class StallAuthorityTests
             double area = sf.Strips.Sum(st => st.Area);
             if (area > best) { best = area; main = sf; }
         }
-        return main is null ? 15 : tables[main.Strips[0].Airfoil].AlphaClMaxRad * 57.2958;
+        // THE EARLIEST-STALLING STRIP: the Extra flies one derived section per station (2026-11-10) and its root's
+        // table stalls three degrees after the wing itself does. Every other type has one table across the wing, so
+        // for all of them this is still the root table's angle, unchanged.
+        return main is null ? 15 : main.Strips.Min(st => tables[st.Airfoil].AlphaClMaxRad) * 57.2958;
     }
 
     /// <summary>Wing AoA where full-aft elevator's pitching moment crosses zero (static, no rates), deg.</summary>

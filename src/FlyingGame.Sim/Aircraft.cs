@@ -1955,6 +1955,12 @@ public sealed partial class Aircraft
         // alpha the same calibrated band is measured from its own stall instead: shifted by the section's
         // asymmetry, which is zero for a symmetric section and leaves the aerobatic airplanes bit-identical.
         const double sepOn = 16.0 * Math.PI / 180.0, sepOff = 11.0 * Math.PI / 180.0;
+        // A type whose wing tables are DERIVED from its section rather than calibrated by feel may instead measure the
+        // band from each strip's own static stall: StallDynamicsConfig.SeparationOnPastStallDeg / ReattachBelowStallDeg,
+        // null for every type that does not (the full argument is on those two properties). The Extra 300 is the first,
+        // 2026-11-10; its stations stall at 21–24°, where a fixed 16° onset would call them separated five degrees early.
+        double? onPast = Config.StallDynamics.SeparationOnPastStallDeg, offBelow = Config.StallDynamics.ReattachBelowStallDeg;
+        bool ownStall = onPast.HasValue && offBelow.HasValue;
         for (int i = 0; i < stripCount; i++)
         {
             double aSigned = _flowState.LocalAlphaRad[i];
@@ -1966,6 +1972,12 @@ public sealed partial class Aircraft
             }
             double on = Math.Max(sepOn + shift, 2.0 * Math.PI / 180.0);
             double off = Math.Max(sepOff + shift, 1.0 * Math.PI / 180.0);
+            if (ownStall && i < _flowState.StallPosRad.Length && _flowState.StallPosRad[i] > 0.0)
+            {
+                double stall = aSigned < 0.0 ? -_flowState.StallNegRad[i] : _flowState.StallPosRad[i];
+                on = Math.Max(stall + onPast!.Value * Math.PI / 180.0, 2.0 * Math.PI / 180.0);
+                off = Math.Max(stall - offBelow!.Value * Math.PI / 180.0, 1.0 * Math.PI / 180.0);
+            }
             double s0 = _flowState.Separation[i];
             double target = a > on ? 1.0 : a < off ? 0.0 : s0;
             double tauSec = target > s0 ? Config.StallDynamics.StripSepTau : Config.StallDynamics.StripReattachTau;

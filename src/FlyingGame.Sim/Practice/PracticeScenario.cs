@@ -311,11 +311,19 @@ public sealed class PracticeScenario
             if (main is not null)
             {
                 var tables = FlyingGame.Sim.Aircraft.BuildAirfoilTables(config);
-                if (tables.TryGetValue(main.Strips[0].Airfoil, out AirfoilTable? tab))
+                // THE EARLIEST-STALLING STRIP, not the root's. A wing with one table per station (the Extra's derived
+                // sections, 2026-11-10) stalls where its FIRST station lets go — mid-span, three degrees before the
+                // root. Reading Strips[0] would cap alpha past the angle at which the aeroplane has already stalled.
+                // Every other type in the fleet flies one table across the whole wing, so this is that table's angle,
+                // exactly as before, for all of them.
+                double first = double.MaxValue;
+                foreach (StripConfig st in main.Strips)
+                    if (tables.TryGetValue(st.Airfoil, out AirfoilTable? t)) first = Math.Min(first, t.AlphaClMaxRad);
+                if (first < double.MaxValue)
                 {
                     double inc = 0; foreach (StripConfig st in main.Strips) inc += st.IncidenceRad;
                     inc /= main.Strips.Count;
-                    cap = Math.Clamp(tab.AlphaClMaxRad - inc + 3.0 * Math.PI / 180,
+                    cap = Math.Clamp(first - inc + 3.0 * Math.PI / 180,
                                      12.0 * Math.PI / 180, 28.0 * Math.PI / 180);
                 }
             }

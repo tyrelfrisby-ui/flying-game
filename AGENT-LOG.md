@@ -1,3 +1,142 @@
+## The Extra's wing section, and ONLY that, lifted off two conflicting lanes — with its cl_max scaled to measured data — Claude, 2026-11-10, lane/claude-backlog2
+
+<!-- extra-300-airfoil candidate-b ladson-measured-clmax own-stall-separation-band orphaned-lane-extraction gault-disagreement -->
+
+Ty, 2026-11-10, offered `lane/claude-inertia` (26 commits) and `lane/claude-endo` (31, a verified superset) whole, or
+their derivation docs alone, or one piece of them, chose: **"Only the Extra wing section"** — on the reasoning, which
+he gave himself, that it is a discrete, checkable piece. Everything else those lanes carry stayed on them. Then, shown
+the extraction's own honest result, he gave the second decision that made it land: **"scale the cl_max to the measured
+data."**
+
+**WHAT IS NOT HERE, checked file by file rather than assumed.** No mass properties — the Extra's inertia is the
+hand-shipped `701/2038/2575/80`, untouched, with its own derivation note still in the config. No tail past the stall:
+`StallDynamicsConfig.GeometricWake`, `BodyVortex.cs`, `tail-poststall-DERIVATION.md`, the induced-angle section map,
+none of it. No prop polar moments (Ty's blade rule is the authority for those now, not the lane's 2.5 → 2.1). No
+fuselage camber, no Endo tumble probe, no `downwashGradientFromGeometry` / `downwashFollowsLift` (run 5f). No other
+type: the config diff was read key by key and `mass`, `rig`, `propulsion`, `gear`, `limits`, `loading`, `instruments`
+and the whole tail are byte-identical, the vStab keeps this week's `fin-lowAR`, and no second aircraft config is
+touched at all.
+
+**THE SECTION IS NOT MA 15 S / MA 12 S, and the name should not travel any further.** Those are what the 300L
+Information Manual (sec. 1.3.3) NAMES; no coordinates for them are published anywhere the lane could find. The lane
+did reconstruct both (run 4) and then threw the reconstruction away. What is wired is **candidate B: Ty's own "ice
+cream cone" description — blunt nose, max thickness at 17 % c, slightly concave aft run — applied as a geometric
+reshape to the published Eppler E473 (root) and E472 (tip) coordinates from the UIUC database**, at full thickness,
+16.19 % root and 12.10 % tip. The config says exactly that in `_wingSectionNote`, including "NOT a published section".
+
+**IT ALREADY FLEW ON THE OUTSIDE OF THE AEROPLANE.** `318ff1ac` (2026-11-02) rebuilt the Extra's visible wing mesh to
+candidate B at every span station and vendored `extra_sections.py` and the B coordinates into this lane
+"byte-identical from 90d0e85 (clean later merge)". So until this commit the aeroplane's SHAPE was the ice-cream-cone
+section and its PHYSICS was the 2026-09-07 hand-made `extra-sym` feel table. They now agree.
+
+**THE PIECE IS CHECKABLE WITHOUT XFOIL, which is why it was taken as a piece.**
+`python3 tools/aircraft_builder/extra_wing_table.py` reads only the committed polars under `data/xfoil/` and reprints
+the whole derivation; `--write` writes the eight tables into the config; `--method r5e` prints the superseded
+XFOIL-peak version; `--cand A` the rejected Eppler-unscaled candidate; `EXTRA_THIN_K` reproduces run 5e's rejected
+thinning experiment (k = 0.6625 bought the book's stall speed at a 10.7 % root and an 8.0 % tip, which is not a real
+Extra wing, and Ty rejected it). Run here on today's tree it reproduced the lane's own tables byte-for-byte before
+anything was changed.
+
+**TY'S DECISION, AND HOW IT WAS IMPLEMENTED (derivation §1f).** Run 5e's honest result was that the corrected section
+still carried **0.15–0.30 more cl_max than any MEASURED symmetric section of its thickness at its Reynolds number**,
+and that a NACA 0012 cannot tell "the ice-cream-cone really carries more" from "XFOIL errs more on this shape". Ty:
+*"scale the cl_max to the measured data … XFOIL's optimism on the ice-cream-cone shape is not evidence."*
+
+No factor was put on lift. The lift SLOPE was already measured — XFOIL × K(Re), K being Ladson's measured/XFOIL ratio
+over his linear range — so the PEAK was made measured the same way and the ANGLE left to follow:
+- **cl_max IS Ladson's measured 0012 cl_max at the station's own Reynolds number** (NASA TM 4074, free transition),
+  log-interpolated over the three Reynolds numbers whose peak he actually brackets — 2.00 M 1.408, 5.97 M 1.660,
+  11.90 M 1.617 — and **held at the 2.00 M value below it**. His 3.94 M and 8.86 M rows are LOWER BOUNDS (the run
+  stopped while still rising) and are excluded: interpolating through "at least" is not interpolating. That is why the
+  three outboard stations all read 1.408.
+- **The break is where the corrected curve reaches that value**, by bisection on the rising branch. Run 5e's asserted
+  Δα = 1.287° becomes an OUTPUT: it comes out 3.47–4.17°.
+- If the corrected curve never reaches the measured cl_max the break stays at XFOIL's peak and the method says
+  nothing, which is better than scaling a polar to force it.
+
+**WHY THE 0012 VALIDATION COULD NOT HAVE FOUND THIS.** On the 0012 itself the slope correction alone already lands the
+peak: K × XFOIL's peak is **1.410 against Ladson's 1.408** at 2.00 M and **1.653 against 1.660** at 5.97 M. On the only
+section with tunnel data the two methods agree to 0.01. The 0.15–0.30 excess was therefore a statement XFOIL made
+about *this shape alone*, with nothing to check it against — which is why believing it was the wrong default.
+
+**WHAT IT ASSUMES, so it can be argued with:** that a 16.2 %-thick ice-cream-cone section cannot carry more maximum
+lift than a measured 12 % NACA 0012 at the same Reynolds number. A thicker section at these Reynolds numbers usually
+carries somewhat MORE, so this is the conservative end of the honest range. It is the end Ty chose; §1e is the other
+end and both are reproducible from the same files.
+
+**TWO RED TESTS WERE ONE CAUSE, exactly as the physics said.** Scaling cl_max down ~10 % raised the trimmed stall
+speed ~5 %, and `OneGStallSpeedMatchesTheInformationManual` went green on its own unmodified band. Nothing was widened.
+`ExtraWingSectionTests` is **7 / 7**.
+
+**MEASURED, before against after, on TODAY's model** (`STALL_PROBE=1 STALL_CFG_BEFORE=<the old config>`; every
+manoeuvre open-loop — the pilot sets the entry up and then freezes the controls):
+
+| | `extra-sym` (before) | measured sections (after) |
+|---|---|---|
+| aircraft CL at 10° | 1.118 | 0.875 |
+| wing-alone static CLmax | 1.442 at 14.0° | **1.476 at 18.95°** |
+| aircraft CLmax, δe 0 | 1.568 at 14.0° | 1.705 at 19.05° |
+| steepest 0.05° step past the peak | 0.33 /deg | **0.64 /deg** |
+| wing CL one / three degrees past | −22 % / −47 % | −16 % / −31 % |
+| **1-g Vs** (trimmed idle, 820 kg) | 55.4 KEAS | **54.4 KEAS** (book 55 KIAS: −1.1 %) |
+| 1 kt/s feet flat: α at the break | 15.0° | 18.7° |
+| – CL lost | 50 % in 4.46 s | **23 % in 2.16 s** |
+| – bank / peak roll rate 2 s on | −62°, 80 °/s | **+40°, 53 °/s** |
+| – wing separated 2 s on | 41 % | 15 % |
+| accelerated: break / n | 105.8 KEAS, 3.62 | 104.8 KEAS, 3.56 |
+| – CL lost, bank and roll 2 s on | 49 % in 0.66 s; +139°, 171 °/s | 34 % in 0.94 s; +102°, 129 °/s |
+| spin: developed rate | 128 °/s | **153 °/s** |
+| spin: 90 % of it reached | 9.88 s | **6.67 s** |
+| snap at 90 KEAS: 180 °/s at | 1.88 s | 1.98 s |
+| – peak roll / peak α / peak n | 192 °/s, 38°, 2.7 | 187 °/s, **43°**, 2.7 |
+| idle glide (the landing row) | 56 kt Vso, 73 kt, 9.9°, 5.7:1, 1272 fpm, pitch −1.6°, AoA 8.2° | **55 kt, 72 kt, 8.2°, 7.0:1, 1038 fpm, pitch +2.8°, AoA 11.0°** |
+
+**The accelerated stall is a real measurement for the first time.** With the old feel table and with run 5e's sections
+the probe's break detector misfired on tail download (α 6.4°, n 1.21). It no longer does.
+
+**THE ONE THING TY WILL MEET FIRST is the approach.** The speeds barely move — one knot, not five — but the Extra now
+glides **7.0:1 instead of 5.7:1**, sinks **1038 instead of 1272 fpm**, and sits **+2.8° nose UP** on the idle glide
+where it used to sit 1.6° nose DOWN, at 11.0° AoA instead of 8.2°. Every landing lesson starts on that row.
+
+**THE DISAGREEMENT THAT IS STILL OPEN, and is with Ty.** He asked for this wing because *"I think the extras wing is
+not stalling cleanly enough … it is nothing like a 0012 it is a blunt round leading edge with slightly convex upper
+and lower skins to the trailing edge so the separation pattern is leading edge stall immediately not a trailing edge
+to leading edge progression."* Gault's criterion (NACA TN 3963), fed the measured upper-surface ordinate at 1.25 %
+chord of his own reshaped section at these Reynolds numbers, types **all eight stations trailing-edge** — the gentlest
+of the five categories, the opposite end from the leading-edge stall he describes. Flown, that is what it does: the
+break is **later and tidier**, not sharper. Per degree of α it is twice as steep (0.33 → 0.64 /deg static), but it
+loses **less than half** the lift in total and drops the wing **two-thirds as far** (−62° and 80 °/s becoming +40° and
+53 °/s). Either his section's geometry really is in the trailing-edge band and what he feels in the real aeroplane
+comes from somewhere else — the inertia, the tail, or the 1.3° of fin offset that changed this week — or the 1.25 %
+ordinate of the reconstruction is not his wing's. **Gault was NOT tuned to force a leading-edge type, and must not be
+while this is with him.** He is the only person who can settle it: he has flown the aeroplane.
+
+**ONE KNOB HAD TO COME WITH THE SECTION, and it is null for every other aeroplane.**
+`StallDynamicsConfig.SeparationOnPastStallDeg` / `ReattachBelowStallDeg` move the per-strip separation memory and the
+wing-wake stalled fraction from the fleet's fixed 16° / 11° to each strip's OWN static stall. The fixed numbers are a
+calibration against ~14° feel tables; on stations that stall at 18–20° they call every strip separated two to five
+degrees early, cut the ailerons by 85 %, taper the induced drag off and collapse the tail downwash — and the wing then
+cannot be pulled to its own stall at idle at all. Null is the default and means the old behaviour exactly, so
+`EveryOtherTypeKeepsTheFleetStallBand` holds and no other type moved. Zero degrees is right for a derived table
+because the static polar already contains the static stall; the 5° reattachment band is **inherited, not derived** —
+no static-hysteresis measurement for these sections at these Reynolds numbers was found.
+
+**Three smaller things, deliberately done this way.**
+- `StallCharacterProbe` came across with four of its print lines REMOVED, and says so in place: on the lane they
+  called `InertiaTailCaseProbe` and `RollValidationProbe`, which belong to the mass-properties and tail-post-stall
+  work Ty ruled out. Keeping four print lines would have dragged ~700 lines of rejected work over the boundary.
+- `ExtraWingSectionTests.TheWingIsNotCountedStalledBelowItsOwnStall` probes **17°, not 18°**. With run 5e's sections
+  (earliest station 21.3°) 18° had three degrees of margin; the measured sections stall at 18.2° and 18° would have
+  left two TENTHS — a test that passes by rounding.
+- `extra_wing_table.py --write` no longer creates the StreamingAssets mirror when it is absent, and says why: that
+  directory is generated and correctly untracked now, and manufacturing an ignored file there is the trap this repo
+  has already been bitten by.
+- `configs/glide-table.json` got **only the Extra's row** here. Regenerating the whole table also moves fourteen other
+  rows that are **pre-existing staleness on this lane** from the flat-plate-tail and `fin-lowAR` work; that
+  regeneration is its own commit, so this diff stays legible. Proved by regenerating twice — once on the pristine base
+  and once with the section — and diffing the two outputs: **exactly one row differs between them.**
+
+**Not built for a device, not deployed** (the owner holds that slot) and **not merged anywhere**.
 ## The ten orphaned lanes Ty approved, merged one at a time — Claude, 2026-11-10, lane/claude-backlog-merge
 
 <!-- orphaned-lanes-merge triage-2026-11-10 glb-sidecar-collision parity-lock -->
