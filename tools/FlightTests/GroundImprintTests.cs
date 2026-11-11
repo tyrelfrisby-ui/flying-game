@@ -608,18 +608,25 @@ public class GroundImprintTests : IDisposable
     }
 
     /// <summary>
-    /// What it costs. 1,024 stretches is 2,048 triangles for every mark in the world, and the record is 88 kB. Both
-    /// numbers are asserted so that growing the struct or the budget has to be a decision, not a drift.
+    /// What it costs. The record is 88 kB, and the drawing is 18 triangles a mark — 18,432 for every mark in the
+    /// world, in one mesh and one draw call. Both numbers are asserted so that growing the struct or the budget has
+    /// to be a decision, not a drift.
+    ///
+    /// 18 and not the 2 this note first reckoned on: a flat quad a mark leaves a dark bead at every joint of a
+    /// curving track and a hard square end on an isolated one, so a mark is drawn as a 4 x 4 grid that fades at its
+    /// caps and on its slumped shoulders (GroundImprintDrawing, and GroundImprintMeshTests has the arithmetic).
+    /// 18,432 triangles is still a fraction of one of ForestBuilder's detail trees.
     /// </summary>
     [Fact]
-    public void TheWholeWorldsMarksAreTwoThousandTrianglesAndUnderNinetyKilobytes()
+    public void TheWholeWorldsMarksAreUnderTwentyThousandTrianglesAndUnderNinetyKilobytes()
     {
         int bytes = System.Runtime.InteropServices.Marshal.SizeOf<GroundImprint>();
         long total = (long)bytes * GroundImprintField.WorldBudget;
-        _o.WriteLine($"GroundImprint {bytes} B x {GroundImprintField.WorldBudget} = {total / 1024.0:F1} kB; {2 * GroundImprintField.WorldBudget} triangles");
+        long tris = (long)GroundImprintDrawing.TrianglesPerMark * GroundImprintField.WorldBudget;
+        _o.WriteLine($"GroundImprint {bytes} B x {GroundImprintField.WorldBudget} = {total / 1024.0:F1} kB; {tris} triangles");
         Assert.True(bytes <= 96, $"a mark is {bytes} B");
         Assert.True(total < 96 * 1024, $"{total} B");
-        Assert.True(2 * GroundImprintField.WorldBudget <= 2048);
+        Assert.True(tris <= 20000, $"{tris} triangles");
     }
 
     /// <summary>Clearing forgets everything and bumps the version, so a renderer rebuilds (the StrippedTrees pattern).</summary>
