@@ -2132,6 +2132,16 @@ namespace FlyingGame.Bridge
         public Vector3 Velocity;
         public Vector3 AngularVelocityDeg;
         /// <summary>Only a piece that is still falling is ever removed by time (lost off a cliff, into the sea's floor).</summary>
+        /// <summary>
+        /// How long this VISUAL survives while airborne. Ty 2026-11-11 on a thrown blade or a departed engine: "And
+        /// falls from the sky [unt]il it hits the ground" — and the PHYSICS does exactly that, because WreckSim has
+        /// no lifetime and no distance cull and never removes a piece. This counter is the visual's alone.
+        ///
+        /// IT IS A LATENT CONTRADICTION OF THAT RULE AND IT DOES NOT BITE TODAY. Measured 2026-11-11: a blade thrown
+        /// from 1,000 m is airborne 47.4 s before it reaches the ground, so ten minutes is an order of magnitude of
+        /// headroom. A piece released far higher, or one that ends up in a long ballistic arc, would reach this and
+        /// vanish in mid-air — so if the drop altitudes ever grow, this is the number to raise.
+        /// </summary>
         public float LifeSec = 600f;
         /// <summary>The sim piece this is the picture of (null = its own contact below).</summary>
         public FlyingGame.Core.Wreck.WreckPiece Piece;
