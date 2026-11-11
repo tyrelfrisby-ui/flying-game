@@ -18,8 +18,21 @@ namespace FlyingGame.Bridge
     ///  * Size and shape follow strength: weak lift makes cumulus humilis (wider than tall); stronger lift makes
     ///    cumulus mediocris (about as tall as wide) with a cauliflower crown of rising turrets. The cloud is about as
     ///    wide as the thermal at the top (the column spreads with height).
-    ///  * The base is darkest (the cloud shades it) — grey and flat from below, sunlit white on top (Cumulus.shader).
+    ///  * The base is darkest (the cloud shades it) — grey and flat from below, sunlit white on top.
     /// Flying INTO a cloud whites out the view (instrument conditions), deeper = whiter — the hiding place.
+    ///
+    /// Ty, 2026-11-11: "make the playground clouds double as the thermal clouds but make their shape look cumulus
+    /// enough to be accurate". So this class no longer has a renderer of its own. The puff field below IS the
+    /// meteorology above and it is what makes this a cumulus rather than a bank — a ring of flat-bottomed lobes on
+    /// the condensation level, a body over them, a cauliflower crown of turrets climbing to the top, granulation on
+    /// the sunlit crown — and every lobe is drawn as one of the cloud playground's billowing impostors
+    /// (Shaders/CloudPlayground.shader, Resources/Clouds/CloudBillow), the renderer he likes, with its new
+    /// world-space flat base switched on. FlyingGame/Cumulus, the opaque sphere-mesh shader, is deleted.
+    ///
+    /// What the game thinks is cloud is still <see cref="Puffs"/>, the analytic spheres: <see cref="Blocks"/> and
+    /// <see cref="Whiteout"/> read them. The drawn lobe now agrees with them far better than the displaced mesh
+    /// did — an impostor's alpha reaches zero within about 8 % of the lobe's radius (the shader's noise erosion is
+    /// ±0.16 on r², so r = 1 ± 0.08), against ±35 % for the noise-displaced sphere it replaces.
     /// </summary>
     public sealed class Cumulus : MonoBehaviour
     {
@@ -31,7 +44,6 @@ namespace FlyingGame.Bridge
         }
 
         private static Cumulus _inst;
-        private static Mesh _sphere;
         private static Material _mat;
         private readonly List<Cloud> _clouds = new();
         private MaterialPropertyBlock _mpb;
@@ -39,7 +51,44 @@ namespace FlyingGame.Bridge
         private float _whiteout;
         private static Texture2D _white;
         private static readonly int BaseId = Shader.PropertyToID("_BaseY"), TopId = Shader.PropertyToID("_TopY"),
-                                    SunId = Shader.PropertyToID("_SunDir"), FadeId = Shader.PropertyToID("_Fade");
+                                    SunId = Shader.PropertyToID("_SunDir"), CumulusId = Shader.PropertyToID("_Cumulus"),
+                                    CoreId = Shader.PropertyToID("_CoreAlpha");
+
+        /// <summary>
+        /// Past this the cloud is not drawn at all. It is NOT a visibility choice — the impostor shader already
+        /// fades every lobe to nothing between 15 and 18 km, so there is nothing on the screen out here to pop:
+        /// this only stops the GPU rasterising thirty-odd quads per cloud that are guaranteed to clip away. It is
+        /// the same 19 km the playground's banks have always used (CloudPlayground.Step), so a cumulus and a bank
+        /// disappear at the same range, which matters because they are now the same cloud.
+        /// </summary>
+        private const float CullRangeM = 19000f;
+
+        /// <summary>
+        /// The opacity at which a lobe starts writing depth and so hides what is behind it
+        /// (Shaders/CloudPlayground.shader, pass "CloudCoreDepth"). The colour pass caps a lobe's alpha at 0.96,
+        /// so anything above that writes nothing: 2 here is OFF, which is what ships.
+        ///
+        /// IT IS BUILT AND MEASURED AND IT IS OFF ON PURPOSE (Ty, 2026-11-11, "build it and measure it"). It is
+        /// worth about 40 % of the thermal clouds' GPU cost in the worst case — 3.5 ms down to 2.0 on this Mac —
+        /// and it cannot be had without hardening the silhouette: killing the lobe behind a core truncates the
+        /// soft falloff that made the cloud read as billowing, and the cut shows as a scalloped cut-out edge
+        /// (renders core_off_backlit against core_094_backlit). There is no threshold that is both effective and
+        /// invisible, because the alpha ceiling is 0.96 and 0.94 already shows. It also does NOT make a cloud
+        /// opaque against the TERRAIN, which is what the view from above wanted: the terrain is drawn in the
+        /// opaque queue long before the cloud blends over it, and no amount of depth written afterwards can undo
+        /// that. So this is a switch, with its price measured, for the day a device says the fill is unaffordable.
+        /// </summary>
+        /// ARMED 2026-11-11 at Ty's decision, after he was shown the price above and chose it anyway.
+        /// 0.94 is the measured setting: six levels of an 8-bit channel at the seam, and it keeps almost all of
+        /// the saving (+2.19 ms against +1.99 ms at 0.90, from +3.51 ms with no pre-pass). The ceiling is 0.96,
+        /// so 0.97 and above write nothing ever. THIS FIELD ONLY REACHES THE THERMAL CUMULUS -- the banks and
+        /// low patches never pass through the Cumulus=1 path and keep the material's _CoreAlpha = 2. That is
+        /// deliberate and not a half-measure: armed for the banks the pre-pass was measured at +0.10 ms for NO
+        /// saving (3.51 -> 3.61 ms) and a visible hard cut, so there is nothing there to trade.
+        public static float CoreAlpha = 0.94f;
+
+        /// <summary>Off for a measurement: with the cull disabled every cloud draws, however far away.</summary>
+        public static bool CullFar = true;
 
         /// <summary>0 (clear) .. 1 (deep in cloud) at the main camera this frame.</summary>
         public static float Whiteout => _inst != null ? _inst._whiteout : 0f;
@@ -90,61 +139,111 @@ namespace FlyingGame.Bridge
 
         private void Add(Thermal th, Vector3 pos, float baseY, float radius, float height, int seed)
         {
-            _sphere ??= BuildSphere(14, 10);
+            // The playground's own billow material, shared with its banks and low patches, so a cumulus and a bank
+            // are the same cloud drawn the same way. The per-cloud base and top ride in a property block.
+            _mat ??= Resources.Load<Material>("Clouds/CloudBillow");
             if (_mat == null)
             {
-                Shader sh = Shader.Find("FlyingGame/Cumulus") ?? Shader.Find("Unlit/Color");
-                _mat = new Material(sh);
+                Debug.LogError("[Cumulus] Resources/Clouds/CloudBillow missing from the build: no thermal clouds");
+                return;
             }
             var c = new Cloud { Th = th, BaseY = baseY, TopY = baseY + height, RadiusM = radius };
             var rng = new System.Random(9173 + seed * 7919);
             float U(float a, float b) => a + (float)rng.NextDouble() * (b - a);
 
-            // Base ring: wide, flat-bottomed lobes (the lower third of each puff is cut off at the base).
-            int ring = 7 + rng.Next(3);
+            // ---- the puff field ---------------------------------------------------------------------------------
+            // Base ring: wide, flat-bottomed lobes, cut off at the condensation level by the shader. Every lobe
+            // OVERLAPS its neighbours by about a third of its radius. That is the difference between a puff field
+            // for opaque spheres and one for blended impostors: with spheres a gap between two lobes read as a
+            // crevice in one body, because the body behind it was still drawn; with impostors a gap is a hole with
+            // sky through it, and an isolated lobe is a disc. A ring of twelve to fifteen at this size leaves none.
+            int ring = 12 + rng.Next(4);
             for (int i = 0; i < ring; i++)
             {
-                float a = (i + U(-0.25f, 0.25f)) / ring * Mathf.PI * 2f;
-                float pr = radius * U(0.30f, 0.42f);
-                float d = radius - pr * U(0.8f, 1.0f);
-                c.Puffs.Add((new Vector3(Mathf.Cos(a) * d, pr * U(0.25f, 0.45f), Mathf.Sin(a) * d), pr));
+                float a = (i + U(-0.35f, 0.35f)) / ring * Mathf.PI * 2f;
+                float pr = radius * U(0.30f, 0.46f);
+                float d = radius - pr * U(0.55f, 0.85f);
+                c.Puffs.Add((new Vector3(Mathf.Cos(a) * d, pr * U(0.30f, 0.55f), Mathf.Sin(a) * d), pr));
             }
-            // Body over the middle of the base.
-            for (int i = 0; i < 3; i++)
+            // Body over the middle of the base: big lobes, well inside the ring, so there is cloud over the whole
+            // base and not a doughnut. Looking straight up at one is the view that finds every hole.
+            for (int i = 0; i < 4; i++)
             {
-                float pr = radius * U(0.42f, 0.55f);
-                c.Puffs.Add((new Vector3(U(-0.3f, 0.3f) * radius, pr * U(0.35f, 0.6f), U(-0.3f, 0.3f) * radius), pr));
+                float pr = radius * U(0.44f, 0.60f);
+                c.Puffs.Add((new Vector3(U(-0.26f, 0.26f) * radius, pr * U(0.40f, 0.65f), U(-0.26f, 0.26f) * radius), pr));
             }
-            // Cauliflower crown: turrets climbing to the top, shrinking as they go, with side lobes.
+            // Cauliflower crown: turrets climbing to the top, shrinking as they go, with side lobes. The side lobes
+            // now stand as far out from their turret as they are tall (they used to sit almost on its axis, which
+            // stacked the whole cloud into a snowman), and each turret's size is drawn over a band wide enough that
+            // no two levels match.
             int levels = 4 + rng.Next(3);
             for (int j = 1; j <= levels; j++)
             {
                 float t = j / (float)levels;
-                float pr = radius * Mathf.Lerp(0.5f, 0.24f, t) * U(0.85f, 1.15f);
-                float y = Mathf.Lerp(height * 0.3f, height - pr, t);
-                float spread = (1f - t * 0.7f) * radius * 0.35f;
+                float pr = radius * Mathf.Lerp(0.54f, 0.26f, t) * U(0.85f, 1.20f);
+                float y = Mathf.Lerp(height * 0.26f, height - pr * 0.85f, t);
+                float spread = (1f - t * 0.5f) * radius * 0.34f;
                 Vector3 centre = new(U(-1f, 1f) * spread, y, U(-1f, 1f) * spread);
                 c.Puffs.Add((centre, pr));
-                int lobes = 1 + rng.Next(2);
+                int lobes = 2 + rng.Next(2);
                 for (int k = 0; k < lobes; k++)
                 {
-                    float a = U(0f, Mathf.PI * 2f), lr = pr * U(0.55f, 0.8f);
-                    c.Puffs.Add((centre + new Vector3(Mathf.Cos(a) * pr * 0.75f, U(-0.2f, 0.25f) * pr, Mathf.Sin(a) * pr * 0.75f), lr));
+                    float a = U(0f, Mathf.PI * 2f), lr = pr * U(0.60f, 0.95f);
+                    c.Puffs.Add((centre + new Vector3(Mathf.Cos(a) * pr * U(0.40f, 0.70f), U(-0.3f, 0.35f) * pr,
+                                                      Mathf.Sin(a) * pr * U(0.40f, 0.70f)), lr));
                 }
             }
-
-            // One mesh per cloud.
-            var verts = new List<Vector3>(); var norms = new List<Vector3>(); var tris = new List<int>();
-            Vector3[] sv = _sphere.vertices; Vector3[] sn = _sphere.normals; int[] st = _sphere.triangles;
-            foreach (var (pc, pr) in c.Puffs)
+            // Granulation: small puffs sitting ON the sunlit upper surface. A cumulus crown is bumpy at a scale far
+            // below its turrets, and that granular edge against the blue is most of what makes a photograph of one
+            // read as cloud rather than as a shape. They sit SEVEN tenths of the way out along their parent's radius,
+            // not eight: a granule that stands proud of the surface it grew on is a wart, and the first impostor
+            // version of this had a dozen of them on every crown.
+            int grains = 8 + rng.Next(5), placed = c.Puffs.Count, shapeLobes = c.Puffs.Count;
+            for (int i = 0; i < grains; i++)
             {
-                int o = verts.Count;
-                for (int i = 0; i < sv.Length; i++) { verts.Add(pc + sv[i] * pr); norms.Add(sn[i]); }
-                foreach (int ti in st) tris.Add(o + ti);
+                var (pc, pr) = c.Puffs[rng.Next(placed)];
+                if (pc.y < height * 0.2f) continue;
+                float a = U(0f, Mathf.PI * 2f), e = U(0.1f, 1.0f), s = Mathf.Sqrt(1f - e * e);
+                Vector3 dir = new(Mathf.Cos(a) * s, e, Mathf.Sin(a) * s);
+                c.Puffs.Add((pc + dir * pr * 0.70f, Mathf.Min(pr * 0.38f, radius * 0.16f) * U(0.75f, 1.1f)));
             }
-            var mesh = new Mesh { name = "Cumulus", indexFormat = verts.Count > 65000 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16 };
-            mesh.SetVertices(verts); mesh.SetNormals(norms); mesh.SetTriangles(tris, 0);
-            mesh.bounds = new Bounds(new Vector3(0, height * 0.5f, 0), new Vector3(radius * 2.6f, height * 1.3f, radius * 2.6f));
+
+            // ---- one mesh per cloud -----------------------------------------------------------------------------
+            // Four vertices a lobe, all of them at the lobe's centre; the vertex shader swings them into a
+            // camera-facing quad of half-size TEXCOORD1 and the fragment shader shades it as a sphere and erodes it
+            // with seeded noise. That is 2 triangles a lobe where the sphere mesh it replaces was about 400, and it
+            // is the whole of the cost argument in docs/CLOUDS-WAKE-VISUALS.md: the geometry and the startup build
+            // all but vanish, and what is paid instead is overdraw, because these blend and do not write depth.
+            //
+            // COLOR.a is the playground's "secondary lobe" flag, which fades a lobe out beyond 7.5 km. The lobes
+            // that carry the SHAPE — the ring, the body, the turrets — are primary, because the cloud is the
+            // landmark a glider pilot steers at from 5 km out and it has to hold its outline all the way in. The
+            // granulation is secondary: it is the surface texture of a crown, it is invisible past a few kilometres
+            // anyway, and it is a third of the lobes. That is overdraw bought back for nothing given up.
+            var verts = new List<Vector3>(c.Puffs.Count * 4); var uvs = new List<Vector2>(c.Puffs.Count * 4);
+            var sizes = new List<Vector2>(c.Puffs.Count * 4); var cols = new List<Color>(c.Puffs.Count * 4);
+            var tris = new List<int>(c.Puffs.Count * 6);
+            for (int i = 0; i < c.Puffs.Count; i++)
+            {
+                var (pc, pr) = c.Puffs[i];
+                float secondary = i < shapeLobes ? 0f : 1f;
+                int o = verts.Count;
+                for (int k = 0; k < 4; k++)
+                {
+                    verts.Add(pc); uvs.Add(new Vector2(k % 2, k / 2));
+                    sizes.Add(new Vector2(pr, pr * 0.95f));   // a shade flatter than round: a lobe is not a ball
+                    cols.Add(new Color(1f, 1f, 1f, secondary));
+                }
+                tris.Add(o); tris.Add(o + 2); tris.Add(o + 1);
+                tris.Add(o + 1); tris.Add(o + 2); tris.Add(o + 3);
+            }
+
+            var mesh = new Mesh { name = "Cumulus" };
+            mesh.SetVertices(verts); mesh.SetUVs(0, uvs); mesh.SetUVs(1, sizes);
+            mesh.SetColors(cols); mesh.SetTriangles(tris, 0);
+            // The quads expand round their centres in the shader, so the bounds must allow for the biggest lobe
+            // sticking out of the puff field in every direction, or a cloud is culled while part of it is on screen.
+            mesh.bounds = new Bounds(new Vector3(0, height * 0.5f, 0), new Vector3(radius * 3.2f, height * 1.8f, radius * 3.2f));
 
             var go = new GameObject(th != null ? "ThermalCumulus" : "Cumulus");
             go.transform.SetParent(transform, false);
@@ -154,6 +253,8 @@ namespace FlyingGame.Bridge
             c.R.sharedMaterial = _mat;
             c.R.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             c.R.receiveShadows = false;
+            c.R.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+            c.R.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
             c.T = go.transform;
             _clouds.Add(c);
             Place(c);
@@ -167,6 +268,11 @@ namespace FlyingGame.Bridge
             c.T.position = new Vector3(u.x, c.BaseY, u.z);
         }
 
+        /// <summary>Edit-mode entry for the render tool (Editor/CumulusRender.cs): LateUpdate does all the per-frame
+        /// shader work — the flat base, the sun direction, the fade — so a batch-mode render has to drive it by hand
+        /// or the material's defaults (base y = 1000) put the condensation level in the wrong place.</summary>
+        public static void StepForTesting() { if (_inst != null) _inst.LateUpdate(); }
+
         private void LateUpdate()
         {
             _mpb ??= new MaterialPropertyBlock();
@@ -178,15 +284,18 @@ namespace FlyingGame.Bridge
             float deepest = 0f;
             foreach (Cloud c in _clouds)
             {
-                // Thermal clouds come and go with the day's thermals (Options: Thermals 0x = blue sky).
+                // Thermal clouds come and go with the day's thermals (Options: Thermals 0x = blue sky), and a
+                // cloud further off than CullRangeM has already faded to nothing in the shader.
                 bool on = c.Th == null || scale > 0.05f;
+                if (on && CullFar && (c.T.position - cp).sqrMagnitude > CullRangeM * CullRangeM) on = false;
                 if (c.R.enabled != on) c.R.enabled = on;
                 if (!on) continue;
                 Place(c);
                 _mpb.SetFloat(BaseId, c.BaseY);
                 _mpb.SetFloat(TopId, c.TopY);
                 _mpb.SetVector(SunId, toSun);
-                _mpb.SetFloat(FadeId, 1f);
+                _mpb.SetFloat(CumulusId, 1f);   // the flat base and the whole-cloud shading; the banks leave it 0
+                _mpb.SetFloat(CoreId, CoreAlpha);
                 c.R.SetPropertyBlock(_mpb);
 
                 // In-cloud whiteout: how far inside the nearest puff the camera is.
@@ -216,28 +325,5 @@ namespace FlyingGame.Bridge
             GUI.color = Color.white;
         }
 
-        private static Mesh BuildSphere(int lon, int lat)
-        {
-            var v = new List<Vector3>(); var t = new List<int>();
-            for (int i = 0; i <= lat; i++)
-            {
-                float th = Mathf.PI * i / lat;
-                for (int j = 0; j <= lon; j++)
-                {
-                    float ph = 2f * Mathf.PI * j / lon;
-                    v.Add(new Vector3(Mathf.Sin(th) * Mathf.Cos(ph), Mathf.Cos(th), Mathf.Sin(th) * Mathf.Sin(ph)));
-                }
-            }
-            for (int i = 0; i < lat; i++)
-                for (int j = 0; j < lon; j++)
-                {
-                    int a = i * (lon + 1) + j, b = a + lon + 1;
-                    t.Add(a); t.Add(a + 1); t.Add(b);
-                    t.Add(a + 1); t.Add(b + 1); t.Add(b);
-                }
-            var m = new Mesh();
-            m.SetVertices(v); m.SetNormals(v); m.SetTriangles(t, 0);
-            return m;
-        }
     }
 }

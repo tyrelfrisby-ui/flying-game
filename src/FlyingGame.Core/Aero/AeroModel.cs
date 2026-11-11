@@ -349,6 +349,18 @@ public static class AeroModel
     })[0];
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, double[]> _munk = new();
 
+    /// <summary>
+    /// FORGET THE CACHED MUNK MOMENT for this config, so the next step recomputes it from
+    /// <see cref="FuselageConfig.MunkScale"/> as it stands now.
+    ///
+    /// It exists for the Developer tuning page (see FlyingGame.Core.Tuning.TunableCatalog), and it is the ONLY
+    /// config-keyed cache that page has to invalidate: every other number it offers is re-read from the config each
+    /// step, and the remaining tables here cache GEOMETRY — spans, aspect ratios, load points, section tables — which
+    /// the page does not touch, because strip positions and areas are measured facts rather than knobs. Nothing else
+    /// should call this; a knob that needs more than this one line does not belong on that page.
+    /// </summary>
+    public static void ForgetFuselageMunk(AircraftConfig config) => _munk.Remove(config);
+
     private sealed class TailSectionMap { public string?[] Keys = System.Array.Empty<string?>(); public Dictionary<string, AirfoilTableData> Derived = new(); }
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, TailSectionMap> _tailSections = new();
     private static TailSectionMap TailSections(AircraftConfig config) => _tailSections.GetValue(config, cfg =>
