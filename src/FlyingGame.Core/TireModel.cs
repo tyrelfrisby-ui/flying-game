@@ -277,6 +277,65 @@ public static class TireModel
         return ground * (SinkageExponent(s) + 1.0) * System.Math.Max(0.0, FootprintLengthM(t, delta));
     }
 
+    /// <summary>
+    /// The rut a tyre at deflection <paramref name="delta"/> presses into this ground, m, from the tyre's OWN state:
+    /// the same Bekker relation as the overload above, evaluated at the pressure the CARCASS is transmitting
+    /// (<see cref="CarcassGroundPressurePa"/>) instead of at the whole leg's load over the tyre's patch.
+    ///
+    /// ## Why the leg's load is the wrong numerator, measured
+    /// Expand the overload above. The ground's share of <see cref="RollingCoefficient"/> is
+    /// ground·(p_g/p_ref)^(1/n)·(l_ref/l), and the overload multiplies it by (n+1)·l, so **l cancels exactly** and
+    ///
+    ///     z = ground · (p_g / p_ref)^(1/n) · l_ref · (n + 1)
+    ///
+    /// — the rut is a function of the GROUND PRESSURE alone. And p_g was being taken as the leg's whole normal load
+    /// over the tyre's footprint at its own deflection, which are not the same tyre's two numbers: the footprint is
+    /// the carcass's at δ, the load includes the leg spring and the leg DAMPER (<see cref="Junction"/>).
+    ///
+    /// At the onset of a touchdown those differ by orders of magnitude, and a J-3 put down at 14 m/s on grass was
+    /// MEASURED doing it: one step in 2,400 read a **558 mm** rut, and the load on that step was **281 N** — a sixth
+    /// of the main's static load and a sixty-fifth of that landing's 18 kN peak — on a footprint of 10 × 13 mm, so
+    /// p_g came out at **2,806 kPa**, twenty-five times what the same tyre reads standing. The diagnosis in
+    /// docs/GROUND-IMPRINTS.md — "a steady-state relation handed an impulsive load" — was wrong: at the genuinely
+    /// impulsive load the model is well behaved (the same landing's 11,973 N peak reads 111 kPa over a 211 × 366 mm
+    /// patch and a 5.5 mm rut). It is a GRAZING touch, where δ → 0 with the load held up by the leg, that diverges —
+    /// z ∝ (load/δ)^(1/n), and 1/n is 1.43 on turf.
+    ///
+    /// ## The number that is bounded, and why it is the right one
+    /// A pneumatic tyre's mean contact pressure is its inflation pressure: that is the textbook result and it is
+    /// already in this model. F_t(δ)/A(δ) (eq. 24 over eq. 12) tends to 0.42·(p + 0.08·p_r) as δ → 0 and to
+    /// 1.04·(p + 0.08·p_r) when the carcass is deep, so it cannot run away. An undeflected carcass cannot transmit
+    /// 2.8 MPa through a square centimetre — if it were transmitting that, it would be deflected. The leg's spring and
+    /// damper do reach the ground through the same patch, but they reach it at the pressure the carcass is carrying,
+    /// and the carcass is the thing in contact with the soil.
+    ///
+    /// REJECTED: recomputing the sinkage from a filtered load. There is no filter and no state here — the same
+    /// relation, at the same deflection, with the tyre's own two numbers instead of two parts' — because a filter
+    /// would be a second rut model beside the physics' own (docs/GROUND-IMPRINTS.md, "The split").
+    ///
+    /// The snow CRUST zones keep the overload above: there <see cref="RollingCoefficient"/> is not in play at all
+    /// (LandingGear.SnowSinkageRolling is), l does not cancel, and the l → 0 of a grazing touch takes the rut to 0
+    /// on its own.
+    /// </summary>
+    public static double GroundRutM(TireSpec? t, double psi, WorldTerrain.Surface s, double delta)
+    {
+        if (t == null) return 0.0;
+        return GroundSinkageM(t, RollingCoefficient(t, psi, s, SpringForce(t, psi, System.Math.Max(0, delta)), delta), s, delta);
+    }
+
+    /// <summary>
+    /// The mean pressure the tyre's CARCASS is transmitting to the ground at deflection <paramref name="delta"/>, Pa:
+    /// its own spring force (eq. 24) over its own gross footprint (eq. 12). Self-consistent by construction — one
+    /// tyre, one deflection — and so bounded between 0.42 and 1.04 of (p + 0.08·p_rated), which is the classical
+    /// statement that a pneumatic tyre's mean ground pressure is its inflation pressure.
+    ///
+    /// <see cref="GroundPressurePa"/> remains the pressure the WHOLE contact is applying (leg spring, leg damper and
+    /// all), which is what <see cref="SurfaceContact.PressurePa"/> reports and what the rolling resistance the
+    /// aeroplane is charged for is built on. This one is for the permanent set left in the soil.
+    /// </summary>
+    public static double CarcassGroundPressurePa(TireSpec t, double psi, double delta) =>
+        GroundPressurePa(t, SpringForce(t, psi, System.Math.Max(0, delta)), delta);
+
     /// <summary>Bekker's sinkage exponent n (Wong, Theory of Ground Vehicles, via NASA/TM-20250006958 Table 1) for the
     /// soil each surface is nearest: snow 1.6 (US snow); sand 1.1 (dry sand); gravel 1.1 (granular, taken as dry sand —
     /// ESTIMATE); grass, dirt and rough 0.7 (sandy loam, 15 % moisture).</summary>

@@ -1,3 +1,115 @@
+## The marks draw — and the "impulsive load" that was really a grazing touch — Claude, 2026-11-10, lane/claude-imprint-render
+
+<!-- ground-imprints renderer engine-free grazing-touch carcass-pressure clear-call-site -->
+
+Ty asked for aircraft to leave marks in the ground: *"if it is penetrating it should leave imprints behind as it
+slides and rolls displacing the dirt or snow etc"*. The record was built on `lane/claude-imprints` and nothing drew
+it. **It draws now**, and the two defects that work turned up are both fixed.
+
+### 1. The drawing, and why none of it is in Unity
+
+`src/FlyingGame.Core/GroundImprintMesh.cs` — the look of a mark and the vertices that draw it, **engine-free**, so
+iOS, the Mac, the Quest and the Aero widget draw the same marks from the same code and a platform cannot quietly
+fall behind. `Bridge/GroundImprintVisual.cs` does the three things only an engine can: convert NED to Unity's frame,
+hand the vertices to a `Mesh`, choose how often. `Shaders/GroundImprint.shader` lights a mark exactly as
+`FlyingGame/IslandTerrain` lights the ground under it. **No particles.** One mesh, one material, one draw call.
+
+A mark is **not a hole in the geometry**: it is a flat sheet lying ON the ground and its depth is in its ALPHA. That
+is the other half of the bargain that let `MinDepthM` stay at 1 mm — the record says 3.3 mm, the drawing makes that
+flattened, bruised turf.
+
+**Three things were measured rather than chosen, and each replaced a number I had picked first:**
+
+- **The cap alpha.** A curving track is a CHAIN of stretches one physics step apart — 12 cm at a 14 m/s touchdown —
+  so each mark is drawn half a width past both ends or a landing roll is a dotted line. But alpha-blending
+  *compounds*, 1 − (1 − c)², so full-alpha caps draw a dark bead at every joint (one every 2–4 m) and zero-alpha caps
+  leave a light band. The c that makes the overlap read back exactly the mark's own alpha is **c = 1 − √(1 − a)** —
+  0.163 for a faint 0.3 mark (0.54 of it), 0.613 for a saturated 0.85 one (0.72 of it), exact at both, which no
+  fixed fraction can be. I shipped
+  0.5 first; a test caught it at 15 % light.
+- **The darkening.** Read off the renderer's own light model instead of picked: the shader lights a mark sky + sun·d,
+  and ground a hollow's walls keep the sun off is lit by the sky alone, which is .50/.94, .57/.98, .64/.98 = **0.59**
+  of it. A gouge or scar has also brought up the damper subsoil (×0.75) → 0.44; a skid has smeared the surface
+  without opening a hollow to shade itself with → 0.66. **On soft ground a skid marks it LESS than a rolling tyre
+  does**, which is right: the famous black streak is on pavement, where nothing marks at all.
+- **The shoulder.** `sin(repose)` of the floor's alpha, straight out of the soil table. Turf's root mat holds a 60°
+  shoulder and reads 0.87 — a sharp edge; dry sand's 32° reads 0.53 and fades out at the sides.
+
+**Where the vertices go** was measured too. Every vertex is sampled against `WorldTerrain.GroundHeightAt` — the
+analytic ground the WHEELS run on — so a mark follows the slope across its width as well as along its length. The
+drawn island mesh is that same function on a 25 m lattice, so the two differ by the lattice's own curvature: over the
+island's land, on ground flat enough to roll on, the median gap is **0 mm** and the 95th percentile **38 mm**. Where
+it is larger the aeroplane stands off the drawn mesh by the same amount, so a mark is always under the wheel that
+made it — the only consistent choice there is. 2 cm of lift, straight up (not along the normal: that moves the vertex
+sideways off the ground whose height it was just given, which on a slope is a bigger error than the lift).
+
+**Cost:** 16 vertices and 18 triangles a mark, 18,432 for the ring's full 1,024 — a fraction of one of
+ForestBuilder's detail trees, inside a **16-bit** index buffer. The index buffer is fixed (mark *i* owns the same
+sixteen vertices for ever), `Refresh` rewrites only the marks that CHANGED — at most a dozen a step, one per contact
+in contact — and the visual calls it at 20 Hz. Without both, a landing roll re-uploads 16,384 vertices every step of
+the step loop. That is the 2026-11-09 `ConditionalWeakTable` lesson one layer up.
+
+### 2. `GroundImprints.Clear()` had no call site
+
+One line, in `StructuralDamage.Repair` beside `Forest.ClearBroken()` and `StrippedTrees.Clear()`. Until it existed,
+one session's ruts, ski tracks and wreck scars were still lying there in the next flight.
+
+### 3. The tyre sinkage spike is a GRAZING TOUCH, not an impulsive load
+
+`docs/GROUND-IMPRINTS.md` said a steady-state relation handed an impulsive load gives an impulsive answer. **That
+diagnosis was wrong, and measuring it rather than quoting it is what found the real one.**
+
+Expand `GroundSinkageM` and the footprint length *l* **cancels exactly**, leaving
+*z* = ground·(p_g/p_ref)^(1/n)·l_ref·(n+1): the rut is a function of the **ground pressure alone**. And p_g was the
+leg's whole normal load over the *carcass's* footprint at its own deflection — not one tyre's two numbers (the
+footprint is the carcass's at δ; the load includes the leg spring and the leg DAMPER).
+
+A J-3 put down on grass at 14 m/s, every step instrumented:
+
+| | rut | at a load of | pressure | footprint |
+|---|---|---|---|---|
+| the worst step in 2,400 | **558 mm** | **281 N** | 2,806 kPa | 10 × 13 mm |
+| that landing's peak LOAD | 5.5 mm | 11,973 N | 111 kPa | 211 × 366 mm |
+
+The load at the "spike" is a sixth of a main's static load and a sixty-fifth of the landing's peak. At the genuinely
+impulsive load the model was always fine. *z* ∝ (load/δ)^(1/n) and 1/n is 1.43 on turf, so it is **δ → 0** that
+diverges.
+
+`TireModel.GroundRutM` evaluates the **same** relation at the pressure the **carcass** is transmitting
+(`CarcassGroundPressurePa`: TR R-64 eq. 24 over eq. 12 — one tyre, one deflection, self-consistent and therefore
+bounded between 0.42 and 1.04 of (p + 0.08·p_rated), which is the classical "a pneumatic tyre's mean ground pressure
+is its inflation pressure"). An undeflected carcass cannot transmit 2.8 MPa through a square centimetre; if it were,
+it would be deflected.
+
+**Nothing the aeroplane feels changed** — the rolling resistance it is charged for still comes from the whole load.
+Measured after, over three surfaces and five arrival rates: grass 558 → **10.1 mm**, dirt 489 → 8.8, snow 300 → 52.6,
+and **the deepest rut of a landing is now at its heaviest load in every single case**. A J-3 dropped in from a metre
+(22 kN peak) presses 13.3 mm on grass and 58.8 mm in snow against 4.6 and 36.6 mm for a gentle arrival — Ty's
+"several cm on initial impact", out of the physics rather than out of a clamp.
+
+REJECTED and still rejected: recomputing the sinkage from a filtered load. No filter and no state — the same
+relation, at the same deflection, with the tyre's own two numbers instead of two parts'. Snow CRUST zones keep the
+old path (there `RollingCoefficient` is not in play, *l* does not cancel, and a graze goes to zero on its own).
+
+### What a landing roll looks like, and what is NOT fixed
+
+A J-3's touchdown roll comes out **dashed** for its first second or two and then continuous. Honest: over a 6 s roll
+at 14 m/s on grass a tyre is in contact on only **919 of 1,200 steps** — the Cub is chattering on its own gear, and
+the record never joins a stretch across a gap the wheel flew over.
+
+**The airframe scars are still enormous** — a wingtip's gouge draws as a black blot — because `AirframeContact`'s
+penalty spring is mass-independent and a J-3 wingtip reads 1.04 m into the ground. That is `lane/claude-contact-depth`
+and it was deliberately NOT clamped here: a cosmetic cap would hide the bug and put a second depth model beside the
+contact's. When it lands the scars become a few centimetres with **no change to any of this**.
+
+Not done: no tread and no torn-edge texture (a mark's `Kind` picks how dark and how plain it is, not a pattern — the
+obvious next thing), and nothing reads `TimeSec` to weather a mark.
+
+`unity/Assets/_Project/Scripts/Editor/GroundImprintShots.cs` shoots the review plates (plan, eye height beside the
+tracks, a low look along one rut) on the real island, from marks an aeroplane lays by rolling. **NEEDS A UNITY SLOT:**
+I did not run it — the slot belonged to the main session — so the Unity side is unexercised and the shader has never
+been compiled. Everything else in this lane is covered headless, which is the point of keeping the geometry in Core.
+
 ## Preset aileron trim for a high start — and the four types it cannot save — Claude, 2026-11-10, lane/claude-backlog2
 
 <!-- preset-aileron-trim rig-altitude-drift trims-centred-tension spawn-cost-16x needs-you-rigtool -->

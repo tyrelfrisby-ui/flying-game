@@ -125,6 +125,69 @@ public class SurfaceContactTests : IDisposable
         Assert.Equal(0.025, hyst, 9);
     }
 
+    /// <summary>
+    /// A GRAZING TOUCH DOES NOT REPORT A TRENCH, and the deepest rut of a landing is at its heaviest load.
+    ///
+    /// <see cref="TireModel.GroundSinkageM(TireSpec, double, WorldTerrain.Surface, double)"/> inverts Bekker's
+    /// relation, and the footprint length cancels out of it exactly, so the rut is a function of the GROUND PRESSURE
+    /// alone. Taking that pressure as the leg's whole normal load over the carcass's own footprint is not one tyre's
+    /// two numbers, and at the onset of a touchdown they part company: a J-3 put down on grass at 14 m/s was measured
+    /// reporting a 558 mm rut on a step carrying 281 N, because the footprint on that step was 10 x 13 mm and the
+    /// pressure therefore read 2,806 kPa — 25x what the same tyre reads standing.
+    ///
+    /// <see cref="TireModel.GroundRutM"/> evaluates the same relation at the pressure the CARCASS is transmitting
+    /// (<see cref="TireModel.CarcassGroundPressurePa"/>), which is bounded by the tyre's inflation pressure because
+    /// that is what a pneumatic tyre's mean contact pressure IS. Nothing the aeroplane feels changes: the rolling
+    /// resistance it is charged for still comes from the whole load.
+    /// </summary>
+    [Fact]
+    public void AGrazingTouchDoesNotPressATrenchAndTheRutGrowsWithTheLoad()
+    {
+        TireSpec t = TireCatalog.Get("8.00-6")!;
+        const double psi = 18;
+
+        // The carcass's own mean pressure cannot run away: eq. 24 over eq. 12 tends to 0.42 (p + 0.08 p_r) as the
+        // deflection goes to nothing and to 1.04 of it when the tyre is deep. The classical "a tyre's ground pressure
+        // is its inflation pressure", and it is what stops the grazing touch.
+        double inflation = (psi + TireModel.CarcassPressureFraction * t.MaxPsi) * TireModel.Psi;
+        double bottomed = TireModel.BottomDeflectionM(t);
+        foreach (double delta in new[] { 0.0005, 0.001, 0.005, 0.02, 0.05, 0.10, 0.99 * bottomed })
+            Assert.InRange(TireModel.CarcassGroundPressurePa(t, psi, delta) / inflation, 0.40, 1.10);
+        // Past bottoming the rim is on the ground through two folds of sidewall and the pressure leaves that band for
+        // real: that is not this relation's business any more, and it is why AircraftImprints bounds a tyre's rut by
+        // its own rolling radius.
+        Assert.True(TireModel.CarcassGroundPressurePa(t, psi, 1.3 * bottomed) > 1.10 * inflation);
+        // Under about a tenth of a millimetre of deflection GroundPressurePa's 1 cm2 area floor takes over and the
+        // ratio falls away below that band. That is the safe direction - it UNDER-reads the pressure, so a tyre that
+        // has barely touched presses less rather than more - and it is why nothing here needs a floor of its own.
+        foreach (double delta in new[] { 1e-6, 1e-5, 1e-4 })
+            Assert.InRange(TireModel.CarcassGroundPressurePa(t, psi, delta) / inflation, 0.0, 0.45);
+
+        // A grazing touch: the leg is holding a real load on a carcass that has barely squashed. The OLD path reads a
+        // trench; the carcass path reads next to nothing, which is what a tyre that has barely touched has done.
+        double graze = 1e-4;                                    // 0.1 mm of carcass
+        double legLoadN = 281;                                  // the load on the measured step
+        double was = TireModel.GroundSinkageM(t, TireModel.RollingCoefficient(t, psi, WorldTerrain.Surface.Grass, legLoadN, graze),
+                                              WorldTerrain.Surface.Grass, graze);
+        double now = TireModel.GroundRutM(t, psi, WorldTerrain.Surface.Grass, graze);
+        Assert.True(was > 0.3, $"the measurement this fixes: the old path read {1000 * was:F0} mm");
+        Assert.True(now < 0.002, $"a graze presses {1000 * now:F2} mm");
+
+        // And the rut GROWS WITH THE LOAD, monotonically, at the deflection that load actually makes — which is the
+        // thing a steady-state relation is for. A Cub main's static load is about 1.8 kN.
+        double last = -1;
+        foreach (double loadN in new[] { 500.0, 1000.0, 1800.0, 4000.0, 8000.0, 16000.0, 22000.0 })
+        {
+            double delta = TireModel.StaticDeflectionM(t, psi, loadN);
+            double z = TireModel.GroundRutM(t, psi, WorldTerrain.Surface.Grass, delta);
+            Assert.True(z >= last, $"{loadN} N read {1000 * z:F2} mm after {1000 * last:F2} mm");
+            last = z;
+        }
+        // The whole of a Cub's landing, from standing to a 22 kN three-point arrival, stays in Ty's "a few cm".
+        Assert.InRange(last, 0.003, 0.05);
+        Assert.Equal(0.0, TireModel.GroundRutM(null, psi, WorldTerrain.Surface.Grass, 0.02));
+    }
+
     [Fact]
     public void ALockedWheelSlidesItsWholeSpeedAndARollingOneDoesNot()
     {
