@@ -1438,6 +1438,8 @@
   },
   "smoke": {"cylinders": 4, "aftOfNoseM": 1.2, "downDeg": 31, "displacementCuIn": 361, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [-0.151, -0.187, 0.628]},
   "propulsion": {
+    "dryBoundaryExcess": 2.10,
+    "dryBoundaryExcessSource": "Dry boundary friction excess at rest, over the power curve's own running friction intercept (PistonEngine.BoundaryFrictionFactor): 2.10 means this engine resists 3.10x its running friction when it is dead and dry. Lycoming AEIO-360, 361 cu in, 4 cyl. SOLVED 2026-11-10 (lane/claude-boundary-friction, CompressionStopProbe with COMPSTOP=1 SOLVE=1) against Ty's anchor \"Cranking resistance should be calibrated such that at fine pitch the prop stops right at level flight stall speed\", and then his \"fix it per engine\": it is the one value that puts the measured stopping speed on this type's OWN stall speed, 22.9 m/s = 51 mph (PracticeScenario.EstimateVso, sea level, flaps up - the number the rest of the suite is tuned against, not a book figure). Solved and not predicted: nothing inside an engine explains the fleet's spread, because motoring friction and rated torque both scale with displacement - see PistonEngine.BoundaryExcessFor for what was tried and rejected. The fleet default for every type not yet solved is 3.0.",
     "maxPowerW": 134226,
     "propDiameterM": 1.8796,
     "fineStopDeg": 12.50,

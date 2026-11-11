@@ -110,7 +110,7 @@ public static class PistonEngine
     /// balance: <see cref="BladeElement.Windmill"/> and the dead-engine branch of the shaft integration.
     /// </summary>
     public static double MotoringTorqueNm(double ratedPowerW, double ratedRpm, double rpm, double throttle01,
-                                          double pressureRatio, double densityRatio = 0.0)
+                                          double pressureRatio, double densityRatio = 0.0, double boundaryExcess = -1.0)
     {
         if (ratedRpm <= 0.0 || rpm <= 1.0) return 0.0;
         double sigma = densityRatio > 0 ? densityRatio : pressureRatio;
@@ -120,31 +120,93 @@ public static class PistonEngine
         double openFraction = (mp - FrictionManifoldInHg) / span;      // the SAME expression, lower clamp lifted
         if (openFraction >= 0.0) return 0.0;                           // open enough to make power: not this function's business
         double powerW = ratedPowerW * AltitudePowerFraction(sigma) * openFraction * (rpm / ratedRpm);
-        return powerW / (rpm * 2.0 * Math.PI / 60.0) * BoundaryFrictionFactor(rpm);
+        return powerW / (rpm * 2.0 * Math.PI / 60.0) * BoundaryFrictionFactor(rpm, boundaryExcess);
     }
+
+    /// <summary>The same thing for a configured engine, which is the form every caller in the sim wants: it carries its
+    /// own <see cref="PropulsionConfig.DryBoundaryExcess"/> where one has been solved for it.</summary>
+    public static double MotoringTorqueNm(PropulsionConfig prop, double rpm, double throttle01,
+                                          double pressureRatio, double densityRatio = 0.0)
+        => MotoringTorqueNm(prop.MaxPowerW, prop.MaxRpm, rpm, throttle01, pressureRatio, densityRatio,
+                            BoundaryExcessFor(prop));
 
     /// <summary>
     /// BOUNDARY FRICTION, which is why a dead propeller stops so much earlier than the running friction alone says.
     /// The friction intercept in the power curve is the friction of an engine that is RUNNING — oil pump turning, a
     /// hydrodynamic film in every bearing, friction roughly proportional to speed so the torque is near constant. An
     /// engine with no oil pressure has no film: the bearings and the rings are in boundary contact, and boundary
-    /// friction is several times hydrodynamic and HIGHEST at the lowest speed. That is a coincidence worth noticing —
-    /// the one case this whole mechanism is about, oil pressure lost, is exactly the case where it bites hardest.
+    /// friction is several times hydrodynamic. That is a coincidence worth noticing — the one case this whole
+    /// mechanism is about, oil pressure lost, is exactly the case where it bites hardest.
     ///
-    /// <see cref="DryBoundaryExcess"/> = 2.3 makes it 3.3x the running friction at rest, decaying with
-    /// <see cref="BoundaryRpmScale"/> = 300 rpm. Both are chosen against Ty's own anchor, 2026-11-10: "Cranking
-    /// resistance should be calibrated such that at fine pitch the prop stops right at level flight stall speed". The
-    /// air's torque on a slow blade goes as v^2, so the measured stopping speeds (25-32 mph before this) and the five
-    /// types' stall speeds (38-58 mph) asked for 2.3x to 4.3x — which is the boundary-friction range, so the number
-    /// the flying wanted and the number the tribology allows are the same number. CompressionStopProbe measures it.
+    /// THE SHAPE WAS THE BUG, NOT THE AMPLITUDE (2026-11-10, second pass). The first version of this decayed as
+    /// exp(−rpm/300), so the whole effect lived below 300 rpm — and the measurement says that is nowhere near where a
+    /// propeller actually gives up. Seeded from a windmill and slowed down, these types quit between about 650 and
+    /// 1,500 rpm, where an exp(−rpm/300) tail has already shrunk the excess by a factor of 9 to 140. That is why Ty's
+    /// anchor — "Cranking resistance should be calibrated such that at fine pitch the prop stops right at level flight
+    /// stall speed" — asked for amplitudes of 7 to 40 times the running friction, far outside anything tribology
+    /// allows, and STILL could not be met with one number: the exponent, not the amplitude, was carrying a 25-fold
+    /// spread, and it was carrying it in exactly the rpm band the windmilling drag is calibrated in.
     ///
-    /// It decays over a few hundred rpm, so it is gone by the 1,300-4,300 rpm where the windmilling drag was matched
-    /// against the published glide ratios: that calibration is untouched by this one.
+    /// A STRIBECK ROLL-OFF IS THE RIGHT SHAPE, AND IT IS NOT A CURVE I PICKED. Boundary friction is not a spike at
+    /// zero speed; it is a PLATEAU that holds while the surfaces are in contact and falls away once sliding speed
+    /// builds a film:
+    ///
+    ///     factor(rpm) = 1 + excess / (1 + (rpm / BoundaryRpmScale)^2)
+    ///
+    /// flat at low rpm, half gone at the scale, and down to a sixteenth of itself by rated rpm.
+    ///
+    /// <see cref="BoundaryRpmScale"/> = 700 rpm IS A RUBBING SPEED, which is the variable a Stribeck transition
+    /// actually lives in. The boundary-to-mixed transition for a piston ring sits near 2.5 m/s of mean piston speed,
+    /// and mean piston speed is 2·S·N/60, so on this fleet's strokes — a Continental C-85 is 3.875 in = 0.098 m, a
+    /// Lycoming 540 is 4.375 in = 0.111 m — 2.5 m/s is 680 to 765 rpm. ONE number for the fleet because the fleet's
+    /// strokes are all within 12 % of each other; made per type it would move the answer a few per cent, and the
+    /// displacement it would need is authored on six of the twenty-seven propeller types.
+    ///
+    /// <see cref="DryBoundaryExcess"/> = 3.0 is the FLEET amplitude: a dry engine resisting 4.0x its running friction
+    /// at rest. It is the geometric mean of what the five types this mechanism is live on each ask for (2.10 to 4.63,
+    /// each solved on its own against Ty's stall-speed anchor), and it sits inside what the tribology allows — a
+    /// boundary friction coefficient is one to two orders of magnitude above a hydrodynamic one at the contact, but
+    /// only the film-dependent part of an engine's loss changes, so a cold unlubricated engine's motoring torque comes
+    /// out a few times the hot running figure and not a hundred. Types that have been solved carry their own number in
+    /// <see cref="PropulsionConfig.DryBoundaryExcess"/>; this is what every other type uses.
+    ///
+    /// At 700 rpm the excess is half gone and by 4,300 rpm a fortieth, so a fine blade still runs away past the red
+    /// line in a dive — which is what Ty saw, and the other half of why the aerobatic installation is plumbed coarse.
+    /// What it does NOT leave alone is the windmilling drag at approach speed, and it must not: see
+    /// <see cref="PropModel.Windmilling"/> for the measured coefficients and the band they sit in.
     /// </summary>
-    public const double DryBoundaryExcess = 2.3, BoundaryRpmScale = 300.0;
+    public const double DryBoundaryExcess = 3.0, BoundaryRpmScale = 700.0;
 
-    public static double BoundaryFrictionFactor(double rpm)
-        => 1.0 + DryBoundaryExcess * Math.Exp(-Math.Max(0.0, rpm) / BoundaryRpmScale);
+    /// <summary>The multiplier on the running friction at this rpm for an engine whose dry excess at rest is
+    /// <paramref name="excess"/>. Negative = the fleet <see cref="DryBoundaryExcess"/>.</summary>
+    public static double BoundaryFrictionFactor(double rpm, double excess = -1.0)
+    {
+        double e = excess < 0.0 ? DryBoundaryExcess : excess;
+        double x = Math.Max(0.0, rpm) / BoundaryRpmScale;
+        return 1.0 + e / (1.0 + x * x);
+    }
+
+    /// <summary>
+    /// THIS ENGINE'S dry boundary excess: its own solved value where there is one, the fleet number otherwise. Ty
+    /// 2026-11-10, shown that no single constant could put every type's propeller down at its own stall speed: "fix it
+    /// per engine".
+    ///
+    /// AND IT IS PER ENGINE THE WAY <see cref="PistonCompression"/>'s peak is — SOLVED from one of his own anchors,
+    /// one equation in one unknown — rather than predicted from a property of the engine, because no property of the
+    /// engine predicts it, and I looked. Motoring friction and rated torque BOTH scale with displacement (this fleet's
+    /// BMEP runs 139 to 163 psi, a 17 % spread), so every engine-internal measure — displacement, FMEP, bore, ring
+    /// circumference, main-bearing count — hands back very nearly the same excess for all of them, and the two that do
+    /// vary point the wrong way: per unit of displacement a SMALL cylinder has more ring circumference, and a SHORT
+    /// stroke moves the Stribeck transition UP. Cylinder count looked like it split the fleet four-against-six until I
+    /// ran the same aeroplane at 4, 6 and 9 cylinders with nothing else touched and the stopping speed moved 2-5 %: the
+    /// split was the two 540s being aerobatic, not their cylinder count. What the spread actually tracks is the
+    /// AIRFRAME — its stall speed against its Vne, and its propeller's inertia (the two Cubs differ in nothing but the
+    /// propeller, and a 6 kg wood blade asks 2.20 where a 20 kg metal one asks 2.85) — and a friction law has no
+    /// business reading either of those. So it is solved per type from the type's own stall speed instead of predicted,
+    /// and <see cref="PropulsionConfig.DryBoundaryExcessSource"/> records what each one was solved against.
+    /// </summary>
+    public static double BoundaryExcessFor(PropulsionConfig? prop)
+        => prop is { DryBoundaryExcess: > 0.0 } ? prop.DryBoundaryExcess : DryBoundaryExcess;
 
     /// <summary>Shaft torque, N·m. Negative when the engine is being driven: below its friction manifold pressure it
     /// absorbs power rather than making it, which is what lets a windmilling propeller drag.</summary>

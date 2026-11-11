@@ -1523,6 +1523,8 @@
     ]
   },
   "propulsion": {
+    "dryBoundaryExcess": 2.85,
+    "dryBoundaryExcessSource": "Dry boundary friction excess at rest, over the power curve's own running friction intercept (PistonEngine.BoundaryFrictionFactor): 2.85 means this engine resists 3.85x its running friction when it is dead and dry. Continental C-85, 188 cu in, 4 cyl, metal propeller. SOLVED 2026-11-10 (lane/claude-boundary-friction, CompressionStopProbe with COMPSTOP=1 SOLVE=1) against Ty's anchor \"Cranking resistance should be calibrated such that at fine pitch the prop stops right at level flight stall speed\", and then his \"fix it per engine\": it is the one value that puts the measured stopping speed on this type's OWN stall speed, 19.6 m/s = 44 mph (PracticeScenario.EstimateVso, sea level, flaps up - the number the rest of the suite is tuned against, not a book figure). Solved and not predicted: nothing inside an engine explains the fleet's spread, because motoring friction and rated torque both scale with displacement - see PistonEngine.BoundaryExcessFor for what was tried and rejected. The fleet default for every type not yet solved is 3.0.",
     "maxPowerW": 63400.0,
     "propDiameterM": 1.83,
     "bladePitch75Deg": 15.33,

@@ -3,6 +3,7 @@ using System.IO;
 using FlyingGame.Core;
 using FlyingGame.Core.Engine;
 using FlyingGame.Core.DataContracts;
+using FlyingGame.Sim.Practice;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -35,17 +36,23 @@ public class OilLossPitchProbe
             if (p is null) continue;
             _o.WriteLine($"--- {name}  cs={p.ConstantSpeed} fine={p.FineStopDeg:0.##} coarse={p.CoarseStopDeg:0.##} " +
                          $"coarseOnOilLoss={p.CoarseOnOilLoss} oilLossPitch={PropModel.OilLossPitchDeg(p):0.##}  " +
+                         $"dryBoundaryExcess={PistonEngine.BoundaryExcessFor(p):0.00}  " +
                          $"D={p.PropDiameterM:0.##} blades={p.PropBladeCount} AF={p.ActivityFactor:0.#} idleCd={p.IdleDragCd:0.###}");
             double disc = Math.PI * 0.25 * p.PropDiameterM * p.PropDiameterM;
-            foreach (double v in new[] { 30.0, 45.0, 60.0, 80.0 })
+            // 1.3 Vso IS IN THIS LIST, and it is the one to read: the authored coefficient's band describes a
+            // fine-pitch propeller driven by the air at APPROACH speed, and since the dry boundary friction was solved
+            // to put the fine blade down at the stall speed (2026-11-10, second pass) a fixed 30 m/s is below the stall
+            // on some of these types and well above it on others.
+            double vso = PracticeScenario.EstimateVso(c, 0.0, 0.0);
+            foreach (double v in new[] { 30.0, 1.3 * vso, 45.0, 60.0, 80.0 })
             {
                 double authored = p.IdleDragCd * PropModel.StoppedDragFraction * 0.5 * rho * v * v * disc;
-                string line = $"   V={v,4:0} m/s   authored(stopped) {authored,7:0.0} N";
+                string line = $"   V={v,5:0.0} m/s   authored(stopped) {authored,7:0.0} N";
                 foreach ((string tag, double pitch) in new[] { ("fine", p.FineStopDeg), ("coarse", p.CoarseStopDeg) })
                 {
                     if (pitch <= 0.0) { line += $"   {tag}: n/a"; continue; }
                     var g = new BladeElement.Geometry(p.PropBladeCount, 0.5 * p.PropDiameterM, pitch, p.ActivityFactor);
-                    double EngineQ(double r) => PistonEngine.MotoringTorqueNm(p.MaxPowerW, p.MaxRpm, r, 0.0, 1.0, 1.0);
+                    double EngineQ(double r) => PistonEngine.MotoringTorqueNm(p, r, 0.0, 1.0, 1.0);
                     var free = BladeElement.Windmill(g, v, rho, p.MaxRpm);
                     var cranked = BladeElement.Windmill(g, v, rho, p.MaxRpm, EngineQ);
                     line += $"   {tag} {pitch,5:0.0}: free {(free.Turning ? $"{free.Rpm,6:0} rpm {free.DragN,7:0.0} N" : "   STOPPED      ")}" +
