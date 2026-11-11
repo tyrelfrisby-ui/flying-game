@@ -2019,6 +2019,28 @@
     "canRelease": true
   },
   "loading": {
+    "cgLimits": [
+      {
+        "massKg": 471.74,
+        "forwardM": 0.14876,
+        "aftM": -0.0519
+      }
+    ],
+    "cgDatumM": 0.45,
+    "hasCgDatum": true,
+    "maxTakeoffMassKg": 471.74,
+    "_cgLimitsSource": "FAA Glider Data Sheet G2EA Rev 2 (1973), covering the SGS 2-33, 2-33A and 2-33AK: maximum weight 1040 lb (471.74 kg), C.G. range +11.9 to +19.8 in aft of datum. The Class II Utility limits read +11.86 to +19.76, which is the same envelope to a rounding. DATUM = the leading edge of the wing at the root (station 0), confirmed by the owner 2026-11-11 and cross-checked against the manual's fuselage stations: the CG limits are given as station 78.20 to 86.10, and 78.20-11.86 = 86.10-19.76 = 66.34, so station 66.34 IS the datum. cgDatumM 0.45 is that point in the model's own body frame: the wing root strip sits at x 0.1 with a 1.4 m chord, and a strip's pos.x is its QUARTER chord -- calibrated on the J-3, whose authored cgDatumM 0.4073 equals its root strip's 0.02 + 0.25 x 1.549 to four decimals. CROSS-CHECK THAT COST NOTHING AND PROVED THE ARMS: the manual's pilot stations are 43.80 (front) and 74.70 (rear), i.e. -22.54 and +8.36 in from the datum, i.e. body x 1.02252 and 0.23766 -- against the authored 1.0342 and 0.2468. Within 1.2 cm and 0.9 cm, so the estimated arms were right and are left alone. The aeroplane sits inside this envelope where it should: glider plus one front pilot is +17.52 in, and EMPTY it is +30.72 in, aft of the aft limit, which is why a 2-33 is soloed from the front seat. 1080 lb belongs to the 2-33B and to separately eligible airframes, not to this type. The empty weight (600 lb) is NOT set here: it moves the flown mass and waits on the fleet-wide mass/CG/inertia reconciliation.",
+    "baggage": [
+      {
+        "id": "ballast",
+        "displayName": "Nose ballast (under the front seat)",
+        "station": [1.0342, 0.0, 0.52],
+        "referenceKg": 0,
+        "maxKg": 20.0,
+        "isSeat": false
+      }
+    ],
+    "_ballastSource": "Ty 2026-11-11: \"Add a ballast location at the front seat for the 2-33. It is common to put weights under the seat to get the cg right solo.\" That is real 2-33 practice and this model needs it: solo is flown from the FRONT seat, which is 22.54 in FORWARD of the datum, so a LIGHT pilot does not pull the CG far enough forward and the glider sits out the AFT end. Solved against this config's own mass model (empty 264 kg at +30.72 in, aft limit +19.76): a 242 lb pilot gives +15.08, 190 lb +17.61, 154 lb +19.58 -- and 110 lb gives +22.25, outside. 18.5 kg (40.8 lb) of ballast brings that 110 lb pilot back to the limit, which is what sets the placard below. ARM is the front seat's own station, because the weights go under that seat. referenceKg 0: no ballast is carried by default, so this station adds nothing to the flown mass and changes no handling until a pilot loads it. maxKg IS DERIVED, NOT READ: the figure that covers the lightest realistic pilot, rounded up. The 2-33 flight manual's own ballast placard would replace it.",
     "seats": [
       {
         "id": "front",
