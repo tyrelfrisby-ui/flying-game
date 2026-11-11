@@ -70,12 +70,11 @@ unity/Assets/StreamingAssets/rigs.meta
 # tracked-but-ignored, which is how great-lakes-like shipped with no runtime config on 2026-10-30. It also
 # cost real time on 2026-11-10: locally regenerated mirrors blocked two lane merges outright.
 unity/Assets/StreamingAssets/aircraft/
-# aircraft.meta is the folder's OWN meta and commerce.json is written beside the mirrors, so neither was
-# matched by the "aircraft/" line above. A repo-wide `git add '*.meta'` swept both into a commit on
-# 2026-11-10 and blocked the very next lane merge -- the third merge this trap has cost in one day.
+# aircraft.meta is the generated folder's OWN meta, so the "aircraft/" line above does not match it. A
+# repo-wide `git add '*.meta'` swept it into a commit on 2026-11-10 and blocked the very next lane merge --
+# the third merge this trap has cost in one day. commerce.json is NOT here on purpose: it sits beside the
+# mirrors but is an ORIGINAL with no repo source, and it belongs in git (see StreamingAssetsTests).
 unity/Assets/StreamingAssets/aircraft.meta
-unity/Assets/StreamingAssets/commerce.json
-unity/Assets/StreamingAssets/commerce.json.meta
 *.csproj.meta
 unity/*.csproj
 unity/*.sln
