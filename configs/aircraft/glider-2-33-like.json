@@ -1830,9 +1830,9 @@
     "finOffsetRad": 0,
     "throttleFraction": 0,
     "altitudeM": 1219.2,
-    "tasMs": 21.572,
-    "alphaRad": 0.067024,
-    "elevatorTrimRad": 0.013488,
+    "tasMs": 21.072,
+    "alphaRad": 0.074096,
+    "elevatorTrimRad": 0.008216,
     "bankRad": 0
   },
   "controls": {

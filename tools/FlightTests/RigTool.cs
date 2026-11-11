@@ -61,29 +61,44 @@ public class RigTool
     }
 
     /// <summary>The config text with its top-level `rig` block replaced (or inserted before `controls`), leaving every
-    /// other byte of the file alone.</summary>
+    /// other byte of the file alone.
+    ///
+    /// THE FILE'S OWN INDENT, not two spaces. Every config but one is written with two, and both regexes here used to
+    /// be anchored on that literally — so when the Grob 103 arrived from a generator that writes ONE space, the only
+    /// thing that writes a rig could not find its `controls` block and the whole fleet write died on an assert at the
+    /// seventeenth type, with sixteen files already rewritten. The Grob then had no rig at all (and no
+    /// <see cref="RigTable"/> row, so neither the rig pin nor the spiral test could see that it had none), which is how
+    /// a type can sit in the fleet unrigged while every rig test is green about it. Whitespace must not be able to do
+    /// that.</summary>
     public static string WithRig(string json, RigSolver.Result r)
     {
         static string N(double v) => (Math.Abs(v) < 5e-7 ? 0.0 : v).ToString("0.######", CultureInfo.InvariantCulture);
         string nl = json.Contains("\r\n") ? "\r\n" : "\n";
+        var existingAny = new Regex("^([ \t]+)\"rig\": \\{", RegexOptions.Multiline);
+        var controlsAny = new Regex("^([ \t]+)\"controls\": \\{", RegexOptions.Multiline);
+        Match mRig = existingAny.Match(json), mControls = controlsAny.Match(json);
+        Assert.True(mRig.Success || mControls.Success, "config has no top-level \"rig\" or \"controls\" block to put the rig at or before");
+        string ind = (mRig.Success ? mRig : mControls).Groups[1].Value, ind2 = ind + ind;
         string block = string.Join(nl, new[]
         {
-            "  \"rig\": {",
-            $"    \"aileronRad\": {N(r.AileronRigRad)},",
-            $"    \"finOffsetRad\": {N(r.FinOffsetRad)},",
-            $"    \"throttleFraction\": {N(r.Throttle)},",
-            $"    \"altitudeM\": {N(r.AltitudeM)},",
-            $"    \"tasMs\": {r.TasMs.ToString("0.###", CultureInfo.InvariantCulture)},",
-            $"    \"alphaRad\": {N(r.AlphaRad)},",
-            $"    \"elevatorTrimRad\": {N(r.ElevatorRad)},",
-            $"    \"bankRad\": {N(r.BankRad)}",
-            "  },",
+            ind + "\"rig\": {",
+            $"{ind2}\"aileronRad\": {N(r.AileronRigRad)},",
+            $"{ind2}\"finOffsetRad\": {N(r.FinOffsetRad)},",
+            $"{ind2}\"throttleFraction\": {N(r.Throttle)},",
+            $"{ind2}\"altitudeM\": {N(r.AltitudeM)},",
+            $"{ind2}\"tasMs\": {r.TasMs.ToString("0.###", CultureInfo.InvariantCulture)},",
+            $"{ind2}\"alphaRad\": {N(r.AlphaRad)},",
+            $"{ind2}\"elevatorTrimRad\": {N(r.ElevatorRad)},",
+            $"{ind2}\"bankRad\": {N(r.BankRad)}",
+            ind + "},",
         }) + nl;
-        var existing = new Regex("^  \"rig\": \\{.*?^  \\},?\\r?\\n", RegexOptions.Singleline | RegexOptions.Multiline);
-        if (existing.IsMatch(json)) return existing.Replace(json, block, 1);
-        var controls = new Regex("^  \"controls\": \\{", RegexOptions.Multiline);
-        Match m = controls.Match(json);
-        Assert.True(m.Success, "config has no top-level \"controls\" block to put the rig before");
-        return json.Insert(m.Index, block);
+        if (mRig.Success)
+        {
+            string e = Regex.Escape(ind);
+            var existing = new Regex("^" + e + "\"rig\": \\{.*?^" + e + "\\},?\\r?\\n", RegexOptions.Singleline | RegexOptions.Multiline);
+            Assert.True(existing.IsMatch(json), "the config's \"rig\" block does not close at its own indent");
+            return existing.Replace(json, block, 1);
+        }
+        return json.Insert(mControls.Index, block);
     }
 }
