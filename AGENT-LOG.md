@@ -1,3 +1,98 @@
+## Boundary friction was the wrong SHAPE, not the wrong size; and each engine's is now solved from his own anchor — Claude, 2026-11-10, lane/claude-boundary-friction
+
+<!-- dry-boundary-excess stribeck-rolloff prop-stop-speed restart-anchor-at-rest -->
+
+Ty, 2026-11-10: *"Cranking resistance should be calibrated such that at fine pitch the prop stops right at level
+flight stall speed"* — and, shown that one fleet constant could not meet it across the fleet: **"fix it per engine"**.
+
+**Every type the mechanism is live on now stops within 1.2 % of its own stall speed**, against 21–37 % short before.
+The stall speeds are the repo's own (`PracticeScenario.EstimateVso`, sea level, flaps up — the number the rest of the
+suite is tuned against, not a book figure), and they are not the figures anybody was working from: the Pitts' is 66 mph
+and the Cub's 43, not the 56 and 38 of the earlier table.
+
+| type | engine | excess | its Vso | stops at | err | Cd at 1.3 Vso |
+|---|---|---|---|---|---|---|
+| Pitts S-2B | AEIO-540, 6 cyl | **4.63** | 29.5 m/s = 66 mph | 29.4 = 66 | −0.3 % | 0.196 |
+| Extra 300 | AEIO-540, 6 cyl | **4.19** | 28.5 = 64 | 28.7 = 64 | +0.7 % | 0.225 |
+| Great Lakes | AEIO-360, 4 cyl | **2.10** | 22.9 = 51 | 22.9 = 51 | +0.1 % | 0.201 |
+| J-3 Cub (wood prop) | C-85, 4 cyl | **2.19** | 19.3 = 43 | 19.1 = 43 | −1.2 % | 0.152 |
+| J-3 Cub on floats (metal prop) | C-85, 4 cyl | **2.85** | 19.6 = 44 | 19.6 = 44 | −0.2 % | 0.165 |
+
+**THE AMPLITUDE WAS NEVER THE PROBLEM. The exponent was.** `BoundaryFrictionFactor` decayed as exp(−rpm/300), so the
+whole effect lived below 300 rpm — and measured, these propellers give up between 650 and 1,500 rpm, where that tail
+has already shrunk the excess by a factor of 9 to 140. That is why Ty's anchor was asking for amplitudes of **7 to 40**
+times the running friction (far outside anything tribology allows) and still could not be met with one number: the
+exponent was carrying a 25-fold spread, in exactly the rpm band the windmilling drag is calibrated in. Replacing it
+with the shape boundary friction actually has — a Stribeck plateau that holds while the surfaces touch and rolls off
+once sliding speed builds a film, `1 + excess/(1 + (rpm/700)²)` — collapses the required amplitude to **2.10 to 4.63**,
+which is the range a cold unlubricated engine really sits in, and cuts the fleet spread from 25x to 2.2x. The 700 rpm
+is a rubbing speed and not a fitted one: the boundary-to-mixed transition for a piston ring is near 2.5 m/s of mean
+piston speed, and on this fleet's strokes (C-85 0.098 m, Lycoming 540 0.111 m) 2.5 m/s is 680 to 765 rpm.
+
+**NOTHING PHYSICAL EXPLAINS THE REMAINING 2.2x, and the reason is arithmetic.** Motoring friction and rated torque
+*both* scale with displacement, and this fleet's BMEP runs 139–163 psi — a 17 % spread — so every engine-internal
+measure (displacement, FMEP, bore, ring circumference, main-bearing count) hands back nearly the SAME excess for all of
+them, and the two that do vary point the wrong way: per unit of displacement a small cylinder has more ring
+circumference, and a short stroke moves the Stribeck transition up. Cylinder count looked like a clean 4-against-6
+split until the controlled run — the same aeroplane at 4, 6 and 9 cylinders with nothing else touched moved the
+stopping speed **2–5 %**, so that split was the two 540s being aerobatic, not their cylinder count. What the spread
+actually tracks is the airframe: its stall speed against its Vne, and its propeller's inertia — the two Cubs differ in
+nothing but the propeller, and a 6 kg wood blade asks 2.19 where a 20 kg metal one asks 2.85. A friction law has no
+business reading either. **So it is SOLVED per type from the type's own stall speed, the way `CompressionPeakNm` is
+solved from the restart anchor — one equation in one unknown — and not predicted.** `propulsion.dryBoundaryExcess`
+carries it, `dryBoundaryExcessSource` records what it was solved against, and `CompressionStopProbe` with `COMPSTOP=1
+SOLVE=1` re-derives it. The fleet default for the 22 types not yet live is **3.0**, the geometric mean of the five.
+
+**THE RESTART ANCHOR WAS QUIETLY BREAKING and had to be fixed to do any of this.** `CompressionPeakNm` took the
+motoring mean at RATED rpm in an equation written at rest. Harmless while boundary friction was a spike below 300 rpm;
+not harmless now, because the mean at rest is several times the mean at rated. Measured with more dry friction in it,
+the Pitts restarted at **1.07 Vne** and the Cub at **1.11 Vne** instead of his 0.90. With the mean taken at rest it is
+**0.900 Vne on all five**, and it is still one equation in one unknown.
+
+**THE DRAG CALIBRATION SURVIVED, read at the speed its band describes.** The old evidence was the Pitts' fine stop at
+a flat 30 m/s: Cd 0.196 against `IdleDragCd`'s documented 0.15–0.25. But 30 m/s *is* the Pitts' stall speed, and his
+anchor says the propeller is stopped there — so the blade element now correctly reports no windmilling solution at 30,
+and one fixed speed that sits on one type's stall and well above another's was never comparing the same condition.
+Read at each type's own **approach speed, 1.3 Vso**, all five are in the band and the Pitts is at **0.196** — the same
+number, at the speed the band was written for. Away from the stall the fine stop is 2,169 rpm / 0.141 at 45 m/s,
+3,114 / 0.088 at 60, 4,280 / 0.063 at 80, so a fine blade still runs away past the red line in a dive, which is the
+other half of why the aerobatic installation is plumbed coarse.
+
+**What moved and needs your eye.** The coarse stop is now STOPPED below about 40 m/s on the Pitts — fully feathered,
+which is where *"Much more - nearer feather"* ends — but just above its breakaway it drags more than it used to
+(0.60 of the fine stop at 45 m/s, 0.46 at 60, 0.30 at 80, against 0.31/0.24/0.18 before), because a slow-turning blade
+sits deeper in the boundary regime. A windmilling propeller also drags hardest just before it gives up, so there is a
+step down in drag as the speed falls through each stop's breakaway: 324 N windmilling at 45 m/s against 208 N stopped
+at 38.
+
+**NEEDS YOU — one trade I will not make for you.** His two anchors share one budget: at rest the air at 0.9 Vne has to
+pay for the dry friction AND the compression peak out of the same torque. On the Pitts that budget is 392 N·m, the dry
+friction the stall anchor demands is 315, and what is left makes a compression peak of **99 N·m** where the gas load of
+a real 540 at 8.7:1 is **326** (from its displacement: p_amb · V_c · 16.8). So the lumps are weaker than they were on
+the aerobatic types — the Pitts' ripple is 25 % of its mean where it used to be 182 % — while the Extra (159 %), the
+Cub (77 %) and the Great Lakes (48 %) still lump. The three cannot all hold: **the 0.9 Vne restart, the stop at Vso,
+and a physical compression peak are mutually inconsistent in this model, and I kept the two anchors you gave.** If you
+want the Pitts to thud rather than sag, the thing to give up is the restart speed, and it is your call.
+
+**Two real bugs this uncovered and fixed on the way.** The per-cylinder leak-down rates were dealt from
+`string.GetHashCode`, which .NET randomizes **per process** — so "a given aeroplane is consistent from flight to
+flight" was false, and the same aeroplane got a different set of cylinders every launch. It showed as 0.5 m/s of
+scatter in the measured stopping speed between two runs of the same test on the same code, which is the difference
+between a number you can calibrate against and one you cannot; it is FNV-1a now and pinned. And the tachometer's
+windmilling fallback could not tell "this type has no fitted stops" from "this blade is stopped" — both come back NaN
+from `PropModel.Windmilling` — so it fell through to the flat J = 1 assumption in both cases and a standing propeller
+read **1,498 rpm**. On a fitted type, NaN means stopped.
+
+**Out of scope, found on the way.** The restart anchor also makes the compression peaks non-physical the other way:
+the Pitts and the Extra have the SAME engine and come out at 99 and 683 N·m, because the Extra's Vne is 113 m/s and the
+Pitts' is 95 and the air's torque at rest goes as V². A peak computed from displacement (which `SmokeConfig` already
+carries for six types) would give both 326. And 22 of the 27 propeller types do not run this mechanism at all — no
+fitted blade and no fitted governor stops — so on the fleet default they land within 10 % where their stall speeds are
+ordinary and 16–42 % short on the fast ones (P-51 −42 %, DC-3 −30 %, Hughes H-4 −25 %, Seminole −24 %, SR22 −23 %).
+Those are predictions of an unfitted blade, not calibrations; each wants solving when its blade is fitted.
+
+Local lane commit only; no push, no merge, no Unity build, no deploy. `git ls-files | git check-ignore --no-index
+--stdin -v` silent before the commit, every path staged explicitly.
 ## The 2-33's Vne is 98 mph, the number painted on the aeroplane — Claude, 2026-11-10, lane/claude-vne-cam
 
 <!-- vne-2-33 placard-vs-config unsourced-scaffolding-number asi-face-fifth overspeed-events -->
