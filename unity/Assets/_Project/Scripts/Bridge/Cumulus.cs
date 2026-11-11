@@ -51,7 +51,37 @@ namespace FlyingGame.Bridge
         private float _whiteout;
         private static Texture2D _white;
         private static readonly int BaseId = Shader.PropertyToID("_BaseY"), TopId = Shader.PropertyToID("_TopY"),
-                                    SunId = Shader.PropertyToID("_SunDir"), CumulusId = Shader.PropertyToID("_Cumulus");
+                                    SunId = Shader.PropertyToID("_SunDir"), CumulusId = Shader.PropertyToID("_Cumulus"),
+                                    CoreId = Shader.PropertyToID("_CoreAlpha");
+
+        /// <summary>
+        /// Past this the cloud is not drawn at all. It is NOT a visibility choice — the impostor shader already
+        /// fades every lobe to nothing between 15 and 18 km, so there is nothing on the screen out here to pop:
+        /// this only stops the GPU rasterising thirty-odd quads per cloud that are guaranteed to clip away. It is
+        /// the same 19 km the playground's banks have always used (CloudPlayground.Step), so a cumulus and a bank
+        /// disappear at the same range, which matters because they are now the same cloud.
+        /// </summary>
+        private const float CullRangeM = 19000f;
+
+        /// <summary>
+        /// The opacity at which a lobe starts writing depth and so hides what is behind it
+        /// (Shaders/CloudPlayground.shader, pass "CloudCoreDepth"). The colour pass caps a lobe's alpha at 0.96,
+        /// so anything above that writes nothing: 2 here is OFF, which is what ships.
+        ///
+        /// IT IS BUILT AND MEASURED AND IT IS OFF ON PURPOSE (Ty, 2026-11-11, "build it and measure it"). It is
+        /// worth about 40 % of the thermal clouds' GPU cost in the worst case — 3.5 ms down to 2.0 on this Mac —
+        /// and it cannot be had without hardening the silhouette: killing the lobe behind a core truncates the
+        /// soft falloff that made the cloud read as billowing, and the cut shows as a scalloped cut-out edge
+        /// (renders core_off_backlit against core_094_backlit). There is no threshold that is both effective and
+        /// invisible, because the alpha ceiling is 0.96 and 0.94 already shows. It also does NOT make a cloud
+        /// opaque against the TERRAIN, which is what the view from above wanted: the terrain is drawn in the
+        /// opaque queue long before the cloud blends over it, and no amount of depth written afterwards can undo
+        /// that. So this is a switch, with its price measured, for the day a device says the fill is unaffordable.
+        /// </summary>
+        public static float CoreAlpha = 2f;
+
+        /// <summary>Off for a measurement: with the cull disabled every cloud draws, however far away.</summary>
+        public static bool CullFar = true;
 
         /// <summary>0 (clear) .. 1 (deep in cloud) at the main camera this frame.</summary>
         public static float Whiteout => _inst != null ? _inst._whiteout : 0f;
@@ -247,8 +277,10 @@ namespace FlyingGame.Bridge
             float deepest = 0f;
             foreach (Cloud c in _clouds)
             {
-                // Thermal clouds come and go with the day's thermals (Options: Thermals 0x = blue sky).
+                // Thermal clouds come and go with the day's thermals (Options: Thermals 0x = blue sky), and a
+                // cloud further off than CullRangeM has already faded to nothing in the shader.
                 bool on = c.Th == null || scale > 0.05f;
+                if (on && CullFar && (c.T.position - cp).sqrMagnitude > CullRangeM * CullRangeM) on = false;
                 if (c.R.enabled != on) c.R.enabled = on;
                 if (!on) continue;
                 Place(c);
@@ -256,6 +288,7 @@ namespace FlyingGame.Bridge
                 _mpb.SetFloat(TopId, c.TopY);
                 _mpb.SetVector(SunId, toSun);
                 _mpb.SetFloat(CumulusId, 1f);   // the flat base and the whole-cloud shading; the banks leave it 0
+                _mpb.SetFloat(CoreId, CoreAlpha);
                 c.R.SetPropertyBlock(_mpb);
 
                 // In-cloud whiteout: how far inside the nearest puff the camera is.
