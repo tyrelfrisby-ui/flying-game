@@ -167,6 +167,29 @@ public sealed partial class StructuralState
     }
 
     /// <summary>Load factor as a multiple of the published limit on its own side, signed.</summary>
+    /// <remarks>
+    /// THE ENGINE MOUNT SHARES THE WING'S NEGATIVE LIMIT HERE AND THE CERTIFICATION STANDARD SAYS IT SHOULD NOT.
+    /// <see cref="StructuralState.Step(double, double, double, double, double)"/> steps the mount on Ratio(nTotal), so
+    /// on a push it divides by <c>_publishedNeg</c> -- the J-3's -1.5 g. Sourced 2026-11-10, and -1.5 is traceable: it
+    /// is CAR 4a Table 4a-1's Condition V (inverted flight, 4a.84) MINIMUM limit load factor, printed page 53 of CAM 4a
+    /// "Airplane Airworthiness". Section 4a.84(d) then says, verbatim: "Only the rear (or single) lift truss system of
+    /// externally braced wing structures need be investigated for this condition." So by the standard's own words it is
+    /// a wing lift-truss number and has nothing to do with a welded steel-tube mount.
+    /// <para>NOT CHANGED, because no primary document publishes a mount figure to change it TO. FAA TCDS A-691 Rev 34
+    /// (8 Mar 2011) was read in full: it states no load factors at all, only "Certification Basis   Type Certificate
+    /// No. 691 (CAR 4a)" (page 10). The commonly cited +3.5/-1.5 for the J-3 is not in it. The two Piper mount
+    /// documents, SB-21 "Engine Mounting Bolt Failures" (1946) and SB-36 "Inspection of Motor Mount" (1941), are crack
+    /// and bolt inspections with no load data.</para>
+    /// <para>WHAT CAR 4a DESIGNS A MOUNT TO, if this is ever given its own limit (CAM 4a page 16, "Special Loading
+    /// Conditions"): 4a.189 and 4a.188 -- Condition I POSITIVE loads with engine torque, and no negative flight case
+    /// appears anywhere; 4a.190 -- side load, one third of Condition I, floor 1.33 g; 4a.191 -- the only opposite-sign
+    /// case, "the limit load in each member shall be arbitrarily assumed as 50 percent of that in the level landing
+    /// condition but of opposite sign", i.e. a LANDING number, not an inverted-flight one; 4a.187 -- torque stresses
+    /// times 2 for a four-cylinder engine such as the A-65. All with an ultimate factor of safety of 1.5. For a
+    /// 1100-1220 lb J-3 that puts 4a.191 near 1.9-2.0 g limit by Figure 4a-10 -- but that is DERIVED arithmetic resting
+    /// on a wing area A-691 does not publish, so it is written here as a lead and deliberately not installed as a fact.
+    /// Ty's call: it needs a number he can defend, and the honest state today is that CAR 4a specifies a derivation.</para>
+    /// </remarks>
     private double Ratio(double n) => n >= 0 ? n / _publishedPos : -n / _publishedNeg;
 
     private static double Severity(OverstressMember m) =>
