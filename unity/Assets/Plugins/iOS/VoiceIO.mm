@@ -86,7 +86,7 @@ inline float Noise() { gNoise = gNoise * 1664525u + 1013904223u; return (int32_t
 AVAudioEngine *gEngine;
 AVAudioSinkNode *gSink;
 AVAudioSourceNode *gSide;
-std::atomic<bool> gIntercom{false}, gPtt{false}, gHeadphones{false}, gTxEnd{false}, gStarting{false};
+std::atomic<bool> gPtt{false}, gHeadphones{false}, gTxEnd{false}, gStarting{false};
 std::atomic<int> gState{0};   // 0 off, 1 waiting for permission, 2 running, -1 denied, -2 failed
 float gR = 48000, gU = 24000;
 Biquad gHp, gLp, gTxLp, gRadHp, gRadLp;
@@ -100,19 +100,27 @@ std::atomic<bool> gKeepOffTv{false}, gForceSpeaker{false}, gRxOnTv{false};
 /// A TV is connected and NOBODY IS TALKING, so the TV should have the game's sound. See ApplySession: this is the
 /// one condition under which the microphone has to be let go of entirely.
 std::atomic<bool> gTvWantsAudio{false};
-/// Something needs the microphone HELD OPEN while nobody is talking: clip narration, whose buffer is always rolling
-/// (VoiceComms.NarrateClips). Bit 1 of VO_SetIntercom. Without it the mic is let go between transmissions.
-std::atomic<bool> gHoldMic{false};
-/// THE VOX BUTTON on the flight screen (bit 2 of VO_SetIntercom). Ty 2026-11-10: "Add a vox button on the screen".
-/// Armed, the mic is held and opens on voice activity; off, it opens only while PTT is held. This is now the only
-/// setting that gives a hot mic BY CHOICE, and it is deliberately not persisted — see VoiceComms.VoxOn.
+/// VOX IS THE INTERCOM (bit 0 of VO_SetIntercom), and THE INTERCOM IS NOT THE RADIO. Ty 2026-11-10, asked whether
+/// VOX should key the transmitter: "No vox so intercom between pilots in the same airplane or solo hearing yourself
+/// talk which would allow me to do my narration tutorial videos. In the future we will have vox for multiple
+/// airplanes (and their occupants) to keep radio chatter down so several pilots who are flying together can link
+/// via vox not talk on the radio."
+///
+/// So armed, this is a live intercom: the mic is held open, the voice gate opens on voice activity, and the pilot
+/// hears himself in his own headset (the sidetone below). Disarmed, the mic opens only while PTT is held. It never
+/// touches gTx — the radio stays push-to-talk.
+///
+/// THE SCOPE WIDENS, AND NOTHING HERE SHOULD ASSUME OTHERWISE. Today the only occupant whose voice this carries is
+/// the pilot's own, so "intercom" and "sidetone" are the same signal. Next it is the other seat of this aeroplane,
+/// and then the occupants of a FLIGHT of aeroplanes, as a channel beside the radio rather than on it. That is a
+/// change of who gSideRing is mixed from and sent to — the receive side already has eight slots and a mixer
+/// (VO_PushRx / VO_RenderRx, which is how a remote voice reaches the ears today) — not a change to the gate, the
+/// lifecycle or the button. Do not design anything here as two-seat-only.
 std::atomic<bool> gVoxArmed{false};
-/// The INTERCOM PROPER is ticked (bit 0), as opposed to the voice gate being open for some other reason. The
-/// sidetone - hearing yourself in your own headset - belongs to the intercom and to nothing else. Ty 2026-11-10,
-/// with narration ticked and the intercom NOT: "Even with audio intercom unchecked I hear things around me so the
-/// mic is picking up sound and playing it on my shokz headset". Narration opens the gate so a clip gets his voice,
-/// and the sidetone was riding that same gate straight back into his ears.
-std::atomic<bool> gSidetone{false};
+/// The pilot's gated voice may go into CLIPS (bit 1, VoiceComms.NarrateClips). Routing only: it no longer opens or
+/// holds the microphone, which is what the old narration tick did and is the whole reason the mic was found open
+/// from launch, every launch. VOX decides what listens; this decides only where it goes.
+std::atomic<bool> gClipVoice{false};
 /// Record permission has been granted, so the engine can be rebuilt without going round the permission prompt again.
 std::atomic<bool> gMicGranted{false}, gAskedMic{false}, gReleasing{false};
 /// CFAbsoluteTime of the last unkey, for the linger below (0 = never keyed).
@@ -131,16 +139,15 @@ NSString *gRouteOutputs = @"";   // comma-separated port types, for C# (guarded 
 ///
 ///   PTT held, or just unkeyed  : yes. This is a transmission. The linger covers the tail VoiceComms has still to
 ///                                collect with VO_ReadTx (the frame AFTER ptt drops) and makes a quick re-key free.
-///   VOX armed                  : yes. The pilot pressed the VOX button and asked for a hot mic, which is the one
-///                                way to get one on purpose. It is not persisted, so it never outlives the session.
-///   narration ticked           : yes. The clip buffer is always rolling, so a voice that only arrived after REC
-///                                would be too late — VoiceComms.NarrateClips says so, and Ty asked for exactly that.
-///                                This is the one hot mic a pilot can have without pressing VOX, which is why the
-///                                VOX button goes red for it too: see VoiceComms.MicOpen.
-///   nothing                    : no. In particular the INTERCOM CHECKBOX ALONE NO LONGER OPENS THE MIC. It used
-///                                to, whenever a headset was attached, which made a persisted tick into a hot mic
-///                                from launch with nothing on screen saying so. The checkbox now only says that
-///                                the sidetone may play; arming the VOX is what decides whether anything is heard.
+///   VOX armed                  : yes. The pilot pressed the VOX button and asked for a live intercom, which is now
+///                                the ONLY way to a hot mic on purpose. Not persisted, so it never outlives the
+///                                session, and the button is red the whole time it is true.
+///   nothing                    : no. NOTHING PERSISTED CAN REACH THIS. Two settings used to: the intercom tick
+///                                (whenever a headset was attached) and clip narration (always). Both are gone from
+///                                here — the intercom checkbox no longer exists, VOX is the intercom; and narration
+///                                is routing only (gClipVoice). That is the original bug closed at the root rather
+///                                than merely made visible: a hot mic can no longer survive a force-quit, which is
+///                                what Ty hit — "Force quit and restart did not fix it".
 ///
 /// THE ONE SOURCE OF TRUTH. Whatever this returns, ApplyMicLifecycle makes the engine match it, so "gState is 1 or
 /// 2" and "the microphone is open" are the same statement — which is what VO_State reports to the VOX button, so
@@ -148,15 +155,53 @@ NSString *gRouteOutputs = @"";   // comma-separated port types, for C# (guarded 
 bool MicWanted() {
     if (gPtt.load()) return true;
     if (gVoxArmed.load()) return true;
-    if (gHoldMic.load()) return true;
     double unkey = gUnkeyAt.load();
     return unkey > 0 && CFAbsoluteTimeGetCurrent() - unkey < UnkeyLingerSec;
 }
 
+// ---- the VOX bus: the intercom's own audio path, which is NOT the radio's ----------------------------
+//
+// Ty 2026-11-10, asked what makes plane-to-plane VOX different from the radio:
+//
+//   "The difference between plane to plane vox and radio is the ability to mix two or more sounds together
+//    without distorting them like radio does"
+//
+// That sentence is the whole specification, so it lives here. The radio path in ProcessMic is deliberately ugly —
+// 350-2800 Hz, tanh at a drive of 3, decimated to 8 kHz, mu-law — and EVERY ONE OF THOSE ARTEFACTS SUMS when two
+// of them are stacked, which is the distortion he is describing. That character is right for the radio and stays.
+//
+// VOX therefore gets its own chain and must never be routed through the radio's to save effort. Nothing on the VOX
+// side touches gRadHp/gRadLp, gTxLp, gTo8k, MuEncode or gTx: those all sit inside `if (ptt)` / `if (ptt||gWasPtt)`
+// and must stay there. Three rules, which hold for one talker and for N:
+//
+//   - FLAT. No drive and no band-pass beyond the 180 Hz-5 kHz voice band every path shares. A per-source tanh is
+//     precisely the thing that sums into mush, so the VOX voice has none.
+//   - PER-SOURCE GAIN IS FIXED, so adding or dropping a talker cannot pump the ones already there.
+//   - ONE LIMITER, ON THE BUS, never per source. Speech from several talkers sums incoherently (about sqrt(N)), so
+//     the bus is sized for four and the limiter only does anything near full scale.
+//
+// TODAY THE BUS HAS EXACTLY ONE SOURCE — his own voice, solo, in his own headset — and that is the point rather
+// than a simplification: the solo sidetone is the one-source instance of the same mixer. Widening to the other
+// seat and then to a flight of aeroplanes is a change of N, not a rewrite, and remote voices already have a way in
+// (VO_PushRx / VO_RenderRx, eight slots and a mixer). Whoever adds them sums them onto this bus, flat, and lets
+// VoxBusLimit hold the top.
+const float VoxVoiceGain = 1.4f;   // flat; matches the small-signal level of the tanh this replaced
+
+/// The VOX bus limiter: linear below the knee so a single quiet talker is untouched, then a soft knee so several
+/// talkers compress gracefully together instead of each one clipping on its own.
+inline float VoxBusLimit(float v) {
+    const float knee = 0.7f;
+    float a = fabsf(v);
+    if (a <= knee) return v;
+    float shaped = knee + (1.f - knee) * tanhf((a - knee) / (1.f - knee));
+    return v < 0 ? -shaped : shaped;
+}
+
 void ProcessMic(const float *x, uint32_t n) {
-    // `side` is the INTERCOM's own tick, not the voice gate: narration opens the gate to get his voice into a clip
-    // and must not also play his room back to him (Ty 2026-11-10, Shokz, intercom unchecked).
-    bool ptt = gPtt.load(), ic = gIntercom.load(), hp = gHeadphones.load(), side = gSidetone.load();
+    // VOX is the intercom, so VOX is what opens the gate and what plays the sidetone. Ty 2026-11-10: "solo hearing
+    // yourself talk which would allow me to do my narration tutorial videos" — hearing himself is the FEATURE here,
+    // not a side effect. Narration no longer opens anything; it only says where the voice goes (toClip).
+    bool ptt = gPtt.load(), vox = gVoxArmed.load(), hp = gHeadphones.load(), toClip = gClipVoice.load();
     float voxThr = 0.018f, decay = expf(-1.f / (0.05f * gR)), gateK = 1.f - expf(-1.f / (0.004f * gR));
     float peak = 0;
     for (uint32_t i = 0; i < n; i++) {
@@ -164,13 +209,21 @@ void ProcessMic(const float *x, uint32_t n) {
         float a = fabsf(v); if (a > peak) peak = a;
         gEnv = a > gEnv ? a : gEnv * decay;
         if (gEnv > voxThr) gVoxHold = 0.7f * gR; else if (gVoxHold > 0) gVoxHold -= 1;
-        bool talk = ptt || (ic && gVoxHold > 0);
+        bool talk = ptt || (vox && gVoxHold > 0);
         gGate += ((talk ? 1.f : 0.f) - gGate) * gateK;   // 4 ms ramps, no clicks
-        float voice = tanhf(v * 2.5f) * 0.6f;            // a little intercom compression
+        float voice = v * VoxVoiceGain;                  // VOX: FLAT. See the VOX bus note above before adding to this
         if (ptt || gWasPtt) voice = tanhf(gRadLp.run(gRadHp.run(v)) * 3.f) * 0.55f;   // radio: narrower, driven
         float out = voice * gGate;
-        if (hp && side) gSideRing.push(out);
-        gToUnity.feed(out, [](float y) { gClipOwn.push(y); });
+        // The sidetone is the intercom's own voice, so VOX owns it. Headphones only: on the loudspeaker it howls.
+        //
+        // `|| ptt` keeps the sidetone a real radio has while you are keyed, which the old intercom tick used to
+        // supply and which otherwise disappeared with it: without this the only way to hear yourself transmit would
+        // be to arm VOX, i.e. to hold the mic open between calls, which is the thing being fixed. While PTT is down
+        // the mic is open by his finger, so there is nothing to protect here.
+        if (hp && (vox || ptt)) gSideRing.push(out);
+        // Resampled at Unity's rate either way, so the phase is right whenever the routing comes back on; whether it
+        // is KEPT is narration's decision alone.
+        gToUnity.feed(out, [toClip](float y) { if (toClip) gClipOwn.push(y); });
         if (ptt) gTo8k.feed(gTxLp.run(v * 2.f), [](float y) { gTx.push(MuEncode(tanhf(y))); });
     }
     if (gWasPtt && !ptt) gTxEnd.store(true);
@@ -359,7 +412,9 @@ void StartEngine() {
     gSide = [[AVAudioSourceNode alloc] initWithFormat:mono renderBlock:^OSStatus(BOOL *silence, const AudioTimeStamp *ts, AVAudioFrameCount frames, AudioBufferList *abl) {
         float *y = (float *)abl->mBuffers[0].mData;
         bool any = false;
-        for (AVAudioFrameCount i = 0; i < frames; i++) { float v = 0; if (gSideRing.pop(v)) any = true; y[i] = v; }
+        // THE VOX BUS. One source today (his own voice); the limiter is here, on the sum, rather than on any one
+        // voice, so that adding the other seat and then other aeroplanes is a change of N. See the VOX bus note.
+        for (AVAudioFrameCount i = 0; i < frames; i++) { float v = 0; if (gSideRing.pop(v)) any = true; y[i] = VoxBusLimit(v); }
         // Keep the sidetone latency at a few buffers: drop the backlog if it builds up.
         if (gSideRing.avail() > (uint32_t)(0.03f * gR)) gSideRing.clear();
         *silence = !any;
@@ -544,28 +599,27 @@ int VO_EnsureMic(void)
 /// safe direction for an indicator like this is to light up early rather than late.
 int VO_State(void) { return gState.load(); }
 
-/// What the pilot has asked of the microphone, as a bit mask. It rides this one call rather than three new exports,
-/// because the committed Mac bundle is a tracked binary and a symbol it does not have would throw on the first call
-/// (see VoiceComms.NarrateClips); an old bundle reading `on != 0` sees any of these as simply "on", which is what
-/// this call used to mean.
+/// What the pilot has asked of the microphone, as a bit mask. It rides this one call rather than new exports,
+/// because the committed Mac bundle is a tracked binary and a symbol it does not have would throw on the first call;
+/// an old bundle reading `on != 0` sees either bit as simply "on", which is what this call used to mean.
 ///
-///   bit 0  THE INTERCOM IS TICKED. Opens the voice gate, and is now the ONLY thing that lets the sidetone play.
-///          On its own it no longer holds the microphone open: that is what bit 2 is for.
-///   bit 1  CLIP NARRATION is ticked. Opens the gate so the clip gets his voice, and holds the mic while it is
-///          ticked because the clip buffer is always rolling. It does NOT play a sidetone.
-///   bit 2  THE VOX BUTTON is armed (Ty 2026-11-10: "Add a vox button on the screen"). Holds the mic open so it can
-///          open on voice activity. The one hot mic a pilot asks for on purpose, and not persisted.
+/// Two bits, because there are now two controls and they mean two different things:
+///
+///   bit 0  THE VOX BUTTON is armed — the intercom is live (Ty 2026-11-10: "intercom between pilots in the same
+///          airplane or solo hearing yourself talk"). Holds the microphone, opens the voice gate on voice activity,
+///          and plays the sidetone. The only hot mic a pilot can have, asked for on purpose, and not persisted.
+///   bit 1  MY VOICE MAY GO INTO CLIPS (VoiceComms.NarrateClips). Routing only — it opens nothing and holds
+///          nothing. VOX decides what listens; this decides only where it goes.
+///
+/// The Options "intercom" checkbox that used to be bit 0 is GONE, not moved: it and the VOX button were the same
+/// idea, and keeping both is how a persisted tick ended up doing invisibly what a button should have shown.
 void VO_SetIntercom(int on)
 {
-    gSidetone = (on & 1) != 0;
-    // The voice gate opens for any of the three. VOX is in here as well as in MicWanted on purpose: arming it holds
-    // the microphone open, and if the gate did not also open, the open mic would produce nothing at all - the very
-    // thing MicWanted exists to prevent. With VOX armed and the intercom unticked, his voice reaches the clip buffer
-    // (which is always rolling) and nothing else, so a CLIP has his narration for THIS FLIGHT without the persisted
-    // tick that held the mic across launches.
-    gIntercom = (on & 7) != 0;
-    gHoldMic = (on & 2) != 0;
-    gVoxArmed = (on & 4) != 0;
+    gVoxArmed = (on & 1) != 0;
+    bool toClip = (on & 2) != 0;
+    // Dropping the routing drops what is already queued, so re-ticking it cannot splice minutes-old speech into a
+    // clip (VO_ReadClipVoice reads whatever is in there).
+    if (gClipVoice.exchange(toClip) && !toClip) gClipOwn.clear();
     ApplyMicLifecycle();
 }
 
