@@ -1,3 +1,115 @@
+## The spoiler coefficient reaches the other ten plate-tailed types, and the onset stops being inert — Claude, 2026-11-10, lane/claude-stearman-elev
+
+<!-- control-spoiler-k fabric-fleet plate-tail elevator-authority damping-unchanged -->
+
+Ty, told that last night's flat-plate tails gave twelve types `controlSpoilerOnsetDeg` 10 but that the onset was
+**INERT on ten of them** because `AeroModel`'s spoiler block is gated on `controlSpoilerK > 0.0` and only the Pitts
+and the Extra carried a non-zero k, and told the argument that the restriction to two types had been **staging
+rather than a finding** now that all twelve fly a plate tail: **"Do it"**.
+
+**ELEVEN CONFIGS TAKE `controlSpoilerK: 0.6`** — the Pitts' value, carried unchanged rather than refitted,
+because the argument for the term is about the SECTION and not the airframe. Great Lakes, J-3 Cub, J-3 floats,
+PA-18 cub, PA-18 bush, PA-18 floats, 2-33, Jenny, Stearman, Decathlon, Pawnee (ten airframes; the PA-18 cub and
+bush share a tail).
+
+> **IT IS NOT IN THIS COMMIT, AND THAT IS THE PARITY LOCK AND NOT A DOUBT ABOUT THE CHANGE.** The lock refuses
+> ANY shared change while a lane already differs from the other, and this lane differs from
+> `lane/claude-quest-islandnav` in **120 shared files**: the Quest lane carries **23 shared commits this lane does
+> not have**. The brief for this work assumed the lanes were in sync and allowed one leading shared commit; they
+> are not. `tools/check-parity.sh --hook` was run against the staged change and printed BLOCKED, and the change
+> was **not** moved to a `wip/` branch to get round it (docs/PARITY.md names that as the way people dodge the
+> lock). The measured, finished change is saved instead, with its commit message and the three commands that land
+> it, at `~/Developer/agent-lanes/patches/claude-stearman-elev-controlSpoilerK.{diff,msg}` — outside the repo, so
+> it carries no repository hygiene with it. **A sync, then one `git apply`.**
+
+**MEASURED BOTH WAYS IN ONE RUN off the same loaded config** (`SpoilerFleetProbe`, `SPOILER_FLEET=1`), so the two
+columns cannot differ by anything but the coefficient. Authority is the pitching moment the stick's whole travel
+commands at 30 m/s, as a fraction of its own α 0 value; the floor is the worst of it over α 10–60 at a 0.5° step.
+
+| | floor, k 0 → 0.6 | α 45 | α 60 |
+|---|---|---|---|
+| J-3 floats | 0.110 @42 → **0.182** @28 | 0.131 → 0.221 | 0.216 → 0.326 |
+| Great Lakes | 0.109 @40 → **0.214** @40 | 0.192 → 0.308 | 0.261 → 0.403 |
+| J-3 Cub | 0.117 @43 → **0.225** @42 | 0.126 → 0.237 | 0.229 → 0.364 |
+| PA-18 floats | 0.121 @43 → **0.192** @28 | 0.129 → 0.222 | 0.220 → 0.333 |
+| PA-18 cub / bush | 0.126 @45 → **0.240** @44 | 0.126 → 0.241 | 0.232 → 0.373 |
+| 2-33 | 0.146 @40 → **0.256** @40 | 0.199 → 0.319 | 0.302 → 0.449 |
+| Jenny | 0.150 @42 → **0.250** @28 | 0.193 → 0.315 | 0.313 → 0.462 |
+| Stearman | 0.152 @29 → **0.211** @28 | 0.176 → 0.270 | 0.279 → 0.394 |
+| Pawnee | 0.158 @40 → **0.212** @28 | 0.180 → 0.271 | 0.267 → 0.379 |
+| Decathlon | 0.160 @28 → **0.213** @28 | 0.182 → 0.274 | 0.270 → 0.383 |
+
+Between 1.33× and 1.96× on the floor, and about 1.4–1.9× at α 45. **It also moves WHERE the floor is**: on four of
+the ten (Jenny, Pawnee, both floatplanes) the worst point was α 40–43 and is now α 28 — the term fills the hole the
+44° blend left, and the ordinary spin's α becomes the weakest place rather than the deep one.
+
+**THE DAMPING CLAIM WAS VERIFIED, NOT ASSERTED.** The claim is that this costs the pitch damping nothing for a
+MECHANICAL reason: the term carries `sin(gain·deflEff)` and is gated on a non-zero deflection, so it cannot appear
+in a controls-neutral quantity, and dM/dq is one. If it had moved anywhere, the gate would not be what we think it
+is and nothing should have shipped. The worst dM/dq over α 10–60 is **BIT-IDENTICAL at k 0 and k 0.6 on all
+thirteen configs measured** — the eleven that gained it and the Pitts and Extra that already had it. Not "within
+tolerance": the same double.
+
+**Vso, TRIM α AND TRIM ELEVATOR ARE UNCHANGED ON EVERY TYPE, and that had to be measured rather than argued.**
+Unlike `stabHighAlphaK`'s 60–90° band, this term opens at 10° of the strip's OWN flow angle, and a tail strip with
+the stick near its aft stop at the stall is not self-evidently below that. It is: measured on the Stearman at its
+own Vso, the stabiliser's local angle is **2.74°** against the 10° onset, because the downwash there (3.49°) and
+the stabiliser's own negative incidence take it out of the body α. So the ramp never opens in any ordinary flight
+condition, and every one of the thirteen reads the same Vso, trim α and trim elevator to the digit.
+
+**WHAT IT DOES CHANGE is high-alpha pitch authority and therefore the spin on ten types Ty may fly tomorrow.**
+Nothing below the ramp moves at all. The one that is worth his attention in the air: the four Cubs and the two
+floatplanes roughly double their authority at α 45, and the pro-spin-elevator effect he described on the Pitts
+("pushing the stick forward during a spin accelerates the spin") now exists on them too.
+
+**NOTED WHILE MEASURING, NOT CHANGED: the Extra's authority floor is 0.064, at α 60.** It already carries k 0.6
+but keeps the default onset of 30 because its tail is a NACA 0012 and not a plate — and between α 50 and 60 the
+stick's whole travel commands 6 % of what it commands at α 0 (0.217 at α 45, 0.064 at α 60; without the spoiler
+term the same floor would be 0.002). Lowest in the fleet by a wide margin. That is its own question, it is about a
+0012 section and not a plate, and it was not touched.
+
+**ALSO NOTED WHILE MEASURING, AND IT IS NOT FROM THIS CHANGE — the plate tails left real pitch ANTI-damping on
+three types just below the stall.** The worst dM/dq over α 10–60, divided by each type's own Iyy so the types are
+comparable (positive = the tail drives the motion; units 1/s, so it is a divergence rate):
+
+| Jenny | Extra | Pawnee | J-3 | J-3 floats | PA-18 | PA-18 floats | Decathlon | 2-33 | Stearman | Great Lakes | Pitts |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| **+2.57 @α13** | **+1.25 @α15** | **+1.03 @α13** | +0.158 | +0.147 | +0.103 | +0.091 | +0.087 | +0.044 | +0.036 | −0.041 | −0.129 |
+
+The Jenny's +2.57/s is a pitch rate growing e-fold every 0.4 s, at α 13 against a 16.5° stall. The flat-plate
+commit's own note rejected the 9°/0.80 fit because it gave "+448 N·m per rad/s at α 20 — anti-damping right where
+he flies aerobatics"; unnormalised, the Jenny is at **+4781** and the Pawnee at **+2687** on the fit that shipped,
+and the Extra is at +2547 on a 0012 tail that was never converted. **These numbers are bit-identical before and
+after this change** — that is the damping check above — so this is a report about last night's section fit and the
+Extra's own tail, not about `controlSpoilerK`. It is logged, not acted on.
+
+**WHAT ELSE MOVES, AND IT IS THE NUMBER TO KNOW BEFORE HE FLIES THEM.** The same filter run before and after, on
+pristine and on changed configs, moves `StallAuthorityTests`' own per-type figure — **how far past its stall full
+aft stick holds each aeroplane**, which is the handling consequence a pilot feels:
+
+| | Decathlon | J-3 Cub | 2-33 | J-3 flt | PA-18 cub | PA-18 bush | PA-18 flt | Jenny | Pawnee | Gt Lakes | *Pitts* | *Stearman* |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| before | 21.2° | 21.2° | 21.0° | 19.5° | 18.5° | 18.5° | 17.0° | 18.8° | 18.8° | 16.0° | *20.5°* | *9.2°* |
+| after | **22.0°** | **21.8°** | **21.5°** | **19.8°** | **18.8°** | **18.8°** | **17.2°** | **19.0°** | **19.0°** | **16.2°** | *20.5°* | *9.2°* |
+
+**The two unchanged entries are the controls, and both are informative.** The Pitts' config was not touched and it
+reads 20.5° both times, so nothing leaked. And **the Stearman does not move at all** — it sits at 9.2° against a
+16.5° stall either way, because the Stearman is limited by its elevator STOP and its CG and not by the
+coefficient, which is the separate finding in this lane's other entry and is cross-confirmed here: the one type
+whose limit is mechanical is the one type this change cannot help.
+
+**AND IT HAS A COST, named rather than buried.** `StallAuthorityTests.FullAftHoldsJustPastTheStallForEveryAircraft`
+is the suite's known pre-existing failure (red at HEAD on pristine sources, naming six types). After this change it
+names **eight**: the PA-18 cub and bush cross its allowance on that 18.5 → 18.8° step, and the Jenny's entry moves
+18.8 → 19.0. Nothing else in the compared set changes — `GlideTableTests.GlideTableIsCurrent...` fails with a
+**byte-identical** message (the Decathlon's pre-existing stale row), confirming the glide tables do not move, and
+`CreditsReachTheUser`, `SpinTests.TomRecoveryStopsTheSpin` and the Pitts spin classes fail identically before and
+after. Both sides run **18 failures of 82 passed of 101**, and the failing SETS are name-for-name identical. Baseline on
+this lane's pristine tip, for whoever needs the real number: **18 failures of 101** across
+`StallAuthority`, `TailSection`, `StallBreak`, `TrimConvergence`, `SpawnSpeed`, `BestGlidePolar`, `AsiUnits`,
+`ControlPolarity`, `ControlTravel`, `SpinTests`, `GlideTableTests` and the four Pitts spin classes — larger than
+any known-failure list in circulation today, and `RigTests` adds 8 more that nobody's filter was running.
+
 ## ASTC 4x4: the textures come out of the GLBs, and the whole fleet with every livery is 0.95 GB — Claude, 2026-11-10, lane/claude-textures
 
 <!-- astc-4x4 glb-sidecar-textures gltfast-external-texture 4gb-limit livery-policy-superseded -->
