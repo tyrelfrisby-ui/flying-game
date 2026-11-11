@@ -925,11 +925,13 @@ namespace FlyingGame.Bridge
             UiLayout.Label(new Rect(_x, y, _cw * 0.38f, _lh), "Sound volume", _label);
             FlightAudio.MasterVolume = GUI.HorizontalSlider(new Rect(_x + _cw * 0.4f, y + _lh * 0.35f, _cw * 0.6f, _lh * 0.4f), FlightAudio.MasterVolume, 0f, 1f);
             y += _lh + _gap * 0.4f;
-            // Intercom + radio (owner 2026-10-01): intercom = voice-activated, heard in headphones; radio = hold TALK.
-            // The tick no longer opens the microphone on its own (VoiceIO.mm MicWanted, 2026-11-10): it says the
-            // sidetone MAY play, and the VOX button on the flight screen decides whether anything is listening. The
-            // label has to say so, because the old one promised a hot mic that the checkbox no longer gives.
-            if (Check("Intercom: hear yourself in your headphones — arm VOX in flight to use it", VoiceComms.IntercomOn, ref y)) VoiceComms.IntercomOn = !VoiceComms.IntercomOn;
+            // THE INTERCOM CHECKBOX IS GONE (2026-11-10), replaced by this line pointing at the VOX button. It and
+            // the button were the same control — Ty: "intercom between pilots in the same airplane or solo hearing
+            // yourself talk" is what the intercom IS — and two controls for one idea is how a persisted tick nobody
+            // could see ended up holding the microphone open from launch, every launch. VOX is the intercom now: on
+            // the flight screen where it is visible, per session so it cannot outlive one, and red while the mic is
+            // open. The radio is unchanged, still hold-PTT, and still has its frequency below.
+            Note("Intercom: the VOX button in flight, beside PTT. It is red while your microphone is open.", ref y);
             // Q7 (Ty 2026-11-04): with a TV connected the radio and intercom stay here or in the headset.
             if (VoiceComms.RouteNote.Length > 0) Note(VoiceComms.RouteNote, ref y);
             UiLayout.Label(new Rect(_x, y, _cw * 0.38f, _lh), "Radio frequency", _label);
@@ -955,9 +957,11 @@ namespace FlyingGame.Bridge
             // touch pads, these menus, bubbles, vectors, HUD. Off, it is the aeroplane and the world, nothing else.
             if (Check("Show my screen in clips — controls, menus, bubbles and vectors, exactly as you see it", ClipRecorder.ShowMyScreen, ref y))
                 ClipRecorder.ShowMyScreen = !ClipRecorder.ShowMyScreen;
-            // Narration (Ty 2026-11-08, for talking over a tutorial). Voice-activated, and the microphone stays open
-            // while this is ticked — the clip buffer is always rolling, so a voice switched on at REC would be late.
-            if (Check("Record my voice in clips — voice-activated; the microphone stays on while this is ticked", VoiceComms.NarrateClips, ref y))
+            // Narration (Ty 2026-11-08, for talking over a tutorial). ROUTING ONLY as of 2026-11-10: it no longer
+            // holds the microphone open, which is what made a persisted tick into a hot mic from launch. Arming VOX
+            // in flight is what opens the mic — which he wants anyway, since he narrates in order to hear himself —
+            // so the label has to say so rather than promise a microphone this tick no longer switches on.
+            if (Check("Record my voice in clips — arm VOX in flight to talk; this only decides whether clips keep it", VoiceComms.NarrateClips, ref y))
                 VoiceComms.NarrateClips = !VoiceComms.NarrateClips;
             if (VoiceComms.NarrateClips && VoiceComms.MicProblem != null)
             {
