@@ -951,8 +951,19 @@ public static class LandingGear
                             ? (tire != null ? SnowSinkageRolling(tire, tyrePsi, surface, staticLoadN) : SnowSinkageRolling(config, surface, staticLoadN))
                             : TireModel.RollingCoefficient(tire, tyrePsi, surface, normalN, tyreDefl);
             double rollN = rollMu * normalN;
-            // The rut that rolling resistance is the price of (the surface tracks read it; nothing here does).
-            if (ws != null && firstStage && !onSki) ws.SinkM = TireModel.GroundSinkageM(tire, rollMu, surface, tyreDefl);
+            // The rut that rolling resistance is the price of (the surface tracks read it; nothing here does). It is
+            // the SAME Bekker relation as the rolling resistance above, but evaluated at the pressure the tyre's
+            // CARCASS is transmitting rather than at this leg's whole normal load over the carcass's own footprint:
+            // those are not one tyre's two numbers, and at the ONSET of a touchdown they differ by orders of
+            // magnitude. A J-3 put down on grass at 14 m/s read a 558 mm rut on a step carrying 281 N, because the
+            // footprint on that step was 10 x 13 mm (TireModel.GroundRutM carries the whole measurement). Nothing the
+            // aeroplane FEELS changes: rollMu above, and the force it makes, are untouched. On a snow CRUST the crust
+            // model's own coefficient is the number and it has no such failure — the footprint length does not cancel
+            // there, so a graze takes the rut to zero on its own.
+            if (ws != null && firstStage && !onSki)
+                ws.SinkM = surface == WorldTerrain.Surface.PackedGlacierSnow
+                         ? TireModel.GroundSinkageM(tire, rollMu, surface, tyreDefl)
+                         : TireModel.GroundRutM(tire, tyrePsi, surface, tyreDefl);
             // A soft or flat tyre is squashed further and loses more to its own hysteresis (TyreWear).
             if (!onSki && ws?.Tyre != null) rollN += ws.Tyre.ExtraRollingCoefficient(WorldTerrain.RollingCoefficient(WorldTerrain.Surface.Paved)) * normalN;
             // Math.Sign THROWS on NaN, and this is reached four times a step. An aeroplane deep inside geometry

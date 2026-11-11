@@ -86,6 +86,10 @@ namespace FlyingGame.Bridge
             // The old wreck goes with the old aeroplane, and the trees it snapped stand again (FlyingGame.Core.TreeStructure).
             FlyingGame.Core.Forest.ClearBroken();
             FlyingGame.Core.StrippedTrees.Clear();
+            // ... and the marks the last flight pressed into the ground go with them (docs/GROUND-IMPRINTS.md). The
+            // field is process-wide, like the snapped tops and the stripped trees, so without this line one session's
+            // ruts, ski tracks and wreck scars are still lying there in the next flight.
+            FlyingGame.Core.GroundImprints.Clear();
             foreach (GameObject g in _wreckVisuals) if (g != null) Destroy(g);
             _wreckVisuals.Clear();
             _relay = _watched != null ? new CrashRelay(_watched, subscribe: false) : null;

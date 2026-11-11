@@ -38,11 +38,14 @@ namespace FlyingGame.Bridge
             /// <summary>Degrees of flutter on top of the deflection (the yaw string only; 0 for everything else).</summary>
             public readonly float Flutter;
             public readonly float Phase;
-            public Bound(RigNode node, Transform t, Vector3 axis, float flutter, float phase)
+            /// <summary>How far down the wool this link sits: 0 at the tape, 1 at the loose tail. Drives the
+            /// flutter's amplitude, because a filament fixed at one end barely moves where it is held.</summary>
+            public readonly float Along;
+            public Bound(RigNode node, Transform t, Vector3 axis, float flutter, float phase, float along = 0f)
             {
                 Node = node; T = t; Axis = axis;
                 RestPos = t.localPosition; RestRot = t.localRotation;
-                Flutter = flutter; Phase = phase;
+                Flutter = flutter; Phase = phase; Along = along;
             }
         }
 
@@ -93,6 +96,12 @@ namespace FlyingGame.Bridge
             }
 
             var bound = new AirframeRig { Table = rig };
+            // How many links the wool is made of, counted BEFORE binding so each one knows where it sits along
+            // the string. Ty 2026-11-10: "the amplitude of the vibration grows with distance from the fixed tape
+            // line at the front so the end of the string will sometimes look like a blur but the beginning of the
+            // string is always clear."
+            int woolLinks = 0;
+            foreach (RigNode n0 in rig.Nodes) if (n0.Param == "sideslip_deg") woolLinks++;
             int link = 0;
             foreach (RigNode n in rig.Nodes)
             {
@@ -100,7 +109,8 @@ namespace FlyingGame.Bridge
                 // A yaw string is a length of wool: it lives in the airflow and never hangs dead still. The
                 // flutter is per link and out of phase, so the chain ripples instead of swinging as one bar.
                 bool wool = n.Param == "sideslip_deg";
-                bound._bound.Add(new Bound(n, t, Axis(n), wool ? 1.1f : 0f, wool ? 0.37f * link++ : 0f));
+                float along = wool && woolLinks > 1 ? (link + 1f) / woolLinks : (wool ? 1f : 0f);
+                bound._bound.Add(new Bound(n, t, Axis(n), wool ? 1.1f : 0f, wool ? 0.37f * link++ : 0f, along));
             }
             if (bound._bound.Count == 0) return null;
             bound.BindStruts(byName, modelId);
@@ -238,9 +248,25 @@ namespace FlyingGame.Bridge
                     if (b.Flutter > 0f)
                     {
                         // Faster air, livelier wool: nothing below a walking pace, full life by about 60 mph.
-                        float life = Mathf.Clamp01(((float)inputs.AirspeedMph - 15f) / 45f);
-                        deg += b.Flutter * life * (Mathf.Sin((3.1f * _t + b.Phase) * 2f * Mathf.PI)
-                                                 + 0.5f * Mathf.Sin((7.3f * _t + 2f * b.Phase) * 2f * Mathf.PI));
+                        float mph = (float)inputs.AirspeedMph;
+                        float life = Mathf.Clamp01((mph - 15f) / 45f);
+                        // FREQUENCY RISES WITH THE FLOW. A filament shedding in a stream follows a Strouhal law,
+                        // f = St*U/d, so the pitch of the flutter is proportional to airspeed rather than fixed.
+                        // Normalised so the old 3.1/7.3 Hz pair is what it does at 40 mph, which is where the
+                        // numbers were chosen; at 80 mph it buzzes at twice that.
+                        float fScale = Mathf.Max(0.25f, mph / 40f);
+                        // AMPLITUDE GROWS ALONG THE STRING. Squared, not linear: a length of wool taped at one end
+                        // barely moves at the tape and throws its tail about, so the root stays readable while the
+                        // end blurs. The links compound (each pivots at its forward end on the one ahead), so the
+                        // drawn tip excursion grows faster still.
+                        float swing = b.Along * b.Along;
+                        // "SOMETIMES look like a blur": a slow unhurried gust term, well below the flutter rate and
+                        // not harmonically related to it, so the tail is lively at some moments and calmer at others
+                        // instead of buzzing at one steady size for ever.
+                        float gust = 0.75f + 0.45f * Mathf.Sin((0.23f * _t + 0.61f * b.Phase) * 2f * Mathf.PI);
+                        deg += b.Flutter * life * swing * gust
+                               * (Mathf.Sin((3.1f * fScale * _t + b.Phase) * 2f * Mathf.PI)
+                                + 0.5f * Mathf.Sin((7.3f * fScale * _t + 2f * b.Phase) * 2f * Mathf.PI));
                     }
                     b.T.localRotation = b.RestRot * Quaternion.AngleAxis(deg, b.Axis);
                 }

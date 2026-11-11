@@ -431,7 +431,7 @@ public static class PropModel
     {
         PropDrive drive = PropDrive.Running;
         if (prop is not { PropDiameterM: > 0 }) return drive;
-        double pressureRatio = rho / Atmosphere.SeaLevelDensityKgM3;
+        double pressureRatio = IsaPressureRatioForDensity(rho);
         if (prop.ConstantSpeed && prop.FineStopDeg > 0.0)
         {
             var stops = new BladeElement.Stops(prop.FineStopDeg, prop.CoarseStopDeg);
@@ -450,6 +450,62 @@ public static class PropModel
     }
 
     /// <summary>
+    /// DOES THE SIM INTEGRATE THIS PROPELLER'S SHAFT, rather than read its rpm off the throttle law? A type with a
+    /// fitted blade always does. A CONSTANT-SPEED type with fitted stops does so the moment its governor stops
+    /// governing — with no oil the blade sits on a stop, which makes it a fixed-pitch propeller, and a fixed-pitch
+    /// propeller's rpm is a torque balance and nothing else. While the governor has oil these types keep the law they
+    /// have always flown, so a normal flight is untouched and only the failure is solved.
+    ///
+    /// ONE PREDICATE, HERE, because two copies of it is exactly how the rig and the sim came apart. The sim asks it
+    /// through <c>AircraftEngine.SolvesShaft</c> and the rig asks it through <see cref="SteadyFlownDrive"/>; when only
+    /// the sim had it, <see cref="IsSolved"/> came out FALSE in flight and TRUE in the solve for every governing
+    /// constant-speed type, which is not two estimates of one propeller but two different propellers — and that
+    /// predicate also decides whether the FIN stands in the slipstream's swirl or takes the bulk
+    /// <see cref="Parts.SlipYaw"/> moment instead. Measured at the Pitts' own rig point, every residual at 1e-6: a
+    /// rolling moment of −577 N·m and a yawing moment of +512 that the rig had never seen, which rolled it into a
+    /// spiral dive hands off inside ten seconds.
+    /// </summary>
+    public static bool IntegratesShaft(PropulsionConfig? prop, bool governorHasOil)
+        => prop is { PropDiameterM: > 0, BladePitch75Deg: > 0 }
+           || (prop is { ConstantSpeed: true, PropDiameterM: > 0, FineStopDeg: > 0 } && !governorHasOil);
+
+    /// <summary>
+    /// THE DRIVE THE SIM FLIES at a steady condition, which is what a RIG must be solved against — <see
+    /// cref="SteadyDrive"/> where the shaft is integrated (<see cref="IntegratesShaft"/>) and the plain throttle law
+    /// where it is not. <see cref="SteadyDrive"/> itself answers a different question: where the shaft WOULD settle,
+    /// which is what an ablation probe wants whether the sim integrates it or not.
+    ///
+    /// A steady condition has oil pressure, so the governor is governing.
+    /// </summary>
+    public static PropDrive SteadyFlownDrive(PropulsionConfig? prop, double throttle01, double vAxialMs, double rho)
+        => IntegratesShaft(prop, governorHasOil: true) ? SteadyDrive(prop, throttle01, vAxialMs, rho) : PropDrive.Running;
+
+    /// <summary>
+    /// THE AMBIENT STATIC-PRESSURE RATIO δ that goes with this air density, standard day. A naturally aspirated
+    /// engine's manifold pressure is set by the ambient PRESSURE (<see cref="PistonEngine.ManifoldInHg"/>), not by the
+    /// density, and <see cref="SteadyDrive"/> is handed only the density — so it has to recover the other one rather
+    /// than put σ where δ belongs. In the ISA troposphere δ = θⁿ and σ = θⁿ⁻¹ with n = g/(L·R), so δ = σ^(n/(n−1));
+    /// the three constants are <see cref="Atmosphere"/>'s own, so this is that atmosphere and not a second one.
+    ///
+    /// IT USED TO BE σ, AND THAT MADE THE RIG SOLVE AN ENGINE THAT DOES NOT EXIST. <c>AircraftEngine.StepShaft</c>
+    /// derives the real δ from <see cref="Atmosphere.PressureAtAltitude"/>, and the engine's structure says plainly
+    /// which is which: it keeps <c>_sigma</c> separately for the mixture and δ for torque. At the 4,000 ft rig
+    /// altitude the two are 0.888 and 0.864 — an engine 3 % stronger in the solve than in flight, which the governor
+    /// pays for in blade angle (the Extra's rig asked 23.13° where the sim settled at 22.95°) and a fixed-pitch blade
+    /// pays for in rpm (the J-3's rig asked 2,128.8 where the sim settled at 2,100). Either way the rig was fitted to
+    /// a propeller the sim does not fly, and hands off that left a rolling and yawing moment nothing cancels. With δ
+    /// the two drives agree to the last digit — Pitts 2,500.0 rpm / 21.42° blade both sides, J-3 2,068.9 both sides.
+    /// Every rig angle in the fleet moves with it, which is why this lands with a RigTool re-run in the same commit.
+    /// </summary>
+    public static double IsaPressureRatioForDensity(double rho)
+    {
+        double sigma = rho / Atmosphere.SeaLevelDensityKgM3;
+        if (sigma <= 0.0) return 0.0;
+        const double n = Atmosphere.GravityMs2 / (Atmosphere.LapseRateKPerM * Atmosphere.GasConstantAir);
+        return Math.Pow(sigma, n / (n - 1.0));
+    }
+
+    /// <summary>
     /// IS THE PROPELLER SOLVED, blade by blade, rather than estimated from coefficients? One predicate, because more
     /// than one place has to agree with it and they disagreed once already: AeroModel decides on it whether the FIN
     /// stands in the slipstream's swirl (a solved propeller makes the spiral yaw out of geometry) or stays out of it
@@ -461,6 +517,15 @@ public static class PropModel
     public static bool IsSolved(PropulsionConfig prop, PropDrive drive)
         => prop.PropDiameterM > 0.0 && drive.EngineRunning && drive.ShaftRpm > 0.0
            && (prop.BladePitch75Deg > 0.0 || drive.BladePitchDeg > 0.0);
+
+    /// <summary>
+    /// Ablation switches for the SOLVED disc's two cross-flow terms, which <see cref="PropulsionConfig.PFactorK"/>
+    /// does NOT reach: on a blade-element prop the in-plane force and the P-factor offset come out of the azimuthal
+    /// integral, so zeroing PFactorK (the legacy coefficient) ablates nothing at all on the Pitts, the Extra or any
+    /// other solved type. PROP_NOINPLANE=1 / PROP_NOPFACTOR=1. Diagnostics only.
+    /// </summary>
+    public static bool NoDiscInPlaneForDiagnostics = Environment.GetEnvironmentVariable("PROP_NOINPLANE") != null;
+    public static bool NoDiscPFactorForDiagnostics = Environment.GetEnvironmentVariable("PROP_NOPFACTOR") != null;
 
     private static (Vec3 Force, Vec3 Moment) BladeElementForces(PropulsionConfig prop, Vec3 bodyVelocity, Vec3 bodyRates,
                                                                 double airDensity, PropDrive drive, ref Parts parts,
@@ -513,7 +578,7 @@ public static class PropModel
             // the gyroscopic couple (docs/aircraft/prop-gyro-DERIVATION.md section 5) - and on the solved types it was
             // pointing the wrong way entirely, which is what Ty felt as the Extra "coming up way short on side slip
             // angle (beta) when yawed left and pushed forward... like the gyroscopics are too light".
-            Vec3 inPlane = new(0, -r.NormalN * uy, -r.NormalN * uz);
+            Vec3 inPlane = NoDiscInPlaneForDiagnostics ? Vec3.Zero : new(0, -r.NormalN * uy, -r.NormalN * uz);
             force += inPlane;
             parts.InPlane = inPlane;
 
@@ -523,7 +588,7 @@ public static class PropModel
             double offset = r.ThrustN > 1e-6 ? r.ThrustMomentNm / r.ThrustN : 0.0;
             double yOffset = prop.RotationSign * offset * uz;     // + = right
             double zOffset = -prop.RotationSign * offset * uy;
-            moment += new Vec3(0, r.ThrustN * zOffset, -r.ThrustN * yOffset);
+            if (!NoDiscPFactorForDiagnostics) moment += new Vec3(0, r.ThrustN * zOffset, -r.ThrustN * yOffset);
             parts.PFactorY = yOffset; parts.PFactorZ = zOffset;
         }
 

@@ -163,6 +163,42 @@ public sealed class PlasticHinge
     public double WorkJ;
     public bool Ruptured;
 
+    /// <summary>Which hinge this is ("WingTipLowerRight bending"), for the NaN report alone. Set ONCE where the hinge is
+    /// built, never per call: <see cref="Load"/> runs every step on every panel, so composing a context string at the
+    /// call site would allocate in a load path to describe something that almost never happens.</summary>
+    public string? Name;
+
+    /// <summary>
+    /// Every hinge handed a NaN bending or twisting demand since the process started, newest last, one entry per
+    /// distinct caller. <see cref="Load"/> returns 0 for a NaN demand — which is the right ARITHMETIC, since a
+    /// meaningless demand must not turn the hinge — but on its own it is the wrong REPORT: the symptom would be a wing
+    /// panel that silently never breaks, and that is indistinguishable from a panel that held. A wing that fails to
+    /// fail reads as a flight-model opinion rather than a bug, and gets chased for days. So the quiet behaviour stays
+    /// and the silence goes.
+    /// <para>Deliberately NOT cleared between flights: the whole point is that it survives to be read after the fact.
+    /// It is a diagnostic, so it is capped and de-duplicated rather than appended to per step — this is a load path and
+    /// a per-call log would be its own defect.</para>
+    /// </summary>
+    public static System.Collections.Generic.IReadOnlyList<string> NaNDemands { get { lock (_naNLock) return _naNSeen.ToArray(); } }
+    private static readonly System.Collections.Generic.List<string> _naNSeen = new();
+    private static readonly object _naNLock = new();
+
+    /// <summary>Say a NaN demand arrived, ONCE per distinct caller (at most 16 of them), with what was being loaded and
+    /// what came with it. <paramref name="what"/> is the caller's own name for this hinge — pass it, or the message can
+    /// only say that it happened somewhere.</summary>
+    private static void ReportNaNDemand(string? what, double reliefNmPerRad)
+    {
+        string key = what ?? "<unnamed hinge: the caller passed no context>";
+        lock (_naNLock)
+        {
+            if (_naNSeen.Count >= 16 || _naNSeen.Contains(key)) return;
+            _naNSeen.Add(key);
+        }
+        System.Console.Error.WriteLine($"PlasticHinge: NaN demand on {key} — the hinge was NOT turned and the panel will "
+            + $"not break from it (relief {reliefNmPerRad:G6} N·m/rad). A non-finite load reached the structure; find it "
+            + "upstream, because this call cannot distinguish 'undefined' from 'held'.");
+    }
+
     public PlasticHinge(double yieldNm, double ultimateNm, HingeLaw law)
     {
         UltimateNm = System.Math.Max(0.0, ultimateNm);
@@ -196,7 +232,8 @@ public sealed class PlasticHinge
     /// </summary>
     public double Load(double demandNm, double reliefNmPerRad, double maxStepRad = 0.1)
     {
-        if (Ruptured || double.IsNaN(demandNm)) return 0.0;
+        if (double.IsNaN(demandNm)) { ReportNaNDemand(Name, reliefNmPerRad); return 0.0; }
+        if (Ruptured) return 0.0;
         double m = System.Math.Abs(demandNm), sgn = System.Math.Sign(demandNm);
         double cap = CapacityAt(PathRad);
         if (m <= cap) return 0.0;
