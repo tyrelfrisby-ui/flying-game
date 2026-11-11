@@ -1082,6 +1082,29 @@ public sealed class StallDynamicsConfig
 
     /// <summary>Proposal 3: per-strip unsteady force lag (~3 chords/V). Off = quasi-steady.</summary>
     public bool UnsteadyLagEnabled { get; set; }
+
+    /// <summary>
+    /// Where each strip's separation memory switches, measured from the strip's OWN static stall (its table's CL-max
+    /// angle) instead of the fleet's fixed 16° / 11°. Null (the default) keeps 16° / 11° for every type, so adding
+    /// this changed nothing on any aeroplane that does not set it.
+    ///
+    /// WHY IT HAD TO COME WITH THE SECTION. Those two constants were calibrated against tables that stall near 14°,
+    /// which every hand-built "feel" table in the fleet does. A table derived from the real section
+    /// (docs/aircraft/extra-300-airfoil-DERIVATION.md) puts the finite wing's static stall where the data says —
+    /// 21–24° per station on the Extra — and with a fixed 16° onset every strip would be counted "separated", with
+    /// the ailerons cut by 85 % and the induced drag tapered off, FIVE DEGREES BEFORE its flow actually leaves. The
+    /// wing then cannot be pulled to its own stall at idle at all: the tail downwash collapses first. So the derived
+    /// section is unflyable without this; the two are one change, not two.
+    ///
+    /// WHY ZERO IS THE RIGHT VALUE FOR A DERIVED TABLE. The static polar already contains the static stall, so onset
+    /// is AT it (0° past): anything beyond is only the dynamic delay <see cref="StripSepTau"/> gives. Reattachment
+    /// keeps the legacy band's 5° below onset, because no static-hysteresis measurement for these sections at these
+    /// Reynolds numbers was found to replace it — that is an inherited number, not a derived one.
+    /// </summary>
+    public double? SeparationOnPastStallDeg { get; set; }
+
+    /// <summary>See <see cref="SeparationOnPastStallDeg"/>: reattachment, degrees below the strip's own static stall.</summary>
+    public double? ReattachBelowStallDeg { get; set; }
 }
 
 public sealed class CrossflowConfig
