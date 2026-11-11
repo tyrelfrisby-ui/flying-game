@@ -164,6 +164,104 @@ public sealed class PlaningWakeTests
                        $"{plow.CrestHeightM * 100:F0} cm, white water {plow.WhiteWater01:F2}");
     }
 
+    // ---- the aerated keel track: air entrainment, not spray -----------------------------------------------------
+
+    /// <summary>
+    /// THE TEST THAT WOULD HAVE CAUGHT THE FITTED WIDTH, and the one Ty's own description turns on: "The spray is
+    /// directly behind and in line with the floats keels and WIDENS AT A NARROWER RATE THAN THE WAKE DOES".
+    ///
+    /// The two angles come from two different physics and must never be confused. The Kelvin wake's half-angle is
+    /// asin(1/3) = 19.47 deg, set by the dispersion of deep-water gravity waves and so the same at every speed. The
+    /// bubble track's is set by TURBULENT SPREADING of a plane mixing layer, 4.86 deg. A fitted band of "1.6 beams"
+    /// had no angle at all and sat between the two; this says they are a factor of four apart and which way round.
+    /// </summary>
+    [Fact]
+    public void TheAeratedTrackWidensFourTimesMoreSlowlyThanTheKelvinWake()
+    {
+        double track = PlaningWake.TrackHalfAngleRad, kelvin = PlaningWake.KelvinHalfAngleRad;
+        Assert.Equal(19.47, kelvin * 57.29578, 2);
+        Assert.Equal(4.86, track * 57.29578, 2);
+        Assert.True(track < kelvin, "the aerated track must widen more slowly than the wake");
+        Assert.InRange(kelvin / track, 3.5, 4.5);
+        _out.WriteLine($"  keel track {track * 57.29578:F2} deg, Kelvin {kelvin * 57.29578:F2} deg, " +
+                       $"ratio {kelvin / track:F2}");
+    }
+
+    /// <summary>And it holds at EVERY speed in the planing range, not just at the one that was shot: the track's
+    /// angle does not depend on speed and neither does Kelvin's, so a test at one speed would prove nothing about
+    /// another. Both widths are compared at a metre astern as well, where the track's own starting width could in
+    /// principle still put it outside the wake.</summary>
+    [Theory]
+    [InlineData(10.0)]
+    [InlineData(15.0)]
+    [InlineData(25.0)]
+    [InlineData(40.0)]
+    [InlineData(60.0)]
+    public void TheTrackStaysInsideTheWakeAtEverySpeed(double mph)
+    {
+        double v = mph * Mph;
+        double draft = mph < 20 ? PlowStepDraft : 0.04;      // the hull rides higher as it planes
+        for (double x = 0.0; x <= 6.0; x += 0.5)
+        {
+            double track = PlaningWake.TrackHalfWidthAtM(x, draft, BeamM, DeadriseDeg);
+            double kelvin = 0.5 * BeamM + x * Math.Tan(PlaningWake.KelvinHalfAngleRad);
+            Assert.True(track <= kelvin + 1e-9,
+                $"at {mph} mph and {x} m astern the aerated track ({track:F3} m) is outside the wake ({kelvin:F3} m)");
+        }
+        _out.WriteLine($"  {mph,4:F0} mph: track half-width {PlaningWake.TrackHalfWidthAtM(0, draft, BeamM, DeadriseDeg):F3} m " +
+                       $"at the keel, {PlaningWake.TrackHalfWidthAtM(6, draft, BeamM, DeadriseDeg):F3} m at 6 m astern");
+    }
+
+    /// <summary>The track starts at the FLOAT'S OWN wetted width — a V bottom of deadrise β immersed to d is wetted
+    /// to d/tan β, capped at the chine — and not at a multiple of the beam. On this float both the plow and the
+    /// planing run are chine-limited, so the track leaves the keel exactly one beam wide; a shallower draft on a
+    /// deeper V would make it narrower, and that is the branch the second case checks.</summary>
+    [Fact]
+    public void TheTrackStartsAtTheKeelSOwnWettedWidth()
+    {
+        // The two drafts the fixture actually measured: 0.171 m plowing and 0.149 m on the step. Both wet the V
+        // past its chine (0.171/tan 18.8 = 0.50 m, 0.149/tan 18.8 = 0.44 m, against a 0.268 m half-beam), so both
+        // leave the keel exactly one beam wide.
+        Assert.Equal(0.5 * BeamM, PlaningWake.TrackHalfWidthM(PlowStepDraft, BeamM, DeadriseDeg), 9);
+        Assert.Equal(0.5 * BeamM, PlaningWake.TrackHalfWidthM(0.1486, BeamM, DeadriseDeg), 9);
+        // The other branch, and it has to work or the chine cap is doing all the arithmetic: a float barely wet
+        // is NOT chine-limited and its track is narrower than its beam. 4 cm on this V is 0.117 m, not 0.268 m.
+        Assert.Equal(0.04 / Math.Tan(DeadriseDeg * Math.PI / 180), PlaningWake.TrackHalfWidthM(0.04, BeamM, DeadriseDeg), 9);
+        Assert.True(PlaningWake.TrackHalfWidthM(0.04, BeamM, DeadriseDeg) < 0.5 * BeamM);
+        Assert.Equal(0.0, PlaningWake.TrackHalfWidthM(0.0, BeamM, DeadriseDeg), 9);
+    }
+
+    /// <summary>
+    /// How long the white water lasts is how long the bubbles take to rise out: V·d/v_rise with v_rise = 0.25 m/s.
+    /// 4.6 m at the 15 mph plow and 10.6 m at 40 mph on the step — longer with speed AND with how deep the keel
+    /// is, both of which fall out of the mechanism rather than being chosen. The old exponential had neither.
+    /// </summary>
+    [Fact]
+    public void TheWhiteWaterLastsAsLongAsTheBubblesTakeToRise()
+    {
+        double plow = PlaningWake.AeratedLengthM(PlowSpeed, PlowStepDraft);
+        double step = PlaningWake.AeratedLengthM(17.9, 0.1486);
+        Assert.InRange(plow, 4.5, 4.7);
+        Assert.InRange(step, 10.4, 10.8);
+        // It thins LINEARLY as the column empties, and it ends.
+        Assert.Equal(1.0, PlaningWake.AeratedFraction01(0, PlowSpeed, PlowStepDraft), 9);
+        Assert.Equal(0.5, PlaningWake.AeratedFraction01(plow / 2, PlowSpeed, PlowStepDraft), 6);
+        Assert.Equal(0.0, PlaningWake.AeratedFraction01(plow, PlowSpeed, PlowStepDraft), 9);
+        Assert.Equal(0.0, PlaningWake.AeratedFraction01(plow + 5, PlowSpeed, PlowStepDraft), 9);
+        _out.WriteLine($"  white water lasts {plow:F1} m astern at 15 mph, {step:F1} m at 40 mph " +
+                       $"(bubbles rising at {PlaningWake.BubbleRiseMs} m/s)");
+    }
+
+    /// <summary>A float out of the water entrains nothing, so there is no track to draw — the same gate the rest
+    /// of this class uses, applied to the thing that would otherwise trail behind an aeroplane in the air.</summary>
+    [Fact]
+    public void ADryFloatLeavesNoTrack()
+    {
+        Assert.Equal(0.0, PlaningWake.AeratedLengthM(17.9, 0.0), 9);
+        Assert.Equal(0.0, PlaningWake.TrackHalfWidthM(0.0, BeamM, DeadriseDeg), 9);
+        Assert.Equal(0.0, PlaningWake.AeratedFraction01(1.0, 17.9, 0.0), 9);
+    }
+
     /// <summary>Nothing happens at all when the float is not in the water: every length is zero, so a float a
     /// foot in the air cannot leave a cavity behind it.</summary>
     [Fact]
