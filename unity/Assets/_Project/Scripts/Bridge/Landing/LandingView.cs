@@ -15,8 +15,11 @@ namespace FlyingGame.Bridge
     ///  PAGE 1 — left: four menus (Aircraft, Configuration, Location, Viewpoint), each a tile showing the current card;
     ///    centre: the live aeroplane (<see cref="LandingPreview"/>); right: Challenges and Lessons. A tile opens its
     ///    thumbnail strip over the page; drag it sideways, tap a card. NEXT.
-    ///  PAGE 2 — left: seats, fuel, baggage; centre: the aeroplane again and the weight-and-balance plot; right: time of
-    ///    day, weather, reliability. BACK, LAUNCH.
+    ///  PAGE 2 — ONE SCROLLING SURFACE of section cards, each as tall as its own content (Ty 2026-11-11; the long
+    ///    comment above <see cref="DrawLoad"/> has the four defects it replaced and what each of them measured): the
+    ///    aeroplane, PEOPLE, FUEL, BAGGAGE, WEIGHT &amp; BALANCE, the conditions (time, weather, reliability, units)
+    ///    and WHAT LAUNCH WILL DO. One column of them in portrait, two in landscape, three on a tablet or a Mac.
+    ///    BACK, LAUNCH.
     /// "More settings" opens the classic chapters (instruments, multiplayer, runway, livery, tow plane, the exact wind):
     /// nothing that page could do is lost.
     /// </summary>
@@ -116,7 +119,13 @@ namespace FlyingGame.Bridge
                 if (UiLayout.Button(new Rect(r.xMax - bw, r.y, bw, r.height), "LAUNCH", _btnBig)) flow.RequestLaunch();
             }
             float x0 = flow.Page == LandingPage.Load ? r.x + sw + _gap : r.x;
-            float small = r.height * 0.62f, sbw = Mathf.Min(_fs * 7.5f, (r.xMax - bw - _gap - x0) / 3.2f);
+            // The three small buttons SPEND sbw * 3.25 plus a gap (More settings is 1.25 wide, and there are two
+            // half-gaps between them), so that is what the budget has to be. It used to divide the space by 3.2 and
+            // reserve nothing for the gap, which on page 2 in portrait — where BACK has already taken sw off the left
+            // — asked for 643 px of the 617 px that was free and drew CHART across the left 26 px of LAUNCH. CHART is
+            // drawn last, so it took the tap there: the bottom-right button on the page was partly covered by another
+            // one. Page 1 never showed it, because with no BACK the row fits with 40 px to spare.
+            float small = r.height * 0.62f, sbw = Mathf.Min(_fs * 7.5f, (r.xMax - bw - _gap * 2f - x0) / 3.25f);
             if (UiLayout.Button(new Rect(x0, r.yMax - small, sbw * 1.25f, small), "More settings", _btn)) _host.ShowClassic(null);
             if (UiLayout.Button(new Rect(x0 + sbw * 1.25f + _gap * 0.5f, r.yMax - small, sbw, small), "HELP", _btn)) SupportDesk.OpenHelp();
             if (UiLayout.Button(new Rect(x0 + sbw * 2.25f + _gap, r.yMax - small, sbw, small), "CHART", _btn)) ChartPanel.Toggle();
@@ -284,48 +293,248 @@ namespace FlyingGame.Bridge
             return it.Enabled && !_dragging && GUI.Button(r, GUIContent.none, GUIStyle.none);
         }
 
-        // ================================================================ page 2
+        // ================================================================ page 2 — LOAD AND LAUNCH
+        //
+        // Ty 2026-11-11: "Page 2 of the page is not scrollable either and needs a facelift too there is dead area
+        // bottom left and hidden ui bottom right and the text is unreadable give it an overhaul and let me know what
+        // you come up with all ui accessible and easy to read."
+        //
+        // What the four complaints turned out to be, measured at the phone shape the self-test shoots (iPhone 15/16
+        // Pro class, 1179 x 2556 px of 460 ppi glass, 3 px to the point) before anything was changed:
+        //
+        //  NOT SCROLLABLE — true, and structural rather than a missing feature. The old DrawLoad cut `body` into three
+        //    columns by FRACTION and placed every row inside them by fraction, so there was never any content to
+        //    scroll: whatever did not fit was simply not drawn. Two lines did that silently — FUEL only appeared
+        //    `if (fuel.Count > 0 && y + row * 2 < inner.yMax)` and baggage stations ran `if (y + row > inner.yMax)
+        //    break;`. A type with enough seats lost its tanks and its bags with no mark on the page to say so.
+        //
+        //  DEAD AREA BOTTOM LEFT — true, and the largest single defect on the page. The PEOPLE / FUEL / BAGGAGE column
+        //    was given the full height of the body (1323 px in portrait) while a J-3's content stacks to 432 px of it.
+        //    881 px left over: 294 pt, 1.9 INCHES of empty navy panel, 68 % of that column. In landscape it was 460 px
+        //    (52 %). The cause is the fraction: a column sized by the screen and filled from the top.
+        //
+        //  HIDDEN UI BOTTOM RIGHT — two separate things, both real, neither of them off the screen.
+        //    (1) The settings column's budget line, `block = (inner.height - 4 * headH - unitsH - _gap * 0.3f) / 3f`,
+        //        subtracted ONE inter-group gap where the layout then spends three, so the stack overran its own panel
+        //        by exactly 0.6 x gap = 10 px and the last control on the page — UNITS, Standard | Metric — ended up
+        //        jammed on the body's bottom edge, 78 px = 26 pt tall against Apple's 44 pt floor.
+        //    (2) In PORTRAIT the footer's three small buttons want 643 px where 617 px is free, so CHART is drawn
+        //        across the left 26 px of LAUNCH and, being drawn later, wins the tap there. The bottom-right control
+        //        on the page is partly covered by another button. Fixed in DrawFooter (shared with page 1, where the
+        //        same row fits with 40 px to spare because page 1 has no BACK button to pay for).
+        //
+        //  TEXT UNREADABLE — the cause is SIZE, and it is not the dark theme. Measured contrast on the navy is 16.2:1
+        //    for body text, 11.2:1 for captions and 7.7:1 for the numbers on the weight-and-balance plot: all far past
+        //    WCAG AA's 4.5:1. What is wrong is that EnsureStyles takes 2.6 % of the short side IN PIXELS, which is
+        //    31 px = 10.3 pt here, and the derived styles land at _small 25 px = 8.3 pt and _tiny 21 px = 7.0 pt.
+        //    _tiny carries every number on the W&B plot, every settings-card subtitle and both of the page's notes,
+        //    and all of them are drawn with a raw GUI.Label, so nothing floors them. SEVEN POINTS, where Apple's
+        //    minimum is 11 pt and body text is 17 pt, and where docs/landing-v2/DESIGN.md asked for "16-point body
+        //    text ... compact secondary captions in these boards are 11-14 points". This is the same defect UiLayout
+        //    already documents (Ty 2026-11-08, "the size of the menus and buttons on iPhone is too small"): a fraction
+        //    of a pixel count says nothing about how big a thing is in the hand.
+        //    Contrast WAS the fault in exactly two places, and both are fixed below. White on the Morning time-of-day
+        //    tint measures 3.10:1 (its subtitle 2.34:1) because the ink was picked by a hand-set `light > 0.75` rule
+        //    and Morning is 0.70. White on the green "this is my seat" fill measures 3.40:1.
+        //
+        // The overhaul. One scrolling surface — thumb drag, MORE ABOVE / MORE BELOW, the idiom OptionsPanel already
+        // uses — built out of section cards that are as tall as THEIR CONTENT instead of columns that are a fraction
+        // of the screen. One column of sections in portrait, two in landscape, three on a tablet or a Mac. Running out
+        // of room now means scrolling, so nothing is dropped for want of it, and a short list no longer leaves a foot
+        // of empty panel under it. Page 2 sizes its own text from UiLayout.PanelUnit (see EnsureLoadStyles).
+        //
+        // DELIBERATELY NOT TOUCHED: EnsureStyles, DrawHeader, DrawChoose, DrawTile, DrawStrip, DrawCard. Another lane
+        // is overhauling page 1 at the same time, and the one-line PanelUnit change belongs there, in its hands.
 
-        private void DrawLoad(Rect r, LandingFlow flow)
+        private GUIStyle _p2Title, _p2Head, _p2Label, _p2Small, _p2Body, _p2Tiny, _p2Btn, _p2BtnOn, _p2More;
+        private Texture2D _p2Accent, _p2MoreBg;
+        private int _p2Fs;
+        private float _p2Bh, _p2Gap, _p2Pad;
+        private Vector2 _loadScroll;
+        private float _loadContentH;
+        private bool _loadDragPossible, _loadDragging;
+        private float _loadDragY, _loadDragScroll;
+
+        /// <summary>
+        /// Page 2's text and row sizes. These come from <see cref="UiLayout.PanelUnit"/> — the screen's short side
+        /// times AutoScale, the DPI-derived "how big is this in the hand" factor (1.89 on the phone above, 1.00 on an
+        /// iPad, where the original fractions were chosen and are right), times the owner's OPTIONS → Display → "Menu
+        /// &amp; page size" slider. Not from Screen's raw pixel count the way <see cref="EnsureStyles"/> does it.
+        ///
+        /// Two things follow. The page becomes legible: fs 58 px = 19.3 pt body, 50 px = 16.6 pt card titles, 43 px =
+        /// 14.3 pt captions, rows 138 px = 46 pt against Apple's 44 pt target — the sizes DESIGN.md asked for. And the
+        /// OPTIONS size slider now MOVES page 2, which it never did: that slider only ever changed PanelUnit, and this
+        /// page did not read it, so turning it up did nothing here and there was no way to fix the page from the
+        /// device.
+        /// </summary>
+        private void EnsureLoadStyles()
         {
-            bool portrait = Screen.height > Screen.width;
-            Rect leftCol, centre, rightCol;
-            if (portrait)
-            {
-                centre = new Rect(r.x, r.y, r.width, r.height * 0.36f);
-                float below = r.height - centre.height - _gap, half = (r.width - _gap) * 0.5f;
-                leftCol = new Rect(r.x, centre.yMax + _gap, half, below);
-                rightCol = new Rect(r.x + half + _gap, centre.yMax + _gap, half, below);
-            }
-            else
-            {
-                float lw = r.width * 0.32f, rw = r.width * 0.30f;
-                leftCol = new Rect(r.x, r.y, lw, r.height);
-                rightCol = new Rect(r.xMax - rw, r.y, rw, r.height);
-                centre = new Rect(leftCol.xMax + _gap, r.y, r.width - lw - rw - 2 * _gap, r.height);
-            }
-            if (portrait)
-            {
-                float hw = (centre.width - _gap) * 0.5f;
-                DrawHero(new Rect(centre.x, centre.y, hw, centre.height), flow, false);
-                DrawWeightBalance(new Rect(centre.x + hw + _gap, centre.y, hw, centre.height), flow);
-            }
-            else
-            {
-                float heroH = centre.height * 0.35f;
-                DrawHero(new Rect(centre.x, centre.y, centre.width, heroH), flow, false);
-                DrawWeightBalance(new Rect(centre.x, centre.y + heroH + _gap, centre.width, centre.height - heroH - _gap), flow);
-            }
-            DrawPeopleAndLoad(leftCol, flow);
-            DrawSettings(rightCol, flow);
+            int fs = Mathf.Max(13, Mathf.RoundToInt(UiLayout.PanelUnit * 0.026f));
+            if (_p2Label != null && fs == _p2Fs) return;
+            _p2Fs = fs;
+            _p2Gap = UiLayout.PanelUnit * 0.014f;
+            _p2Pad = _p2Gap * 0.6f;
+            // A row is never smaller than a finger: UiLayout's own button fraction (6.2 % of the unit), floored
+            // against the text so that a large OPTIONS scale can never print a 19 pt label into a 15 pt row.
+            _p2Bh = Mathf.Max(fs * 1.9f, UiLayout.PanelUnit * 0.062f);
+            // White on this green measures 8.6:1. White on the page's existing accent (0.20, 0.62, 0.35) measures
+            // 3.4:1, which is what the "You" seat row was drawing text on. The hue is kept; only the value moves.
+            _p2Accent ??= Solid(new Color(0.10f, 0.34f, 0.20f, 0.98f));
+            _p2MoreBg ??= Solid(new Color(0.10f, 0.42f, 0.62f, 0.96f));
+            Font f = UiFont.Get();
+            GUIStyle S(int size, FontStyle st, TextAnchor a, Color c) => new GUIStyle { font = f, fontSize = size, fontStyle = st, alignment = a, normal = { textColor = c }, wordWrap = false, clipping = TextClipping.Clip };
+            var caption = new Color(0.84f, 0.88f, 0.93f);
+            _p2Title = S(Mathf.RoundToInt(fs * 1.15f), FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);
+            _p2Head = S(Mathf.RoundToInt(fs * 0.92f), FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.55f, 0.95f, 1f));
+            _p2Label = S(fs, FontStyle.Normal, TextAnchor.MiddleLeft, Color.white);
+            _p2Small = S(Mathf.RoundToInt(fs * 0.86f), FontStyle.Normal, TextAnchor.MiddleLeft, caption);
+            // Sentences WRAP. UiLayout.Label drops the tail of a line that will not fit, which is right for a status
+            // line and wrong for a sentence, where the words are the whole point (OptionsPanel learnt the same thing:
+            // Ty 2026-11-08, "I can't read this"). Anything drawn with these two goes through LabelWrapped.
+            _p2Body = S(Mathf.RoundToInt(fs * 0.86f), FontStyle.Normal, TextAnchor.UpperLeft, caption);
+            _p2Body.wordWrap = true;
+            _p2Tiny = S(Mathf.RoundToInt(fs * 0.74f), FontStyle.Normal, TextAnchor.UpperLeft, caption);
+            _p2Tiny.wordWrap = true;
+            _p2Btn = new GUIStyle(_p2Label) { alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white, background = _btnBg }, active = { textColor = Color.white, background = _btnBg }, padding = new RectOffset(8, 8, 4, 4) };
+            _p2BtnOn = new GUIStyle(_p2Btn) { fontStyle = FontStyle.Bold, normal = { textColor = Color.white, background = _p2Accent }, active = { textColor = Color.white, background = _p2Accent } };
+            _p2More = new GUIStyle(_p2Small) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white, background = _p2MoreBg } };
         }
 
-        private void DrawPeopleAndLoad(Rect r, LandingFlow flow)
+        /// <summary>
+        /// The whole page in one scrolling viewport. The sections are laid out as independent vertical stacks, one per
+        /// column, and the scroll runs over all of them together.
+        ///
+        /// The column assignment is fixed rather than packed by height, because a reader needs the loading and its
+        /// consequence next to each other: wherever there are two columns the aeroplane, the people, the fuel, the
+        /// bags and the weight-and-balance plot are ONE stack (what you loaded, and what it did), and the conditions
+        /// and the summary are the other. Measured at the phone shapes that leaves about 600 px of imbalance in
+        /// landscape, which is a sixth of a column rather than the two-thirds of one the old layout wasted, and it is
+        /// at the very bottom of a page that scrolls instead of in the middle of the page you first see.
+        /// </summary>
+        private void DrawLoad(Rect r, LandingFlow flow)
         {
-            GUI.DrawTexture(r, _panel);
-            var inner = Inset(r, _gap * 0.6f);
-            float y = inner.y, row = _bh * 0.95f, stepW = _bh * 0.95f;
-            UiLayout.Label(new Rect(inner.x, y, inner.width, row * 0.8f), "PEOPLE  ·  tap a seat", _head); y += row * 0.8f;
+            EnsureLoadStyles();
+            bool portrait = Screen.height > Screen.width;
+            int cols = portrait ? 1 : r.width > _p2Bh * 20f ? 3 : 2;
+
+            // The content height is the one measured on the PREVIOUS pass. IMGUI wants the content rect before the
+            // sections have had a chance to say how tall they are, and the alternative — a silent dry run of every
+            // section — doubles the code and can drift from what is actually drawn. The cost is one frame of wrong
+            // scroll extent when the page opens or the aeroplane changes, which is the trade OptionsPanel makes too.
+            float hidden = Mathf.Max(0f, _loadContentH - r.height);
+            LoadScrollInput(r, hidden);
+            _loadScroll.y = Mathf.Clamp(_loadScroll.y, 0f, hidden);
+            float sbw = hidden > 1f ? _p2Fs * 1.1f : 0f;
+            var content = new Rect(r.x, r.y, r.width - sbw, Mathf.Max(_loadContentH, r.height));
+            _loadScroll = GUI.BeginScrollView(r, _loadScroll, content);
+
+            float colW = (content.width - (cols - 1) * _p2Gap) / cols;
+            float X(int i) => content.x + i * (colW + _p2Gap);
+            float yA = content.y, yB = content.y, yC = content.y;
+            yA = SecHero(X(0), yA, colW, flow);
+            yA = SecPeople(X(0), yA, colW, flow);
+            yA = SecFuel(X(0), yA, colW, flow);
+            yA = SecBaggage(X(0), yA, colW, flow);
+            if (cols == 1)
+            {
+                yA = SecWeightBalance(X(0), yA, colW, flow);
+                yA = SecConditions(X(0), yA, colW, flow);
+                yA = SecSummary(X(0), yA, colW, flow);
+            }
+            else if (cols == 2)
+            {
+                yA = SecWeightBalance(X(0), yA, colW, flow);
+                yB = SecConditions(X(1), yB, colW, flow);
+                yB = SecSummary(X(1), yB, colW, flow);
+            }
+            else
+            {
+                yB = SecWeightBalance(X(1), yB, colW, flow);
+                yB = SecSummary(X(1), yB, colW, flow);
+                yC = SecConditions(X(2), yC, colW, flow);
+            }
+            GUI.EndScrollView();
+            _loadContentH = Mathf.Max(yA, Mathf.Max(yB, yC)) - content.y;
+
+            // MORE ABOVE / MORE BELOW, in words and across the edge the content runs off (Ty 2026-11-08: "an obvious
+            // 'more below/above' when not at the top/bottom of a scrollable menu"). A three-pixel scrollbar at the
+            // edge of a moving list is not something a thumb finds on a phone.
+            if (hidden > 1f)
+            {
+                if (_loadScroll.y > 1f) GUI.Label(new Rect(r.x, r.y, r.width - sbw, _p2Bh * 0.62f), "▲  MORE ABOVE", _p2More);
+                if (_loadScroll.y < hidden - 1f) GUI.Label(new Rect(r.x, r.yMax - _p2Bh * 0.62f, r.width - sbw, _p2Bh * 0.62f), "▼  MORE BELOW", _p2More);
+            }
+        }
+
+        /// <summary>Wheel and thumb-drag scrolling for page 2. A drag only becomes a scroll past a third of a row, so
+        /// a tap on a seat or a − / + still lands; once it is a scroll the MouseUp is eaten and hotControl cleared, so
+        /// the button under the finger does not also fire. Same shape as OptionsPanel's.</summary>
+        private void LoadScrollInput(Rect viewport, float hidden)
+        {
+            // GUI.enabled is false while the out-of-limits question is up: the page behind a modal does not scroll
+            // under the finger that is reaching for Go back.
+            if (hidden <= 1f || !GUI.enabled) { _loadDragPossible = _loadDragging = false; return; }
+            Event e = Event.current;
+            switch (e.type)
+            {
+                case EventType.ScrollWheel:
+                    if (viewport.Contains(e.mousePosition)) { _loadScroll.y = Mathf.Clamp(_loadScroll.y + e.delta.y * _p2Bh * 0.5f, 0f, hidden); e.Use(); }
+                    break;
+                case EventType.MouseDown:
+                    if (viewport.Contains(e.mousePosition)) { _loadDragPossible = true; _loadDragging = false; _loadDragY = e.mousePosition.y; _loadDragScroll = _loadScroll.y; }
+                    break;
+                case EventType.MouseDrag:
+                    if (_loadDragPossible)
+                    {
+                        float dy = e.mousePosition.y - _loadDragY;
+                        if (!_loadDragging && Mathf.Abs(dy) > _p2Bh * 0.33f) _loadDragging = true;
+                        if (_loadDragging) { _loadScroll.y = Mathf.Clamp(_loadDragScroll - dy, 0f, hidden); e.Use(); }
+                    }
+                    break;
+                case EventType.MouseUp:
+                    if (_loadDragging) { e.Use(); GUIUtility.hotControl = 0; }
+                    _loadDragPossible = false; _loadDragging = false;
+                    break;
+            }
+        }
+
+        /// <summary>A section card: its panel, its heading if it has one, and the inner rect its rows go in. Every
+        /// section works out its own height from its own row count first, draws this, and then fills it — which is the
+        /// whole of the fix for the dead area: a card is as tall as what is in it.</summary>
+        private Rect SecFrame(float x, float y, float w, float h, string head)
+        {
+            var box = new Rect(x, y, w, h);
+            GUI.DrawTexture(box, _panel);
+            var inner = Inset(box, _p2Pad);
+            if (head != null) UiLayout.Label(new Rect(inner.x, inner.y, inner.width, _p2Bh * 0.8f), head, _p2Head);
+            return inner;
+        }
+
+        /// <summary>The live aeroplane and what it is: the same preview page 1 shows, in a strip, with the name under
+        /// it. DrawHero also sets <see cref="LandingPreview.Framing"/>, so page 2 has to go through it.</summary>
+        private float SecHero(float x, float y, float w, LandingFlow flow)
+        {
+            float inW = w - 2 * _p2Pad;
+            float picH = Mathf.Min(inW * 0.42f, _p2Bh * 4.5f);
+            float h = 2 * _p2Pad + picH + _p2Gap * 0.4f + _p2Bh * 0.78f + _p2Bh * 0.62f;
+            var inner = SecFrame(x, y, w, h, null);
+            DrawHero(new Rect(inner.x, inner.y, inner.width, picH), flow, false);
+            float ty = inner.y + picH + _p2Gap * 0.4f;
+            UiLayout.Label(new Rect(inner.x, ty, inner.width, _p2Bh * 0.78f), flow.HeroTitle, _p2Title);
+            UiLayout.Label(new Rect(inner.x, ty + _p2Bh * 0.78f, inner.width, _p2Bh * 0.62f), flow.HeroSubtitle, _p2Small);
+            return y + h + _p2Gap;
+        }
+
+        private float SecPeople(float x, float y, float w, LandingFlow flow)
+        {
+            float inW = w - 2 * _p2Pad;
+            bool shared = flow.Seats.Count > 1 && flow.Seats.Any(s => s.HasControls && s.Occupant != Occupant.Me);
+            string note = "Tap a seat to change who is in it; − and + set what they weigh."
+                        + (shared ? "  An invited player can ride along or take the other set of controls." : "");
+            float noteH = UiLayout.WrappedHeight(_p2Tiny, note, inW);
+            float h = 2 * _p2Pad + _p2Bh * 0.8f + flow.Seats.Count * (_p2Bh + _p2Gap * 0.35f) + _p2Gap * 0.2f + noteH;
+            var inner = SecFrame(x, y, w, h, "PEOPLE");
+            float yy = inner.y + _p2Bh * 0.8f, step = _p2Bh;
             foreach (var s in flow.Seats)
             {
                 string who = s.Occupant switch
@@ -335,100 +544,252 @@ namespace FlyingGame.Bridge
                     Occupant.InvitedPlayer => (s.InviteName ?? "Friend") + (s.Role == SeatRole.DualControl ? " · flying" : " · riding"),
                     _ => "Empty",
                 };
-                var seatR = new Rect(inner.x, y, inner.width - 2 * stepW - _gap * 0.6f, row);
-                GUI.DrawTexture(seatR, s.Occupant == Occupant.Me ? _btnOnBg : s.Occupant == Occupant.Empty ? _btnBg : _cardBg);
+                bool mine = s.Occupant == Occupant.Me;
+                var seatR = new Rect(inner.x, yy, inner.width - 2 * step - _p2Gap * 0.4f, _p2Bh);
+                GUI.DrawTexture(seatR, mine ? _p2Accent : s.Occupant == Occupant.Empty ? _btnBg : _cardBg);
                 // The seat's own name, short ("Rear seat (solo)" → "Rear"), then who sits there.
-                string seatName = s.Label.Split(' ')[0];
-                UiLayout.Label(new Rect(seatR.x + _gap * 0.4f, seatR.y, seatR.width * 0.26f, row), seatName, _small);
-                UiLayout.Label(new Rect(seatR.x + seatR.width * 0.28f, seatR.y, seatR.width * 0.72f - _gap * 0.3f, row), s.Occupant == Occupant.Empty ? who : $"{who}  {flow.MassText(s.Kg)}", _label);
-                if (s.Occupant != Occupant.Me && GUI.Button(seatR, GUIContent.none, GUIStyle.none)) flow.CycleSeat(s.SeatId);
+                UiLayout.Label(new Rect(seatR.x + _p2Gap * 0.4f, seatR.y, seatR.width * 0.30f, seatR.height), s.Label.Split(' ')[0], _p2Small);
+                UiLayout.Label(new Rect(seatR.x + seatR.width * 0.32f, seatR.y, seatR.width * 0.68f - _p2Gap * 0.4f, seatR.height),
+                               s.Occupant == Occupant.Empty ? who : $"{who}   {flow.MassText(s.Kg)}", _p2Label);
+                if (!mine && GUI.Button(seatR, GUIContent.none, GUIStyle.none)) flow.CycleSeat(s.SeatId);
                 if (s.Occupant != Occupant.Empty)
                 {
-                    if (UiLayout.Button(new Rect(seatR.xMax + _gap * 0.3f, y, stepW, row), "−", _btn)) flow.SetSeatKg(s.SeatId, s.Kg - flow.MassStepKg);
-                    if (UiLayout.Button(new Rect(seatR.xMax + _gap * 0.3f + stepW, y, stepW, row), "+", _btn)) flow.SetSeatKg(s.SeatId, s.Kg + flow.MassStepKg);
+                    if (UiLayout.Button(new Rect(seatR.xMax + _p2Gap * 0.4f, yy, step, _p2Bh), "−", _p2Btn)) flow.SetSeatKg(s.SeatId, s.Kg - flow.MassStepKg);
+                    if (UiLayout.Button(new Rect(seatR.xMax + _p2Gap * 0.4f + step, yy, step, _p2Bh), "+", _p2Btn)) flow.SetSeatKg(s.SeatId, s.Kg + flow.MassStepKg);
                 }
-                y += row + _gap * 0.3f;
+                yy += _p2Bh + _p2Gap * 0.35f;
             }
-            if (flow.Seats.Count > 1 && flow.Seats.Any(s => s.HasControls && s.Occupant != Occupant.Me))
-            { GUI.Label(new Rect(inner.x, y, inner.width, row * 0.7f), "An invited player can ride along or take the other set of controls.", _tiny); y += row * 0.7f; }
-
-            var fuel = flow.Stations.Where(s => s.Kind == FlyingGame.Core.AircraftLoad.StationKind.Fuel).ToList();
-            var bags = flow.Stations.Where(s => s.Kind == FlyingGame.Core.AircraftLoad.StationKind.Baggage).ToList();
-            if (fuel.Count > 0 && y + row * 2 < inner.yMax)
-            {
-                y += _gap * 0.3f;
-                UiLayout.Label(new Rect(inner.x, y, inner.width, row * 0.8f), $"FUEL  ·  {flow.FuelFraction * 100:0} %", _head); y += row * 0.8f;
-                float q = (inner.width - 3 * _gap * 0.4f) / 4f;
-                (string n, double f)[] presets = { ("Empty", 0), ("¼", 0.25), ("Tabs", 0.5), ("Full", 1) };
-                for (int i = 0; i < 4; i++)
-                    if (UiLayout.Button(new Rect(inner.x + i * (q + _gap * 0.4f), y, q, row), presets[i].n, System.Math.Abs(flow.FuelFraction - presets[i].f) < 0.02 ? _btnOn : _btn)) flow.SetFuelFraction(presets[i].f);
-                y += row + _gap * 0.3f;
-                var bar = new Rect(inner.x, y, inner.width, row * 0.3f);
-                GUI.DrawTexture(bar, _btnBg);
-                GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * (float)flow.FuelFraction, bar.height), _btnOnBg);
-                y += row * 0.3f + _gap * 0.5f;
-            }
-            foreach (var b in bags)
-            {
-                if (y + row > inner.yMax) break;
-                UiLayout.Label(new Rect(inner.x, y, inner.width - 2 * stepW - _gap, row), $"{b.Label}  {flow.MassNumber(b.Kg)} / {flow.MassText(b.MaxKg)}", _label);
-                if (UiLayout.Button(new Rect(inner.xMax - 2 * stepW, y, stepW, row), "−", _btn)) flow.SetStationKg(b.StationId, b.Kg - flow.MassStepKg);
-                if (UiLayout.Button(new Rect(inner.xMax - stepW, y, stepW, row), "+", _btn)) flow.SetStationKg(b.StationId, b.Kg + flow.MassStepKg);
-                y += row + _gap * 0.3f;
-            }
-            if (flow.Load == null || flow.Load.Slots.Count == 0)
-                GUI.Label(new Rect(inner.x, y, inner.width, inner.yMax - y), "This type has no loading stations authored yet: it flies at its authored weight and balance.", _tiny);
+            UiLayout.LabelWrapped(new Rect(inner.x, yy + _p2Gap * 0.2f, inner.width, noteH), note, _p2Tiny);
+            return y + h + _p2Gap;
         }
 
-        /// <summary>The W&amp;B plot, laid out like a handbook's chart (CG across, weight up): the type's verified envelope
-        /// with its limit lines named, the takeoff point, and the line the CG walks to the zero-fuel point as the fuel
-        /// burns (Ty t880u). Factual labels only (t881u). The visual lane restyles this; the data is WeightBalance's.</summary>
-        private void DrawWeightBalance(Rect r, LandingFlow flow)
+        private float SecFuel(float x, float y, float w, LandingFlow flow)
         {
-            GUI.DrawTexture(r, _panel);
-            var inner = Inset(r, _gap * 0.6f);
-            var wb = flow.WeightBalance;
-            if (wb == null) { UiLayout.Label(inner, "No loading data for this type", _small); return; }
-            string head = $"WEIGHT & BALANCE  ·  {flow.MassText(wb.TotalKg)}" + (wb.HasGross ? $" of {flow.MassNumber(wb.MaxGrossKg)}" : "");
-            UiLayout.Label(new Rect(inner.x, inner.y, inner.width, _bh * 0.8f), head, _head);
-            float warnH = _fs * 3.5f;
-            float yGutter = _fs * 2.6f, xGutter = _fs * 2.1f;
-            var plot = new Rect(inner.x + yGutter, inner.y + _bh * 0.85f, inner.width - yGutter - _fs, inner.height - _bh * 0.85f - warnH - xGutter);
-            GUI.DrawTexture(plot, _btnBg);
-            Vector2 P(double x, double y) => new Vector2(plot.x + (float)x * plot.width, plot.yMax - (float)y * plot.height);
+            // No tanks (every glider) means no section at all, rather than the old silent "only if it happens to fit".
+            if (!flow.Stations.Any(s => s.Kind == FlyingGame.Core.AircraftLoad.StationKind.Fuel)) return y;
+            float h = 2 * _p2Pad + _p2Bh * 0.8f + _p2Bh + _p2Gap * 0.4f + _p2Bh * 0.34f;
+            var inner = SecFrame(x, y, w, h, $"FUEL  ·  {flow.FuelFraction * 100:0} %");
+            float yy = inner.y + _p2Bh * 0.8f;
+            float q = (inner.width - 3 * _p2Gap * 0.4f) / 4f;
+            (string n, double f)[] presets = { ("Empty", 0), ("¼", 0.25), ("Tabs", 0.5), ("Full", 1) };
+            for (int i = 0; i < 4; i++)
+                if (UiLayout.Button(new Rect(inner.x + i * (q + _p2Gap * 0.4f), yy, q, _p2Bh), presets[i].n,
+                                    System.Math.Abs(flow.FuelFraction - presets[i].f) < 0.02 ? _p2BtnOn : _p2Btn)) flow.SetFuelFraction(presets[i].f);
+            yy += _p2Bh + _p2Gap * 0.4f;
+            var bar = new Rect(inner.x, yy, inner.width, _p2Bh * 0.34f);
+            GUI.DrawTexture(bar, _btnBg);
+            GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * (float)flow.FuelFraction, bar.height), _p2Accent);
+            return y + h + _p2Gap;
+        }
 
-            // Axes: ticks in the chosen units, and what each axis measures.
-            var tickR = new GUIStyle(_tiny) { alignment = TextAnchor.MiddleRight, wordWrap = false };
-            var tickC = new GUIStyle(_tiny) { alignment = TextAnchor.UpperCenter, wordWrap = false };
+        private float SecBaggage(float x, float y, float w, LandingFlow flow)
+        {
+            var bags = flow.Stations.Where(s => s.Kind == FlyingGame.Core.AircraftLoad.StationKind.Baggage).ToList();
+            float inW = w - 2 * _p2Pad;
+            if (bags.Count == 0)
+            {
+                // A type with no authored stations says so once, in a sentence, instead of leaving the reader to guess
+                // why there is nothing to load. A type that HAS stations but no baggage simply has no section.
+                if (flow.Load != null && flow.Load.Slots.Count > 0) return y;
+                const string none = "This type has no loading stations authored yet: it flies at its authored weight and balance.";
+                float nh = UiLayout.WrappedHeight(_p2Body, none, inW);
+                float h0 = 2 * _p2Pad + _p2Bh * 0.8f + nh;
+                var i0 = SecFrame(x, y, w, h0, "LOADING");
+                UiLayout.LabelWrapped(new Rect(i0.x, i0.y + _p2Bh * 0.8f, i0.width, nh), none, _p2Body);
+                return y + h0 + _p2Gap;
+            }
+            float h = 2 * _p2Pad + _p2Bh * 0.8f + bags.Count * (_p2Bh + _p2Gap * 0.35f);
+            var inner = SecFrame(x, y, w, h, "BAGGAGE");
+            float yy = inner.y + _p2Bh * 0.8f, step = _p2Bh;
+            foreach (var b in bags)
+            {
+                var rowR = new Rect(inner.x, yy, inner.width - 2 * step - _p2Gap * 0.4f, _p2Bh);
+                GUI.DrawTexture(rowR, _cardBg);
+                UiLayout.Label(new Rect(rowR.x + _p2Gap * 0.4f, rowR.y, rowR.width * 0.52f, rowR.height), b.Label, _p2Small);
+                UiLayout.Label(new Rect(rowR.x + rowR.width * 0.54f, rowR.y, rowR.width * 0.46f - _p2Gap * 0.4f, rowR.height),
+                               $"{flow.MassNumber(b.Kg)} / {flow.MassText(b.MaxKg)}", _p2Label);
+                if (UiLayout.Button(new Rect(rowR.xMax + _p2Gap * 0.4f, yy, step, _p2Bh), "−", _p2Btn)) flow.SetStationKg(b.StationId, b.Kg - flow.MassStepKg);
+                if (UiLayout.Button(new Rect(rowR.xMax + _p2Gap * 0.4f + step, yy, step, _p2Bh), "+", _p2Btn)) flow.SetStationKg(b.StationId, b.Kg + flow.MassStepKg);
+                yy += _p2Bh + _p2Gap * 0.35f;
+            }
+            return y + h + _p2Gap;
+        }
+
+        /// <summary>
+        /// Time of day, weather, reliability and units — what used to be the right-hand column and, before that, a page
+        /// of its own in docs/landing-v2/DESIGN.md. Its three defects are all gone here: the grid is two-up at every
+        /// size (see <see cref="ChoiceGrid"/>), the card is as tall as its tallest subtitle rather than a third of
+        /// whatever was left over, and the warm time-of-day wash that used to lie over the whole column at
+        /// 0.18 x light — which cost the captions a third of their contrast, 11.2:1 down to 6.7:1 at midday — is now
+        /// only on the time cards themselves, where it is the feedback, and not under the text that has to be read.
+        /// </summary>
+        private float SecConditions(float x, float y, float w, LandingFlow flow)
+        {
+            var groups = new (string head, List<PickerItem> items, System.Action<string> pick, bool tint)[]
+            {
+                ("TIME OF DAY", flow.TimeItems(), id => flow.SetTimeOfDay((TimeOfDay)System.Enum.Parse(typeof(TimeOfDay), id)), true),
+                (flow.ConditionsLocked ? "WEATHER  ·  set by the contest" : "WEATHER", flow.WeatherItems(), flow.SetWeather, false),
+                ("RELIABILITY", flow.ReliabilityItems(), id => flow.SetReliability((Reliability)System.Enum.Parse(typeof(Reliability), id)), false),
+                ("UNITS", flow.UnitItems(), id => flow.SetUnits((UnitSystem)System.Enum.Parse(typeof(UnitSystem), id)), false),
+            };
+            float inW = w - 2 * _p2Pad;
+            float h = 2 * _p2Pad;
+            foreach (var g in groups) h += _p2Bh * 0.8f + GridHeight(inW, g.items) + _p2Gap * 0.5f;
+            h -= _p2Gap * 0.5f;
+            var inner = SecFrame(x, y, w, h, null);
+            float yy = inner.y;
+            foreach (var g in groups)
+            {
+                UiLayout.Label(new Rect(inner.x, yy, inner.width, _p2Bh * 0.8f), g.head, _p2Head);
+                yy += _p2Bh * 0.8f;
+                ChoiceGrid(inner.x, yy, inner.width, g.items, g.pick, g.tint);
+                yy += GridHeight(inner.width, g.items) + _p2Gap * 0.5f;
+            }
+            return y + h + _p2Gap;
+        }
+
+        private float GridCardW(float w) => (w - _p2Gap * 0.4f) * 0.5f;
+
+        /// <summary>How tall a choice card has to be for its own longest subtitle, wrapped, plus its title row.</summary>
+        private float GridCardH(float w, List<PickerItem> items)
+        {
+            float tw = GridCardW(w) - _p2Gap * 0.6f, sub = 0f;
+            foreach (var it in items) sub = Mathf.Max(sub, UiLayout.WrappedHeight(_p2Tiny, it.Enabled ? it.Subtitle : it.DisabledReason ?? "", tw));
+            return Mathf.Max(_p2Bh * 1.25f, _p2Bh * 0.62f + sub + _p2Gap * 0.6f);
+        }
+
+        private float GridHeight(float w, List<PickerItem> items)
+        {
+            int rows = Mathf.CeilToInt(items.Count / 2f);
+            return rows * GridCardH(w, items) + (rows - 1) * _p2Gap * 0.4f;
+        }
+
+        /// <summary>
+        /// A two-up grid of choice cards: title, and the subtitle WRAPPED under it.
+        ///
+        /// Two columns at every size, deliberately. The old grid went to three the moment a list had more than four
+        /// entries, which is exactly what WEATHER has (five presets plus Custom), and that put its cards in 173 px =
+        /// 58 pt boxes on the phone. The subtitle style there was wordWrap = false with TextClipping.Clip and
+        /// UpperCenter alignment, so an over-long caption was not ellipsised — it was sliced off at BOTH ends.
+        /// "Expect a failure in an hour or two" needs about 357 px at the old 21 px font and had 263 px, so what the
+        /// reader actually saw was a fragment out of the middle of a sentence.
+        /// </summary>
+        private void ChoiceGrid(float x, float y, float w, List<PickerItem> items, System.Action<string> pick, bool timeTint)
+        {
+            float cw = GridCardW(w), ch = GridCardH(w, items);
+            for (int i = 0; i < items.Count; i++)
+            {
+                var it = items[i];
+                var cr = new Rect(x + (i % 2) * (cw + _p2Gap * 0.4f), y + (i / 2) * (ch + _p2Gap * 0.4f), cw, ch);
+                Color fill = it.Selected ? new Color(1.00f, 0.82f, 0.36f) : it.Enabled ? new Color(0.13f, 0.18f, 0.25f) : new Color(0.18f, 0.24f, 0.32f);
+                if (timeTint)
+                {
+                    double lt = LandingCatalog.TimesOfDay.First(t => t.t.ToString() == it.Id).light;
+                    fill = Color.Lerp(new Color(0.15f, 0.12f, 0.30f), new Color(0.55f, 0.78f, 1f), (float)lt);
+                }
+                var g0 = GUI.color;
+                if (it.Selected) { GUI.color = new Color(1.00f, 0.82f, 0.36f); GUI.DrawTexture(cr, _white); }
+                GUI.color = fill;
+                GUI.DrawTexture(it.Selected ? Inset(cr, _p2Gap * 0.22f) : cr, _white);
+                GUI.color = g0;
+
+                // Dark ink on a light card, white on a dark one, decided by the fill's OWN relative luminance instead
+                // of by a hand-set threshold on the time of day. The old rule was `light > 0.75`, and Morning is 0.70,
+                // so Morning got white text on a mid-blue card: 3.10:1, and its subtitle 2.34:1, against WCAG AA's
+                // 4.5:1 — the worst text anywhere on the page. 0.179 is where black and white give equal contrast; by
+                // it every card here measures at least 6.0:1 (Morning 6.05, Afternoon 7.35, Sunset 6.75, Midday 10.5).
+                var lin = fill.linear;
+                bool lightCard = 0.2126f * lin.r + 0.7152f * lin.g + 0.0722f * lin.b > 0.179f;
+                Color ink = lightCard ? new Color(0.06f, 0.07f, 0.09f) : Color.white;
+                Color sub = lightCard ? new Color(0.14f, 0.16f, 0.19f) : new Color(0.84f, 0.88f, 0.93f);
+
+                float tx = cr.x + _p2Gap * 0.3f, tw = cr.width - _p2Gap * 0.6f;
+                var ts = new GUIStyle(_p2Small) { alignment = TextAnchor.MiddleCenter, fontSize = Mathf.RoundToInt(_p2Fs * 0.94f), fontStyle = it.Selected ? FontStyle.Bold : FontStyle.Normal, normal = { textColor = ink } };
+                UiLayout.Label(new Rect(tx, cr.y + _p2Gap * 0.25f, tw, _p2Bh * 0.62f), it.Title, ts);
+                var ss = new GUIStyle(_p2Tiny) { alignment = TextAnchor.UpperCenter, normal = { textColor = sub } };
+                UiLayout.LabelWrapped(new Rect(tx, cr.y + _p2Bh * 0.62f, tw, cr.height - _p2Bh * 0.62f - _p2Gap * 0.3f), it.Enabled ? it.Subtitle : it.DisabledReason ?? "", ss);
+                if (it.Enabled && !_loadDragging && GUI.Button(cr, GUIContent.none, GUIStyle.none)) pick(it.Id);
+            }
+        }
+
+        /// <summary>
+        /// The W&amp;B plot, laid out like a handbook's chart (CG across, weight up): the type's verified envelope with
+        /// its limit lines named, the takeoff point, and the line the CG walks to the zero-fuel point as the fuel burns
+        /// (Ty t880u). Factual labels only (t881u). The data is WeightBalance's.
+        ///
+        /// Changed here: the ANSWER comes first. In limits or not, and why, used to be the last of three lines of 7 pt
+        /// grey under the plot; it is now a wrapped line of 19 pt in its own colour directly under the heading, and it
+        /// reads WeightBalance.Details (the warnings WITH their amounts — "Over gross by 47 lb") rather than Warnings
+        /// (the bare label), which the flat page had never shown at all. The plot keeps its own space below that and
+        /// its numbers are 14 pt instead of 7.
+        /// </summary>
+        private float SecWeightBalance(float x, float y, float w, LandingFlow flow)
+        {
+            var wb = flow.WeightBalance;
+            float inW = w - 2 * _p2Pad;
+            if (wb == null)
+            {
+                const string none = "No loading data for this type.";
+                float nh0 = UiLayout.WrappedHeight(_p2Body, none, inW);
+                float h0 = 2 * _p2Pad + _p2Bh * 0.8f + nh0;
+                var i0 = SecFrame(x, y, w, h0, "WEIGHT & BALANCE");
+                UiLayout.LabelWrapped(new Rect(i0.x, i0.y + _p2Bh * 0.8f, i0.width, nh0), none, _p2Body);
+                return y + h0 + _p2Gap;
+            }
+
+            string head = $"WEIGHT & BALANCE  ·  {flow.MassText(wb.TotalKg)}" + (wb.HasGross ? $" of {flow.MassNumber(wb.MaxGrossKg)}" : "");
+            string status = wb.InLimits
+                ? (wb.HasEnvelope && wb.HasGross ? "In limits" : "In limits, as far as this type's limits are authored")
+                : string.Join("  ·  ", wb.Details.Count > 0 ? wb.Details : wb.Warnings);
+            var statusStyle = new GUIStyle(_p2Body) { fontSize = _p2Fs, normal = { textColor = wb.InLimits ? new Color(0.55f, 0.95f, 0.6f) : new Color(1f, 0.75f, 0.35f) } };
+            float statusH = UiLayout.WrappedHeight(statusStyle, status, inW);
+            float axisTop = _p2Fs * 1.35f;                    // the "Weight (lb)" line, on its own row above the plot
+            float xGutter = _p2Fs * 2.9f;                     // the CG ticks and the axis title, under the plot
+            float yGutter = _p2Fs * 3.0f;                     // the weight ticks, left of it
+            float plotH = Mathf.Clamp(inW * 0.62f, _p2Bh * 3.2f, _p2Bh * 6.5f);
+            float legendH = _p2Bh * 0.62f * 2f;
+            float h = 2 * _p2Pad + _p2Bh * 0.8f + statusH + _p2Gap * 0.5f + axisTop + plotH + xGutter + _p2Gap * 0.4f + legendH;
+            var inner = SecFrame(x, y, w, h, head);
+
+            float yy = inner.y + _p2Bh * 0.8f;
+            UiLayout.LabelWrapped(new Rect(inner.x, yy, inner.width, statusH), status, statusStyle);
+            yy += statusH + _p2Gap * 0.5f;
+            UiLayout.Label(new Rect(inner.x, yy, inner.width, axisTop), wb.YAxisTitle, _p2Tiny);
+            yy += axisTop;
+
+            var plot = new Rect(inner.x + yGutter, yy, inner.width - yGutter - _p2Fs * 1.4f, plotH);
+            GUI.DrawTexture(plot, _btnBg);
+            Vector2 P(double px, double py) => new Vector2(plot.x + (float)px * plot.width, plot.yMax - (float)py * plot.height);
+
+            var tickR = new GUIStyle(_p2Tiny) { alignment = TextAnchor.MiddleRight, wordWrap = false };
+            var tickC = new GUIStyle(_p2Tiny) { alignment = TextAnchor.UpperCenter, wordWrap = false };
             foreach (var t in wb.YTicks)
             {
                 Vector2 a = P(0, t.At);
-                Line(a, P(1, t.At), new Color(1f, 1f, 1f, 0.08f), 1f);
-                GUI.Label(new Rect(inner.x, a.y - _fs * 0.5f, yGutter - 4, _fs), t.Label, tickR);
+                Line(a, P(1, t.At), new Color(1f, 1f, 1f, 0.10f), 1f);
+                GUI.Label(new Rect(inner.x, a.y - _p2Fs * 0.5f, yGutter - _p2Fs * 0.25f, _p2Fs), t.Label, tickR);
             }
             foreach (var t in wb.XTicks)
             {
                 Vector2 a = P(t.At, 0);
-                Line(a, P(t.At, 1), new Color(1f, 1f, 1f, 0.08f), 1f);
-                GUI.Label(new Rect(a.x - _fs * 1.6f, plot.yMax + 1, _fs * 3.2f, _fs), t.Label, tickC);
+                Line(a, P(t.At, 1), new Color(1f, 1f, 1f, 0.10f), 1f);
+                GUI.Label(new Rect(a.x - _p2Fs * 1.8f, plot.yMax + _p2Fs * 0.15f, _p2Fs * 3.6f, _p2Fs * 1.2f), t.Label, tickC);
             }
-            GUI.Label(new Rect(plot.x, plot.yMax + _fs * 1.0f, plot.width, _fs), wb.XAxisTitle, tickC);
-            GUI.Label(new Rect(inner.x, plot.y - _fs * 0.1f, yGutter + _fs * 4f, _fs), "Weight (" + DisplayUnits.MassUnit(flow.Units) + ")", _tiny);
+            GUI.Label(new Rect(plot.x, plot.yMax + _p2Fs * 1.5f, plot.width, _p2Fs * 1.2f), wb.XAxisTitle, tickC);
 
             // The envelope and its named limits; a gross with no CG limits is still drawn.
             if (wb.Envelope.Count > 1)
-                for (int i = 1; i < wb.Envelope.Count; i++) Line(P(wb.Envelope[i - 1].x, wb.Envelope[i - 1].y), P(wb.Envelope[i].x, wb.Envelope[i].y), new Color(0.55f, 0.95f, 1f), 2f);
+                for (int i = 1; i < wb.Envelope.Count; i++) Line(P(wb.Envelope[i - 1].x, wb.Envelope[i - 1].y), P(wb.Envelope[i].x, wb.Envelope[i].y), new Color(0.55f, 0.95f, 1f), 2.5f);
             foreach (var lim in wb.Limits)
             {
-                var col = lim.Label == WeightBalance.MaxGrossLineLabel ? new Color(1f, 0.6f, 0.3f, 0.85f) : new Color(0.55f, 0.95f, 1f);
-                if (!wb.HasEnvelope) for (int i = 1; i < lim.Points.Count; i++) Line(P(lim.Points[i - 1].x, lim.Points[i - 1].y), P(lim.Points[i].x, lim.Points[i].y), col, 1.5f);
+                var col = lim.Label == WeightBalance.MaxGrossLineLabel ? new Color(1f, 0.6f, 0.3f, 0.9f) : new Color(0.55f, 0.95f, 1f);
+                if (!wb.HasEnvelope) for (int i = 1; i < lim.Points.Count; i++) Line(P(lim.Points[i - 1].x, lim.Points[i - 1].y), P(lim.Points[i].x, lim.Points[i].y), col, 2f);
                 Vector2 m = P((lim.Points[0].x + lim.Points[lim.Points.Count - 1].x) * 0.5, (lim.Points[0].y + lim.Points[lim.Points.Count - 1].y) * 0.5);
-                var st = new GUIStyle(_tiny) { wordWrap = false, normal = { textColor = col } };
-                bool gross = lim.Label == WeightBalance.MaxGrossLineLabel;
-                if (gross)
+                var st = new GUIStyle(_p2Tiny) { wordWrap = false, normal = { textColor = col } };
+                if (lim.Label == WeightBalance.MaxGrossLineLabel)
                 {
                     st.alignment = TextAnchor.LowerCenter;
-                    GUI.Label(new Rect(m.x - _fs * 3f, m.y - _fs * 1.2f, _fs * 6f, _fs), lim.Label, st);
+                    GUI.Label(new Rect(m.x - _p2Fs * 3.4f, m.y - _p2Fs * 1.3f, _p2Fs * 6.8f, _p2Fs * 1.1f), lim.Label, st);
                 }
                 else
                 {
@@ -436,88 +797,63 @@ namespace FlyingGame.Bridge
                     var matrix = GUI.matrix;
                     GUIUtility.RotateAroundPivot(-90, m);
                     st.alignment = TextAnchor.MiddleCenter;
-                    GUI.Label(new Rect(m.x - _fs * 4.5f, m.y - _fs * 1.1f, _fs * 9f, _fs), lim.Label, st);
+                    GUI.Label(new Rect(m.x - _p2Fs * 5f, m.y - _p2Fs * 0.55f, _p2Fs * 10f, _p2Fs * 1.1f), lim.Label, st);
                     GUI.matrix = matrix;
                 }
             }
-            if (!wb.HasEnvelope) GUI.Label(new Rect(plot.x + 3, plot.yMax - _fs * 1.1f, plot.width, _fs), WeightBalance.NoEnvelopeLabel, _tiny);
+            if (!wb.HasEnvelope) GUI.Label(new Rect(plot.x + _p2Gap * 0.3f, plot.yMax - _p2Fs * 1.3f, plot.width, _p2Fs * 1.2f), WeightBalance.NoEnvelopeLabel, _p2Tiny);
 
-            Line(P(wb.ZeroFuelX, wb.ZeroFuelY), P(wb.PointX, wb.PointY), new Color(1f, 1f, 1f, 0.6f), 2f);
-            Dot(P(wb.ZeroFuelX, wb.ZeroFuelY), _fs * 0.35f, wb.ZeroFuelInside ? new Color(0.8f, 0.8f, 0.8f) : new Color(1f, 0.35f, 0.25f));
-            Dot(P(wb.PointX, wb.PointY), _fs * 0.6f, wb.TakeoffInside ? new Color(0.3f, 0.9f, 0.4f) : new Color(1f, 0.35f, 0.25f));
+            Line(P(wb.ZeroFuelX, wb.ZeroFuelY), P(wb.PointX, wb.PointY), new Color(1f, 1f, 1f, 0.6f), 2.5f);
+            var zeroCol = wb.ZeroFuelInside ? new Color(0.85f, 0.85f, 0.85f) : new Color(1f, 0.35f, 0.25f);
+            var takeoffCol = wb.TakeoffInside ? new Color(0.35f, 0.95f, 0.45f) : new Color(1f, 0.35f, 0.25f);
+            Dot(P(wb.ZeroFuelX, wb.ZeroFuelY), _p2Fs * 0.32f, zeroCol);
+            Dot(P(wb.PointX, wb.PointY), _p2Fs * 0.55f, takeoffCol);
 
             // A fixed legend identifies both markers even when their plotted positions overlap.
-            float legendY = inner.yMax - warnH;
-            var takeoffCol = wb.TakeoffInside ? new Color(0.3f, 0.9f, 0.4f) : new Color(1f, 0.35f, 0.25f);
-            var zeroCol = wb.ZeroFuelInside ? new Color(0.8f, 0.8f, 0.8f) : new Color(1f, 0.35f, 0.25f);
-            Dot(new Vector2(inner.x + _fs * 0.4f, legendY + _fs * 0.5f), _fs * 0.3f, takeoffCol);
-            GUI.Label(new Rect(inner.x + _fs, legendY, inner.width - _fs, _fs), $"{WeightBalance.TakeoffPointLabel}  {wb.TakeoffText}", _tiny);
-            Dot(new Vector2(inner.x + _fs * 0.4f, legendY + _fs * 1.6f), _fs * 0.2f, zeroCol);
-            GUI.Label(new Rect(inner.x + _fs, legendY + _fs * 1.1f, inner.width - _fs, _fs), $"{WeightBalance.ZeroFuelPointLabel}  {wb.ZeroFuelText}", _tiny);
-            var warn = new GUIStyle(_tiny) { normal = { textColor = wb.InLimits ? new Color(0.6f, 0.95f, 0.6f) : new Color(1f, 0.7f, 0.3f) } };
-            string status = wb.InLimits ? (wb.HasEnvelope && wb.HasGross ? "In limits" : "Limits incomplete") : string.Join("  ·  ", wb.Warnings);
-            GUI.Label(new Rect(inner.x, legendY + _fs * 2.3f, inner.width, _fs * 1.2f), status, warn);
+            float ly = plot.yMax + xGutter + _p2Gap * 0.4f, lr = _p2Bh * 0.62f;
+            Dot(new Vector2(inner.x + _p2Fs * 0.45f, ly + lr * 0.5f), _p2Fs * 0.3f, takeoffCol);
+            UiLayout.Label(new Rect(inner.x + _p2Fs * 1.1f, ly, inner.width - _p2Fs * 1.1f, lr), $"{WeightBalance.TakeoffPointLabel}  {wb.TakeoffText}", _p2Small);
+            Dot(new Vector2(inner.x + _p2Fs * 0.45f, ly + lr * 1.5f), _p2Fs * 0.22f, zeroCol);
+            UiLayout.Label(new Rect(inner.x + _p2Fs * 1.1f, ly + lr, inner.width - _p2Fs * 1.1f, lr), $"{WeightBalance.ZeroFuelPointLabel}  {wb.ZeroFuelText}", _p2Small);
+            return y + h + _p2Gap;
+        }
+
+        /// <summary>
+        /// What LAUNCH will do, a line each. docs/landing-v2/DESIGN.md: "Always show the aircraft/location/load summary
+        /// from the host before enabling Launch." <see cref="LandingFlow.Summary"/> has existed since the flow was
+        /// written and the Quest panel has always shown it; the flat page never did, so on iPhone, iPad and Mac the one
+        /// list of what the button is about to commit to was unreachable. It is also the page's own answer to "did it
+        /// take the invite / the fuel / the weather I just set" without flying to find out.
+        /// </summary>
+        private float SecSummary(float x, float y, float w, LandingFlow flow)
+        {
+            var lines = flow.Summary().Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+            float inW = w - 2 * _p2Pad;
+            var hs = new float[lines.Count];
+            float h = 2 * _p2Pad + _p2Bh * 0.8f;
+            for (int i = 0; i < lines.Count; i++) { hs[i] = UiLayout.WrappedHeight(_p2Body, lines[i], inW) + _p2Gap * 0.25f; h += hs[i]; }
+            var inner = SecFrame(x, y, w, h, "WHAT LAUNCH WILL DO");
+            float yy = inner.y + _p2Bh * 0.8f;
+            for (int i = 0; i < lines.Count; i++) { UiLayout.LabelWrapped(new Rect(inner.x, yy, inner.width, hs[i]), lines[i], _p2Body); yy += hs[i]; }
+            return y + h + _p2Gap;
         }
 
         /// <summary>LAUNCH out of limits (Ty t881u / t882u): the exact message and Go back | Fly, over the page.</summary>
         private void DrawLaunchConfirm(Rect safe, LandingFlow flow)
         {
+            EnsureLoadStyles();
             GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _dim);
-            float w = Mathf.Min(safe.width * 0.8f, _fs * 30f), h = _bh * 4.2f;
+            float w = Mathf.Min(safe.width * 0.86f, _p2Fs * 26f);
+            var msg = new GUIStyle(_p2Body) { fontSize = _p2Fs, alignment = TextAnchor.UpperCenter, normal = { textColor = Color.white } };
+            float msgH = UiLayout.WrappedHeight(msg, LandingFlow.WbOutOfLimitsMessage, w - 2 * _p2Gap);
+            float h = 2 * _p2Gap + msgH + _p2Gap + _p2Bh * 1.15f;
             var box = new Rect(safe.center.x - w * 0.5f, safe.center.y - h * 0.5f, w, h);
             GUI.DrawTexture(box, _panel);
-            var inner = Inset(box, _gap);
-            var msg = new GUIStyle(_label) { wordWrap = true, alignment = TextAnchor.MiddleCenter };
-            GUI.Label(new Rect(inner.x, inner.y, inner.width, inner.height - _bh * 1.3f), LandingFlow.WbOutOfLimitsMessage, msg);
-            float bw = (inner.width - _gap) * 0.5f, by = inner.yMax - _bh * 1.1f;
-            if (UiLayout.Button(new Rect(inner.x, by, bw, _bh * 1.1f), LandingFlow.WbGoBackLabel, _btn)) flow.ConfirmLaunch(fly: false);
-            if (UiLayout.Button(new Rect(inner.x + bw + _gap, by, bw, _bh * 1.1f), LandingFlow.WbFlyLabel, _btnBig)) flow.ConfirmLaunch(fly: true);
-        }
-
-        private void DrawSettings(Rect r, LandingFlow flow)
-        {
-            // Time of day lights the column itself: the light/dark feedback (the visual lane refines it).
-            float light = (float)flow.Light;
-            GUI.DrawTexture(r, _panel);
-            var c = GUI.color; GUI.color = new Color(1f, 0.92f, 0.7f, 0.18f * light); GUI.DrawTexture(r, _white); GUI.color = c;
-            var inner = Inset(r, _gap * 0.6f);
-            float y = inner.y, headH = _bh * 0.75f;
-            // UNITS (Ty 2026-11-05 10:56): one row of two cards, Standard | Metric, under the conditions.
-            float unitsH = _bh * 1.25f;
-            float block = (inner.height - 4 * headH - unitsH - _gap * 0.3f) / 3f;
-            y = Choices(inner.x, y, inner.width, headH, block, "TIME OF DAY", flow.TimeItems(), id => flow.SetTimeOfDay((TimeOfDay)System.Enum.Parse(typeof(TimeOfDay), id)), timeTint: true);
-            y = Choices(inner.x, y, inner.width, headH, block, flow.ConditionsLocked ? "WEATHER  ·  set by the contest" : "WEATHER", flow.WeatherItems(), flow.SetWeather);
-            y = Choices(inner.x, y, inner.width, headH, block, "RELIABILITY", flow.ReliabilityItems(), id => flow.SetReliability((Reliability)System.Enum.Parse(typeof(Reliability), id)));
-            Choices(inner.x, y, inner.width, headH, unitsH, "UNITS", flow.UnitItems(), id => flow.SetUnits((UnitSystem)System.Enum.Parse(typeof(UnitSystem), id)));
-        }
-
-        /// <summary>A heading and a grid of small cards. Returns the next y.</summary>
-        private float Choices(float x, float y, float w, float headH, float h, string head, List<PickerItem> items, System.Action<string> pick, bool timeTint = false)
-        {
-            UiLayout.Label(new Rect(x, y, w, headH), head, _head);
-            y += headH;
-            int cols = items.Count > 4 ? 3 : 2, rows = Mathf.CeilToInt(items.Count / (float)cols);
-            float cw = (w - (cols - 1) * _gap * 0.4f) / cols, ch = (h - (rows - 1) * _gap * 0.4f) / rows;
-            for (int i = 0; i < items.Count; i++)
-            {
-                var it = items[i];
-                var cr = new Rect(x + (i % cols) * (cw + _gap * 0.4f), y + (i / cols) * (ch + _gap * 0.4f), cw, ch);
-                GUI.DrawTexture(cr, it.Selected ? _cardOnBg : it.Enabled ? _cardBg : _btnBg);
-                if (timeTint)
-                {
-                    double lt = LandingCatalog.TimesOfDay.First(t => t.t.ToString() == it.Id).light;
-                    var col = Color.Lerp(new Color(0.15f, 0.12f, 0.30f), new Color(0.55f, 0.78f, 1f), (float)lt);
-                    var g = GUI.color; GUI.color = col; GUI.DrawTexture(Inset(cr, it.Selected ? _gap * 0.3f : 1f), _white); GUI.color = g;
-                }
-                // Dark text on a light card (a selected card, a bright time of day), white on a dark one.
-                bool lightCard = (it.Selected && !timeTint) || (timeTint && LandingCatalog.TimesOfDay.First(t => t.t.ToString() == it.Id).light > 0.75);
-                var ts = new GUIStyle(_small) { alignment = TextAnchor.MiddleCenter, fontStyle = it.Selected ? FontStyle.Bold : FontStyle.Normal, normal = { textColor = lightCard ? new Color(0.1f, 0.1f, 0.1f) : Color.white } };
-                UiLayout.Label(new Rect(cr.x, cr.y, cr.width, cr.height * 0.6f), it.Title, ts);
-                var ss = new GUIStyle(_tiny) { alignment = TextAnchor.UpperCenter, wordWrap = false, normal = { textColor = lightCard ? new Color(0.15f, 0.15f, 0.15f) : new Color(0.85f, 0.88f, 0.92f) } };
-                GUI.Label(new Rect(cr.x, cr.y + cr.height * 0.55f, cr.width, cr.height * 0.45f), it.Subtitle, ss);
-                if (it.Enabled && GUI.Button(cr, GUIContent.none, GUIStyle.none)) pick(it.Id);
-            }
-            return y + h + _gap * 0.3f;
+            var inner = Inset(box, _p2Gap);
+            UiLayout.LabelWrapped(new Rect(inner.x, inner.y, inner.width, msgH), LandingFlow.WbOutOfLimitsMessage, msg);
+            float bw = (inner.width - _p2Gap) * 0.5f, by = inner.yMax - _p2Bh * 1.15f;
+            if (UiLayout.Button(new Rect(inner.x, by, bw, _p2Bh * 1.15f), LandingFlow.WbGoBackLabel, _p2Btn)) flow.ConfirmLaunch(fly: false);
+            if (UiLayout.Button(new Rect(inner.x + bw + _p2Gap, by, bw, _p2Bh * 1.15f), LandingFlow.WbFlyLabel, _p2BtnOn)) flow.ConfirmLaunch(fly: true);
         }
 
         // ================================================================ drawing helpers
