@@ -118,7 +118,14 @@ namespace FlyingGame.Bridge
             if (len >= 4 + 2 + 32 + 4 + 1 && _buf[3] == (byte)'D')
             {
                 int n = 6;
-                for (int i = 0; i < JoystickInput.AxisCount; i++) { _axes[i] = System.BitConverter.ToSingle(_buf, n); n += 4; }
+                // A RAW AXIS IS FOUR BYTES OFF A UDP PACKET, and every one of the 2^32 bit patterns arrives as some
+                // float32 — about 16 million of them are NaN, and two are the infinities. Nothing in the transport
+                // can tell a corrupt packet from a good one (UDP on the local network, no sequence check beyond the
+                // u16, no checksum of its own), and the axis goes on to JoystickInput → the stick → the physics,
+                // where the clamps along the way do NOT stop it: both Mathf.Clamp and Math.Clamp are
+                // "if (v < min) … else if (v > max) … else return v", and NaN compares false against both.
+                // A non-finite axis takes the centre, which is what a radio does when it loses the transmitter.
+                for (int i = 0; i < JoystickInput.AxisCount; i++) { _axes[i] = FlyingGame.Core.WidgetAccess.FiniteOr(System.BitConverter.ToSingle(_buf, n), 0f); n += 4; }
                 _buttons = System.BitConverter.ToUInt32(_buf, n); n += 4;
                 int nl = _buf[n++]; _joyName = nl > 0 && n + nl <= len ? Encoding.UTF8.GetString(_buf, n, nl) : null;
             }

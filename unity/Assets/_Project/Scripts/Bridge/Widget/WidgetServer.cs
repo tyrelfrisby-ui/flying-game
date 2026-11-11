@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using FlyingGame.Core;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
@@ -24,16 +25,144 @@ namespace FlyingGame.Bridge.Widget
         public AeroWidget Widget;
         public static string LocalIp { get; private set; } = "127.0.0.1";
 
-        private TcpListener _tcp;
+        /// <summary>The ONE directory a <c>snapshot</c> may write into, inside the widget's own persistent data
+        /// directory (its bundle id is its own, so this is the widget's folder and not the game's). Never a path
+        /// in the repository, which is public, and never a path a caller gets to choose — see the snapshot case.</summary>
+        public static string SnapshotDir => System.IO.Path.Combine(Application.persistentDataPath, WidgetAccess.SnapshotDirName);
+
+        // One listener per address family: loopback-only needs 127.0.0.1 AND ::1, which a single socket cannot do.
+        private readonly List<TcpListener> _tcpListeners = new(), _httpListeners = new();
         private HttpListener _http;
-        private Thread _tcpThread, _httpThread;
         private volatile bool _run = true;
-        private readonly ConcurrentQueue<(string json, System.Action<string> reply, string src)> _inbox = new();
+        private readonly ConcurrentQueue<(string json, System.Action<string> reply, string src, Auth auth)> _inbox = new();
         private int _connSeq;
+
+        /// <summary>
+        /// WHAT A REQUEST IS ALLOWED TO DO, carried with it from the socket to the main thread.
+        ///
+        /// <see cref="Loopback"/> is decided once, from the connection's own remote endpoint, and never from
+        /// anything the client says about itself — a field in the JSON would be the client marking its own
+        /// homework. <see cref="Authed"/> is what a <c>hello</c> with the right token established on a TCP
+        /// connection; on HTTP, which has no connection to remember anything on, the request is judged on its own
+        /// token before it ever reaches here and arrives already decided.
+        /// </summary>
+        private sealed class Auth
+        {
+            public bool Loopback;
+            public volatile bool Authed;
+            /// <summary>The TCP connection this came in on, or null for HTTP: there is nothing to subscribe.</summary>
+            public Conn Conn;
+        }
         /// <summary>The widget's own web remotes (protocol 4): id → (name, last seen). Main thread only.</summary>
         private readonly Dictionary<string, (string name, float seen)> _remotes = new();
-        private readonly List<(StreamWriter w, float hz, float next)> _subs = new();
+        private readonly List<(Conn c, float hz, float next)> _subs = new();
         private readonly object _subLock = new();
+
+        /// <summary>
+        /// ONE TCP CLIENT'S OUTPUT: a bounded queue and a thread of its own to drain it.
+        ///
+        /// Every line the widget sends a connected client — command replies, pushed events, and the state stream at
+        /// up to 60 Hz — used to be written from <see cref="Update"/>, on Unity's MAIN THREAD, inside the
+        /// subscriber lock. A StreamWriter with AutoFlush on a TCP socket blocks when the peer stops reading and
+        /// the kernel's send buffer fills, which a subscriber does simply by being suspended, backgrounded, on a
+        /// bad Wi-Fi hop, or stopped at a breakpoint. The widget's frame then stops — rendering, physics, Syphon,
+        /// NDI, everything — until that one socket drains or the TCP timeout expires, which is minutes.
+        /// (pre-ship audit, 2026-11-11.)
+        ///
+        /// So the main thread now only ENQUEUES, which cannot block, and this thread does the writing and takes the
+        /// stall. The queue is bounded because an unbounded one turns a stalled subscriber into a memory leak at 60
+        /// state lines a second; over the bound, lines are dropped and counted, and a client that has been dropping
+        /// for about a minute is hung up on — it is not reading, and a connection nobody reads is not a subscriber.
+        /// Dropping state frames is the right loss: each one is a complete snapshot, so a client that misses some
+        /// is merely behind, not wrong.
+        /// </summary>
+        private sealed class Conn
+        {
+            public const int MaxQueued = 256;          // ~4 s of a 60 Hz stream
+            public const int DropsBeforeHangUp = 600;  // ~1 minute at 10 Hz of dropping everything
+
+            public readonly StreamWriter W;
+            public readonly string Src;
+            public volatile bool Alive = true;
+            private readonly ConcurrentQueue<string> _q = new();
+            private readonly SemaphoreSlim _wake = new(0);
+            private int _depth, _dropped;
+
+            public Conn(StreamWriter w, string src)
+            {
+                W = w; Src = src;
+                new Thread(Pump) { IsBackground = true, Name = "widget-out-" + src }.Start();
+            }
+
+            /// <summary>Queue a line. Never blocks, never throws, and is safe from any thread.</summary>
+            public void Send(string line)
+            {
+                if (!Alive || line == null) return;
+                if (Interlocked.Increment(ref _depth) > MaxQueued)
+                {
+                    Interlocked.Decrement(ref _depth);
+                    if (Interlocked.Increment(ref _dropped) > DropsBeforeHangUp)
+                    {
+                        Debug.LogWarning($"[Widget] {Src} stopped reading: {_dropped} lines dropped, hanging up");
+                        Close();
+                    }
+                    return;
+                }
+                _q.Enqueue(line);
+                try { _wake.Release(); } catch { }
+            }
+
+            private void Pump()
+            {
+                try
+                {
+                    while (Alive)
+                    {
+                        if (!_wake.Wait(1000)) continue;         // the timeout is how Alive=false gets noticed
+                        if (!_q.TryDequeue(out string line)) continue;
+                        Interlocked.Decrement(ref _depth);
+                        lock (W) W.WriteLine(line);              // the write that can block now blocks HERE
+                    }
+                }
+                catch { }                                        // a closed socket ends this thread, nothing else
+                Alive = false;
+            }
+
+            public void Close() { Alive = false; try { _wake.Release(); } catch { } }
+        }
+
+        /// <summary>
+        /// IS THE WIDGET ON THE NETWORK AT ALL? Off by default (Ty, 2026-11-11, rule 6), on with AERO_WIDGET_LAN=1.
+        ///
+        /// It used to bind IPAddress.IPv6Any / IPAddress.Any with no authentication of any kind, which on a laptop
+        /// is two open control ports on every network it joins — a hotel, a conference hall, a client's office —
+        /// each answering "fly the aeroplane" and, until earlier on this lane, "write this file wherever I say".
+        /// Binding is the part that matters most: a port that is not listening cannot be scanned, cannot prompt the
+        /// macOS firewall, and does not appear on Bonjour.
+        ///
+        /// The default costs nothing on the podcast desk. Everything that drives the widget from the Mac itself —
+        /// the MCP layer, a render script, Safari on 127.0.0.1 — is loopback and is unaffected. What needs the
+        /// switch is a second machine: Glass Overlay on another Mac, or the phone remote.
+        /// </summary>
+        public static readonly bool Lan = System.Environment.GetEnvironmentVariable(WidgetAccess.LanEnvVar) == "1";
+
+        /// <summary>
+        /// THE ACCESS TOKEN a client from the network must present. Generated on first run into the widget's OWN
+        /// config file (Application.persistentDataPath/widget-token.txt — the widget's bundle id is its own, so
+        /// this is its own directory, and it is never the repository, which is public).
+        ///
+        /// Read once, on the main thread, because Application.persistentDataPath is a Unity API and must not be
+        /// touched from the network thread.
+        /// </summary>
+        public static string Token { get; private set; } = "";
+
+        private void Awake()
+        {
+            // Even when the ports are loopback-only, the token is made now: it is what the window shows, and it is
+            // what the user types into a phone after switching the LAN on. A token that only exists once you need
+            // it is a token you cannot find when you need it.
+            Token = WidgetAccess.ReadOrCreateToken(Application.persistentDataPath);
+        }
 
         private void Start()
         {
@@ -41,41 +170,73 @@ namespace FlyingGame.Bridge.Widget
             // (it froze the widget's first frame), and HttpListener's start can block too.
             new Thread(() =>
             {
-                try
+                if (Lan)
                 {
-                    foreach (var ni in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+                    try
                     {
-                        if (ni.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up) continue;
-                        foreach (var ua in ni.GetIPProperties().UnicastAddresses)
-                            if (ua.Address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(ua.Address)) { LocalIp = ua.Address.ToString(); goto found; }
+                        foreach (var ni in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+                        {
+                            if (ni.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up) continue;
+                            foreach (var ua in ni.GetIPProperties().UnicastAddresses)
+                                if (ua.Address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(ua.Address)) { LocalIp = ua.Address.ToString(); goto found; }
+                        }
+                        found:;
                     }
-                    found:;
+                    catch { }
                 }
-                catch { }
-                // Dual-stack (2026-10-09): IPv6 with DualMode also accepts IPv4, so a device that only reaches the Mac by an IPv6
-                // (link-local) address can connect directly. IPv4-only if the stack refuses.
-                try
-                {
-                    _tcp = new TcpListener(IPAddress.IPv6Any, TcpPort); _tcp.Server.DualMode = true; _tcp.Start(); TcpDualStack = true;
-                }
-                catch (System.Exception e6)
-                {
-                    Debug.LogWarning("[Widget] TCP IPv6 dual-stack unavailable (" + e6.Message + "): IPv4 only");
-                    try { _tcp?.Stop(); } catch { }
-                    try { _tcp = new TcpListener(IPAddress.Any, TcpPort); _tcp.Start(); } catch (System.Exception e) { Debug.LogWarning("[Widget] TCP: " + e.Message); _tcp = null; }
-                }
-                if (_tcp != null) { _tcpThread = new Thread(AcceptLoop) { IsBackground = true }; _tcpThread.Start(); }
-                // HTTP: a small HTTP/1.1 server on its own dual-stack socket (Mono's HttpListener answered 400 to IPv6 Host headers).
-                try
-                {
-                    try { _httpTcp = new TcpListener(IPAddress.IPv6Any, HttpPort); _httpTcp.Server.DualMode = true; _httpTcp.Start(); HttpIPv6 = true; }
-                    catch { try { _httpTcp?.Stop(); } catch { } _httpTcp = new TcpListener(IPAddress.Any, HttpPort); _httpTcp.Start(); }
-                    _httpThread = new Thread(HttpAcceptLoop) { IsBackground = true }; _httpThread.Start();
-                }
-                catch (System.Exception e) { Debug.LogWarning("[Widget] HTTP: " + e.Message); }
-                if (!AeroWidget.Capture) Advertise();
-                Debug.Log($"[Widget] control tcp {TcpPort}, remote http://{LocalIp}:{HttpPort}/");
+                _tcpListeners.AddRange(Bind(TcpPort, "TCP", out bool tcpBoth));
+                foreach (var l in _tcpListeners) { var ll = l; new Thread(() => AcceptLoop(ll)) { IsBackground = true }.Start(); }
+                // HTTP: a small HTTP/1.1 server on its own socket (Mono's HttpListener answered 400 to IPv6 Host headers).
+                _httpListeners.AddRange(Bind(HttpPort, "HTTP", out bool httpBoth));
+                foreach (var l in _httpListeners) { var ll = l; new Thread(() => HttpAcceptLoop(ll)) { IsBackground = true }.Start(); }
+                // What `hello` reports: can a client reach us over BOTH address families. True of the dual-stack
+                // wildcard, and true of loopback-only when both 127.0.0.1 and ::1 bound.
+                TcpDualStack = tcpBoth; HttpIPv6 = httpBoth;
+                // Bonjour only when there is something on the network to find. Advertising a loopback-only port
+                // would be telling every device on the Wi-Fi about a service none of them can reach.
+                if (!AeroWidget.Capture && Lan) Advertise();
+                Debug.Log($"[Widget] control tcp {TcpPort}, remote http://{LocalIp}:{HttpPort}/ · {(Lan ? "LAN (token required off this machine)" : "loopback only — set " + WidgetAccess.LanEnvVar + "=1 for the network")}");
             }) { IsBackground = true }.Start();
+        }
+
+        /// <summary>
+        /// Open <paramref name="port"/>. LAN off: 127.0.0.1 AND ::1, as two sockets.
+        ///
+        /// Two, not one, because a dual-stack listener on ::1 does NOT accept 127.0.0.1 — the IPv4-mapped
+        /// acceptance a DualMode socket gives you comes from binding the WILDCARD, not from binding a loopback
+        /// address. "localhost" resolves to ::1 first for most clients on macOS and to 127.0.0.1 for others
+        /// (curl, the test harnesses), so binding only one of them breaks half the local callers.
+        ///
+        /// LAN on: the dual-stack wildcard exactly as before, so a device that can only reach the Mac by an IPv6
+        /// link-local address still connects (2026-10-09), falling back to IPv4-only if the stack refuses.
+        /// </summary>
+        private static List<TcpListener> Bind(int port, string what, out bool bothFamilies)
+        {
+            var made = new List<TcpListener>();
+            bothFamilies = false;
+            if (Lan)
+            {
+                try { var l = new TcpListener(IPAddress.IPv6Any, port); l.Server.DualMode = true; l.Start(); made.Add(l); bothFamilies = true; return made; }
+                catch (System.Exception e6) { Debug.LogWarning($"[Widget] {what} IPv6 dual-stack unavailable ({e6.Message}): IPv4 only"); }
+                try { var l = new TcpListener(IPAddress.Any, port); l.Start(); made.Add(l); }
+                catch (System.Exception e) { Debug.LogWarning($"[Widget] {what}: {e.Message}"); }
+                return made;
+            }
+            foreach (var a in new[] { IPAddress.Loopback, IPAddress.IPv6Loopback })
+            {
+                try { var l = new TcpListener(a, port); l.Start(); made.Add(l); }
+                catch (System.Exception e) { Debug.LogWarning($"[Widget] {what} on {a}: {e.Message}"); }
+            }
+            bothFamilies = made.Count == 2;
+            return made;
+        }
+
+        /// <summary>Is this connection from the machine the widget runs on? Decided from the socket, once, when the
+        /// connection is accepted — never from anything the client says about itself.</summary>
+        private static bool IsLocal(TcpClient c)
+        {
+            try { return WidgetAccess.IsLoopback((c.Client.RemoteEndPoint as IPEndPoint)?.Address?.ToString()); }
+            catch { return false; }   // an endpoint we cannot read is not this machine
         }
 
         public static bool TcpDualStack { get; private set; }
@@ -142,19 +303,20 @@ namespace FlyingGame.Bridge.Widget
         private void OnDestroy()
         {
             _run = false;
+            lock (_subLock) { foreach (var s in _subs) s.c.Close(); _subs.Clear(); }   // the writer threads end with their queues
             lock (_bonjour) foreach (var sd in _bonjour) { try { DNSServiceRefDeallocate(sd); } catch { } }
-            try { _tcp?.Stop(); } catch { }
+            foreach (var l in _tcpListeners) { try { l.Stop(); } catch { } }
+            foreach (var l in _httpListeners) { try { l.Stop(); } catch { } }
             try { _http?.Stop(); } catch { }
-            try { _httpTcp?.Stop(); } catch { }
         }
 
         // ---- TCP ----
-        private void AcceptLoop()
+        private void AcceptLoop(TcpListener l)
         {
             while (_run)
             {
                 TcpClient c;
-                try { c = _tcp.AcceptTcpClient(); } catch { return; }
+                try { c = l.AcceptTcpClient(); } catch { return; }
                 c.NoDelay = true;
                 new Thread(() => ClientLoop(c)) { IsBackground = true }.Start();
             }
@@ -166,34 +328,77 @@ namespace FlyingGame.Bridge.Widget
             var reader = new StreamReader(stream, Encoding.UTF8);
             var writer = new StreamWriter(stream, new UTF8Encoding(false)) { AutoFlush = true, NewLine = "\n" };
             string src = "tcp-" + Interlocked.Increment(ref _connSeq);   // this connection's identity (the pilot's source)
+            // Everything this connection is ever sent goes through its own queue and its own writer thread: the
+            // main thread must never touch the socket. See Conn.
+            var conn = new Conn(writer, src);
+            // WHO THIS CONNECTION IS, decided from the SOCKET and not from anything the client says about itself,
+            // once, here. A loopback connection is authenticated from the start (Ty's rule 4): a client on this
+            // machine can already read the token file, so asking it for the token protects nothing and would break
+            // every local caller there is.
+            var auth = new Auth { Loopback = IsLocal(c), Conn = conn };
+            auth.Authed = auth.Loopback;
             try
             {
                 string line;
-                while (_run && (line = reader.ReadLine()) != null)
+                while (_run && conn.Alive && (line = ReadLineCapped(reader, conn)) != null)
                 {
                     if (string.IsNullOrWhiteSpace(line)) continue;
-                    string l = line;
-                    _inbox.Enqueue((l, reply => { lock (writer) { try { writer.WriteLine(reply); } catch { } } }, src));
-                    if (l.Contains("\"subscribe\""))
-                    {
-                        float hz = 10f; try { hz = (float)(JObject.Parse(l)["hz"]?.Value<double>() ?? 10); } catch { }
-                        lock (_subLock) _subs.Add((writer, Mathf.Clamp(hz, 1f, 60f), 0f));
-                    }
+                    _inbox.Enqueue((line, reply => conn.Send(reply), src, auth));
+                    // "subscribe" used to be registered HERE, on the reader thread, by looking for the word in the
+                    // raw line. It is now a command like any other (Handle's subscribe arm), for two reasons: a
+                    // client that sends hello and subscribe back to back would otherwise have its subscription
+                    // judged before the hello had been processed, and the old test matched any line that merely
+                    // CONTAINED "subscribe" — a caption would have done it.
                 }
             }
             catch { }
-            lock (_subLock) _subs.RemoveAll(s => s.w == writer);
+            conn.Close();
+            lock (_subLock) _subs.RemoveAll(s => s.c == conn);
             c.Close();
         }
 
+        /// <summary>
+        /// One command line, or null at end of stream — the same contract as StreamReader.ReadLine, with a LIMIT.
+        ///
+        /// The reader used to be a bare ReadLine(), which has no limit at all: a peer that opens the socket and
+        /// sends bytes without ever sending a newline grows one string until the process dies, and it costs the
+        /// peer nothing to do it (pre-ship audit, 2026-11-11). Before this lane the port answered the whole
+        /// network, so "a peer" meant anyone.
+        ///
+        /// Over the cap the line is DISCARDED UP TO THE NEXT NEWLINE and the connection is told why, rather than
+        /// dropped: a client that sends one oversized command — a huge caption, a pasted blob — stays connected and
+        /// sees what happened. The limit is ~60× the largest command the protocol has (a vectorStyle with every
+        /// field set measures about 1.1 KB), so no real client can reach it by accident.
+        /// </summary>
+        private static string ReadLineCapped(StreamReader reader, Conn conn)
+        {
+            var sb = new StringBuilder(256);
+            while (true)
+            {
+                int ch = reader.Read();
+                if (ch < 0) return sb.Length > 0 ? sb.ToString() : null;
+                if (ch == '\n') return sb.ToString();
+                if (ch == '\r') continue;
+                if (sb.Length >= WidgetAccess.MaxLineBytes)
+                {
+                    // Swallow the rest of this line so the next one still parses, then say so.
+                    while ((ch = reader.Read()) >= 0 && ch != '\n') { }
+                    conn.Send($"{{\"ok\":false,\"error\":\"command line longer than {WidgetAccess.MaxLineBytes} characters: discarded\"}}");
+                    if (ch < 0) return null;
+                    sb.Clear();
+                    continue;
+                }
+                sb.Append((char)ch);
+            }
+        }
+
         // ---- HTTP (phone / iPad remote): GET / (the page), GET /state[?from=…&name=…], POST /cmd ----
-        private TcpListener _httpTcp;
-        private void HttpAcceptLoop()
+        private void HttpAcceptLoop(TcpListener l)
         {
             while (_run)
             {
                 TcpClient c;
-                try { c = _httpTcp.AcceptTcpClient(); } catch { return; }
+                try { c = l.AcceptTcpClient(); } catch { return; }
                 ThreadPool.QueueUserWorkItem(_ => ServeRaw(c));
             }
         }
@@ -204,20 +409,31 @@ namespace FlyingGame.Bridge.Widget
             {
                 c.NoDelay = true; c.ReceiveTimeout = 5000;
                 using var ns = c.GetStream();
-                // Request line + headers (ASCII), then the body by Content-Length.
-                var head = new StringBuilder(); int b; int crlf = 0;
+                // Request line + headers (ASCII), then the body by Content-Length. BOTH ARE CAPPED (pre-ship audit,
+                // 2026-11-11). The head loop already stopped at 16 KB, but it stopped by BREAKING OUT and then
+                // parsing whatever it had as though the request were complete — so a peer that sent 16 KB of
+                // header bytes and no blank line got its truncated first line treated as a request line. It is now
+                // a refusal: a request whose headers do not end is not a request.
+                var head = new StringBuilder(); int b; int crlf = 0; bool headComplete = false;
                 while ((b = ns.ReadByte()) >= 0)
                 {
                     head.Append((char)b);
                     crlf = (b == '\r' || b == '\n') ? crlf + 1 : 0;
-                    if (crlf == 4 || head.Length > 16384) break;
+                    if (crlf == 4) { headComplete = true; break; }
+                    if (head.Length > WidgetAccess.MaxHeadBytes) break;
                 }
+                if (!headComplete) { Refuse(ns, 431, "request headers too long or incomplete"); return; }
                 string[] lines = head.ToString().Split(new[] { "\r\n" }, System.StringSplitOptions.None);
                 string[] rl = lines[0].Split(' ');
                 if (rl.Length < 2) return;
                 string method = rl[0], target = rl[1];
                 int len = 0;
                 foreach (var l in lines) if (l.StartsWith("Content-Length:", System.StringComparison.OrdinalIgnoreCase)) int.TryParse(l.Substring(15).Trim(), out len);
+                // THE BODY WAS ALLOCATED FROM THE REQUEST'S OWN CLAIM: `new byte[len]` with len straight out of
+                // Content-Length, so a 40-byte request saying "Content-Length: 2000000000" asked the widget for a
+                // 2 GB array — a crash, or a Mac on its knees, per request and for free. The remote page's largest
+                // POST is a few hundred bytes.
+                if (len > WidgetAccess.MaxBodyBytes) { Refuse(ns, 413, $"body over {WidgetAccess.MaxBodyBytes} bytes"); return; }
                 string body = "";
                 if (len > 0)
                 {
@@ -227,29 +443,90 @@ namespace FlyingGame.Bridge.Widget
                 }
                 string path = target, query = "";
                 int qi = target.IndexOf('?'); if (qi >= 0) { path = target.Substring(0, qi); query = target.Substring(qi + 1); }
+                var q = new Dictionary<string, string>();
+                foreach (var kv in query.Split('&'))
+                {
+                    int eq = kv.IndexOf('='); if (eq <= 0) continue;
+                    try { q[System.Uri.UnescapeDataString(kv.Substring(0, eq))] = System.Uri.UnescapeDataString(kv.Substring(eq + 1).Replace('+', ' ')); } catch { }
+                }
+                bool local = IsLocal(c);
                 string text, type = "application/json";
                 if (method == "OPTIONS") text = "";
-                else if (path == "/cmd" && method == "POST") text = Ask(body);
-                else if (path == "/state")
+                else if (path == "/cmd" && method == "POST" || path == "/state")
                 {
-                    var o = new JObject { ["cmd"] = "state" };
-                    foreach (var kv in query.Split('&'))
+                    // HTTP HAS NO CONNECTION TO AUTHENTICATE ONCE ON, so a request from the network carries the
+                    // token itself and is judged on its own — in the POST body for /cmd, in ?token= for /state.
+                    // Loopback skips it entirely, which is why Safari on the Mac and every local script are
+                    // unaffected (Ty's rule 4).
+                    string presented = null;
+                    JObject cmdJson = null;
+                    if (path == "/cmd") { try { cmdJson = JObject.Parse(body); presented = (string)cmdJson["token"]; } catch { } }
+                    else q.TryGetValue("token", out presented);
+                    string why = WidgetAccess.RequestRefusal(local, presented, Token);
+                    if (why != null)
                     {
-                        int eq = kv.IndexOf('='); if (eq <= 0) continue;
-                        string k = System.Uri.UnescapeDataString(kv.Substring(0, eq)), v = System.Uri.UnescapeDataString(kv.Substring(eq + 1).Replace('+', ' '));
-                        if (k == "from" || k == "name") o[k] = v;
+                        // A REFUSAL THAT SAYS WHY, with needsToken so the remote page can ask for it rather than
+                        // appearing to be broken (Ty's rule 5: never a silent drop).
+                        Refuse(ns, 403, why, needsToken: true);
+                        return;
                     }
-                    if (o["from"] != null && o["name"] == null) o["name"] = "";
-                    text = Ask(o.ToString(Newtonsoft.Json.Formatting.None));
+                    if (path == "/cmd") text = Ask(body, local);
+                    else
+                    {
+                        var o = new JObject { ["cmd"] = "state" };
+                        foreach (var k in new[] { "from", "name" }) if (q.TryGetValue(k, out string v)) o[k] = v;
+                        if (o["from"] != null && o["name"] == null) o["name"] = "";
+                        text = Ask(o.ToString(Newtonsoft.Json.Formatting.None), local);
+                    }
                 }
-                else { text = WidgetRemotePage.Html; type = "text/html; charset=utf-8"; }
+                else
+                {
+                    // THE PAGE ITSELF is served to anyone who can reach the port: it is a UI shell with no data in
+                    // it, and a LAN device has to be able to open it in order to be asked for the token at all.
+                    // To a browser ON THIS MACHINE the page is given the token to show, so the user can read it
+                    // off and type it into a phone — that browser can already read the token file.
+                    text = local ? WidgetRemotePage.WithToken(Token) : WidgetRemotePage.Html;
+                    type = "text/html; charset=utf-8";
+                }
                 byte[] payload = Encoding.UTF8.GetBytes(text);
-                string hdr = $"HTTP/1.1 200 OK\r\nContent-Type: {type}\r\nContent-Length: {payload.Length}\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: *\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n";
+                // NO WILDCARD CORS (pre-ship audit, 2026-11-11). This used to send
+                //     Access-Control-Allow-Origin: *
+                //     Access-Control-Allow-Headers: *
+                // which is the browser being TOLD to let any page in the world read this server's replies. With
+                // no authentication behind it, that meant any page the presenter happened to have open could
+                // drive the aeroplane, read the state stream, and — before the previous commit — write a file
+                // anywhere on the Mac through `snapshot`. No prompt, nothing on screen, from a tab in another
+                // window. The browser's same-origin policy was the only thing standing there and the widget was
+                // waving it away.
+                //
+                // Nothing needs it. The remote page is served BY this server, so it is same-origin already and
+                // fetch() from it needs no CORS header at all; Glass Overlay and the MCP layer speak TCP, where
+                // CORS does not exist. The only thing the header enabled was the attack.
+                //
+                // An OPTIONS preflight is still answered 200, but with no Allow-Origin, so a cross-origin
+                // XHR/fetch now fails in the browser as it should — and fails visibly, in the console, rather
+                // than silently succeeding.
+                string hdr = $"HTTP/1.1 200 OK\r\nContent-Type: {type}\r\nContent-Length: {payload.Length}\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n";
                 byte[] hb = Encoding.ASCII.GetBytes(hdr);
                 ns.Write(hb, 0, hb.Length); ns.Write(payload, 0, payload.Length); ns.Flush();
             }
             catch { }
             finally { try { c.Close(); } catch { } }
+        }
+
+        /// <summary>A short HTTP refusal with a reason in the body. Never a silent drop: the caller is a browser or
+        /// a script, and whoever reads the message is the person who can fix the request.</summary>
+        private static void Refuse(NetworkStream ns, int status, string why, bool needsToken = false)
+        {
+            try
+            {
+                var o = new JObject { ["ok"] = false, ["error"] = why };
+                if (needsToken) { o["needsToken"] = true; o["protocol"] = Protocol; }
+                byte[] payload = Encoding.UTF8.GetBytes(o.ToString(Newtonsoft.Json.Formatting.None));
+                byte[] hb = Encoding.ASCII.GetBytes($"HTTP/1.1 {status} \r\nContent-Type: application/json\r\nContent-Length: {payload.Length}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n");
+                ns.Write(hb, 0, hb.Length); ns.Write(payload, 0, payload.Length); ns.Flush();
+            }
+            catch { }
         }
 
         // ---- (legacy HttpListener path, unused) ----
@@ -268,29 +545,42 @@ namespace FlyingGame.Bridge.Widget
             try
             {
                 string path = ctx.Request.Url.AbsolutePath;
-                ctx.Response.AddHeader("Access-Control-Allow-Origin", "*");
+                // The wildcard Access-Control-Allow-Origin header that used to be added here is gone for the same
+                // reason as in ServeRaw above: it invited every page in the browser to drive this server. This
+                // path is the legacy HttpListener one and is not reached (Mono's HttpListener answered 400 to IPv6
+                // Host headers, which is why ServeRaw exists) — but a dead path that still carries the bug is how
+                // a bug comes back the day someone revives the path.
+                bool local = WidgetAccess.IsLoopback(ctx.Request.RemoteEndPoint?.Address?.ToString());
+                var qs = ctx.Request.QueryString;
                 if (path == "/cmd" && ctx.Request.HttpMethod == "POST")
                 {
                     string body = new StreamReader(ctx.Request.InputStream, Encoding.UTF8).ReadToEnd();
-                    Respond(ctx, Ask(body), "application/json");
+                    string presented = null; try { presented = (string)JObject.Parse(body)["token"]; } catch { }
+                    string why = WidgetAccess.RequestRefusal(local, presented, Token);
+                    if (why != null) { ctx.Response.StatusCode = 403; Respond(ctx, new JObject { ["ok"] = false, ["error"] = why, ["needsToken"] = true }.ToString(Newtonsoft.Json.Formatting.None), "application/json"); return; }
+                    Respond(ctx, Ask(body, local), "application/json");
                 }
                 else if (path == "/state")
                 {
+                    string why = WidgetAccess.RequestRefusal(local, qs["token"], Token);
+                    if (why != null) { ctx.Response.StatusCode = 403; Respond(ctx, new JObject { ["ok"] = false, ["error"] = why, ["needsToken"] = true }.ToString(Newtonsoft.Json.Formatting.None), "application/json"); return; }
                     // The remote polls this with its id and name (?from=web-…&name=…): that's how it shows up in "remotes".
-                    var qs = ctx.Request.QueryString; var o = new JObject { ["cmd"] = "state" };
+                    var o = new JObject { ["cmd"] = "state" };
                     if (qs["from"] != null) { o["from"] = qs["from"]; o["name"] = qs["name"] ?? ""; }
-                    Respond(ctx, Ask(o.ToString(Newtonsoft.Json.Formatting.None)), "application/json");
+                    Respond(ctx, Ask(o.ToString(Newtonsoft.Json.Formatting.None), local), "application/json");
                 }
-                else Respond(ctx, WidgetRemotePage.Html, "text/html; charset=utf-8");
+                else Respond(ctx, local ? WidgetRemotePage.WithToken(Token) : WidgetRemotePage.Html, "text/html; charset=utf-8");
             }
             catch { try { ctx.Response.StatusCode = 500; ctx.Response.Close(); } catch { } }
         }
 
-        /// <summary>Enqueue a command for the main thread and wait (≤ 1 s) for its reply.</summary>
-        private string Ask(string json)
+        /// <summary>Enqueue a command for the main thread and wait (≤ 1 s) for its reply. The request has already
+        /// passed its own token check in ServeRaw, so it arrives here decided: HTTP has no connection on which to
+        /// authenticate once.</summary>
+        private string Ask(string json, bool loopback)
         {
             var done = new ManualResetEventSlim(false); string result = "{\"ok\":false,\"error\":\"timeout\"}";
-            _inbox.Enqueue((json, r => { result = r; done.Set(); }, null));
+            _inbox.Enqueue((json, r => { result = r; done.Set(); }, null, new Auth { Loopback = loopback, Authed = true }));
             done.Wait(1000);
             return result;
         }
@@ -308,7 +598,7 @@ namespace FlyingGame.Bridge.Widget
             while (_inbox.TryDequeue(out var m))
             {
                 string reply;
-                try { reply = Handle(JObject.Parse(m.json), m.src); }
+                try { reply = Handle(JObject.Parse(m.json), m.src, m.auth); }
                 catch (System.Exception e) { reply = new JObject { ["ok"] = false, ["error"] = e.Message }.ToString(Newtonsoft.Json.Formatting.None); }
                 m.reply?.Invoke(reply);
                 _lastCmdAt = Time.unscaledTime;
@@ -317,6 +607,7 @@ namespace FlyingGame.Bridge.Widget
             PruneRemotes();
             lock (_subLock)
             {
+                _subs.RemoveAll(s => !s.c.Alive);
                 if (_subs.Count == 0) return;
                 string st = null;
                 for (int i = 0; i < _subs.Count; i++)
@@ -324,8 +615,8 @@ namespace FlyingGame.Bridge.Widget
                     var s = _subs[i];
                     if (Time.unscaledTime < s.next) continue;
                     st ??= StateJson().ToString(Newtonsoft.Json.Formatting.None);
-                    try { lock (s.w) s.w.WriteLine(st); } catch { }
-                    _subs[i] = (s.w, s.hz, Time.unscaledTime + 1f / s.hz);
+                    s.c.Send(st);                      // queued, never written, on this thread — see Conn
+                    _subs[i] = (s.c, s.hz, Time.unscaledTime + 1f / s.hz);
                 }
             }
         }
@@ -334,7 +625,7 @@ namespace FlyingGame.Bridge.Widget
         public void PushEvent(JObject e)
         {
             string line = e.ToString(Newtonsoft.Json.Formatting.None);
-            lock (_subLock) foreach (var s in _subs) { try { lock (s.w) s.w.WriteLine(line); } catch { } }
+            lock (_subLock) foreach (var s in _subs) s.c.Send(line);
         }
 
         private JArray RemotesJson()
@@ -377,10 +668,80 @@ namespace FlyingGame.Bridge.Widget
         }
         private static readonly Dictionary<string, JObject> _fits = new();
 
-        private string Handle(JObject j, string src)
+        /// <summary>
+        /// The first field in this command whose value is not a finite number, or null. Named with its JSON path
+        /// ("loading.grossWeightLb", "crowdNed[2]") so the refusal below tells the caller exactly what to fix.
+        ///
+        /// Strings are checked too, and deliberately: Json.NET converts the string "NaN" to double.NaN just as
+        /// happily as the bare literal (measured 2026-11-11, along with Infinity, -Infinity and 1e400 → +∞), so a
+        /// check that looked only at number tokens would leave the door open. The cost is that a caption of exactly
+        /// "NaN" or "Infinity" is refused; that is a price worth paying and the error says why.
+        /// </summary>
+        private static string NonFinite(JToken t, string path)
+        {
+            switch (t.Type)
+            {
+                case JTokenType.Float:
+                case JTokenType.Integer:
+                    // An integer too big for a double (Json.NET keeps it as a BigInteger) throws on the way out
+                    // rather than coming back as an infinity: that is still a number this cannot use.
+                    try { return WidgetAccess.Finite(t.Value<double>()) ? null : (path ?? "value"); }
+                    catch { return path ?? "value"; }
+                case JTokenType.String:
+                {
+                    string s = (string)t;
+                    return s != null && double.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double d)
+                           && !WidgetAccess.Finite(d) ? (path ?? "value") : null;
+                }
+                case JTokenType.Object:
+                    foreach (var p in ((JObject)t).Properties())
+                    {
+                        // "token" is never read as a number and must not be judged as one. A token is 32 hex
+                        // digits, and about one in 40 million of them — a digit, then 'e', then 30 digits — parses
+                        // as an overflowing exponent and would be refused as "not a finite number". That is rare
+                        // enough never to be found in testing and specific enough to be unfixable in the field.
+                        if (p.Name == "token") continue;
+                        string r = NonFinite(p.Value, path == null ? p.Name : path + "." + p.Name); if (r != null) return r;
+                    }
+                    return null;
+                case JTokenType.Array:
+                {
+                    var a = (JArray)t;
+                    for (int i = 0; i < a.Count; i++) { string r = NonFinite(a[i], (path ?? "") + "[" + i + "]"); if (r != null) return r; }
+                    return null;
+                }
+                default: return null;
+            }
+        }
+
+        private string Handle(JObject j, string src, Auth auth)
         {
             string cmd = (string)j["cmd"] ?? "";
             var w = Widget; var ok = new JObject { ["ok"] = true, ["cmd"] = cmd };
+            // THE GATE (Ty, 2026-11-11). Loopback passes untouched; a connection from the network must have said
+            // hello with the token first. "hello" itself is always let through, because it is both how a client
+            // authenticates and how a refused one finds out it was refused — a silent drop would be invisible to
+            // Glass Overlay, which connects over the LAN, and an invisible break is the expensive kind.
+            {
+                string gate = WidgetAccess.CommandRefusal(auth.Loopback, auth.Authed, cmd);
+                if (gate != null) return Refused(cmd, gate);
+            }
+            // NOT-A-NUMBER IS NOT A COMMAND (pre-ship audit, 2026-11-11). Every numeric field below is clamped on
+            // the way in and NOT ONE of those clamps stops NaN: Mathf.Clamp and Math.Clamp are both
+            // "if (v < min) … else if (v > max) … else return v", and NaN compares false against both. One NaN
+            // reaching a control deflection, a mass, an autopilot target or a camera angle is a NaN moment, a NaN
+            // quaternion, and an aeroplane that is gone for the rest of the session — from one JSON field.
+            // Guarding every read site would be ~60 edits and one of them would be missed this year or next, so the
+            // check is HERE, at the one door every command comes through, and it covers commands not yet written.
+            // The three sites that feed the physics most directly (WidgetControls.FromNetwork, WidgetLoading.Set,
+            // JoyLink's raw axes) keep their own guards: they have callers that never pass through here.
+            {
+                string bad = NonFinite(j, null);
+                if (bad != null)
+                    return new JObject { ["ok"] = false, ["cmd"] = cmd,
+                                         ["error"] = $"\"{bad}\" is not a finite number (NaN or an infinity). Every number in a command must be one." }
+                           .ToString(Newtonsoft.Json.Formatting.None);
+            }
             // A web remote names itself on every request ("from":"web-…").
             string from = (string)j["from"];
             if (from != null && from.StartsWith("web-")) { SeeRemote(from, (string)j["name"]); src = from; }
@@ -389,10 +750,21 @@ namespace FlyingGame.Bridge.Widget
             {
                 case "scenario":
                 {
+                    // THE AIRCRAFT ID IS CHECKED AGAINST THE FLEET, the way "start" has always checked it (see the
+                    // start case below). This arm did not, and the id goes straight into
+                    // UnityAircraftConfigLoader.LoadFromStreamingAssets, which builds "aircraft/" + id + ".json"
+                    // and reads it — so "../../../../something" was a read of any .json file the widget process
+                    // could reach, from any origin (pre-ship audit, 2026-11-11). It is also the key of the static
+                    // _fits / _ldFits caches, so an endless supply of invented ids was an endless supply of
+                    // dictionary entries. Two commands that load an aeroplane must not disagree about what an
+                    // aeroplane is.
+                    string acId = (string)j["aircraft"];
+                    if (acId != null && System.Array.FindIndex(SessionSettings.Fleet, f => f.id == acId) < 0)
+                    { ok["ok"] = false; ok["error"] = "unknown aircraft"; break; }
                     w.Lessons.Stop();
                     string n = ((string)j["name"] ?? w.Current.ToString()).ToLowerInvariant();
                     var sc = n == "spin" ? AeroWidget.Scenario.Spin : n == "cruise" ? AeroWidget.Scenario.Cruise : AeroWidget.Scenario.Flare;
-                    w.Load(sc, (string)j["aircraft"] ?? w.AircraftId, j["flaps"]?.Value<double>() ?? w.Flaps);
+                    w.Load(sc, acId ?? w.AircraftId, j["flaps"]?.Value<double>() ?? w.Flaps);
                     break;
                 }
                 case "controls":
@@ -660,7 +1032,17 @@ namespace FlyingGame.Bridge.Widget
                     ok["view"] = w.View; ok["viewFrom"] = w.ViewFrom; break;
                 }
                 case "hello":
+                {
+                    // THE TOKEN CHECK (Ty, 2026-11-11, rules 3 and 5). A protocol 8 client that sends no token
+                    // still works on loopback — the field is simply ignored there — and on the network gets a
+                    // refusal that NAMES the field, the command and where to read the value, plus "needsToken"
+                    // and the protocol number so a client can still tell what it reached. Glass Overlay connects
+                    // over the LAN: it must be told, not dropped.
+                    string why = WidgetAccess.HelloRefusal(auth.Loopback, (string)j["token"], Token);
+                    if (why != null) return Refused(cmd, why);
+                    auth.Authed = true;   // for the rest of this connection
                     ok["app"] = "Aero Widget"; ok["version"] = Application.version; ok["protocol"] = Protocol;
+                    ok["access"] = new JObject { ["lan"] = Lan, ["loopback"] = auth.Loopback, ["tokenRequired"] = !auth.Loopback };
                     ok["network"] = new JObject { ["tcpDualStack"] = TcpDualStack, ["httpIPv6"] = HttpIPv6, ["bonjour"] = BonjourOk ? new JArray("_aerowidget._tcp", "_http._tcp") : new JArray() };
                     ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes", "conditions", "ntsbDisplay", "controlsLayout", "inertialForces", "moments", "smoothVectors", "lessons", "insets", "loading", "wind", "autopilot", "fourForces", "cws", "earthGrid", "altitudeLock", "panelBox", "fma", "mcp", "zoom", "frame16x9", "tools", "joystickSetup");
                     { var la = new JArray(); foreach (var l in WidgetLessons.All) la.Add(new JObject { ["id"] = l.Id, ["name"] = l.Name, ["concept"] = l.Concept }); ok["lessons"] = la; }
@@ -686,6 +1068,7 @@ namespace FlyingGame.Bridge.Widget
                     { var fl = new JArray(); foreach (var fa in SessionSettings.Fleet) fl.Add(new JObject { ["id"] = fa.id, ["name"] = fa.name, ["controls"] = ControlsFit(fa.id), ["loading"] = LoadingFit(fa.id) }); ok["fleet"] = fl; }
                     ok["review"] = new JObject { ["historySeconds"] = WidgetHistory.Seconds, ["fps"] = WidgetHistory.Hz, ["commands"] = new JArray("step", "rewind", "seek", "play") };
                     break;
+                }
                 case "show":
                     foreach (var p in j.Properties()) if (p.Name != "cmd" && w.Show.ContainsKey(p.Name)) w.Show[p.Name] = p.Value.Value<bool>();
                     // "horizon" is the earth grid's old name (an alias for one protocol version): either sets both.
@@ -720,16 +1103,40 @@ namespace FlyingGame.Bridge.Widget
                 case "snapshot":
                 {
                     // The current frame (with alpha) to a PNG — for checking the output, or a still for the show.
-                    string path = (string)j["path"] ?? System.IO.Path.Combine(System.IO.Path.GetTempPath(), "aero-widget.png");
+                    //
+                    // CONFINED TO ONE DIRECTORY (pre-ship audit, 2026-11-11). This used to be
+                    //   string path = (string)j["path"] ?? …;  File.WriteAllBytes(path, png);
+                    // which is an arbitrary file write to anywhere the widget process can reach, asked for by anyone
+                    // who can open the port — and before this lane, that was anyone on the network AND any web page
+                    // the presenter had open, because the server also sent wildcard CORS. A PNG is not an innocent
+                    // payload when you choose the path: ~/Library/LaunchAgents, a shell profile, a file the build
+                    // reads. Nothing in the widget ever needed to choose a directory, so the caller's "path" is now
+                    // read as a NAME ONLY (WidgetAccess.SnapshotPath: every directory component, "..", root and
+                    // drive letter discarded, extension forced to .png) and the write lands in SnapshotDir.
+                    // The reply still carries the full path, so a local caller knows where the file went.
+                    string path = WidgetAccess.SnapshotPath(SnapshotDir, (string)j["path"]);
+                    try { System.IO.Directory.CreateDirectory(SnapshotDir); } catch { }
                     var was = RenderTexture.active; RenderTexture.active = w.Frame;
                     var tex = new Texture2D(w.Frame.width, w.Frame.height, TextureFormat.RGBA32, false);
                     tex.ReadPixels(new Rect(0, 0, w.Frame.width, w.Frame.height), 0, 0); tex.Apply();
                     RenderTexture.active = was;
                     System.IO.File.WriteAllBytes(path, tex.EncodeToPNG()); Destroy(tex);
-                    ok["path"] = path; break;
+                    ok["path"] = path; ok["dir"] = SnapshotDir; break;
                 }
                 case "state": return StateJson().ToString(Newtonsoft.Json.Formatting.None);
-                case "subscribe": break;
+                case "subscribe":
+                {
+                    // Registered HERE, on the main thread, rather than on the reader thread as it used to be: a
+                    // client that sends hello and subscribe back to back would otherwise have its subscription
+                    // judged before the hello had been processed, and an unauthenticated connection from the
+                    // network would have been streamed the whole state at up to 60 Hz regardless.
+                    if (auth.Conn == null) { ok["ok"] = false; ok["error"] = $"subscribe is a TCP stream: open a connection on port {TcpPort}"; break; }
+                    float hz = (float)(j["hz"]?.Value<double>() ?? 10);
+                    if (!WidgetAccess.Finite(hz)) hz = 10f;
+                    hz = Mathf.Clamp(hz, 1f, 60f);
+                    lock (_subLock) { _subs.RemoveAll(s => s.c == auth.Conn); _subs.Add((auth.Conn, hz, 0f)); }
+                    ok["hz"] = hz; break;
+                }
                 case "quit":   // (the capture instance only: a render script ends with it, 2026-10-13)
                     if (!AeroWidget.Capture) { ok["ok"] = false; ok["error"] = "capture only"; break; }
                     _quitAt = Time.unscaledTime + 0.5f; ok["footprintMb"] = System.Math.Round(FootprintMb()); break;
@@ -737,6 +1144,13 @@ namespace FlyingGame.Bridge.Widget
             }
             return ok.ToString(Newtonsoft.Json.Formatting.None);
         }
+
+        /// <summary>A refusal that says why, on the connection that asked, with enough for a client to act on:
+        /// the reason in words, "needsToken" so it can ask the user for one, and the protocol number so it still
+        /// knows what it reached. Never a silent drop and never a closed socket (Ty, 2026-11-11, rule 5).</summary>
+        private static string Refused(string cmd, string why)
+            => new JObject { ["ok"] = false, ["cmd"] = cmd, ["error"] = why, ["needsToken"] = true, ["protocol"] = Protocol }
+               .ToString(Newtonsoft.Json.Formatting.None);
 
         /// <summary>Review replies carry the shown frame: {"ok":true,"cmd":"step","offsetMs":-33,"frame":{…}}.</summary>
         private string Reviewed(JObject ok)
