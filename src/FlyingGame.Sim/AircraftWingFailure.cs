@@ -71,6 +71,13 @@ public sealed partial class Aircraft
             // the shape the piece fell in (the same rule FailWings keeps).
             p.FlightFlexRad = 0.0; p.ElasticRad = 0.0;
             LoseComponent(p.Component);
+            // AND THE INNER BAY SETTLES. It is still on the aeroplane and still permanently bent — the curve from the
+            // root is its shape too — but the FLEX has just come off with the panel, and ApplyOverstressShape stops
+            // walking a Broken panel, so nothing else would ever rewrite those rows: they would fly the flex they had
+            // at the instant the tip left, for the rest of the flight. Only the rows inboard of the station, because
+            // the panel's own have just been masked out of the aero and zeroed by OnComponentLostStructure.
+            foreach (int i in p.SideStrips)
+                if (_stripAt[i] is { } st && Math.Abs(st.Pos[1]) <= p.BreakY) WriteStripShape(p, i);
         }
     }
 
@@ -136,10 +143,15 @@ public sealed partial class Aircraft
     }
 
     /// <summary>
-    /// Write the whole of one wing side's shape into the flow state: the fold at its root, and outboard of the station
-    /// whatever the panel's own bend and twist add (a strike's kink, the overstress set, the flex under load). EVERY row
-    /// of the wing and side, because a fold at the root moves the inboard rows too — which is why it cannot go through
-    /// <see cref="WingPanel.Deform"/> alone (that is about the station, and rightly: a strike's bend is a kink there).
+    /// Write the whole of one wing side's shape into the flow state — EVERY row of the wing and side, inboard of the
+    /// station as well as out.
+    ///
+    /// IT HAS TO BE EVERY ROW (Ty 2026-11-10, flying a Pitts at a 6.6° set: "only the tips stay 'bent' and now they are
+    /// disjointed from the rest of the wing"). While every bend was a KINK at the station this loop could be the
+    /// panel's own rows, because nothing inboard of the station ever moved and there was nothing to write there. The
+    /// aerodynamic bend is a CURVE from the root now, so the inboard rows move too — and writing only the outboard ones
+    /// left a Pitts' inner wing dead flat with its outer panel lifted 18.9 cm at the station. That was not a drawing
+    /// fault: the STRIPS were unmoved, so the aeroplane was flying the kinked wing as well as being drawn as one.
     /// </summary>
     private void ShapeWingSide(WingPanel p)
     {
