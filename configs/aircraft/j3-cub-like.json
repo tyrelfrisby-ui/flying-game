@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "j3-cub-like",
-  "displayName": "J-3 Cub-like (85 hp)",
+  "displayName": "Classic Trainer",
   "structureType": "steelTube",
   "structureTypeSource": "Piper J-3 Cub: welded 4130/1025 steel-tube fuselage, fabric covered (FAA TCDS A-691; Piper J-3 parts catalogue).",
   "wingSpar": "wood",
