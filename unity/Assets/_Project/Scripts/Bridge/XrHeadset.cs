@@ -106,6 +106,18 @@ namespace FlyingGame.Bridge
         }
         private static bool? _flyByHand;
 
+        private const string PrefTurnOnFoot = "quest.turnOnFoot";
+
+        /// <summary>How the right stick turns him once he is out of the aeroplane on foot or in the water (P2d): a 30°
+        /// snap per flick (default — the comfortable one), a smooth 90°/s, or Off (turn your own head and body). Nothing
+        /// else ever turns the view. VR menu → "Turn on foot".</summary>
+        public static FlyingGame.Core.Vr.TurnOnFoot TurnOnFoot
+        {
+            get { _turnOnFoot ??= (FlyingGame.Core.Vr.TurnOnFoot)Mathf.Clamp(PlayerPrefs.GetInt(PrefTurnOnFoot, 0), 0, 2); return _turnOnFoot.Value; }
+            set { if (TurnOnFoot == value) return; _turnOnFoot = value; PlayerPrefs.SetInt(PrefTurnOnFoot, (int)value); PlayerPrefs.Save(); }
+        }
+        private static FlyingGame.Core.Vr.TurnOnFoot? _turnOnFoot;
+
         /// <summary>Whether the HUD may draw this frame (HudOverlay asks). Always true without a headset.</summary>
         public static bool HudAllowed => !Active || FlyingGame.Core.Vr.QuestCockpit.ShowHud(true, ChaseCamera.InCockpit, HudInCockpit);
 

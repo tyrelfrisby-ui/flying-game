@@ -51,7 +51,7 @@ namespace FlyingGame.Bridge
         private readonly GameObject[] _lines = new GameObject[Lines];
         // collapse (after landing)
         private bool _collapsing;
-        private float _collapseT;
+        private float _collapseT, _collapseSec = CollapseSec, _sinkM;
         private Vector3 _cStartPos, _cEndPos, _cStartScale, _cEndScale, _pcStart, _pcEnd;
         private Quaternion _cStartRot, _cEndRot;
 
@@ -122,17 +122,19 @@ namespace FlyingGame.Bridge
             }
         }
 
-        /// <summary>Landed: deflate and lay the canopy on the ground over <see cref="CollapseSec"/>.</summary>
-        public void BeginCollapse(Vector3 feet, Vector3 layDir)
+        /// <summary>Landed: deflate and lay the canopy on the ground over <see cref="CollapseSec"/>. On the water
+        /// (Core CanopyOnWater): <paramref name="centre"/> is where its centre comes to rest, over <paramref name="sec"/>.</summary>
+        public void BeginCollapse(Vector3 feet, Vector3 layDir, Vector3? centre = null, float sec = CollapseSec)
         {
             if (_collapsing) return;
             _collapsing = true;
             _collapseT = 0f;
+            _collapseSec = Mathf.Max(0.1f, sec);
             float r = Mathf.Max(0.3f, _canopy.transform.localScale.x);
             _cStartPos = _canopy.transform.position;
             _cStartRot = _canopy.transform.rotation;
             _cStartScale = _canopy.transform.localScale;
-            _cEndPos = feet + layDir * (r + 2f) + Vector3.up * 0.12f;
+            _cEndPos = centre.HasValue ? centre.Value + Vector3.up * 0.05f : feet + layDir * (r + 2f) + Vector3.up * 0.12f;
             _cEndRot = Quaternion.LookRotation(layDir, Vector3.up);
             _cEndScale = new Vector3(r * 0.9f, 0.12f, r * 0.9f);
             _pcStart = _pilotChute.transform.position;
@@ -142,10 +144,10 @@ namespace FlyingGame.Bridge
         public void TickCollapse(float dt, Vector3 harness)
         {
             if (!_collapsing) return;
-            _collapseT = Mathf.Min(CollapseSec, _collapseT + dt);
-            float k = _collapseT / CollapseSec;
+            _collapseT = Mathf.Min(_collapseSec, _collapseT + dt);
+            float k = _collapseT / _collapseSec;
             k = k * k * (3f - 2f * k);
-            Vector3 pos = Vector3.Lerp(_cStartPos, _cEndPos, k);
+            Vector3 pos = Vector3.Lerp(_cStartPos, _cEndPos, k) + Vector3.down * _sinkM;
             Quaternion rot = Quaternion.Slerp(_cStartRot, _cEndRot, k);
             Vector3 scale = Vector3.Lerp(_cStartScale, _cEndScale, k);
             _canopy.transform.SetPositionAndRotation(pos, rot);
@@ -162,6 +164,9 @@ namespace FlyingGame.Bridge
                 SetLine(_lines[i], harness, skirt, 0.03f);
             }
         }
+
+        /// <summary>On the water: how far the soaked canopy has sunk below the surface (Core CanopyOnWater.DepthM).</summary>
+        public void SinkTo(float depthM) => _sinkM = Mathf.Max(0f, depthM);
 
         public void Destroy()
         {

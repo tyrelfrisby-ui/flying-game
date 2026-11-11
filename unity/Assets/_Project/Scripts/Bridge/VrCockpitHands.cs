@@ -144,6 +144,7 @@ namespace FlyingGame.Bridge
             DrivePanel();
             DriveSkiSelector();
             DriveBailout();
+            DriveExit();
         }
 
         /// <summary>In the cockpit the LEFT grip is the left hand's (it no longer grabs the throttle from anywhere:
@@ -324,6 +325,7 @@ namespace FlyingGame.Bridge
             if (_lever?.Node?.T != null) exclude.Add(_lever.Node.T);
             _clearance.Build(_air, _eye, exclude, $"{id} {seatId}");
             _swivel[0] = _swivel[1] = 0f;
+            BindExit(seatId);
         }
 
         private void BindFoot(string full, string brief, string side, out Transform node, out Vector3 offset)
@@ -369,6 +371,7 @@ namespace FlyingGame.Bridge
             UpdateGliderPoints();
             UpdatePanelPoints();
             UpdateBailoutPoints();
+            UpdateExitPoints();
         }
 
         /// <summary>The latch's grab point: the model's node (it rides the rig), else the proxy, which is fixed to the
@@ -423,6 +426,8 @@ namespace FlyingGame.Bridge
                     default:
                         if (!GrabGlider(side, _grab.Held(side), h) && !GrabPanel(side, _grab.Held(side), h))
                             GrabBailout(side, _grab.Held(side), _hands[(int)side]);
+                        GrabBailout(side, _grab.Held(side), _hands[(int)side]);
+                        GrabExit(_grab.Held(side), _hands[(int)side]);
                         break;
                 }
             }
@@ -477,6 +482,8 @@ namespace FlyingGame.Bridge
                 if (lh) { hands.PairHeld = true; hands.PairSqueeze = _hands[(int)lside].Pinch; }
                 if (_grab.IsHeldBy(Grabbable.CanopyLatchFwd, out HandSide fs)) { hands.FwdHeld = true; hands.FwdAftM = -_hands[(int)fs].Position.Z; if (!lh) lside = fs; }
                 if (_grab.IsHeldBy(Grabbable.CanopyLatchAft, out HandSide asd)) { hands.AftHeld = true; hands.AftAftM = -_hands[(int)asd].Position.Z; }
+                // The automatic exit (P2d) squeezes the pair itself until the canopy is clear.
+                if (_autoSqueeze) { hands.PairHeld = true; hands.PairSqueeze = 1.0; }
                 CanopyDynamics cd = cockpit.HandCanopy;
                 bool shut = cd != null ? cd.Shut : cockpit.CanopyOpen01 < 0.01f;
                 click = extra.Step(Time.deltaTime, hands, shut, cd?.AngleDeg ?? cockpit.CanopyOpen01 * 100.0);
@@ -501,7 +508,7 @@ namespace FlyingGame.Bridge
         private void PoseBody()
         {
             if (_jumper) { PoseJumper(); return; }
-            if (!Active) { _body.SetVisible(false); return; }
+            if (!Active || ExitMovesView) { _body.SetVisible(false); return; }
             _body.SetVisible(true);
 
             Vector3 lift = Vector3.up * _rise;   // climbing out: the body rises off the seat with the hand's push

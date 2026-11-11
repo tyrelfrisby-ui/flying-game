@@ -780,3 +780,11 @@ The landing-units wait loop was `check; sleep 20` three times, then `deploy.sh`.
 when the build started, and an island-nav install to Ty's devices had started in that gap: two deploys into the same
 /private/tmp/flyinggame-ios, one second apart. Put the sleep FIRST and the check last (`sleep 20; check`), so the
 build starts on the heels of an idle reading, and count `devicectl` (`pgrep -x`) as busy: an install holds the slot too.
+### A pressure difference has two sides, and the air's side is set where the air leaves
+The first underwater door gate took the cabin's air as vented to the atmosphere at any depth, so a cabin fully under
+water held its door shut by the whole depth and, with the inside water capped at the roof, never let go. Air can only
+leave a submerged cabin by bubbling out at its highest gap, so its pressure is the water's THERE, and the door is held
+by the air gap under the roof, not by the depth. Before gating anything on Δp, write down what fixes the pressure on
+each side (`DoorWaterLoad`), and test the fully-submerged case, not just the half-full one. The same run found a
+bisection that started 2 m down, where Boyle has already squeezed the lungs and the body sinks at every level, so it
+reported "no equilibrium" for a pilot who floats: search down from the surface for the first sign change.
