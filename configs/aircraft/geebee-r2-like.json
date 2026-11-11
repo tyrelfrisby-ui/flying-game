@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "geebee-r2-like",
   "displayName": "Gee Bee R-2-like",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "Gee Bee R-2: ASSUMED (conservative), 2026-11-11: no source gathered for this type's canopy fittings. The cheap mistake is this one - the pilot shoves the canopy open and climbs out past it. QUESTION FOR TY."
+  },
   "structureType": "steelTube",
   "structureTypeSource": "Granville Bros Gee Bee R-1/R-2: welded steel-tube fuselage with wooden formers and fabric; plywood-covered wooden wing.",
   "spawnIasMs": 80,

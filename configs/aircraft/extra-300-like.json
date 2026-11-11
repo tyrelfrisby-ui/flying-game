@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "extra-300-like",
   "displayName": "Advanced Aerobatic Monoplane",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "Ty, 2026-11-11: \"The extra has no jettison feature.\" He is the authority; this is not argued from a manual. The canopy opens on its hinges and stays on them - in the air the airload can still tear the hinge fittings out (CanopySpec.ExtraFittingN, calibrated to let go at 80 KIAS), which is a tear and not a jettison."
+  },
   "structureType": "steelTube",
   "structureTypeSource": "Extra 300: welded 4130 chrome-moly steel-tube fuselage with aluminium/composite fairings; carbon wing (FAA TCDS A67EU; Extra 300 maintenance manual).",
   "wingSpar": "composite",

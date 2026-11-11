@@ -26,7 +26,7 @@ public class CanopyDeadBandProbe
             {
                 double ms = kt * 0.514444;
                 double q = 0.5 * 1.225 * ms * ms;
-                var b = new CanopyBailout(new CanopyDynamics(spec));
+                var b = new CanopyBailout(new CanopyDynamics(spec.WithJettison(true)), onGround: false);
                 double t = 0.0;
                 while (!b.Departed && t < 30.0) { b.Step(0.01, q, OneG); t += 0.01; }
                 _out.WriteLine($"  {kt,5:F0} kt  q {q,7:F0} Pa  ->  {(b.Departed ? $"left after {t,6:F2} s at {b.Canopy.AngleDeg,5:F0} deg, slid {b.Canopy.SlideM * 1000,4:F0} mm ({b.Canopy.DepartedBy})" : $"STILL ON after 30 s ({b.Canopy.AngleDeg:F0} deg, slid {b.Canopy.SlideM * 1000:F0} mm)")}");

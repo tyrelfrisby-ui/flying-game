@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "f86-sabre-like",
   "displayName": "F-86-like Jet Fighter",
+  "canopy": {
+    "jettison": true,
+    "jettisonSource": "A Sabre's canopy is jettisoned before the seat fires - this type has ejectionSeat true, and an ejection through an attached canopy is not a thing. PROPOSED 2026-11-11 from the type's own ejection sequence; Ty's to overturn."
+  },
   "structureType": "aluminumMonocoque",
   "structureTypeSource": "North American F-86: aluminium semi-monocoque fuselage.",
   "spawnIasMs": 180,

@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "j3-cub-floats-like",
   "displayName": "Classic Trainer on Floats",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "Ty, 2026-11-05 06:37: a Cub's two-piece door folds open in flight by design. No canopy, nothing to jettison."
+  },
   "structureType": "steelTube",
   "structureTypeSource": "Piper J-3 Cub: welded 4130/1025 steel-tube fuselage, fabric covered (FAA TCDS A-691; Piper J-3 parts catalogue).",
   "wingSpar": "wood",

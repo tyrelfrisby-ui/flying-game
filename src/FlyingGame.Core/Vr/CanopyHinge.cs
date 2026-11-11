@@ -29,8 +29,16 @@ namespace FlyingGame.Core.Vr
         /// <summary>The hinge fittings and open-stop together fail at this load at the stop lug (calibrated: see
         /// <see cref="CanopyDynamics"/>).</summary>
         public readonly double FittingStrengthN;
-        /// <summary>A jettison control the pilot can pull (Pitts knob; Extra emergency release). The Bridge clears it
-        /// when the model provides none.</summary>
+        /// <summary>
+        /// A JETTISON CONTROL THE PILOT CAN PULL — a knob, handle or pin-puller that drops the canopy off the
+        /// aeroplane (the Pitts' red knob). It is a per-type FITTING and it is authored in the aircraft's own config
+        /// (<see cref="DataContracts.CanopyConfig"/>, <see cref="For(DataContracts.AircraftConfig)"/>), never guessed
+        /// from the aircraft id here: Ty, 2026-11-11, *"The extra has no jettison feature"*, and this used to be true
+        /// for both aerobatic types because the two of them were the only canopies written down.
+        ///
+        /// FALSE is what a spec built without a config gets, deliberately. A canopy that cannot be jettisoned is
+        /// opened and climbed out past; a canopy wrongly given a jettison is thrown away.
+        /// </summary>
         public readonly bool HasJettison;
         /// <summary>The Pitts: its frame, the stop tab on the right upper wing and the wing's skin, which together stop the
         /// swing (<see cref="CanopyStopTab"/>); <see cref="StopDeg"/> is then only the hinge's own limit, never reached
@@ -65,16 +73,31 @@ namespace FlyingGame.Core.Vr
         /// 15,100 N (calibrated to let go at 80 KIAS); emergency release CanopyRelease_F/R (the model's).
         /// Pitts S-2B: 1.48 × 0.716 × 0.406 m, hinge 0.36 m right (Codex's Canopy origin); 9 kg (E); 4 in of aft slide
         /// (Codex's rig, E); the swing stopped by the frame landing on the stop tab (<see cref="CanopyStopTab"/>; the hinge's
-        /// own limit 175°, E, is never reached while it does); fittings calibrated to 80 mph = 69.5 KIAS; the jettison.
+        /// own limit 175°, E, is never reached while it does); fittings calibrated to 80 mph = 69.5 KIAS.
+        ///
+        /// NO JETTISON FROM AN ID. Both of these used to come back with <see cref="HasJettison"/> true, because the two
+        /// canopies written down here were also the two with a knob drawn on the rig. That is not a fact about the
+        /// canopy's geometry and it does not belong in a lookup on the type's name — it is authored per type in the
+        /// config, and <see cref="For(DataContracts.AircraftConfig)"/> is the call that asks. This one answers false,
+        /// which costs a pilot a shove on the frame and never costs an aeroplane its canopy.
         /// </summary>
         public static CanopySpec For(string aircraftId)
         {
             string id = aircraftId ?? "";
             if (id.StartsWith("pitts"))
-                return new CanopySpec(CanopyMotion.SlideThenHingeRight, 9.0, 1.48, 0.716, 0.406, 0.36, 0.1016, 175.0, PittsFittingN, true,
+                return new CanopySpec(CanopyMotion.SlideThenHingeRight, 9.0, 1.48, 0.716, 0.406, 0.36, 0.1016, 175.0, PittsFittingN, false,
                                       CanopyStopTab.Pitts());
-            return new CanopySpec(CanopyMotion.HingeRight, 14.0, 2.12, 0.78, 0.48, 0.343, 0.0, 100.0, ExtraFittingN, true);
+            return new CanopySpec(CanopyMotion.HingeRight, 14.0, 2.12, 0.78, 0.48, 0.343, 0.0, 100.0, ExtraFittingN, false);
         }
+
+        /// <summary>The type's canopy with the jettison its CONFIG authors (<see cref="DataContracts.CanopyConfig"/>):
+        /// the only call that can answer <see cref="HasJettison"/> truthfully. A null config, or one with no canopy
+        /// section, has no jettison.</summary>
+        public static CanopySpec For(DataContracts.AircraftConfig? config) =>
+            For(config?.Id ?? "").WithJettison(HasJettisonIn(config));
+
+        /// <summary>Does this type's config author a jettison? Absent section, absent file: no.</summary>
+        public static bool HasJettisonIn(DataContracts.AircraftConfig? config) => config?.Canopy?.Jettison ?? false;
 
         /// <summary>Is this one of the two canopies whose numbers are written down here (Pitts, Extra)?</summary>
         public static bool Known(string aircraftId)
@@ -98,7 +121,8 @@ namespace FlyingGame.Core.Vr
             double l = Math.Max(0.2, lengthM), w = Math.Max(0.05, spanM), h = Math.Max(0.05, heightM);
             double mass = Math.Clamp(ArealDensityKgM2 * 0.25 * Math.PI * l * Math.Max(w, h), 2.0, 40.0);
             if (IsDoor(w, h)) (l, w, h) = (h, l, w);
-            return new CanopySpec(CanopyMotion.HingeRight, mass, l, w, h, 0.5 * w, 0.0, 100.0, ExtraFittingN, true);
+            // No jettison from a measured part either: the config says (CanopySpec.For(AircraftConfig)).
+            return new CanopySpec(CanopyMotion.HingeRight, mass, l, w, h, 0.5 * w, 0.0, 100.0, ExtraFittingN, false);
         }
 
         /// <summary>A part thinner across the aeroplane than half its height is a door, not a bubble.</summary>

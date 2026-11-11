@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "p51d-like",
   "displayName": "P-51D-like Fighter",
+  "canopy": {
+    "jettison": true,
+    "jettisonSource": "P-51D: the sliding bubble canopy has an emergency release the pilot pulls, and the slipstream takes the canopy away. PROPOSED 2026-11-11; Ty's to overturn."
+  },
   "structureType": "aluminumMonocoque",
   "structureTypeSource": "North American P-51D: aluminium semi-monocoque fuselage.",
   "spawnIasMs": 110,

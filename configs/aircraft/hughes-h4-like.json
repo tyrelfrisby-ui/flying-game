@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "hughes-h4-like",
   "displayName": "H-4-like Flying Boat",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "No canopy: an enclosed cabin whose doors stay on their hinges, so there is nothing to jettison."
+  },
   "structureType": "wood",
   "structureTypeSource": "Hughes H-4 Hercules: laminated birch (Duramold) wooden monocoque.",
   "spawnIasMs": 70,

@@ -106,9 +106,12 @@ namespace FlyingGame.Bridge
             _modelHarness = Node("Harness_Rear") != null || Node("Harness_Front") != null;
             if (_latchKind != CanopyLatchKind.None)
             {
-                CanopySpec spec = CanopySpec.For(id);
+                // The jettison is the CONFIG's, not the id's (Core CanopyConfig; Ty 2026-11-11: "The extra has no
+                // jettison feature"). Everything else about the canopy is still Core's written-down geometry.
+                CanopySpec spec = CanopySpec.For(id).WithJettison(CanopySpec.HasJettisonIn(ac.Config));
                 spec = WithModelStopTab(spec);
                 if (cockpit.HandCanopy == null || cockpit.HandCanopy.Spec.Motion != spec.Motion || System.Math.Abs(cockpit.HandCanopy.Spec.LengthM - spec.LengthM) > 1e-3
+                    || cockpit.HandCanopy.Spec.HasJettison != spec.HasJettison
                     || !SameTab(cockpit.HandCanopy.Spec.StopTab, spec.StopTab))
                     cockpit.HandCanopy = new CanopyDynamics(spec);
                 if (_railNode == null) Contract("Grip_Canopy_Rail");
@@ -140,7 +143,7 @@ namespace FlyingGame.Bridge
                 string b = full == "Front" ? "F" : "R";
                 _jettisonNode = Node("CanopyRelease_" + b);
             }
-            JettisonPull jp = JettisonPull.For(id, _jettisonNode != null);
+            JettisonPull jp = JettisonPull.For(ac.Config, _jettisonNode != null);
             if (jp == null) cockpit.HandJettison = null;
             else if (cockpit.HandJettison == null || System.Math.Abs(cockpit.HandJettison.TravelM - jp.TravelM) > 1e-6) cockpit.HandJettison = jp;
 

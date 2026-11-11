@@ -33,15 +33,21 @@ namespace FlyingGame.Core.Vr
 
         public JettisonPull(double travelM) { TravelM = travelM; }
 
-        /// <summary>The type's pull, or null. The Pitts has its knob whether or not the model draws it (Ty confirmed it;
-        /// it falls back to a proxy); the Extra has one only where its model provides the release
-        /// (<paramref name="modelHasPull"/>: CanopyRelease_F/R); no other type has one.</summary>
-        public static JettisonPull? For(string aircraftId, bool modelHasPull)
+        /// <summary>
+        /// The type's pull, or null. TWO things have to be true, and the first one is new (2026-11-11): the type's
+        /// config must author a jettison at all (<see cref="CanopySpec.HasJettisonIn"/>) — Ty: *"The extra has no
+        /// jettison feature"*, so the Extra's red sill release is a latch and not a knob that drops the canopy — and
+        /// the cockpit must be one whose knob this code knows where to put. The Pitts has its knob whether or not the
+        /// model draws it (Ty confirmed it; it falls back to a proxy); another type's goes where its model puts it
+        /// (<paramref name="modelHasPull"/>), and a type whose knob is nowhere gets no knob rather than one floating
+        /// in the middle of the cockpit.
+        /// </summary>
+        public static JettisonPull? For(DataContracts.AircraftConfig? config, bool modelHasPull)
         {
-            string id = aircraftId ?? "";
+            if (!CanopySpec.HasJettisonIn(config)) return null;
+            string id = config?.Id ?? "";
             if (id.StartsWith("pitts")) return new JettisonPull(0.038);
-            if (id.StartsWith("extra") && modelHasPull) return new JettisonPull(0.040);
-            return null;
+            return modelHasPull ? new JettisonPull(0.040) : null;
         }
 
         public void Reset() { PositionM = 0.0; Fired = false; Held = false; }

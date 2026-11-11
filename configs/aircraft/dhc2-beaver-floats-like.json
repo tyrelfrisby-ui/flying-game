@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "dhc2-beaver-floats-like",
   "displayName": "Beaver-like on Floats",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "No canopy: an enclosed cabin whose doors stay on their hinges, so there is nothing to jettison."
+  },
   "structureType": "aluminumMonocoque",
   "structureTypeSource": "DHC-2 Beaver: all-metal aluminium semi-monocoque fuselage (DHC-2 maintenance manual).",
   "wingBracing": "strut",

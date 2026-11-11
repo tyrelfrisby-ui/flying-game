@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "c172-like",
   "displayName": "172-like Trainer",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "No canopy: an enclosed cabin whose doors stay on their hinges, so there is nothing to jettison."
+  },
   "structureType": "aluminumMonocoque",
   "structureTypeSource": "Cessna 172: all-metal 2024 aluminium semi-monocoque (Cessna 172 Service Manual, Section 2).",
   "wingBracing": "strut",

@@ -5,6 +5,10 @@
   "schemaVersion": 1,
   "id": "glider-swift-s1-like",
   "displayName": "Swift S-1-like Aerobat",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "Swift S-1: ASSUMED (conservative), 2026-11-11: no source gathered for this type's canopy fittings. The cheap mistake is this one - the pilot shoves the canopy open and climbs out past it. QUESTION FOR TY. An aerobatic sailplane flown with a parachute very likely has one; not sourced, so not authored."
+  },
   "structureType": "composite",
   "structureTypeSource": "Swift S-1: glass/carbon composite fuselage shell.",
   "spawnIasMs": 30,

@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "glider-eb29r-like",
   "displayName": "EB29R-like Open Class",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "EB-29R: ASSUMED (conservative), 2026-11-11: no source gathered for this type's canopy fittings. The cheap mistake is this one - the pilot shoves the canopy open and climbs out past it. QUESTION FOR TY. A modern open-class sailplane very likely has one; not sourced, so not authored."
+  },
   "structureType": "composite",
   "structureTypeSource": "Schempp-Hirth/Binder EB29R: carbon/aramid composite fuselage shell.",
   "spawnIasMs": 30,

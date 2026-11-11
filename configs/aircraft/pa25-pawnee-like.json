@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "pa25-pawnee-like",
   "displayName": "Pawnee-like Tow Plane",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "No canopy: an enclosed cabin whose doors stay on their hinges, so there is nothing to jettison."
+  },
   "structureType": "steelTube",
   "structureTypeSource": "Piper PA-25 Pawnee: welded 4130 steel-tube fuselage, fabric covered (FAA TCDS 2A8; Piper PA-25 service manual).",
   "wingSpar": "aluminumFabric",

@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "hang-glider-like",
   "displayName": "Hang Glider-like (intermediate)",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "No cockpit and no glazing at all, so there is nothing to jettison."
+  },
   "structureType": "aluminumMonocoque",
   "structureTypeSource": "Hang glider: aluminium tube frame and sail; no fuselage to break (tagged with the aluminium rule).",
   "spawnIasMs": 11.0,

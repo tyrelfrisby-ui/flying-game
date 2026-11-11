@@ -2,6 +2,10 @@
   "schemaVersion": 1,
   "id": "paraglider-en-b-like",
   "displayName": "Paraglider-like (EN-B)",
+  "canopy": {
+    "jettison": false,
+    "jettisonSource": "No cockpit and no glazing at all, so there is nothing to jettison."
+  },
   "structureType": "composite",
   "structureTypeSource": "Paraglider: fabric wing and lines, no fuselage (tagged with the brittle rule; nothing here can crush).",
   "spawnIasMs": 10.0,
