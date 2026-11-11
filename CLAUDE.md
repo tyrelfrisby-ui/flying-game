@@ -104,6 +104,24 @@ process-wide, so a long run leaves failures that pass in isolation. The number o
 own. Run the same suite on the branch point, diff the unique failing names, and re-run anything "introduced"
 alone before calling it a regression.
 
+### Re-measure a stale red before you loosen the bound it justified
+A lane's own report said merging it dropped a water break-up case from 1.45 to 0.90 m/s against a 1.0 floor, and the
+authorised fix was to re-band the floor. Four days later the same merge moved the same case from **1.6 to 2.1 m/s** --
+it does not reproduce, and loosening the floor would have thrown away the one assertion that catches the water zeroing
+an aeroplane's velocity. In a suite where physics lands daily, a measurement more than a day old is a hypothesis about
+the code that exists now. Re-run both sides yourself, in one filter, twice, before you widen a bound on the strength
+of somebody else's number -- and when the re-measurement removes the reason, say so instead of doing the work anyway.
+
+### A function the VIEW reads and the PHYSICS reads is a physics interface
+`AirframeContact.FuselageStations` returns two numbers: where the fuselage is cut into nose / cabin / tail cone. The
+crash camera reads them (it follows the piece with the seats in it) and so does `AirframeHydroModel.Build`, which sizes
+those three pieces and derives each joint's strength from the mass beyond it. So a change sold as "the crash camera
+stays on the pilot" moved the Extra's tail-cone break load from 9.4 to 8.7 kN and changed how it comes apart in the
+water. That is not feedback from the view into the simulation -- nothing in `FlyingGame.Core` knows a camera exists --
+it is one shared definition read in one direction, and it is a physics change whatever the commit title says. Before
+changing a number for a visual reason, grep every reader; and describe such a change by what it MOVES, not by the
+symptom that made you look.
+
 ### A test that reads the file it is checking proves nothing
 Expected values belong in the test as literals, copied by hand from the source document. `AircraftLoadTests.ArmTable`
 and `CockpitEyeTests.ApprovedEyes` are the pattern: moving a number in a config then has to be a deliberate edit

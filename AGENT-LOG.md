@@ -50,6 +50,17 @@ conflict, four days after the triage called that *"lucky, not safe"*. Only `AGEN
 and only because each lane had appended a section at the top of the same file; both sides are kept in full. Nothing
 re-applied by hand, nothing forced.
 
+**ZERO NEW REDS, compared rather than counted.** The same 9-class crash filter (Breakup, TreeStrike, Occupant, Wreck,
+Crash, Flooding, Hydro, PropWaterStrike, AirframeContact) run on base `651e5515` and on the merged tree:
+**233 tests / 14 failures** against **249 / 14** — the 16 extra are the incoming `OccupantCabinBreakupTests`, all
+green — and `comm` on the sorted failing NAMES is **empty in both directions**. One of those 14 is worth adding to
+whatever list of known reds you keep, because it is NOT on the one I was given and it is **pre-existing**:
+`CrashTuningTests.NothingLosesSpeedAtASeparation(pitts-s2b-like, Nose)` fails "linear momentum changed at the
+separation" on the base as well as after the merge. It was the one candidate for a merge regression and it is not one.
+Four `SoftWaterBreakupTests.AJ3WaterSkiNoseOver...`, two `BreakupTests` and two `PropWaterStrikeTests` match the known
+list; `IslandCombatTests`, two `WaterCurrentTests`, `WheelHydroTests` and `WreckWingWaterTests` are this subset's own
+class ordering leaking process-wide state, which is the documented behaviour of this suite.
+
 **NEEDS YOU — the parity lock cost this lane two catch-ups, and that is worth a look.** `lane/claude-tv-companion`
 moved twice while these two jobs were in flight (`bb3ca7bc` → `5fc2bb85` → `651e5515`), and because the lock treats
 every `lane/*` branch as the iOS lane, a feature lane branched from a tip that has since been overtaken reads as
