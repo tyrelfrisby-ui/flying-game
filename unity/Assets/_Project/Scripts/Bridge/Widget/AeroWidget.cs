@@ -1106,7 +1106,17 @@ namespace FlyingGame.Bridge.Widget
             st.normal.textColor = new Color(1f, 1f, 1f, 0.8f);
             GUI.Label(new Rect(rect.x + 8, rect.yMax - side * 0.09f, side - 16, side * 0.09f),
                 $"{Current} · {AircraftId} · {(Paused ? "PAUSED (review)" : TimeScale < 0.99f ? $"×{TimeScale:0.##}" : "live")} · {(Controls.Managed ? $"{Controls.PilotName} is flying — keyboard / gamepad view-only" : Controls.SourceLabel)}\n" +
-                $"Syphon/NDI \"{StreamName}\" · control tcp {WidgetServer.TcpPort} · remote http://{WidgetServer.LocalIp}:{WidgetServer.HttpPort}/   [1] flare [2] spin  arrows/A-D/W-S  Space pause  R reset  P preset", st);
+                // THE ACCESS TOKEN IS ON SCREEN (Ty, 2026-11-11, rule 2). A secret nobody can see is a secret
+                // nobody can use: this is where the presenter reads it off to type into a phone or into Glass
+                // Overlay on another Mac. Showing it here is safe for the same reason loopback needs no token —
+                // anyone who can see this window is already sitting at the machine. When the ports are
+                // loopback-only (the default) the line says so instead, because then nothing off this Mac can
+                // connect at all and a token would be a false promise of a working remote.
+                $"Syphon/NDI \"{StreamName}\" · control tcp {WidgetServer.TcpPort} · "
+                + (WidgetServer.Lan
+                   ? $"remote http://{WidgetServer.LocalIp}:{WidgetServer.HttpPort}/ · token {WidgetServer.Token}"
+                   : $"remote http://127.0.0.1:{WidgetServer.HttpPort}/ (this Mac only — AERO_WIDGET_LAN=1 for the network; token {WidgetServer.Token})")
+                + "   [1] flare [2] spin  arrows/A-D/W-S  Space pause  R reset  P preset", st);
         }
 
         private Texture2D _checker;
