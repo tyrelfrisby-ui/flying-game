@@ -163,8 +163,9 @@ public static class PistonEngine
     /// displacement it would need is authored on six of the twenty-seven propeller types.
     ///
     /// <see cref="DryBoundaryExcess"/> = 3.0 is the FLEET amplitude: a dry engine resisting 4.0x its running friction
-    /// at rest. It is the geometric mean of what the five types this mechanism is live on each ask for (2.10 to 4.63,
-    /// each solved on its own against Ty's stall-speed anchor), and it sits inside what the tribology allows — a
+    /// at rest. It is the geometric mean of what the five types this mechanism is live on each ask for (2.19 to 4.71,
+    /// each solved on its own against Ty's stall-speed anchor; the mean is 3.07 and 3.0 is it to the precision the
+    /// measurement has), and it sits inside what the tribology allows — a
     /// boundary friction coefficient is one to two orders of magnitude above a hydrodynamic one at the contact, but
     /// only the film-dependent part of an engine's loss changes, so a cold unlubricated engine's motoring torque comes
     /// out a few times the hot running figure and not a hundred. Types that have been solved carry their own number in

@@ -1011,9 +1011,15 @@ public sealed class PropulsionConfig
     /// SOLVED, NOT CHOSEN: Ty 2026-11-10, "Cranking resistance should be calibrated such that at fine pitch the prop
     /// stops right at level flight stall speed", and then, shown that one fleet constant could not do it: "fix it per
     /// engine". For each type this is the one value that puts the propeller's stopping speed on the type's own stall
-    /// speed (<c>PracticeScenario.EstimateVso</c>, sea level, flaps up) — one equation in one unknown, the same way
-    /// <c>AircraftEngine.CompressionPeakNm</c> comes out of his restart anchor. <see cref="DryBoundaryExcessSource"/>
-    /// says what each was solved against, and <c>CompressionStopProbe</c> (COMPSTOP=1) re-measures it.
+    /// speed (<c>PracticeScenario.EstimateVso</c>, sea level, flaps up) — one equation in one unknown.
+    /// <see cref="DryBoundaryExcessSource"/> says what each was solved against, <c>CompressionStopProbe</c>
+    /// (COMPSTOP=1) re-measures it, and with SOLVE=1 it re-derives it.
+    ///
+    /// AND IT IS THE ONLY FITTED NUMBER LEFT IN THE DEAD-ENGINE MODEL. The compression peak beside it is the engine's
+    /// own gas load, out of its displacement and compression ratio (<c>PistonCompression.PeakNmFor</c>), and the speed
+    /// a stopped propeller breaks away at is a measurement rather than an anchor — Ty gave that anchor up on 2026-11-10
+    /// when the same AEIO-540 came out at 99 N·m in the Pitts and 683 in the Extra because their airframes have
+    /// different Vne.
     /// </summary>
     public double DryBoundaryExcess { get; set; }
     /// <summary>Where <see cref="DryBoundaryExcess"/> came from — the stall speed it was solved against and the
