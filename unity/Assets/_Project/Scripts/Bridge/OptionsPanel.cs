@@ -528,8 +528,9 @@ namespace FlyingGame.Bridge
 
         private void ControlsPage(ref float y)
         {
-            // Control feel (owner 2026-09-15): per-axis expo and dead zone, tuned by the user. Applied live to the
-            // current aircraft and to every aircraft loaded from now on; "aircraft" = that type's own value.
+            // Control feel (owner 2026-09-15): one stick expo (Ty 2026-11-04) and a per-axis dead zone, tuned by the
+            // user. Applied live to the current aircraft and to every aircraft loaded from now on; "aircraft" = that
+            // type's own dead zone.
             SessionSettings.LoadFeel();
             float bw = (_cw - _gap * 0.4f) / 2f;
             // JOYSTICK SETUP (owner 2026-10-11): the guided calibration + button assignment, any joystick (Mac).
@@ -541,18 +542,25 @@ namespace FlyingGame.Bridge
             }
             if (UiLayout.Button(new Rect(_x + bw + _gap * 0.4f, y, bw, _lh), "Aircraft defaults", _btn))
             {
-                for (int i = 0; i < 3; i++) { SessionSettings.FeelExpo[i] = -1f; SessionSettings.FeelDeadZone[i] = -1f; }
+                for (int i = 0; i < 3; i++) SessionSettings.FeelDeadZone[i] = -1f;
+                SessionSettings.StickExpo = (float)FlyingGame.Core.InputExpo.DefaultPitchRoll;
                 SessionSettings.SaveFeel(); ApplyFeelLive();
             }
             y += _lh + _gap * 0.4f;
+            // STICK EXPO (Ty 2026-11-04): one slider, 0…70 %, for pitch and roll; the rudder follows at 2/3 of it.
+            // Drawn with SliderRow, like every other slider on the page since the wrapping-label rows landed.
+            {
+                float expoNow = SessionSettings.StickExpo;
+                float e = SliderRow($"Stick expo  {expoNow * 100f:F0} %  (rudder {FlyingGame.Core.InputExpo.Yaw(expoNow) * 100.0:F0} %)",
+                                    expoNow, 0f, (float)FlyingGame.Core.InputExpo.MaxStickExpo, ref y, 0.5f);
+                if (Mathf.Abs(e - expoNow) > 0.004f) { SessionSettings.StickExpo = (float)FlyingGame.Core.InputExpo.PitchRoll(Mathf.Round(e * 20f) / 20f); SessionSettings.SaveFeel(); ApplyFeelLive(); }
+            }
             for (int i = 0; i < 3; i++)
             {
                 var axis = Driver?.Sim?.Aircraft?.Config?.Controls == null ? null : new[] { Driver.Sim.Aircraft.Config.Controls.Aileron, Driver.Sim.Aircraft.Config.Controls.Elevator, Driver.Sim.Aircraft.Config.Controls.Rudder }[i];
-                float expoNow = SessionSettings.FeelExpo[i] >= 0f ? SessionSettings.FeelExpo[i] : (float)(axis?.Expo ?? 0.3);
                 float dzNow = SessionSettings.FeelDeadZone[i] >= 0f ? SessionSettings.FeelDeadZone[i] : (float)(axis?.DeadZone ?? 0.05);
-                float e = SliderRow($"{SessionSettings.FeelAxisNames[i]} expo  {expoNow * 100f:F0} %{(SessionSettings.FeelExpo[i] < 0f ? " (aircraft)" : "")}",
-                                    expoNow, 0f, 1f, ref y, 0.5f);
-                if (Mathf.Abs(e - expoNow) > 0.004f) { SessionSettings.FeelExpo[i] = Mathf.Round(e * 20f) / 20f; SessionSettings.SaveFeel(); ApplyFeelLive(); }
+                // The per-axis EXPO slider is gone (Ty 2026-11-04): there is one Stick expo above, applied once by
+                // the sim. Only the dead zone is still per axis, and it keeps this page's SliderRow row.
                 float d = SliderRow($"{SessionSettings.FeelAxisNames[i]} dead zone  {dzNow * 100f:F0} %{(SessionSettings.FeelDeadZone[i] < 0f ? " (aircraft)" : "")}",
                                     dzNow, 0f, 0.3f, ref y, 0.5f);
                 if (Mathf.Abs(d - dzNow) > 0.002f) { SessionSettings.FeelDeadZone[i] = Mathf.Round(d * 100f) / 100f; SessionSettings.SaveFeel(); ApplyFeelLive(); }
