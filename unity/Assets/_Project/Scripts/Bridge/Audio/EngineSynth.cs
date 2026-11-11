@@ -9,6 +9,9 @@ namespace FlyingGame.Bridge
         public float PanL = 0.707f, PanR = 0.707f;
         public abstract void Prepare(float rpmTarget, float throttleTarget);
         public abstract float Next();
+        /// <summary>Cylinders that have stopped making power (Aircraft.DeadCylinders). Only a piston engine has any;
+        /// the default does nothing so a jet needs no opinion about it.</summary>
+        public virtual void SetDeadCylinders(int dead) { }
         /// <summary>Jump the smoothed state to the targets (new aircraft: no spool sweep).</summary>
         public abstract void Snap(float rpm, float throttle);
     }
@@ -32,6 +35,8 @@ namespace FlyingGame.Bridge
 
         // exhaust pulse train
         private readonly float[] _cylAmp;
+        private readonly float[] _cylAmpHealthy;   // what each cylinder sounds like with its rings in it
+        private int _dead;
         private float _firePhase, _env;
         private int _fireIdx;
         private readonly float _decay;
@@ -72,7 +77,8 @@ namespace FlyingGame.Bridge
             foreach (float a in _harm) sum += a;
             if (sum > 0f) for (int i = 0; i < _harm.Length; i++) _harm[i] /= sum;   // tone peak ≤ 1
             _cylAmp = new float[P.Cylinders];
-            for (int i = 0; i < P.Cylinders; i++) _cylAmp[i] = 1f + P.CylinderSpread * _noise.Next();
+            _cylAmpHealthy = new float[P.Cylinders];
+            for (int i = 0; i < P.Cylinders; i++) _cylAmpHealthy[i] = _cylAmp[i] = 1f + P.CylinderSpread * _noise.Next();
             _hp.HighPass(fs, 55f, 0.7f);
             _f1.BandPass(fs, P.Formant1Hz, P.Formant1Q);
             if (P.Formant2Gain > 0f) _f2.BandPass(fs, P.Formant2Hz, P.Formant2Q); else _f2.Bypass();
@@ -87,6 +93,28 @@ namespace FlyingGame.Bridge
             _rpm = _rpmTarget = rpm * _detune;
             _thr = _thrTarget = throttle;
         }
+
+        /// <summary>
+        /// A CYLINDER WITH A BROKEN RING, HEARD. Ty 2026-11-11, on what a 12 % over-rev leaves you with: "a broken
+        /// ring on one cylinder resulting in the loss of that cylinders power which affects sound (engine sound
+        /// should be calculated from engine pulses and one will be missing".
+        ///
+        /// It already is a pulse train — <see cref="_cylAmp"/> is one amplitude per cylinder, stepped round the
+        /// firing order by <c>_fireIdx</c> — so a missing cylinder is this array and nothing else. Not silence,
+        /// though: a cylinder that has lost its compression makes no combustion blow-down but is still being driven
+        /// round and still pumping, so what is left is a weak puff rather than a hole. That is also what it sounds
+        /// like from outside an engine running on five of six.
+        /// </summary>
+        public override void SetDeadCylinders(int dead)
+        {
+            int d = dead < 0 ? 0 : dead > _cylAmp.Length ? _cylAmp.Length : dead;
+            if (d == _dead) return;
+            _dead = d;
+            for (int i = 0; i < _cylAmp.Length; i++) _cylAmp[i] = i < d ? DeadCylinderPulse * _cylAmpHealthy[i] : _cylAmpHealthy[i];
+        }
+
+        /// <summary>What is left of a dead cylinder's exhaust pulse: the pumping puff, with the combustion gone.</summary>
+        private const float DeadCylinderPulse = 0.12f;
 
         public override void Prepare(float rpmTarget, float throttleTarget)
         {
@@ -366,6 +394,13 @@ namespace FlyingGame.Bridge
         public void Prepare(float rpm, float throttle)
         {
             for (int i = 0; i < _voices.Length; i++) _voices[i].Prepare(rpm, throttle);
+        }
+
+        /// <summary>How many cylinders have stopped firing (Aircraft.DeadCylinders — an over-rev past 12 % breaks a
+        /// ring, Ty 2026-11-11: "which affects sound ... and one will be missing").</summary>
+        public void SetDeadCylinders(int dead)
+        {
+            for (int i = 0; i < _voices.Length; i++) _voices[i].SetDeadCylinders(dead);
         }
 
         public void Next(out float l, out float r)
