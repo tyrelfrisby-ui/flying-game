@@ -974,6 +974,21 @@ public sealed class PropulsionConfig
     /// </summary>
     public int Cylinders { get; set; }
     public double CompressionRatio { get; set; }
+    /// <summary>
+    /// HOW MUCH MORE THAN ITS RUNNING FRICTION THIS ENGINE RESISTS WHEN IT IS DEAD AND DRY, at rest — so 3.0 means
+    /// four times (see <see cref="FlyingGame.Core.PistonEngine.BoundaryFrictionFactor"/>). 0 = use the fleet number.
+    ///
+    /// SOLVED, NOT CHOSEN: Ty 2026-11-10, "Cranking resistance should be calibrated such that at fine pitch the prop
+    /// stops right at level flight stall speed", and then, shown that one fleet constant could not do it: "fix it per
+    /// engine". For each type this is the one value that puts the propeller's stopping speed on the type's own stall
+    /// speed (<c>PracticeScenario.EstimateVso</c>, sea level, flaps up) — one equation in one unknown, the same way
+    /// <c>AircraftEngine.CompressionPeakNm</c> comes out of his restart anchor. <see cref="DryBoundaryExcessSource"/>
+    /// says what each was solved against, and <c>CompressionStopProbe</c> (COMPSTOP=1) re-measures it.
+    /// </summary>
+    public double DryBoundaryExcess { get; set; }
+    /// <summary>Where <see cref="DryBoundaryExcess"/> came from — the stall speed it was solved against and the
+    /// stopping speed that came back.</summary>
+    public string DryBoundaryExcessSource { get; set; } = "";
     /// <summary>Drag of the idling / windmilling propeller as a coefficient on its DISC area (owner 2026-10-03: the 172
     /// glided 14:1 at idle — the POH says 9:1 — and floated forever). A fine-pitch prop at idle is driven by the air and
     /// is a big drag: C_D ≈ 0.15–0.25 on disc area. Fades out as the throttle comes up (gone by 20 %).

@@ -177,19 +177,30 @@ public static class PropModel
     /// <see cref="PistonEngine.MotoringTorqueNm"/> in the balance the same solve lands where the calibration lives:
     ///
     ///     Pitts, FINE stop (11 deg)          Pitts, COARSE stop (33 deg)
-    ///       30 m/s  1,322 rpm  Cd 0.192        30 m/s    426 rpm  Cd 0.056
-    ///       45      2,267      Cd 0.111        45        743      Cd 0.029
-    ///       60      3,150      Cd 0.079        60      1,037      Cd 0.018
-    ///       80      4,294      Cd 0.060        80      1,418      Cd 0.011
+    ///       30 m/s    STOPPED                  30 m/s    STOPPED
+    ///       38.4    1,675 rpm  Cd 0.196        38.4      STOPPED
+    ///       45      2,169      Cd 0.141        45        478 rpm  Cd 0.085
+    ///       60      3,114      Cd 0.088        60        936      Cd 0.040
+    ///       80      4,280      Cd 0.063        80      1,375      Cd 0.019
     ///
-    /// The fine stop at approach speed is Cd 0.19 on disc area, and the authored coefficient's own note says a
-    /// fine-pitch prop driven by the air is "C_D ~ 0.15-0.25 on disc area". The model and the calibration agree, from
-    /// opposite directions, which is the only evidence worth having. And the coarse stop is a fifth of it — which is
-    /// what Ty asked for when told the two stops differed by only a quarter: "Much more - nearer feather".
+    /// The fine stop at APPROACH speed — 38.4 m/s, 1.3 Vso — is Cd 0.196 on disc area, and the authored coefficient's
+    /// own note says a fine-pitch prop driven by the air is "C_D ~ 0.15-0.25 on disc area". The model and the
+    /// calibration agree, from opposite directions, which is the only evidence worth having, and all five types this
+    /// applies to land in the band at their own approach speeds (0.152 to 0.225 — OilLossPitchTests measures it).
+    ///
+    /// AND AT 30 M/S BOTH STOPS ARE STOPPED, which was not true before 2026-11-10's second pass and is the whole point
+    /// of it: 30 m/s is the Pitts' stall speed, and Ty's anchor is that a dead propeller stops right there. The dry
+    /// boundary friction is solved from that (PistonEngine.BoundaryExcessFor), so this table is now the SAME
+    /// calibration read at a different speed rather than a second one. The coarse stop gives up first, by about 40 m/s,
+    /// because it turns a third as fast and sits deeper in the boundary regime — the end of the road Ty pointed down
+    /// when told the two stops differed by only a quarter: "Much more - nearer feather".
     ///
     /// The drag falls with speed as a coefficient because the engine's cranking torque is nearly constant, so the power
     /// the propeller must extract is nearly constant and the FORCE therefore grows much more slowly than q. That is the
-    /// right shape for a windmilling propeller and no authored coefficient on q could have it.
+    /// right shape for a windmilling propeller and no authored coefficient on q could have it. What a coefficient also
+    /// could not have is the step at the breakaway: a propeller drags HARDEST just before it gives up and a stopped
+    /// disc drags much less, so the drag jumps down as the speed falls through the stop's own breakaway — on the Pitts'
+    /// coarse stop, 324 N windmilling at 45 m/s against 208 N stopped at 38.
     ///
     /// Cached: the solve is up to thirty disc solutions and a glide asks every step. The buckets (0.25 deg, 1 m/s, 2 %
     /// of density) are finer than anything downstream resolves.
@@ -199,14 +210,20 @@ public static class PropModel
         double pitch = OilLossPitchDeg(prop);
         if (pitch <= 0.0 || prop.PropDiameterM <= 0.0 || vAxialMs <= 1.0) return (double.NaN, double.NaN);
 
+        // THE ENGINE IS PART OF THE KEY, not just the blade. It always should have been — the balance is against the
+        // engine's cranking torque — and it matters now that the dry boundary friction is solved per engine
+        // (PistonEngine.BoundaryExcessFor): two types with the same propeller and different engines are different
+        // answers, and without the rated power and the excess in the key the first one asked would answer for both.
         var key = ((long)Math.Round(pitch * 4.0), (long)Math.Round(vAxialMs), (long)Math.Round(rhoKgM3 * 50.0),
-                   prop.PropBladeCount, (long)Math.Round(prop.PropDiameterM * 100.0), (long)Math.Round(prop.ActivityFactor));
+                   prop.PropBladeCount, (long)Math.Round(prop.PropDiameterM * 100.0), (long)Math.Round(prop.ActivityFactor),
+                   (long)Math.Round(prop.MaxPowerW), (long)Math.Round(prop.MaxRpm),
+                   (long)Math.Round(PistonEngine.BoundaryExcessFor(prop) * 1000.0));
         lock (_windmillCache)
         {
             if (_windmillCache.TryGetValue(key, out (double Rpm, double DragN) cached)) return cached;
             var g = new BladeElement.Geometry(prop.PropBladeCount, 0.5 * prop.PropDiameterM, pitch, prop.ActivityFactor);
             double sigma = rhoKgM3 / Atmosphere.SeaLevelDensityKgM3;
-            double EngineQ(double r) => PistonEngine.MotoringTorqueNm(prop.MaxPowerW, prop.MaxRpm, r, 0.0, sigma, sigma);
+            double EngineQ(double r) => PistonEngine.MotoringTorqueNm(prop, r, 0.0, sigma, sigma);
             BladeElement.Windmilling w = BladeElement.Windmill(g, vAxialMs, rhoKgM3, prop.MaxRpm, EngineQ);
             // A blade too coarse to turn the engine over at all is STOPPED, and a stopped disc is not a blade-element
             // problem: NaN hands it back to the authored coefficient, halved, which is what the sim has always done.
@@ -221,7 +238,7 @@ public static class PropModel
     public static double WindmillRpm(PropulsionConfig prop, double vAxialMs, double rhoKgM3)
         => Windmilling(prop, vAxialMs, rhoKgM3).Rpm;
 
-    private static readonly Dictionary<(long, long, long, int, long, long), (double Rpm, double DragN)> _windmillCache = new();
+    private static readonly Dictionary<(long, long, long, int, long, long, long, long, long), (double Rpm, double DragN)> _windmillCache = new();
 
     /// <summary>
     /// The rpm a RUNNING engine's propeller turns at, for its gyroscopic couple. Fixed pitch: the throttle law

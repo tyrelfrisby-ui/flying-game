@@ -119,11 +119,130 @@ public static class PistonCompression
     }
     private static double _peakCr = double.NaN, _peak = 1.0;
 
+    /// <summary>The blade angle a dead propeller sits at: the governor's fine stop on a constant-speed type, the fitted
+    /// 75 % pitch on a fixed-pitch one, 15 deg for a type whose blade has not been fitted yet. Both of Ty's anchors are
+    /// stated "at fine pitch", so every calibration below reads this.</summary>
+    public static double FinePitchDeg(DataContracts.PropulsionConfig p)
+        => p is { ConstantSpeed: true, FineStopDeg: > 0.0 } ? p.FineStopDeg
+         : p.BladePitch75Deg > 0.0 ? p.BladePitch75Deg : 15.0;
+
+    /// <summary>The rpm the calibrations below call "at rest": not zero, because a blade-element solve needs an omega
+    /// to divide by.</summary>
+    public const double AtRestRpm = 5.0;
+
+    /// <summary>
+    /// HOW HARD A CYLINDER ON COMPRESSION PUSHES BACK, N·m, calibrated to Ty's restart anchor, 2026-11-10: "To get
+    /// prop windmilling again should take 10% under vne". A STOPPED propeller has no stored energy, so it has to beat
+    /// the worst of the ripple from rest, and that condition fixes this one number:
+    ///
+    ///     Q_air(0.9·Vne, fine stop, at rest)  =  |Q_mean(at rest)|  +  peak · worstRipple(cylinders, CR)
+    ///
+    /// AT REST ON BOTH SIDES, which is a correction (2026-11-10, second pass). This used to take the motoring mean at
+    /// RATED rpm, which was harmless while the boundary friction was a spike below 300 rpm and is not harmless now:
+    /// the mean at rest is three to five times the mean at rated, and leaving that out of an equation written at
+    /// rest put the restart speed at 1.07 Vne on the Pitts and 1.11 Vne on the Cub instead of the 0.90 Vne he asked
+    /// for. With the mean at rest it measures 0.900 Vne on every type. It is still one equation in one unknown.
+    ///
+    /// Which leaves his OTHER anchor — the propeller stopping at the stall speed — as what
+    /// <see cref="PistonEngine.BoundaryExcessFor"/> is solved from, and the two anchors then share one budget: at rest
+    /// the air at 0.9 Vne has to pay for the dry friction AND the compression peak out of the same torque. On the Great
+    /// Lakes, whose Vne is only 68 m/s, the dry friction alone takes 68 % of that budget and what is left makes a weak
+    /// lump. That is a finding about those two anchors on that type, not a knob.
+    /// </summary>
+    public static double PeakNmFor(DataContracts.AircraftConfig c)
+    {
+        DataContracts.PropulsionConfig? p = c.Propulsion;
+        if (p is null || p.PropDiameterM <= 0.0 || p.MaxPowerW <= 0.0) return 0.0;
+        double restartMs = 0.9 * (c.Limits?.VneMs ?? 0.0);
+        if (restartMs <= 1.0) return 0.0;
+        var g = new BladeElement.Geometry(p.PropBladeCount, 0.5 * p.PropDiameterM, FinePitchDeg(p), p.ActivityFactor);
+        double qAir = -BladeElement.Solve(g, restartMs, 0.0, AtRestRpm, Atmosphere.SeaLevelDensityKgM3).TorqueNm;
+        double qMean = -PistonEngine.MotoringTorqueNm(p, AtRestRpm, 0.0, 1.0, 1.0);
+        double worst = WorstRipple(c.EngineCylinders, c.EngineCompressionRatio);
+        return Math.Max(0.0, (qAir - qMean) / Math.Max(1e-6, worst));
+    }
+
+    /// <summary>
+    /// WHERE A TURNING PROPELLER GIVES UP, m/s — Ty's other anchor, 2026-11-10: "at fine pitch the prop stops right at
+    /// level flight stall speed". Seeded from a windmill at <paramref name="startMs"/> and slowed in 0.25 m/s steps,
+    /// each held 0.8 s, this integrates the same shaft equation <c>AircraftEngine</c> runs — blade torque against the
+    /// motoring mean plus the compression ripple, with the crank angle and every cylinder's seal as states — and
+    /// returns the speed at which the rpm finally falls below 20. NaN if it never stops.
+    ///
+    /// SEEDED FROM A WINDMILL, because that is the scenario: it was turning and you slowed down. Started from rest it
+    /// could never break away at a speed <see cref="PeakNmFor"/> made exactly marginal, which would measure the RESTART
+    /// threshold by accident and say nothing about where a turning propeller gives up.
+    ///
+    /// IT IS NOT A QUASI-STEADY NUMBER and must not be read as one. A heavy blade coasts, so how fast you slow down
+    /// matters: at 0.8 s per 0.25 m/s — 0.31 m/s^2, a gentle deceleration — the Pitts quits at 29.4 m/s, and given
+    /// 2.4 s a step it hangs on to nearly 31. That is real behaviour rather than a numerical artefact, but it means
+    /// anything calibrated against this has the deceleration baked in, so the solve, the probe and the test all use
+    /// these same steps.
+    /// </summary>
+    public static double PropStopSpeedMs(DataContracts.AircraftConfig c, double startMs)
+    {
+        DataContracts.PropulsionConfig? p = c.Propulsion;
+        if (p is null || p.PropDiameterM <= 0.0 || p.MaxPowerW <= 0.0 || startMs <= 2.5) return double.NaN;
+        int cyl = Math.Max(1, c.EngineCylinders);
+        double cr = c.EngineCompressionRatio, peak = PeakNmFor(c), rho = Atmosphere.SeaLevelDensityKgM3;
+        var g = new BladeElement.Geometry(p.PropBladeCount, 0.5 * p.PropDiameterM, FinePitchDeg(p), p.ActivityFactor);
+        double Mean(double r) => PistonEngine.MotoringTorqueNm(p, r, 0.0, 1.0, 1.0);
+
+        double[] tau = LeakTauSec(cyl, SeedFor(c.Id));
+        var leak = new double[cyl];
+        for (int i = 0; i < cyl; i++) leak[i] = 1.0;
+        BladeElement.Windmilling spun = BladeElement.Windmill(g, startMs, rho, p.MaxRpm, Mean);
+        double rpm = spun.Turning ? spun.Rpm : 0.0, crank = 0.0;
+        const double dt = 0.002;
+        const int stepsPerSpeed = 400;                        // 0.8 s at each speed
+        double inertia = Math.Max(0.05, p.PropInertia);
+        for (double v = startMs; v > 2.0; v -= 0.25)
+        {
+            for (int step = 0; step < stepsPerSpeed; step++)
+            {
+                // The order is AircraftEngine.StepShaft's, step for step: bleed on the crank angle the engine is
+                // actually at, take the ripple there, integrate, and move the crank last — because the crank only
+                // moves if the shaft does, and it is what the next step's lump is measured from.
+                double qProp = BladeElement.Solve(g, v, 0.0, rpm, rho).TorqueNm;
+                BleedOneStep(leak, tau, crank, dt, rpm * 2.0 * Math.PI / 60.0 * dt);
+                double qEng = Mean(rpm) + peak * RippleFactor(crank, cyl, cr, leak);
+                double omega = Math.Max(0.0, rpm * 2.0 * Math.PI / 60.0 + (qEng - qProp) / inertia * dt);
+                rpm = Math.Min(omega * 60.0 / (2.0 * Math.PI), p.MaxRpm * 1.6);
+                crank = (crank + omega * dt) % (4.0 * Math.PI);
+            }
+            if (rpm < 20.0) return v;
+        }
+        return double.NaN;
+    }
+
+    /// <summary>One step of every cylinder's seal: bleeding past the rings while it is on its compression stroke, and
+    /// re-charging in proportion to how far the crank actually moved everywhere else — a cylinder fills on its
+    /// induction stroke, so a stopped engine never gains any. Shared so the sweep above and <c>AircraftEngine</c>
+    /// cannot drift apart.</summary>
+    public static void BleedOneStep(double[] leak, double[] tauSec, double crankRad, double dt, double crankAdvanceRad)
+    {
+        int n = leak.Length;
+        for (int i = 0; i < n; i++)
+        {
+            double cycle = Mod(crankRad + 4.0 * Math.PI * i / n, 4.0 * Math.PI);
+            bool onCompression = cycle >= 2.0 * Math.PI && cycle < 3.0 * Math.PI;
+            leak[i] = onCompression
+                ? leak[i] * Math.Exp(-dt / Math.Max(0.05, tauSec[i]))
+                : Math.Min(1.0, leak[i] + crankAdvanceRad / (2.0 * Math.PI));
+        }
+    }
+
     /// <summary>
     /// HOW LONG EACH CYLINDER TAKES TO BLEED DOWN, seconds, deliberately all different. A healthy cylinder holds
     /// compression for a few seconds and a tired one for well under one, which is what a leak-down check measures; the
     /// spread here is that, dealt out from the aeroplane's own id so a given aeroplane is consistent from flight to
     /// flight while no two cylinders and no two types agree. 0.6 s to 4.5 s.
+    ///
+    /// SEED IT WITH <see cref="SeedFor"/> AND NOT WITH string.GetHashCode, which was the first version and was not
+    /// consistent from flight to flight at all: .NET randomizes string hashing per PROCESS, so every launch dealt the
+    /// aeroplane a different set of cylinders. It showed up here as 0.5 m/s of scatter in the measured stopping speed
+    /// between two runs of the same test on the same code — which is small, but it is the difference between a number
+    /// you can calibrate against and one you cannot.
     /// </summary>
     public static double[] LeakTauSec(int cylinders, int seed)
     {
@@ -136,6 +255,17 @@ public static class PistonCompression
             taus[i] = 0.6 + 3.9 * ((s & 0xFFFFu) / 65535.0);
         }
         return taus;
+    }
+
+    /// <summary>A STABLE seed from an aeroplane's id — FNV-1a, so the same id gives the same cylinders in every
+    /// process, on every platform, for ever. The point of dealing the leak rates from the id is that this aeroplane's
+    /// engine is always this engine; a per-process hash gives it a different engine every launch.</summary>
+    public static int SeedFor(string? id)
+    {
+        uint h = 2166136261u;
+        if (id is not null)
+            foreach (char ch in id) { h ^= ch; h *= 16777619u; }
+        return (int)h;
     }
 
     private static double Mod(double a, double m)
