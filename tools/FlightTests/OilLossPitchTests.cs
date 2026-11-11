@@ -357,7 +357,13 @@ public class OilLossPitchTests
         // both stops are turning and slow enough that the coarse one is still deep in the boundary regime, so the gap
         // is at its narrowest here — 273 N against 600 N. Down at approach speed the coarse blade is stopped outright
         // and the gap is total (see ACoarseDeadPropIsNearlyFeathered).
-        Assert.True(tCoarse > 0.5 * tFine, $"coarse should drag FAR less: coarse {tCoarse:0.0} N, fine {tFine:0.0} N");
+        // THE BOUND WAS 0.5 AND IS 0.65, for the same reason the matching one in PropPhysicsTests moved: until
+        // 2026-11-11 the blade's post-stall branch took sin^2 of the angle PAST THE STALL rather than the plate's
+        // own angle to the flow, which under-read a near-broadside blade by the stall angle — and a FINE stopped
+        // blade is nearer broadside than a coarse one, so the error was larger on the fine side and the gap between
+        // the two stops was exaggerated. It read 273 N against 600 N (0.455) and now reads 458 against 804 (0.569).
+        // The claim is unchanged: a coarse dead blade drags far less, which is what the oil-loss plumbing is for.
+        Assert.True(tCoarse > 0.65 * tFine, $"coarse should drag FAR less: coarse {tCoarse:0.0} N, fine {tFine:0.0} N");
         // A running engine is untouched by any of this - the governor sits on the fine stop, where IdleDragCd was fitted.
         double running = PropModel.Compute(coarsePlumbed, 0.0, v, Vec3.Zero, 1.225, PropModel.PropDrive.Running, out _).Force.X;
         Assert.Equal(PropModel.Compute(finePlumbed, 0.0, v, Vec3.Zero, 1.225, PropModel.PropDrive.Running, out _).Force.X, running, 9);

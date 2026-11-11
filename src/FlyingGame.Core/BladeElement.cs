@@ -136,8 +136,13 @@ public static class BladeElement
         /// where on the disc each element made it.
         /// </summary>
         public readonly double ThrustMomentNm;
-        public Result(double t, double q, double p, double eta, double swirlC, double normal, double side, double thrustMoment = 0.0)
-        { ThrustN = t; TorqueNm = q; PowerW = p; Efficiency = eta; SwirlC = swirlC; NormalN = normal; SideN = side; ThrustMomentNm = thrustMoment; }
+        /// <summary>The DISC-MEAN INDUCED VELOCITY, m/s, area-weighted over the annuli (and over the azimuths within
+        /// each). The solve has always had it per element and has always thrown it away; it is the one quantity that
+        /// says which working state the disc is in, so a probe cannot tell a vortex ring from a windmill brake
+        /// without it. Positive is aft, the direction a thrusting propeller drives the air.</summary>
+        public readonly double InducedMs;
+        public Result(double t, double q, double p, double eta, double swirlC, double normal, double side, double thrustMoment = 0.0, double inducedMs = 0.0)
+        { ThrustN = t; TorqueNm = q; PowerW = p; Efficiency = eta; SwirlC = swirlC; NormalN = normal; SideN = side; ThrustMomentNm = thrustMoment; InducedMs = inducedMs; }
     }
 
     /// <summary>How many annuli a profile request comes back with (one per blade element).</summary>
@@ -210,6 +215,18 @@ public static class BladeElement
     /// (tools/SimCost --blade, --azimuth; HotPathCostTests). False in the sim.</summary>
     public static bool LegacyInnerLoop;
 
+    /// <summary>
+    /// A PROBE'S WINDOW INTO THE DISC. When non-null, <see cref="Solve"/> fills it with the converged state of each
+    /// element at azimuth zero — radius fraction, blade angle, inflow angle, angle of attack, cn, ct, the element's
+    /// own induced velocity and its thrust and torque — so that "why is the torque negative" is a reading and not an
+    /// argument. Eight doubles per element, <see cref="TraceStride"/>; allocate Elements*TraceStride. Null in the sim
+    /// and the branch that tests it is outside the iteration loop.
+    /// </summary>
+    [System.ThreadStatic] public static double[]? ElementTrace;
+
+    /// <summary>Doubles per element in <see cref="ElementTrace"/>: x, theta_deg, phi_deg, alpha_deg, cn, ct, vi, dT, dQ.</summary>
+    public const int TraceStride = 9;
+
     /// <summary>The previous element's converged induced velocities, one pair per azimuth, as the warm start for the
     /// next element out. Thread-static and allocated once: the sim must not allocate to solve a propeller.</summary>
     [System.ThreadStatic] private static double[]? _viPrev;
@@ -243,7 +260,7 @@ public static class BladeElement
         long tBlade = SimProfile.Begin();
         double omega = rpm * 2.0 * Math.PI / 60.0;
         if (omega <= 1e-3 || g.RadiusM <= 0.0) return new Result(0, 0, 0, 0, 0, 0, 0);
-        double thrust = 0, torque = 0, normal = 0, angMom = 0, thrustMom = 0;
+        double thrust = 0, torque = 0, normal = 0, angMom = 0, thrustMom = 0, inducedArea = 0;
         double dx = (1.0 - g.HubFraction) / Elements;
         bool axial = Math.Abs(vCrossMs) < 1e-6;
         // THE AZIMUTH COUNT, FROM THE SKEW (see Skew4/Skew8 above for what was measured and why four is enough).
@@ -318,11 +335,20 @@ public static class BladeElement
                     double viNew, wiNew;
                     double load = w2 * sigma * cn / F;
                     if (load >= 0.0)
-                        viNew = 0.5 * (-vAxialMs + Math.Sqrt(Math.Max(0.0, vAxialMs * vAxialMs + load)));
+                        viNew = InducedAxialMs(vAxialMs, load);
                     else
                         viNew = 0.5 * (-vAxialMs + Math.Sign(vAxialMs) * Math.Sqrt(Math.Max(0.0, vAxialMs * vAxialMs + load)));
                     viNew = Math.Clamp(viNew, -0.9 * Math.Abs(vAxialMs) - 30.0, 60.0);
-                    wiNew = w2 * sigma * ct / Math.Max(1e-6, 4.0 * F * Math.Max(1e-3, vAxialMs + viNew));
+                    // THE SWIRL'S MASS FLUX IS A MAGNITUDE. 0.5 W^2 sigma Ct = 2 F (V + vi) wi reads, on the right,
+                    // mdot * (2 wi) * r: the angular momentum per second the air carries away. mdot is a mass FLOW,
+                    // positive whichever way the air is going, and the swirl it carries is in the direction of
+                    // rotation either way — the blade drags the air round with it whether that air arrives at the
+                    // front face or the back. Written with the signed flux and floored at +1e-3, a disc with the air
+                    // going through it the wrong way (V + vi < 0, the turbulent wake and windmill brake states) got a
+                    // denominator of a thousandth and a swirl that pinned itself to the +-0.5*vTan clamp — half the
+                    // blade's own tangential speed, conjured out of a floor. |V + vi| is the same number whenever the
+                    // flux is positive, which is all of forward flight, so nothing there moves.
+                    wiNew = w2 * sigma * ct / Math.Max(1e-6, 4.0 * F * Math.Max(1e-3, Math.Abs(vAxialMs + viNew)));
                     // CLAMP BY MAGNITUDE, because vTanLocal CAN GO NEGATIVE. It is omega*r + vCross*cos(psi): at
                     // idle the rpm is low and in a spin the crossflow is large, so on the retreating side of the disc
                     // the blade's own tangential speed reverses. Written as (-0.5*vTan, +0.5*vTan) the bounds then
@@ -338,6 +364,13 @@ public static class BladeElement
                 viPrev[k] = vi; wiPrev[k] = wi;
                 double q = 0.5 * rhoKgM3 * w2 * g.Blades * chord * dx * g.RadiusM / nAz;
                 double dT = q * cn, dQ = q * ct * r;
+                if (k == 0 && ElementTrace is { } tr && (i + 1) * TraceStride <= tr.Length)
+                {
+                    int o = i * TraceStride;
+                    tr[o] = x; tr[o + 1] = theta * 180.0 / Math.PI; tr[o + 2] = phi * 180.0 / Math.PI;
+                    tr[o + 3] = (theta - phi) * 180.0 / Math.PI; tr[o + 4] = cn; tr[o + 5] = ct;
+                    tr[o + 6] = vi; tr[o + 7] = dT; tr[o + 8] = dQ;
+                }
                 thrust += dT; torque += dQ;
                 angMom += dQ;
                 wiSum += wi; viSum += vi;
@@ -348,6 +381,7 @@ public static class BladeElement
                 }
             }
             warm = true;
+            inducedArea += viSum / nAz * (2.0 * Math.PI * r * dx * g.RadiusM);
             if (wakeRadii is not null && wakeSwirl is not null && i < wakeRadii.Length && i < wakeSwirl.Length)
             {
                 // Where this annulus ENDS UP. Mass through it is conserved as the tube contracts, so the annulus at
@@ -371,8 +405,106 @@ public static class BladeElement
         double swirlC = angMom / Math.Max(1e-6, rhoKgM3 * disc * vDisc);
         Iterations += iterations;
         SimProfile.End(SimProfile.Scope.Blade, tBlade);
-        return new Result(thrust, torque, power, eta, swirlC, normal, 0.0, thrustMom);
+        return new Result(thrust, torque, power, eta, swirlC, normal, 0.0, thrustMom, inducedArea / Math.Max(1e-9, disc));
     }
+
+    /// <summary>
+    /// THE ANNULUS' INDUCED VELOCITY, ACROSS ALL FOUR WORKING STATES — and why momentum theory alone cannot be
+    /// asked for it. Ty 2026-11-11:
+    ///
+    ///   "Sometimes lower like a tail slide where the reversed direction works against the prop and can actually stop
+    ///    the engine if rpm falls below around 300 rpm."
+    ///
+    /// The model did the OPPOSITE. Flown backwards at the idle stop the rpm ROSE — Pitts 700 to 805 at -20 m/s, J-3
+    /// 700 to 942 — because the annulus balance was solved on one branch of momentum theory with no questions asked
+    /// about whether momentum theory still applied. It does not. Johnson, <i>Model for Vortex Ring State Influence on
+    /// Rotorcraft Flight Dynamics</i>, NASA TP-2005-213477, p. 4: the lines V=0, V+v=0 and V+2v=0 cut axial flow into
+    /// four states — normal working (V &gt; 0), vortex ring (V &lt; 0, V+v &gt; 0), turbulent wake (V &lt; 0,
+    /// V+v &lt; 0, V+2v &gt; 0) and windmill brake (V+2v &lt; 0) — and *"only for the normal working state and
+    /// windmill brake state is the velocity in the same direction throughout the flow field, so only in these regions
+    /// is momentum theory valid."* An aeroplane sliding backwards on its tail puts its propeller in the two states in
+    /// between, which is the same place a helicopter descending through its own wake sits, and is why this is rotor
+    /// theory and not propeller theory.
+    ///
+    /// WHAT THE OLD SOLVE ACTUALLY DID. The quadratic (V + v) v = vh^2 has two roots and the code always took
+    /// +sqrt — the normal-working root. Measured at -20 m/s it returned v = 21.4 m/s against a free stream of
+    /// -20: the disc held a small POSITIVE through-flow of 1.4 m/s however hard the air was driven through it
+    /// backwards. The blade therefore kept an inflow angle of under two degrees, sat at very nearly its full
+    /// geometric angle, and made more thrust (223 -&gt; 313 N) on less torque (22.6 -&gt; 16.3 N.m) the faster it was
+    /// flown backwards. A propeller that is paid to spin by being pushed backwards through the air.
+    ///
+    /// WHAT REPLACES IT, with velocities scaled by vh (TP-2005-213477 p. 14, the *baseline model*, which Johnson
+    /// notes is "found in reference 52 and in a widely used comprehensive analysis"):
+    ///
+    ///   V &gt;= -1     v = -V/2 + sqrt(V^2/4 + 1)           momentum theory, normal working state
+    ///   -2 &lt; V &lt; -1  V + v = V (a V^2 - b)                 Johnson's cubic through vortex ring and turbulent wake
+    ///   V &lt;= -2     v = -V/2 - sqrt(V^2/4 - 1)           momentum theory, windmill brake state
+    ///
+    /// with a = sqrt(5)/6 = 0.3727 and b = (4 sqrt(5) - 3)/6 = 0.9907, which are not fitted here: Johnson derives
+    /// them by matching the cubic to momentum theory at V = -1 and V = -2, so the three pieces agree EXACTLY in value
+    /// at both seams. At V = -2 the SLOPE is nonetheless infinite, and that is momentum theory's own: the windmill-
+    /// brake branch carries sqrt(V^2/4 - 1), whose derivative is singular where its argument reaches zero, so the
+    /// curve is continuous there but not Lipschitz and a step across the seam moves v like the square root of the
+    /// step. Johnson's full model sidesteps it by joining the branches further out; the baseline does not, and it
+    /// does not need to here: the value has no jump, the fixed point below runs at 0.4 relaxation, and at any instant
+    /// only a thin annulus of a real disc sits at exactly V = -2 while the rest is well away from it. That is the property this sim needs most. The sim integrates the shaft, so a discontinuous or
+    /// multi-valued inflow would ring the rpm or blow it up; this one is continuous and single-valued over the whole
+    /// range, and V + v is monotone through the cubic (its slope 3aV^2 - b is 0.13 at V = -1 and 3.49 at V = -2, and
+    /// never zero inside), so no descent rate has two answers.
+    ///
+    /// AND WHY THE BASELINE AND NOT JOHNSON'S FULL VRS MODEL. The full model (same paper, p. 14) adds an increment
+    /// with a region of NEGATIVE slope, which is deliberate: it is what produces the vortex-ring instability that
+    /// drops a helicopter. Johnson parameterises it with a factor f "[that] allows the instability in VRS to be
+    /// reduced or suppressed", and f = 0 is exactly the baseline above. It needs a stability boundary fitted to
+    /// helicopter and tiltrotor flight test, which is not this fleet; it would make the inflow curve double-valued in
+    /// V + v; and what it buys is an instability nobody has reported in a Pitts. Taking f = 0 is a published setting
+    /// of a published model, not a simplification of one.
+    ///
+    /// CASTLES AND GRAY (NACA TN 2912, 1951) is where the measured curve this is drawn through comes from — it is one
+    /// of the data sets in TP-2005-213477 (ref. 21, figs. 9 and 40) and the reason momentum theory's failure between
+    /// V = -1 and V = -2 is a measurement rather than an argument. WOLKOVITCH (1972) predicts where the state starts;
+    /// here the boundary is not needed as a separate test, because the three branches already change over at the
+    /// states' own definitions. PETERS AND CHEN would add the time lag — Johnson models it as a first-order lag on
+    /// the inflow, tau = tau_rev (2 pi / Omega) — which is deliberately NOT taken: at a propeller's rpm that lag is a
+    /// few hundredths of a second against an rpm decay measured in seconds, and a dynamic inflow state would have to
+    /// be carried per annulus per azimuth through a solve the sim runs six times a step.
+    ///
+    /// SCALE. <paramref name="load"/> is the annulus' own W^2 sigma Cn / F, and the balance 0.5 W^2 sigma Cn =
+    /// 2 F (V + v) v is (V + v) v = load/4 — so the annulus' hover induced velocity is vh = sqrt(load)/2, and
+    /// V/vh is the state. Prandtl's tip and root loss F is already in it, as the share of the annulus the momentum
+    /// deficit actually occupies.
+    ///
+    /// FORWARD FLIGHT CANNOT MOVE, and not because it was measured not to: for V &gt;= 0 this returns the normal-
+    /// working branch, and vh (-V/vh / 2 + sqrt((V/vh)^2/4 + 1)) is 0.5 (-V + sqrt(V^2 + 4 vh^2)) rearranged, which
+    /// is the expression that was here before, term for term. The whole change lies below V = -vh — a reversed
+    /// airspeed greater than the propeller's own hover induced velocity, which only a tailslide or a serious
+    /// whip-stall reaches.
+    /// </summary>
+    /// <param name="vAxialMs">Axial velocity through the disc, m/s; negative is the aeroplane going backwards.</param>
+    /// <param name="load">The annulus' W^2 sigma Cn / F. Must not be negative: a braking annulus has no vh to scale
+    /// by, and <see cref="Solve"/> keeps its own mirrored expression for that case.</param>
+    public static double InducedAxialMs(double vAxialMs, double load)
+    {
+        if (LegacyAxialInflow) return 0.5 * (-vAxialMs + Math.Sqrt(Math.Max(0.0, vAxialMs * vAxialMs + load)));
+        double vh = 0.5 * Math.Sqrt(Math.Max(0.0, load));
+        if (vh <= 1e-9) return 0.0;                        // an unloaded annulus induces nothing, whichever way the air goes
+        double v = vAxialMs / vh;
+        double vn;
+        if (v >= -1.0) vn = -0.5 * v + Math.Sqrt(0.25 * v * v + 1.0);               // normal working state
+        else if (v > -2.0) vn = v * (VrsA * v * v - VrsB - 1.0);                     // vortex ring + turbulent wake
+        else vn = -0.5 * v - Math.Sqrt(Math.Max(0.0, 0.25 * v * v - 1.0));          // windmill brake state
+        return vh * vn;
+    }
+
+    /// <summary>Johnson's baseline-model coefficients, TP-2005-213477 p. 14: a = sqrt(5)/6, b = (4 sqrt(5) - 3)/6,
+    /// derived by matching V + v = V (a V^2 - b) to momentum theory at V = -1 and V = -2. Published, not fitted.</summary>
+    private static readonly double VrsA = Math.Sqrt(5.0) / 6.0;
+    private static readonly double VrsB = (4.0 * Math.Sqrt(5.0) - 3.0) / 6.0;
+
+    /// <summary>A probe's seam, like <see cref="LegacyInnerLoop"/>: true puts the single-branch momentum-theory
+    /// inflow back, so the before and the after can be measured in one binary instead of across two checkouts.
+    /// False in the sim. It does NOT restore the old swirl flux, which is a sign bug on its own.</summary>
+    public static bool LegacyAxialInflow;
 
     /// <summary>
     /// THE BLADE ANGLE THAT ABSORBS A GIVEN TORQUE, at this rpm and airspeed. A constant-speed propeller's governor
@@ -640,27 +772,78 @@ public static class BladeElement
 
     /// <summary>
     /// A propeller blade section: Clark-Y-like, which is what most of this fleet's blades are. Linear to the stall,
-    /// then a flat-plate post-stall so a stalled root (which every propeller has at low speed) behaves instead of
-    /// running away. Not a table because a propeller blade spends its life between 0 and 10 degrees.
+    /// and past it the VITERNA AND CORRIGAN flat-plate extrapolation.
+    ///
+    /// WHY THE POST-STALL BRANCH WAS REPLACED. The comment here used to say "flat-plate post-stall" and the code did
+    /// not do that. It decayed cl at 0.7 per RADIAN from 1.25 — 0.012 per degree — so the section still returned
+    /// cl 1.06 against cd 0.11 at a 25 degree angle of attack. An L/D of TEN, stalled. That was invisible for as
+    /// long as nothing reached those angles: standing still, which is the worst case in forward flight, the Pitts'
+    /// blade runs from 4.5 to 12.7 degrees and only the inner two elements are past the stall at all. Flown
+    /// BACKWARDS at 20 m/s it runs from 22 degrees at the tip to 90 at the root, and there the error decides the
+    /// sign of the torque: an element is driven rather than dragged when cl/cd exceeds cot|phi|, which at this
+    /// condition is 3.8, so an L/D of 10 made the whole outer blade a turbine. The propeller was paid to spin by
+    /// being pushed backwards through the air. A real section at 25 degrees is stalled and has an L/D near 2.
+    ///
+    /// VITERNA AND CORRIGAN (1982), "Fixed-Pitch Rotor Performance of Large Horizontal Axis Wind Turbines", is the
+    /// standard extrapolation for exactly this problem — a rotor whose blade spends real operating time far from its
+    /// design angle — and is what wind-turbine blade-element codes use to cover 0 to 180 degrees:
+    ///
+    ///     cl = A1 sin(2a) + A2 cos^2(a)/sin(a)
+    ///     cd = B1 sin^2(a) + B2 cos(a)
+    ///
+    /// with A1 = Cd_max/2 and B1 = Cd_max, and A2 and B2 fixed by MATCHING cl and cd to the linear branch at the
+    /// stall angle — so the section is continuous there by construction and the pre-stall branch, which is what the
+    /// whole fleet's blade pitches were fitted against, is not touched at all. Cd_max = 1.11 + 0.018 AR is Viterna's
+    /// own, and a propeller blade of this fleet runs an aspect ratio near 7 to 8, giving 1.25. At 90 degrees the
+    /// section is then a plate: cl = 0, cd = 1.25, instead of the cl = 0.6, cd = 1.13 it used to report broadside.
+    ///
+    /// The angle is measured from the chord, not from the zero-lift line, because what the high end of this curve
+    /// describes is a flat plate meeting the air at 90 degrees. The match at the stall is made at that same angle,
+    /// so the two branches still meet exactly.
     /// </summary>
-    private static (double cl, double cd) Section(double alphaRad)
+    public static (double cl, double cd) Section(double alphaRad)
     {
-        const double A0 = -2.0 * Math.PI / 180.0, Slope = 5.9, ClMax = 1.25;
         double a = alphaRad - A0;
         double clLin = Slope * a;
-        double cl, cd;
-        if (Math.Abs(clLin) <= ClMax)
+        if (Math.Abs(clLin) <= ClMax) return (clLin, 0.008 + 0.020 * clLin * clLin);
+        if (LegacyPostStall)
         {
-            cl = clLin;
-            cd = 0.008 + 0.020 * cl * cl;
+            double sgn = Math.Sign(clLin);
+            double ov = Math.Abs(a) - ClMax / Slope;
+            return (sgn * Math.Max(0.6, ClMax - 0.7 * ov),
+                    0.030 + 1.1 * Math.Sin(Math.Min(Math.PI / 2, Math.Abs(ov))) * Math.Sin(Math.Min(Math.PI / 2, Math.Abs(ov))));
         }
-        else
-        {
-            double sign = Math.Sign(clLin);
-            double over = Math.Abs(a) - ClMax / Slope;
-            cl = sign * Math.Max(0.6, ClMax - 0.7 * over);              // post-stall decay toward a plate
-            cd = 0.030 + 1.1 * Math.Sin(Math.Min(Math.PI / 2, Math.Abs(over))) * Math.Sin(Math.Min(Math.PI / 2, Math.Abs(over)));
-        }
-        return (cl, cd);
+        double sign = Math.Sign(clLin);
+        // The plate's angle to the flow, folded into (stall, pi - stall): past 90 degrees a plate is symmetric, and
+        // the lower clamp keeps cos^2/sin away from its singularity at zero where this branch never applies anyway.
+        double ag = Math.Abs(alphaRad);
+        if (ag > Math.PI) ag = 2.0 * Math.PI - ag;                 // wrap: nothing beyond a full reversal
+        if (ag > Math.PI / 2.0) ag = Math.PI - ag;
+        ag = Math.Max(StallAlpha, ag);
+        double sn = Math.Sin(ag), cs = Math.Cos(ag);
+        return (sign * (ViternaA1 * Math.Sin(2.0 * ag) + ViternaA2 * cs * cs / sn),
+                ViternaB1 * sn * sn + ViternaB2 * cs);
     }
+
+    private const double A0 = -2.0 * Math.PI / 180.0, Slope = 5.9, ClMax = 1.25;
+
+    /// <summary>Where the linear branch ends, as a true angle of attack: Cl_max/slope off the zero-lift line, which
+    /// is 10.14 degrees from the chord. Both branches are evaluated here and agree.</summary>
+    private static readonly double StallAlpha = ClMax / Slope + A0;
+
+    /// <summary>Viterna's maximum drag coefficient, 1.11 + 0.018 AR at the aspect ratio of this fleet's blades.</summary>
+    private const double CdMax = 1.25;
+
+    private static readonly double ViternaA1 = 0.5 * CdMax;
+    private static readonly double ViternaB1 = CdMax;
+    /// <summary>A2 and B2 are not chosen: they are what makes the plate branch pass through the linear branch's own
+    /// cl and cd at <see cref="StallAlpha"/>.</summary>
+    private static readonly double ViternaA2 =
+        (ClMax - ViternaA1 * Math.Sin(2.0 * StallAlpha)) * Math.Sin(StallAlpha) / (Math.Cos(StallAlpha) * Math.Cos(StallAlpha));
+    private static readonly double ViternaB2 =
+        (0.008 + 0.020 * ClMax * ClMax - ViternaB1 * Math.Sin(StallAlpha) * Math.Sin(StallAlpha)) / Math.Cos(StallAlpha);
+
+    /// <summary>A probe's seam, like <see cref="LegacyAxialInflow"/>: true restores the 2026-11-10 post-stall decay,
+    /// so what the plate branch costs in forward flight can be measured in one binary. False in the sim.</summary>
+    public static bool LegacyPostStall;
 }

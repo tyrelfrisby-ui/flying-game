@@ -300,8 +300,13 @@ public class EngineStateTests : IDisposable
     private const double BaseStaticDu = 42.886981849718921;
 
     /// <summary>The same condition with the blade SOLVED, which is what the Extra, the Pitts and the Great Lakes have
-    /// flown since 2026-11-11.</summary>
-    private const double SolvedStaticDu = 50.305325042229157;
+    /// flown since 2026-11-11. RE-READ 2026-11-11 (lane/claude-vortex-ring), 50.305 -> 50.108 m/s: the blade's
+    /// post-stall branch was replaced with Viterna and Corrigan, and a propeller standing still has a stalled root
+    /// — the Extra's runs past its stall inside about 0.3 R — so the solved disc moves a little. It moves the right
+    /// way: the note above reads 50.31 m/s as 1,352 lbf on an installation that really makes nearer 1,200, and
+    /// 50.108 is 1,341 lbf. Still high, still the less wrong of the two numbers here, and still fitted to
+    /// nothing.</summary>
+    private const double SolvedStaticDu = 50.108323365622006;
 
     // ---- 5. mixture ------------------------------------------------------------------------------------------------
 
