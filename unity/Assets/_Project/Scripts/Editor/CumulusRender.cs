@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using FlyingGame.Bridge;
 using FlyingGame.Clouds;
@@ -157,7 +158,84 @@ namespace FlyingGame.EditorTools
             Object.DestroyImmediate(px);
             sb.AppendLine($"frame at 1600x1000 on this Mac: {with:F2} ms with the cumulus, {without:F2} ms without "
                         + $"(delta {with - without:+0.00;-0.00} ms) — a desktop GPU, so read the DELTA, not the absolute");
+            sb.Append("worst case (one cloud filling the frame): " + Overdraw());
+            // And the view a pilot is actually in most of the time: 3 km off at 1,500 m, the cloud a third of the
+            // frame high. The worst case decides whether the thing ever stutters; this one decides what it costs.
+            _cam.fieldOfView = 34;
+            _cam.transform.position = cloud + new Vector3(-0.72f, 0f, -0.69f) * 3000f + Vector3.up * (height * 0.30f);
+            _cam.transform.rotation = Quaternion.LookRotation(cloud + Vector3.up * height * 0.45f - _cam.transform.position, Vector3.up);
+            Cumulus.StepForTesting();
+            var px2 = new Texture2D(1, 1, TextureFormat.RGB24, false);
+            double Frame2(int n)
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                for (int i = 0; i < n; i++)
+                {
+                    _cam.Render();
+                    var prev = RenderTexture.active; RenderTexture.active = _rt;
+                    px2.ReadPixels(new Rect(0, 0, 1, 1), 0, 0); px2.Apply(); RenderTexture.active = prev;
+                }
+                return sw.Elapsed.TotalMilliseconds / n;
+            }
+            Frame2(20);
+            double cw = 1e9, cwo = 1e9;
+            for (int pass = 0; pass < 3; pass++)
+            {
+                foreach (var r in clouds) r.enabled = true;
+                cw = System.Math.Min(cw, Frame2(40));
+                foreach (var r in clouds) r.enabled = false;
+                cwo = System.Math.Min(cwo, Frame2(40));
+            }
+            foreach (var r in clouds) r.enabled = true;
+            Object.DestroyImmediate(px2);
+            sb.AppendLine($"cruise view (3 km off): {cw:F2} ms with, {cwo:F2} ms without (delta {cw - cwo:+0.00;-0.00} ms)");
+            sb.Append("cruise view: " + Overdraw());
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// How many times over the thermal clouds paint the frame, from the camera the timing above used. An
+        /// impostor lobe is a blended quad that does not write depth, so every one of them costs its whole disc in
+        /// fill whether or not something nearer already covered it — which is the price of the switch away from the
+        /// opaque mesh, and the one number that decides whether a phone can afford it. Measured on the CPU from the
+        /// lobes themselves (their projected area over the screen's), not inferred: the shader's own distance fades
+        /// are applied, and a disc is clipped to the frame before it is counted.
+        /// </summary>
+        static string Overdraw()
+        {
+            GameObject root = GameObject.Find("Clouds");
+            if (root == null) return "overdraw: no clouds\n";
+            float w = _rt.width, h = _rt.height;
+            float focal = h * 0.5f / Mathf.Tan(_cam.fieldOfView * 0.5f * Mathf.Deg2Rad);
+            Vector3 eye = _cam.transform.position;
+            double covered = 0; int lobes = 0, drawn = 0;
+            foreach (var r in root.GetComponentsInChildren<MeshRenderer>())
+            {
+                Mesh m = r.GetComponent<MeshFilter>().sharedMesh;
+                if (m == null) continue;
+                Vector3[] v = m.vertices; var size = new List<Vector2>(); m.GetUVs(1, size);
+                Color[] col = m.colors;
+                for (int i = 0; i < v.Length; i += 4)
+                {
+                    lobes++;
+                    Vector3 centre = r.transform.TransformPoint(v[i]);
+                    float d = Vector3.Distance(centre, eye);
+                    if (Vector3.Dot(_cam.transform.forward, centre - eye) <= 0f) continue;
+                    // The shader's own fades: out beyond 18 km, and away again as the eye gets inside a lobe.
+                    float fade = Mathf.Clamp01((18000f - d) / 3000f)
+                               * Mathf.Clamp01((d - size[i].x * 0.3f) / Mathf.Max(12f, size[i].x * 0.5f));
+                    if (col != null && col.Length > i)   // the secondary-lobe fade: the granulation goes at 7.5 km
+                        fade *= Mathf.Lerp(1f, Mathf.Clamp01((7500f - d) / 1500f), col[i].a);
+                    if (fade <= 0.01f) continue;
+                    float rpx = size[i].x * focal / Mathf.Max(1f, d);
+                    double area = Mathf.PI * rpx * rpx;
+                    // A disc bigger than the frame cannot paint more than the frame.
+                    covered += System.Math.Min(area, w * h) * fade;
+                    drawn++;
+                }
+            }
+            return $"overdraw at that camera: {lobes} lobes, {drawn} of them drawn, painting "
+                 + $"{covered / (w * h):F2}x the frame in blended fill\n";
         }
 
         static void Shot(string name, Vector3 eye, Vector3 look, float fov)

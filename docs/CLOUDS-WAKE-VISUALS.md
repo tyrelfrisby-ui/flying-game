@@ -146,6 +146,92 @@ centreline, upwash 2.1 / 1.2 m/s at 12 m out where the 3 m atlas texel straddles
 pass over flat ground: the pair sinks to 3.4-3.9 m and spreads to ±6.1 m at 4.5 s, ±13.6 m at 14.8 s. The
 zero-lift, zero-thrust pass leaves 0 segments, 0 jets and fog identical to undisturbed.
 
+## Ty overturned it the same day: ONE cloud renderer, and the painted sky deck deleted — Claude, 2026-11-11
+
+Ty, after seeing the renders above: *"Delete painted sky deck I don't like that one and make the playground clouds
+double as the thermal clouds but make their shape look cumulus enough to be accurate."*
+
+Two of the four implementations are gone. What draws cloud now:
+
+| | where | what it is |
+|---|---|---|
+| cloud playground banks + low patches | 36 banks on three rings, 13 low patches | billowing lobe impostors |
+| **thermal cumulus** | one over every one of the 34 thermals | **the same impostors**, with a flat base |
+| wisp sheets | three layers, wake-reactive | advected noise |
+| ~~painted sky deck~~ | ~~the skybox, at infinity~~ | **deleted** |
+| ~~FlyingGame/Cumulus~~ | ~~opaque sphere meshes~~ | **deleted** |
+
+### The sky deck
+
+`DaySkyClouds` is gone from `SunsetSky.cginc`, with the atan2 branch-cut cross-fade that existed only to hide the
+seam it put down the -x axis, the pixel-footprint dissolve, and the cloud use of `_DayAtmosphere.z`. The sunset's
+own cloudlet deck went with it. **The sky itself stays, because it is load-bearing**: `Water.shader` reflects
+through `DaySkyRough` and `SunsetSky`, and `Airframe`/`Lit`/`AirportSurface` light through `SunsetEnvironment`.
+The water now reflects a clear sky, which is correct — the clouds it should reflect are geometry and it does not
+see them. `_DayAtmosphere` is still declared and still set: Terrain, PowellSandstone and UrbanFacade read `.z` for
+their own detail switches. The Aero Widget builds its own 16-px sky cube and never had the deck; the Talk Flying
+path is livery work and does not touch it. `skyHash`/`skyNoise` are deleted — nothing else used them.
+
+### The thermal cumulus on the playground's renderer
+
+`Cumulus.cs` keeps the meteorology and the gameplay and loses its renderer. The puff field — a ring of
+flat-bottomed lobes, a body over them, a cauliflower crown of turrets climbing to the top, granulation on the
+sunlit crown — is what makes it a cumulus rather than a bank, and every lobe is now one of the playground's
+impostor quads (`Resources/Clouds/CloudBillow`). `FlyingGame/Cumulus` is deleted.
+
+Three things the mesh had and the impostors did not, which had to be built:
+
+- **A flat base at the condensation level.** `CloudPlayground.shader` gains `_Cumulus`, `_BaseY`, `_TopY`; with
+  `_Cumulus` on, the lobe's level underside is replaced by a cut in WORLD metres at `_BaseY`, over a 26 m band
+  with ±9 m of the lobe's own noise in it. Every lobe of every cloud of the day is cut at the same height, which
+  is why a field of cumulus has its bases in a plane. The banks and low patches leave `_Cumulus` at 0 and are
+  pixel-identical to before.
+- **Whole-cloud shading.** Grey base to sunlit crown over `_BaseY.._TopY`, not over each lobe's own uv — or a
+  turret 900 m up is shaded like the lobe sitting on the base beside it and the vertical development stops
+  reading. The cumulus shade is darker than a bank's (a kilometre of cloud stands between a base and the sun).
+- **Lobes that OVERLAP.** The puff field was retuned: with opaque spheres a gap between lobes read as a crevice,
+  because the body behind it was still drawn; with blended impostors a gap is a hole with sky through it and an
+  isolated lobe is a disc — the original complaint. Twelve to fifteen ring lobes overlapping by about a third of
+  a radius, four body lobes over the middle so looking straight up finds no hole, and granules at seven tenths of
+  their parent's radius rather than eight so they bulge the outline instead of sitting on it as warts.
+
+`Whiteout` (the IFR white-out) and `Blocks` (line-of-sight cover) are unchanged and still read the analytic
+spheres. **The drawn lobe now agrees with them far better than the mesh did**: an impostor's alpha reaches zero
+within about 8 % of the lobe's radius (the shader's noise erosion is ±0.16 on r², so r = 1 ± 0.08), against ±35 %
+for the noise-displaced sphere it replaces.
+
+### What the switch costs — measured, and it is NOT free
+
+| | opaque mesh (this morning) | playground impostors |
+|---|---|---|
+| geometry, all 34 clouds | 207,795 v / 337,451 t | **5,444 v / 2,722 t** |
+| vertex buffer | 4.8 MiB | **0.1 MiB** |
+| CPU mesh build, all 34 | 406 ms | **99 ms** |
+| GPU delta, one cloud filling the frame | **−0.38 ms** (faster WITH them) | **+1.68 ms** |
+| GPU delta, 3 km cruise view | not measured | **+1.11 ms** |
+| overdraw, blended fill over the frame | none: opaque, writes depth | **11.98x** worst case, **11.61x** cruise |
+
+The overdraw is the thermal clouds ALONE, on top of whatever the banks, the low patches and the wisp sheets
+already cost. 11.6x in the ordinary cruise view is not a worst case that goes away when you look elsewhere: 651
+of the 1,361 lobes are drawn in a 34-degree view from 3 km, because 34 clouds are spread across a 30 km island
+and a dozen of them are in frame at once.
+
+Tried and measured as a mitigation: flagging the granulation as secondary lobes so it fades at 7.5 km. It moves
+the fill from 11.98x to 11.98x — the granules are small and the fill is all in the shape lobes. Kept anyway (it
+costs nothing and saves the vertex work) but it is not the lever. The levers that would work, in order of how
+much they give up: fewer and bigger shape lobes; a cull radius on the thermal clouds, which they do not have
+(the banks cull at 19 km); or a depth-writing pre-pass for the near-opaque lobe cores, which would claw back most
+of the occlusion the mesh had but changes the banks too and risks hard edges where lobes meet.
+
+The geometry and the startup build all but vanish — 124× fewer triangles and 307 ms off the startup frame, which
+on a Quest whose first frame is 3.5–7.4 s is a real win. What is paid instead is **overdraw**: an impostor is a
+blended quad that does not write depth, so every lobe costs its whole disc in fill whether or not something
+nearer already covered it, and the opaque mesh was *saving* time by occluding the terrain behind it. On a
+desktop GPU the swing is small in absolute terms; fill rate is the binding constraint on a phone and a headset,
+not triangles, so the device number is the one that matters and it has not been taken.
+
+**Not verified on a device.** Mac batch renders only; no iOS or Quest build, no frame timing on either.
+
 ## The thermal cumulus stopped being spheres — Claude, 2026-11-11, lane/claude-clouds
 
 Ty, 2026-11-11: *"There are clouds that look good realistic and there are clouds that look fake like a bunch of
