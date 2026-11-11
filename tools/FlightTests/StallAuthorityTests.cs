@@ -70,8 +70,9 @@ public class StallAuthorityTests
             if (area > best) { best = area; main = sf; }
         }
         // THE EARLIEST-STALLING STRIP: the Extra flies one derived section per station (2026-11-10) and its root's
-        // table stalls three degrees after the wing itself does. Every other type has one table across the wing, so
-        // for all of them this is still the root table's angle, unchanged.
+        // table stalls nearly two degrees after the wing itself does. The Grob 103 also carries more than one table
+        // (an Eppler E583 per Reynolds band), so its stall angle moves here too, 21.81 -> 20.96 deg. Every other type
+        // has one table across the whole wing, so for all of them this is still the root table's angle, unchanged.
         return main is null ? 15 : main.Strips.Min(st => tables[st.Airfoil].AlphaClMaxRad) * 57.2958;
     }
 
