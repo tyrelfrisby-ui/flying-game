@@ -29,6 +29,8 @@ public enum StructuralBreak
     OutboardLeftGone = 32, OutboardRightGone = 64,
     /// <summary>Cantilever: this side has folded up and is still attached, still making force.</summary>
     FoldedLeft = 128, FoldedRight = 256,
+    /// <summary>The fin has failed under lateral load (Ty 2026-11-11's rudder-reversal limit).</summary>
+    VerticalTail = 512,
 }
 
 /// <summary>
@@ -69,6 +71,25 @@ public sealed partial class StructuralState
     /// <see cref="EngineMount"/> without a propeller engine on a mount.</summary>
     public OverstressMember? HorizontalTail { get; }
     public OverstressMember? EngineMount { get; }
+
+    /// <summary>
+    /// THE VERTICAL TAIL, on its own LATERAL load (Ty 2026-11-11) — the one member here that is not driven by a load
+    /// factor at all, because the fin is not loaded by one. Its load is the side force its own strips make, in
+    /// newtons, against <see cref="FinLimitLoadN"/>.
+    ///
+    /// Null when the type publishes no fin limit (<see cref="LimitsConfig.FinLimitLoadN"/> 0), which is the same
+    /// discipline the <see cref="Wings"/> property states: a member nothing could drive, or that is driven against a
+    /// guessed limit, is a shadow that quietly disagrees with the members that are real.
+    ///
+    /// WHAT IS NOT DONE: its <see cref="OverstressMember.DeflectionRad"/> is not DRAWN. The wings' and the tail's
+    /// overstress shapes become geometry the aero then flies (AircraftOverstress.ApplyOverstressShape); a bent fin
+    /// is felt and heard but not seen, so a fin pulled past its limit and back looks straight while carrying a
+    /// permanent set. The set is real and the model flies it; only the mesh is missing.
+    /// </summary>
+    public OverstressMember? VerticalTail { get; }
+
+    /// <summary>The fin's limit load, N (<see cref="LimitsConfig.FinLimitLoadN"/>); 0 = no fin member.</summary>
+    public double FinLimitLoadN { get; }
 
     /// <summary>Each wing as its own failing structure, on its own load (Ty 2026-11-10,
     /// <see cref="WingFailureLaw"/>): in a rolling pull the two do not carry the same thing, so one can come apart
@@ -163,17 +184,23 @@ public sealed partial class StructuralState
     /// <summary>The same for the horizontal tail, which carries the wing's ratio over its own design margin.</summary>
     public double TailRatioAt(double n, double wingWeightRatio) => Ratio(n) * wingWeightRatio / TailDesignMargin;
 
-    public StructuralBreak Step(double nLeft, double nRight, double nTotal, double wingWeightRatio, double dt)
+    /// <param name="finSideForceN">The lateral force the vertical tail's own strips are making, N (Aircraft's
+    /// <c>FinSideLoadN</c>). 0 for a held-load-factor scenario, which is right: a symmetric pull puts nothing on the
+    /// fin.</param>
+    public StructuralBreak Step(double nLeft, double nRight, double nTotal, double wingWeightRatio, double dt, double finSideForceN = 0.0)
     {
         StructuralBreak broke = StepWings(nLeft, nRight, wingWeightRatio, dt);
         double rw = Ratio(0.5 * (nLeft + nRight)) * wingWeightRatio, re = Ratio(nTotal);
         if (HorizontalTail is { Broken: false } t && t.Step(rw / TailDesignMargin, dt)) broke |= StructuralBreak.HorizontalTail;
         if (EngineMount is { Broken: false } e && e.Step(re, dt)) broke |= StructuralBreak.EngineMount;
+        // The fin on its own LATERAL load — a force over a force, not a load factor over a load factor.
+        if (VerticalTail is { Broken: false } f && f.Step(FinRatioAt(finSideForceN), dt)) broke |= StructuralBreak.VerticalTail;
         double sev = 0.0;
         foreach (WingSideStructure w in Wings2)
             if (!w.Gone && w.Member is { Broken: false }) sev = Math.Max(sev, Severity(w.Member));
         if (HorizontalTail is { Broken: false } t2) sev = Math.Max(sev, Severity(t2));
         if (EngineMount is { Broken: false } e2) sev = Math.Max(sev, Severity(e2));
+        if (VerticalTail is { Broken: false } f2) sev = Math.Max(sev, Severity(f2));
         OverLimitSeverity = sev;
         AccumulatePops(sev, dt);
         return broke;
@@ -255,7 +282,13 @@ public sealed partial class StructuralState
         _spawnWeightRatio = massKg > 0 ? limits.WingWeightRatio(massKg, grossKg > 0 ? grossKg : massKg) : 1.0;
         if (horizontalTail) HorizontalTail = new OverstressMember("horizontal tail");
         if (engineMount) EngineMount = new OverstressMember("engine mount");
+        FinLimitLoadN = limits.FinLimitLoadN > 0.0 ? limits.FinLimitLoadN : 0.0;
+        if (FinLimitLoadN > 0.0) VerticalTail = new OverstressMember("vertical tail");
     }
+
+    /// <summary>The fin's load as a multiple of its limit, signed (+ = the force pushes the tail to the RIGHT), from
+    /// the lateral force its strips are making. One source of truth, so the probe, the member and any table agree.</summary>
+    public double FinRatioAt(double sideForceN) => FinLimitLoadN > 0.0 ? sideForceN / FinLimitLoadN : 0.0;
 
     /// <summary>Severity of load factor n against the groan/ultimate band on its own sign: 0 anywhere below the groan
     /// threshold (the limit included), 1 at or beyond ultimate.</summary>

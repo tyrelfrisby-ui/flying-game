@@ -1594,6 +1594,49 @@ public sealed class LimitsConfig
     /// <summary>VA, the manoeuvring speed (IAS, m/s) up to which <see cref="GMax"/>/<see cref="GMin"/> hold. 0 = they hold
     /// all the way to VNE.</summary>
     public double VaMs { get; set; }
+    /// <summary>Where VA came from (documentation only). For the types it was DERIVED for rather than read off a
+    /// manual, it says so and gives the arithmetic.</summary>
+    public string VaSource { get; set; } = "";
+
+    // ---- THE VERTICAL TAIL'S OWN STRENGTH (Ty 2026-11-11). Until this the fin had no limit anywhere in the
+    // ---- project, which is why flutter on the rudder shed the rudder and weakened nothing.
+
+    /// <summary>
+    /// THE FIN'S LIMIT LOAD, N: the lateral force the vertical tail carries without permanent deformation.
+    ///
+    /// TY'S METHOD, verbatim (2026-11-11): "At va measure the force on the vertical tail with a yaw one way followed
+    /// by an immediate yaw full deflection the other way then add 15% and call that the limit load with a 2.0
+    /// ultimate strength before any fatigue." That is the rudder-reversal case of the yaw manoeuvring conditions
+    /// (FAR 23.441 / 25.351) and it is a real certification manoeuvre, not an invention — it is the case AA587 found.
+    ///
+    /// THE 2.0 IS TY'S AND IS NOT THE USUAL 1.5 (FAR 23.303 puts ultimate at 1.5 x limit). It needs no field here:
+    /// <see cref="OverstressMember.BreakRatio"/> is already 2.0, so the fin breaks at twice this by the same rule
+    /// the wings break by.
+    ///
+    /// Measured per type by FinLoadProbe and authored; 0 = not measured, and then the type has NO fin member at all
+    /// rather than a guessed one.
+    /// </summary>
+    public double FinLimitLoadN { get; set; }
+
+    /// <summary>
+    /// The lateral force on the fin of ONE full rudder deflection at VA, N — the load an ordinary, deliberate
+    /// rudder input makes, measured by the same probe as <see cref="FinLimitLoadN"/> and always the smaller of the
+    /// two (the reversal catches the sideslip still at its overswing peak, so the slip angle and the opposite
+    /// deflection ADD; a single deflection from level flight under-reads it).
+    ///
+    /// It is the fin's FATIGUE ENDPOINT, the analogue of Ty's "ultimate strength of 1g" for the wing. The wing's
+    /// endpoint is the load it carries in level flight, so a fully fatigued wing fails doing nothing; a fin carries
+    /// almost nothing in balanced flight, so the same sentence would have it fall off unprompted. The true analogue
+    /// is the next ORDINARY use of the thing: a fully fatigued fin fails the next time the pilot uses the rudder the
+    /// way he always does.
+    /// </summary>
+    /// <remarks>THAT ENDPOINT IS THE COORDINATOR'S READING, NOT TY'S, and is flagged so he can overturn it in one
+    /// line. Ty specified the LIMIT (the reversal, +15 %, 2.0 ultimate) and has not said where the fin's fatigue
+    /// ends.</remarks>
+    public double FinOrdinaryLoadN { get; set; }
+
+    /// <summary>How both fin loads were measured, per type (documentation only).</summary>
+    public string FinLoadSource { get; set; } = "";
     /// <summary>Limit load factors at VNE; 0 = the same as at VA. Between VA and VNE the limit is the straight line a
     /// flight manual's two quoted points imply (CS 22.333's flight envelope, A to D and G to E).</summary>
     public double GMaxAtVne { get; set; }

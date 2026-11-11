@@ -114,6 +114,105 @@ namespace FlyingGame.Bridge
                 List<Tunable> knobs = groups[gi].Value;
                 for (int ki = 0; ki < knobs.Count; ki++) KnobRow(cfg, knobs[ki], ref y);
             }
+
+            GlobalSection(ref y);
+        }
+
+        /// <summary>
+        /// THE GLOBAL KNOBS, drawn apart from everything above them and labelled so nobody can mistake one for the
+        /// other. Every row above belongs to the aeroplane being flown and to nothing else; every row down here
+        /// belongs to the whole fleet, and a pilot who moves one and then reports how the Cub flew has changed the
+        /// Sabre too.
+        ///
+        /// It is drawn LAST on purpose — the per-aircraft knobs are what he is normally here for — and separated by
+        /// a rule, its own banner and its own reset, so the boundary is visible on a phone in sunlight without
+        /// reading anything. The rows themselves use the same KnobRow idiom, because a knob that behaved
+        /// differently under the thumb would be a second thing to learn for no reason.
+        /// </summary>
+        private void GlobalSection(ref float y)
+        {
+            List<KeyValuePair<string, List<GlobalTunable>>> groups = GlobalTunableRegistry.Groups();
+            if (groups.Count == 0) return;
+
+            y += _gap * 1.2f;
+            // A rule across the page: the one piece of pure decoration here, and it earns its place by marking the
+            // boundary at a glance.
+            UiLayout.Label(new Rect(_x, y, _cw, _lh), "──────────────────────────────", _note);
+            y += _lh * 0.8f;
+            UiLayout.Label(new Rect(_x, y, _cw, _lh), "GLOBAL — THESE APPLY TO EVERY AEROPLANE", _head);
+            y += _lh;
+
+            int gmod = GlobalTuningSession.ModifiedCount();
+            {
+                string banner = gmod == 0
+                    ? "STOCK — every global at its shipped value"
+                    : "MODIFIED — " + gmod + (gmod == 1 ? " global is" : " globals are") + " off the shipped value, on EVERY aeroplane";
+                float bh = RowH(banner, _cw);
+                UiLayout.LabelWrapped(new Rect(_x, y, _cw, bh), banner, gmod == 0 ? _note : _head);
+                y += bh + _gap * 0.3f;
+            }
+
+            Note("These are not this aeroplane's numbers. They are the model's — one value for the whole fleet — so "
+                 + "moving one changes how every type behaves, including the ones you are not flying. They are kept "
+                 + "separately from the per-aeroplane tuning above, they are not copied by COPY FROM, and RESET ALL "
+                 + "up there does not touch them.", ref y);
+
+            if (UiLayout.Button(new Rect(_x, y, _cw * 0.55f, _lh), "RESET GLOBALS", gmod == 0 ? _btn : _btnOn))
+                GlobalTuningSession.ResetAll();
+            y += _lh + _gap * 0.4f;
+
+            for (int gi = 0; gi < groups.Count; gi++)
+            {
+                y += _gap * 0.5f;
+                UiLayout.Label(new Rect(_x, y, _cw, _lh), groups[gi].Key.ToUpperInvariant(), _head);
+                y += _lh;
+                List<GlobalTunable> knobs = groups[gi].Value;
+                for (int ki = 0; ki < knobs.Count; ki++) GlobalKnobRow(knobs[ki], ref y);
+            }
+        }
+
+        /// <summary>One global knob — the same row as <see cref="KnobRow"/>, reading and writing a static instead of
+        /// a field on the aeroplane's config. Every global is live by construction: a static is read by the physics
+        /// on the next step, so there is no NEXT FLY case to draw.</summary>
+        private void GlobalKnobRow(GlobalTunable t, ref float y)
+        {
+            double nowD;
+            try { nowD = t.Get(); } catch (System.Exception) { return; }
+            float now = (float)nowD;
+            bool modified = GlobalTuningSession.IsModified(t);
+            string fmt = "F" + t.Decimals;
+
+            {
+                float lw = _cw * 0.54f;
+                float h = RowH(t.Label, lw);
+                if (UiLayout.Button(new Rect(_x, y, lw, h), t.Label, modified ? _btnOn : _label))
+                    _devOpenDesc = _devOpenDesc == t.Id ? "" : t.Id;
+                string reading = now.ToString(fmt) + t.Units;
+                if (!double.IsNaN(t.Shipped)) reading += "   (was " + t.Shipped.ToString(fmt) + t.Units + ")";
+                UiLayout.Label(new Rect(_x + lw + _gap * 0.5f, y, _cw - lw - _gap * 0.5f, h), reading, modified ? _head : _note);
+                y += h;
+            }
+
+            {
+                float v = GUI.HorizontalSlider(new Rect(_x, y + _lh * 0.25f, _cw, _lh * 0.4f),
+                                               now, (float)t.Min, (float)t.Max);
+                if (Mathf.Abs(v - now) > (float)t.FineStep * 0.1f) GlobalTuningSession.Set(t, v);
+                y += _lh * 0.8f;
+            }
+
+            {
+                float bw = (_cw * 0.62f - _gap * 1.5f) / 4f;
+                if (UiLayout.Button(new Rect(_x, y, bw, _lh), "◂◂", _btn)) GlobalTuningSession.Set(t, nowD - t.Step);
+                if (UiLayout.Button(new Rect(_x + bw + _gap * 0.5f, y, bw, _lh), "◂", _btn)) GlobalTuningSession.Set(t, nowD - t.FineStep);
+                if (UiLayout.Button(new Rect(_x + 2 * (bw + _gap * 0.5f), y, bw, _lh), "▸", _btn)) GlobalTuningSession.Set(t, nowD + t.FineStep);
+                if (UiLayout.Button(new Rect(_x + 3 * (bw + _gap * 0.5f), y, bw, _lh), "▸▸", _btn)) GlobalTuningSession.Set(t, nowD + t.Step);
+                float rx = _x + _cw * 0.64f, rw = _cw * 0.36f;
+                if (modified && UiLayout.Button(new Rect(rx, y, rw * 0.5f, _lh), "RESET", _btnOn)) GlobalTuningSession.Reset(t);
+                y += _lh + _gap * 0.3f;
+            }
+
+            if (_devOpenDesc == t.Id) { Note(t.Description, ref y); y += _gap * 0.3f; }
+            y += _gap * 0.2f;
         }
 
         /// <summary>

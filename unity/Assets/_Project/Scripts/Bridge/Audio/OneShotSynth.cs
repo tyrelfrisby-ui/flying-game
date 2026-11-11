@@ -483,19 +483,93 @@ namespace FlyingGame.Bridge
         }
     }
 
-    /// <summary>Trigger mailbox + voice pool for the one-shots, plus the continuous stress hum.</summary>
+    /// <summary>
+    /// FLUTTER, AS THE PILOT HEARS IT — and it is the ONLY warning he gets before the aeroplane comes apart, so it
+    /// is not garnish. Ty's description is the specification: "high frequency low amplitude flutter ... increases in
+    /// amplitude and decreases in frequency until catastrophic failure occurs", from
+    /// <see cref="FlyingGame.Core.Aero.Flutter.OnsetHz"/> 35 Hz down to <see cref="FlyingGame.Core.Aero.Flutter.DivergentHz"/> 8.
+    ///
+    /// IT IS A PULSE TRAIN, NOT A TONE, and that choice is what makes the sweep legible. Eight to thirty-five hertz
+    /// is below the bottom of pitch hearing: rendered as a sine the whole sweep would be a sub-rumble the phone's
+    /// speaker cannot reproduce and a pilot could not read. Rendered as a surface slamming against its stops that
+    /// many times a second, it is a hard rasp at 35 Hz — heard through its harmonics, which is how a real buzz at
+    /// that rate reaches the ear — that coarsens into separate HAMMER BLOWS as the rate falls. So the warning gets
+    /// slower and bigger at the same time, which is exactly the thing to be frightened of, and the pilot can tell
+    /// how far gone it is by counting the bangs.
+    ///
+    /// The body resonance falls with it (a coalescing mode takes the structure with it) and each blow lasts longer,
+    /// so the timbre goes from buzz to boom without a second parameter. Nothing here is random: one pulse per
+    /// cycle, deterministically, with the noise only colouring the strike.
+    /// </summary>
+    internal sealed class FlutterBuzz
+    {
+        private readonly float _fs;
+        private readonly Noise _n = new Noise(0xF1A77E2u);
+        private readonly Biquad _body = new Biquad();
+        private float _hz, _hzT, _amp, _ampT, _phase, _env, _dec;
+        private float _bodyHz = -1f;
+        private readonly float _smooth;
+
+        public FlutterBuzz(float fs)
+        {
+            _fs = fs;
+            _smooth = Dsp.Tau(0.05f, fs);     // the sweep is slow; 50 ms keeps a block boundary from clicking
+        }
+
+        /// <summary>Audio thread, once per block. <paramref name="hz"/> is the flutter's own frequency
+        /// (Aircraft.FlutterHz, 0 when nothing is fluttering) and <paramref name="g"/> the shake at the pilot
+        /// (Aircraft.FlutterG), which is the amplitude.</summary>
+        public void Prepare(float hz, float g)
+        {
+            _hzT = hz > 0f ? Dsp.Clamp(hz, 3f, 60f) : 0f;
+            _ampT = hz > 0f ? Dsp.Clamp01(g / 1.5f) : 0f;   // Flutter.AmplitudeG tops out at 1.5 g
+        }
+
+        public float Next()
+        {
+            _hz += _smooth * (_hzT - _hz);
+            _amp += _smooth * (_ampT - _amp);
+            if (_hzT <= 0f && _amp < 0.001f) { _env = 0f; return 0f; }
+            if (_hz <= 0.5f) return 0f;
+
+            _phase += _hz / _fs;
+            if (_phase >= 1f)
+            {
+                _phase -= 1f;
+                _env = 1f;
+                // The strike's decay is a fixed FRACTION of the period, so a slower flutter rings longer and the
+                // blows stay separate instead of smearing into each other as the rate falls.
+                _dec = Dsp.DecayCoef(0.22f / _hz, _fs);
+                // The body note falls with the flutter: 420 Hz at onset down to 120 as it diverges.
+                float bh = 120f + 300f * Dsp.Clamp01((_hz - 8f) / 27f);
+                if (_bodyHz < 0f || Math.Abs(bh - _bodyHz) > 2f) { _body.BandPass(_fs, bh, 2.2f); _bodyHz = bh; }
+            }
+            if (_env <= 1e-5f) return 0f;
+            _env *= _dec;
+            // The strike itself: a noise crack through the body resonance, plus a little of the raw crack so the
+            // high end does not vanish on a phone speaker.
+            float x = _n.Next() * _env;
+            float s = _body.Process(x * 3f) + 0.25f * x;
+            // 0.07 at onset (audible, not alarming) rising to a sound he cannot ignore.
+            return s * (0.07f + 0.93f * _amp * _amp) * 0.9f;
+        }
+    }
+
+    /// <summary>Trigger mailbox + voice pool for the one-shots, plus the continuous stress hum and flutter buzz.</summary>
     internal sealed class OneShotSynth
     {
         private readonly int[] _pending = new int[(int)FxKind.Count];
         private readonly float[] _pendingLevel = new float[(int)FxKind.Count];
         private readonly FxVoice[] _pool;
         private readonly StressHum _groan;
+        private readonly FlutterBuzz _flutter;
 
         public OneShotSynth(float fs)
         {
             _pool = new FxVoice[4];
             for (int i = 0; i < _pool.Length; i++) _pool[i] = new FxVoice(fs, 0x51A7Eu + (uint)i * 0x9E3779B9u);
             _groan = new StressHum(fs);
+            _flutter = new FlutterBuzz(fs);
         }
 
         /// <summary>Main thread: queue a one-shot (coalesces repeats within a block).</summary>
@@ -512,7 +586,7 @@ namespace FlyingGame.Bridge
 
         /// <summary>Audio thread, once per block: start queued voices, retarget the stress hum. <paramref name="aircraftGain"/>
         /// = distance attenuation of everything that happens at the aircraft (1 while the pilot is aboard).</summary>
-        public void Prepare(float ias, float groanSeverity, float aircraftGain = 1f)
+        public void Prepare(float ias, float groanSeverity, float aircraftGain = 1f, float flutterHz = 0f, float flutterG = 0f)
         {
             _aircraftGain = aircraftGain;
             for (int k = 0; k < _pending.Length; k++)
@@ -528,11 +602,12 @@ namespace FlyingGame.Bridge
                 v.Start((FxKind)k, ias, _pendingLevel[k], FxSource.AtAircraft((FxKind)k) ? aircraftGain : 1f);
             }
             _groan.Prepare(groanSeverity);
+            _flutter.Prepare(flutterHz, flutterG);
         }
 
         public float Next()
         {
-            float s = _groan.Next() * _aircraftGain;
+            float s = (_groan.Next() + _flutter.Next()) * _aircraftGain;
             for (int i = 0; i < _pool.Length; i++) if (_pool[i].Active) s += _pool[i].Next();
             return s;
         }

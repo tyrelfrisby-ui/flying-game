@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using FlyingGame.Core;
+using FlyingGame.Core.DataContracts;   // AircraftConfig: it is NOT in FlyingGame.Core
 using FlyingGame.Core.MathTypes;
 using FlyingGame.Core.Recording;
 using FlyingGame.Core.Tuning;

@@ -693,6 +693,10 @@ public static class AeroModel
         const double SlipRollBeta20 = 20.0 * Math.PI / 180.0;
         double slipRollMx = 0.0;
         double gateWingArea = 0.0, gateWingSeparated = 0.0;
+        // THE FIN'S OWN LOAD, summed as it is made (StripFlowState.FinSideForceN). Every vertical strip's finished
+        // lateral force, fin and rudder together: the signal the vertical tail's structure is driven by, built the
+        // same way and at the same moment as the normal load the wings are driven by.
+        double finSideN = 0.0;
 
         for (int surfaceIndex = 0; surfaceIndex < config.Surfaces.Count; surfaceIndex++)
         {
@@ -1419,6 +1423,7 @@ public static class AeroModel
                 Vec3 momentAero = momentAxis * momentC4;
 
                 totalForce += force;
+                if (isVertical) finSideN += force.Y;
                 totalMoment += momentFromForce + momentAero;
                 if (ForceDebug.Samples is not null)
                 {
@@ -1433,6 +1438,8 @@ public static class AeroModel
         // as a permanent fuselage sideslip and trimmed the aircraft into a real one. They use the MEAN flow
         // (no gusts): the bluff-body crossflow terms are for large-angle flow, and feeding them small-scale gusts
         // pumped the glider's phugoid in moderate turbulence.
+        if (flowState is not null) flowState.FinSideForceN = finSideN;
+
         Vec3 airVelocity = bodyVelocity - (meanWindBody ?? windBody);
         ApplySpoilerDrag(config, airVelocity, airDensity, controls, ref totalForce, surfaceMask);
         ApplyFuselage(config, airVelocity, bodyRates, airDensity, ref totalForce, ref totalMoment);

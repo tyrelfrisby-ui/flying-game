@@ -422,6 +422,11 @@ namespace FlyingGame.Bridge
                 _tele.WindSpeedMs = (float)System.Math.Sqrt(here.MeanWind.X * here.MeanWind.X + here.MeanWind.Y * here.MeanWind.Y);
             }
             _tele.GroanSeverity = _groanSeverity;
+            // FLUTTER. Ty 2026-11-11: the vibration "increases in amplitude and decreases in frequency until
+            // catastrophic failure occurs", and it is the only warning the pilot gets, so it is pushed every frame
+            // whether or not anything else is happening. Zero when nothing is fluttering.
+            _tele.FlutterHz = aircraft != null ? (float)aircraft.FlutterHz : 0f;
+            _tele.FlutterG = aircraft != null ? (float)aircraft.FlutterG : 0f;
             PushGroundSound(aircraft);
             _tele.MasterGain = SessionSettings.MenuOpen ? 0f : Mathf.Clamp01(MasterVolume) * MixGain;
             // Pilot out: his own airspeed is the wind in his ears; the aircraft's engine, tyres and crashes fade with distance.
@@ -518,7 +523,7 @@ namespace FlyingGame.Bridge
             float acGain = t.AircraftGain;
             _wind.SetSpoilerVoice(t.SpoilerRoar, t.SpoilerRumble);
             _wind.Prepare(ias, t.AlphaDeg, t.BetaDeg, t.TurbulenceLevel, t.WindSpeedMs, t.Spoiler01, powered && !t.PilotOut, t.CockpitAir);
-            _fx.Prepare(ias, t.GroanSeverity, acGain);
+            _fx.Prepare(ias, t.GroanSeverity, acGain, t.FlutterHz, t.FlutterG);
             _surface.Prepare(t.RollVoiceLR, t.RollVoicePitch, t.RollSpeedMs);
             for (int s = 0; s < 2; s++)
             {
