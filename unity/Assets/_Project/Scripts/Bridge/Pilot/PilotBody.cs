@@ -52,8 +52,6 @@ namespace FlyingGame.Bridge
         private float _landedT;
         /// <summary>The soaked canopy's pull on his harness, N (once it hangs on taut lines below him).</summary>
         public float ChuteLoadN => ChuteOnWater != null ? (float)ChuteOnWater.LoadOnPilotN(_landedT, V(Position)) : 0f;
-        private static FlyingGame.Core.MathTypes.Vec3 V(Vector3 v) => new(v.x, v.y, v.z);
-        private static Vector3 U(FlyingGame.Core.MathTypes.Vec3 v) => new((float)v.X, (float)v.Y, (float)v.Z);
         /// <summary>Speed of the FIRST ground contact (m/s).</summary>
         public float LandingSpeedMs { get; private set; }
         /// <summary>Bouncing down a slope steeper than <see cref="TumbleSlopeTan"/>.</summary>
