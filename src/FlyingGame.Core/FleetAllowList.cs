@@ -10,15 +10,23 @@ namespace FlyingGame.Core;
 /// </summary>
 public static class FleetAllowList
 {
-    /// <summary>iOS (iPhone and iPad: one build): the five proven aircraft. The order here is not the menu's; the menu keeps
-    /// the master fleet's order.</summary>
+    /// <summary>iOS (iPhone and iPad: one build): the proven aircraft. The order here is not the menu's; the menu keeps
+    /// the master fleet's order.
+    ///
+    /// SIX, NOT FIVE. Ty asked for five on 2026-11-03 and confirmed "keep the five - it was about quality" on
+    /// 2026-11-10, then flew a build and said of the J-3 on floats: "The j3 on floats is not in this build it should
+    /// be." It is the one type <see cref="TestFlightFleet.Listed"/> PACKAGES and this list did not OFFER, so the slim
+    /// build shipped its model folder and the selector hid it -- the intersection of the two lists, costing build size
+    /// for an aeroplane nobody could choose. The two lists answer different questions and must still not be read as
+    /// each other, but on this type they now agree.</summary>
     public static readonly string[] Ios =
     {
-        "glider-2-33-like",   // SGS 2-33
-        "j3-cub-like",        // J-3 Cub
-        "great-lakes-like",   // Great Lakes
-        "pitts-s2b-like",     // Pitts S-2B
-        "extra-300-like",     // Extra 300
+        "glider-2-33-like",      // SGS 2-33
+        "j3-cub-like",           // J-3 Cub
+        "j3-cub-floats-like",    // J-3 Cub on EDO floats (Ty 2026-11-10)
+        "great-lakes-like",      // Great Lakes
+        "pitts-s2b-like",        // Pitts S-2B
+        "extra-300-like",        // Extra 300
     };
 
     /// <summary>The master fleet with everything the allow-list leaves out removed, in the master's order. A null list
