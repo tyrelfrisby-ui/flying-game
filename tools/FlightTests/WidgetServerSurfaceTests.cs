@@ -116,6 +116,42 @@ public sealed class WidgetServerSurfaceTests
         Assert.Contains(needle, File.ReadAllText(path), StringComparison.Ordinal);
     }
 
+    // ---- the main thread ------------------------------------------------------------------------------------
+
+    [Fact]
+    public void TheMainThreadNeverWritesToAClientSocket()
+    {
+        // A StreamWriter with AutoFlush on a TCP socket BLOCKS when the peer stops reading. Writing the state
+        // stream from Update() meant one suspended subscriber could stop the widget's frame — rendering, physics,
+        // Syphon, NDI — until the socket drained or TCP gave up, which is minutes.
+        string code = Code(Source("WidgetServer.cs"));
+        int update = code.IndexOf("private void Update()", StringComparison.Ordinal);
+        Assert.True(update > 0, "WidgetServer.cs no longer declares Update() — this test reads it");
+        string rest = code.Substring(update);
+        int nextMethod = rest.IndexOf("public void PushEvent", StringComparison.Ordinal);
+        string body = nextMethod > 0 ? rest.Substring(0, nextMethod) : rest;
+        Assert.DoesNotContain(".WriteLine(", body, StringComparison.Ordinal);
+        Assert.Contains("s.c.Send(st)", body, StringComparison.Ordinal);
+
+        // PushEvent runs on the main thread too (SeeRemote, PruneRemotes and the lessons all call it).
+        int push = code.IndexOf("public void PushEvent", StringComparison.Ordinal);
+        string pushBody = code.Substring(push, Math.Min(400, code.Length - push));
+        Assert.DoesNotContain(".WriteLine(", pushBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AStalledSubscribersQueueIsBoundedAndEventuallyHungUpOn()
+    {
+        // An unbounded queue turns a stalled subscriber into a memory leak at up to 60 state lines a second, in a
+        // process that is already watched for its footprint (the capture guard exists because this widget was once
+        // found at 50 GB).
+        string code = Code(Source("WidgetServer.cs"));
+        Assert.Contains("MaxQueued", code, StringComparison.Ordinal);
+        Assert.Contains("DropsBeforeHangUp", code, StringComparison.Ordinal);
+        var m = Regex.Match(code, @"MaxQueued\s*=\s*(\d+)");
+        Assert.True(m.Success && int.Parse(m.Groups[1].Value) is > 0 and <= 4096, "the output queue must be bounded, and bounded small");
+    }
+
     // ---- CORS -----------------------------------------------------------------------------------------------
 
     [Fact]
@@ -158,7 +194,7 @@ public sealed class WidgetServerSurfaceTests
         // A bare StreamReader.ReadLine() on a socket has no limit: a peer that never sends a newline grows one
         // string until the process dies, and it costs the peer nothing.
         Assert.DoesNotMatch(new Regex(@"reader\.ReadLine\(\)"), code);
-        Assert.Contains("ReadLineCapped(reader, writer)", code, StringComparison.Ordinal);
+        Assert.Contains("ReadLineCapped(reader, conn)", code, StringComparison.Ordinal);
         Assert.Contains("WidgetAccess.MaxLineBytes", code, StringComparison.Ordinal);
     }
 

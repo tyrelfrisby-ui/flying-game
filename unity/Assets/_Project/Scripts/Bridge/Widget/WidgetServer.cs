@@ -38,8 +38,81 @@ namespace FlyingGame.Bridge.Widget
         private int _connSeq;
         /// <summary>The widget's own web remotes (protocol 4): id → (name, last seen). Main thread only.</summary>
         private readonly Dictionary<string, (string name, float seen)> _remotes = new();
-        private readonly List<(StreamWriter w, float hz, float next)> _subs = new();
+        private readonly List<(Conn c, float hz, float next)> _subs = new();
         private readonly object _subLock = new();
+
+        /// <summary>
+        /// ONE TCP CLIENT'S OUTPUT: a bounded queue and a thread of its own to drain it.
+        ///
+        /// Every line the widget sends a connected client — command replies, pushed events, and the state stream at
+        /// up to 60 Hz — used to be written from <see cref="Update"/>, on Unity's MAIN THREAD, inside the
+        /// subscriber lock. A StreamWriter with AutoFlush on a TCP socket blocks when the peer stops reading and
+        /// the kernel's send buffer fills, which a subscriber does simply by being suspended, backgrounded, on a
+        /// bad Wi-Fi hop, or stopped at a breakpoint. The widget's frame then stops — rendering, physics, Syphon,
+        /// NDI, everything — until that one socket drains or the TCP timeout expires, which is minutes.
+        /// (pre-ship audit, 2026-11-11.)
+        ///
+        /// So the main thread now only ENQUEUES, which cannot block, and this thread does the writing and takes the
+        /// stall. The queue is bounded because an unbounded one turns a stalled subscriber into a memory leak at 60
+        /// state lines a second; over the bound, lines are dropped and counted, and a client that has been dropping
+        /// for about a minute is hung up on — it is not reading, and a connection nobody reads is not a subscriber.
+        /// Dropping state frames is the right loss: each one is a complete snapshot, so a client that misses some
+        /// is merely behind, not wrong.
+        /// </summary>
+        private sealed class Conn
+        {
+            public const int MaxQueued = 256;          // ~4 s of a 60 Hz stream
+            public const int DropsBeforeHangUp = 600;  // ~1 minute at 10 Hz of dropping everything
+
+            public readonly StreamWriter W;
+            public readonly string Src;
+            public volatile bool Alive = true;
+            private readonly ConcurrentQueue<string> _q = new();
+            private readonly SemaphoreSlim _wake = new(0);
+            private int _depth, _dropped;
+
+            public Conn(StreamWriter w, string src)
+            {
+                W = w; Src = src;
+                new Thread(Pump) { IsBackground = true, Name = "widget-out-" + src }.Start();
+            }
+
+            /// <summary>Queue a line. Never blocks, never throws, and is safe from any thread.</summary>
+            public void Send(string line)
+            {
+                if (!Alive || line == null) return;
+                if (Interlocked.Increment(ref _depth) > MaxQueued)
+                {
+                    Interlocked.Decrement(ref _depth);
+                    if (Interlocked.Increment(ref _dropped) > DropsBeforeHangUp)
+                    {
+                        Debug.LogWarning($"[Widget] {Src} stopped reading: {_dropped} lines dropped, hanging up");
+                        Close();
+                    }
+                    return;
+                }
+                _q.Enqueue(line);
+                try { _wake.Release(); } catch { }
+            }
+
+            private void Pump()
+            {
+                try
+                {
+                    while (Alive)
+                    {
+                        if (!_wake.Wait(1000)) continue;         // the timeout is how Alive=false gets noticed
+                        if (!_q.TryDequeue(out string line)) continue;
+                        Interlocked.Decrement(ref _depth);
+                        lock (W) W.WriteLine(line);              // the write that can block now blocks HERE
+                    }
+                }
+                catch { }                                        // a closed socket ends this thread, nothing else
+                Alive = false;
+            }
+
+            public void Close() { Alive = false; try { _wake.Release(); } catch { } }
+        }
 
         private void Start()
         {
@@ -148,6 +221,7 @@ namespace FlyingGame.Bridge.Widget
         private void OnDestroy()
         {
             _run = false;
+            lock (_subLock) { foreach (var s in _subs) s.c.Close(); _subs.Clear(); }   // the writer threads end with their queues
             lock (_bonjour) foreach (var sd in _bonjour) { try { DNSServiceRefDeallocate(sd); } catch { } }
             try { _tcp?.Stop(); } catch { }
             try { _http?.Stop(); } catch { }
@@ -172,23 +246,28 @@ namespace FlyingGame.Bridge.Widget
             var reader = new StreamReader(stream, Encoding.UTF8);
             var writer = new StreamWriter(stream, new UTF8Encoding(false)) { AutoFlush = true, NewLine = "\n" };
             string src = "tcp-" + Interlocked.Increment(ref _connSeq);   // this connection's identity (the pilot's source)
+            // Everything this connection is ever sent goes through its own queue and its own writer thread: the
+            // main thread must never touch the socket. See Conn.
+            var conn = new Conn(writer, src);
             try
             {
                 string line;
-                while (_run && (line = ReadLineCapped(reader, writer)) != null)
+                while (_run && conn.Alive && (line = ReadLineCapped(reader, conn)) != null)
                 {
                     if (string.IsNullOrWhiteSpace(line)) continue;
                     string l = line;
-                    _inbox.Enqueue((l, reply => { lock (writer) { try { writer.WriteLine(reply); } catch { } } }, src));
+                    _inbox.Enqueue((l, reply => conn.Send(reply), src));
                     if (l.Contains("\"subscribe\""))
                     {
                         float hz = 10f; try { hz = (float)(JObject.Parse(l)["hz"]?.Value<double>() ?? 10); } catch { }
-                        lock (_subLock) _subs.Add((writer, Mathf.Clamp(hz, 1f, 60f), 0f));
+                        if (!WidgetAccess.Finite(hz)) hz = 10f;
+                        lock (_subLock) _subs.Add((conn, Mathf.Clamp(hz, 1f, 60f), 0f));
                     }
                 }
             }
             catch { }
-            lock (_subLock) _subs.RemoveAll(s => s.w == writer);
+            conn.Close();
+            lock (_subLock) _subs.RemoveAll(s => s.c == conn);
             c.Close();
         }
 
@@ -205,7 +284,7 @@ namespace FlyingGame.Bridge.Widget
         /// sees what happened. The limit is ~60× the largest command the protocol has (a vectorStyle with every
         /// field set measures about 1.1 KB), so no real client can reach it by accident.
         /// </summary>
-        private static string ReadLineCapped(StreamReader reader, StreamWriter writer)
+        private static string ReadLineCapped(StreamReader reader, Conn conn)
         {
             var sb = new StringBuilder(256);
             while (true)
@@ -218,10 +297,7 @@ namespace FlyingGame.Bridge.Widget
                 {
                     // Swallow the rest of this line so the next one still parses, then say so.
                     while ((ch = reader.Read()) >= 0 && ch != '\n') { }
-                    lock (writer)
-                    {
-                        try { writer.WriteLine($"{{\"ok\":false,\"error\":\"command line longer than {WidgetAccess.MaxLineBytes} characters: discarded\"}}"); } catch { }
-                    }
+                    conn.Send($"{{\"ok\":false,\"error\":\"command line longer than {WidgetAccess.MaxLineBytes} characters: discarded\"}}");
                     if (ch < 0) return null;
                     sb.Clear();
                     continue;
@@ -406,6 +482,7 @@ namespace FlyingGame.Bridge.Widget
             PruneRemotes();
             lock (_subLock)
             {
+                _subs.RemoveAll(s => !s.c.Alive);
                 if (_subs.Count == 0) return;
                 string st = null;
                 for (int i = 0; i < _subs.Count; i++)
@@ -413,8 +490,8 @@ namespace FlyingGame.Bridge.Widget
                     var s = _subs[i];
                     if (Time.unscaledTime < s.next) continue;
                     st ??= StateJson().ToString(Newtonsoft.Json.Formatting.None);
-                    try { lock (s.w) s.w.WriteLine(st); } catch { }
-                    _subs[i] = (s.w, s.hz, Time.unscaledTime + 1f / s.hz);
+                    s.c.Send(st);                      // queued, never written, on this thread — see Conn
+                    _subs[i] = (s.c, s.hz, Time.unscaledTime + 1f / s.hz);
                 }
             }
         }
@@ -423,7 +500,7 @@ namespace FlyingGame.Bridge.Widget
         public void PushEvent(JObject e)
         {
             string line = e.ToString(Newtonsoft.Json.Formatting.None);
-            lock (_subLock) foreach (var s in _subs) { try { lock (s.w) s.w.WriteLine(line); } catch { } }
+            lock (_subLock) foreach (var s in _subs) s.c.Send(line);
         }
 
         private JArray RemotesJson()
