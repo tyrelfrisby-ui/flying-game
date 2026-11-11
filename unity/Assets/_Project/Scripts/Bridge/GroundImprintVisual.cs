@@ -49,6 +49,10 @@ namespace FlyingGame.Bridge
         public int DrawnMarks => _geometry != null ? _geometry.Count : 0;
         /// <summary>Triangles the last refresh left in the mesh.</summary>
         public int DrawnTriangles => _geometry != null ? _geometry.Triangles : 0;
+        /// <summary>Is there a material to draw the marks WITH? False means the shader was missing, the ground is
+        /// still keeping its marks and nothing is drawing them — which on screen is indistinguishable from a flight
+        /// that left no marks, so a render fixture must fail on this rather than shoot a plausible empty field.</summary>
+        public bool Drawable => _material != null;
 
         /// <summary>Put one on the world root (IslandWorldBuilder.Build). Idempotent.</summary>
         public static GroundImprintVisual Attach(Transform parent)
