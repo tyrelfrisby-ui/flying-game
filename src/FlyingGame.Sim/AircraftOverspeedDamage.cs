@@ -22,6 +22,10 @@ public sealed partial class Aircraft
     private double _overspeedPeakExcess;     // the worst over-rev this flight, as a fraction over the red line
     private double _bearingDamage01;         // 0 fresh .. 1 seized, once a bearing has been spun
     private bool _engineSeized;
+    // CUMULATIVE seconds spent over each of the three mechanical rungs (Ty 2026-11-11 revised the ladder to gate on
+    // time). They only count while the rpm is above their OWN threshold, so they nest: every second over 25 % is
+    // also a second over 15 % and over 12 %. Four separate two-second excursions past 12 % add up to eight.
+    private double _secondsOver12, _secondsOver15, _secondsOver25;
 
     /// <summary>The worst over-rev this flight, as a fraction over the red line (0.12 = 12 % over). It is a PEAK and
     /// it never comes back down: the engine has been hurt, and backing off does not unhurt it.</summary>
@@ -40,11 +44,37 @@ public sealed partial class Aircraft
     /// <summary>Cylinders with a ring broken by an over-rev: one, past 12 % over. They make no power, and the exhaust
     /// note is missing their pulse (EngineSynth renders a per-cylinder pulse train; <see cref="DeadCylinders"/> is
     /// what the bridge hands it).</summary>
-    public int DeadCylinders => EngineOverspeed.BrokenRings(_overspeedPeakExcess);
+    public int DeadCylinders => EngineOverspeed.BrokenRings(_secondsOver12);
+
+    /// <summary>Cumulative seconds this flight spent over each mechanical rung's threshold — 12 %, 15 % and 25 % over
+    /// the red line. They are what the rungs gate on, and they never come back down.</summary>
+    public (double Over12, double Over15, double Over25) OverspeedSeconds => (_secondsOver12, _secondsOver15, _secondsOver25);
+
+    /// <summary>
+    /// A BLADE HAS GONE: three cumulative seconds over 25 % (Ty 2026-11-11). The whole blade on a constant-speed
+    /// propeller, the outer half on a fixed-pitch one.
+    ///
+    /// WHAT IT DOES NOT YET DO IS LEAVE THE AEROPLANE, and that is deliberate rather than unfinished. Ty asked for
+    /// the separation to follow "the loads and structural limits" and then for the departing engine to fly "an
+    /// accurate flight path" and damage what it hits. Two of those three exist: <see cref="ThrownBladeUnbalanceN"/>
+    /// computes the load from his own blade rule, and FlyingGame.Core.Wreck's WreckSim already flies a departed
+    /// piece properly (6-DOF, flat-plate normal force with the centre-of-pressure walk that makes it tumble). The
+    /// two that do NOT exist are the engine MOUNT's load limit - an open question, deliberately not installed - and
+    /// any collision at all between a departed piece and the airframe it came off: IWreckWorld knows about water and
+    /// ground and nothing else. Firing a separation on an invented mount limit would be the kind of assumed baseline
+    /// this project keeps finding was wrong.
+    /// </summary>
+    public bool BladeThrown => EngineOverspeed.BladeThrown(_secondsOver25);
+
+    /// <summary>The rotating unbalance a thrown blade leaves at the rpm the shaft is turning now, N. It is what a
+    /// mount limit would have to be compared against; see <see cref="BladeThrown"/> for why nothing compares it yet.</summary>
+    public double ThrownBladeUnbalanceN => BladeThrown && Config.Propulsion is { PropDiameterM: > 0 } p
+        ? EngineOverspeed.ThrownBladeUnbalanceN(p.PropInertia, p.PropDiameterM, p.PropBladeCount, BaseEngineRpm, p.ConstantSpeed)
+        : 0.0;
 
     /// <summary>A bearing has been spun by an over-rev past 15 %: from here the engine is on its way out and how long
     /// it takes is up to the pilot's right hand.</summary>
-    public bool BearingSpun => EngineOverspeed.BearingSpun(_overspeedPeakExcess);
+    public bool BearingSpun => EngineOverspeed.BearingSpun(_secondsOver15);
 
     /// <summary>How far a spun bearing has got, 0 fresh to 1 seized. Vibration, oil temperature and the power loss
     /// all read off this, which is why it is one number and not three.</summary>
@@ -85,8 +115,12 @@ public sealed partial class Aircraft
 
         double excess = EngineOverspeed.Excess(BaseEngineRpm, p.MaxRpm);
         if (excess > _overspeedPeakExcess) _overspeedPeakExcess = excess;
+        // The three mechanical rungs count TIME, cumulatively, each above its own threshold.
+        if (excess > EngineOverspeed.BrokenRingExcess) _secondsOver12 += dt;
+        if (excess > EngineOverspeed.SpunBearingExcess) _secondsOver15 += dt;
+        if (excess > EngineOverspeed.ThrownBladeExcess) _secondsOver25 += dt;
 
-        if (!EngineOverspeed.BearingSpun(_overspeedPeakExcess)) return;
+        if (!BearingSpun) return;
         // THE LOAD IS WHAT THE ENGINE IS REALLY MAKING, not the lever: a dead or idling engine wears the bearing far
         // more slowly, and that is the whole of "a pilot that nurses it back has more time".
         _bearingDamage01 += EngineOverspeed.BearingDamagePerSecond(BaseEngineRpm, p.MaxRpm, ShaftPower01) * dt;
@@ -94,6 +128,14 @@ public sealed partial class Aircraft
     }
 
     /// <summary>Test and scenario seam: put an engine straight onto a rung of the ladder without flying the dive that
-    /// earns it. Used by PropOverspeedDamageTests and available to the CFI failure switchboard.</summary>
-    public void SetOverspeedPeakExcessForTesting(double excess) => _overspeedPeakExcess = System.Math.Max(0.0, excess);
+    /// earns it — the peak over-rev and, since the rungs gate on time, the seconds it spent there. Used by
+    /// OverspeedDamageTests and available to the CFI failure switchboard.</summary>
+    public void SetOverspeedForTesting(double excess, double seconds = 0.0)
+    {
+        _overspeedPeakExcess = System.Math.Max(0.0, excess);
+        double s = System.Math.Max(0.0, seconds);
+        if (excess > EngineOverspeed.BrokenRingExcess) _secondsOver12 = s;
+        if (excess > EngineOverspeed.SpunBearingExcess) _secondsOver15 = s;
+        if (excess > EngineOverspeed.ThrownBladeExcess) _secondsOver25 = s;
+    }
 }
