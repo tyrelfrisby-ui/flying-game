@@ -20,7 +20,7 @@ namespace FlyingGame.Bridge
     /// crashing because i'm turning off bubbles etc". Multiplayer is the exception — the other aeroplanes are
     /// real people, so there time keeps running.
     /// </summary>
-    public sealed class OptionsPanel : MonoBehaviour
+    public sealed partial class OptionsPanel : MonoBehaviour
     {
         public FlightSimDriver Driver;
         private bool _open;
@@ -41,12 +41,34 @@ namespace FlyingGame.Bridge
         private Texture2D _bg, _btnBg, _btnOnBg, _tabBg, _tabOnBg;
         private int _fs;
 
-        private enum Page { Display, Aids, Controls, Audio, Clips, Badges, Game, Help }
-        private static readonly string[] PageNames = { "Display", "Aids", "Controls", "Audio", "Clips", "Badges", "Game", "Help" };
+        private enum Page { Display, Aids, Controls, Audio, Clips, Badges, Game, Help, Developer }
+        private static readonly string[] PageNames = { "Display", "Aids", "Controls", "Audio", "Clips", "Badges", "Game", "Help", "Developer" };
+
+        /// <summary>
+        /// THE CHAPTERS THIS BUILD OFFERS, which is every one except Developer when that page's route is closed
+        /// (FlyingGame.Core.DeveloperAccess — the single switch, documented there and in AGENT-LOG.md).
+        ///
+        /// The gate is NAVIGATION, not compilation: the page is always compiled and always in the binary, and what
+        /// the switch removes is this tab. So the shipped build simply has no way in, and a developer can still get
+        /// at it with the environment variable rather than a new binary.
+        /// </summary>
+        private static int[] VisiblePages()
+        {
+            bool dev = FlyingGame.Core.DeveloperAccess.Open;
+            var list = new int[dev ? PageNames.Length : PageNames.Length - 1];
+            for (int i = 0, n = 0; i < PageNames.Length; i++)
+            {
+                if (!dev && i == (int)Page.Developer) continue;
+                list[n++] = i;
+            }
+            return list;
+        }
         private Page _page = Page.Display;
         private Vector2 _scroll;
         /// <summary>Where each page's last row ended, measured on the previous pass (0 = not drawn yet).</summary>
-        private readonly float[] _measured = new float[8];
+        // Sized from the page list, not by hand: it was new float[8] against eight pages, so the ninth would have
+        // written past the end on every frame it was drawn.
+        private readonly float[] _measured = new float[PageNames.Length];
         // Drag-to-scroll (Ty 2026-11-08: "I could not scroll in options control on the screen"). The panel had only
         // GUI.BeginScrollView's scrollbar — a strip about one character wide down the right edge, which is not a thing
         // a thumb can find on a phone, and nothing else moved the page at all. StartMenu has had its own ScrollInput
@@ -341,11 +363,16 @@ namespace FlyingGame.Bridge
             // 508 px panel — about 57 px each — and "Controls" came out clipped at both ends as ":ontrol:" (seen in the
             // self-test shots, Ty 2026-11-08). The minimum is a share of the SCREEN, not of the scaled unit, so raising
             // the page size cannot squeeze the tabs: it adds a row instead.
+
+            // If the Developer route has been closed since this page was last open — the release switch flipped, or
+            // the environment variable gone — do not sit on a chapter that no longer has a tab to leave by.
+            if (_page == Page.Developer && !FlyingGame.Core.DeveloperAccess.Open) { _page = Page.Display; _scroll = Vector2.zero; }
+
             int tabRows;
             {
                 float hwTabs = w - 2f * _gap, minTab = UiLayout.S * 0.14f;
                 int perFit = Mathf.Max(1, Mathf.FloorToInt((hwTabs + _gap * 0.3f) / (minTab + _gap * 0.3f)));
-                tabRows = perFit >= PageNames.Length ? 1 : 2;
+                tabRows = perFit >= VisiblePages().Length ? 1 : 2;
             }
             float headH = _lh + _gap * 0.5f + tabRows * (_lh + _gap * 0.35f);
             float bodyWant = _measured[(int)_page] > 0f ? _measured[(int)_page] : Screen.height;   // first pass: clamp to screen
@@ -372,14 +399,20 @@ namespace FlyingGame.Bridge
 
             // The chapter tabs: one row across in landscape, two rows of four on a phone in portrait.
             {
-                int per = Mathf.CeilToInt(PageNames.Length / (float)tabRows);
+                int[] vis = VisiblePages();
+                int per = Mathf.CeilToInt(vis.Length / (float)tabRows);
                 float ty = panel.y + _lh + _gap * 0.5f;
                 for (int r = 0; r < tabRows; r++)
                 {
                     float tw = (hw - (per - 1) * _gap * 0.3f) / per;
                     for (int i = 0; i < per; i++)
                     {
-                        int pi = r * per + i;
+                        int slot = r * per + i;
+                        // The guard that was not here: with eight names in two rows the arithmetic came out exact, so
+                        // r*per+i never passed the end. Nine does not divide by two, and without this the last slot of
+                        // the second row indexed past the array and threw every frame.
+                        if (slot >= vis.Length) break;
+                        int pi = vis[slot];
                         if (UiLayout.Button(new Rect(hx + i * (tw + _gap * 0.3f), ty, tw, _lh), PageNames[pi], (int)_page == pi ? _tabOn : _tab))
                         { _page = (Page)pi; _scroll = Vector2.zero; }
                     }
@@ -405,6 +438,7 @@ namespace FlyingGame.Bridge
                 case Page.Badges: BadgesPage(ref y); break;
                 case Page.Game: GamePage(ref y); break;
                 case Page.Help: HelpPage(ref y); break;
+                case Page.Developer: DeveloperPage(ref y); break;
             }
             GUI.EndScrollView();
             _measured[(int)_page] = y - y0 + _gap;

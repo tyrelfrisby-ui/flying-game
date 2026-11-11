@@ -168,17 +168,24 @@ public class SprayFieldTests
         // AND PUT IT BACK. This used `??=` and never restored, so enumerating the theory's cases left
         // WorldTerrain.Active pointing at a live island for every test that ran afterwards — including ones written
         // against no terrain at all. The 2-33's braking rollout (NoseSkidTests) then started on a hillside instead of
-        // flat ground and its velocity went NaN, which read as a physics regression and is not one. A test that
-        // changes global state and does not change it back makes every later result conditional on the order the
-        // filter happened to pick.
-        WorldTerrain? saved = WorldTerrain.Active;
+        // flat ground and its velocity went NaN, which read as a physics regression and is not one.
+        //
+        // AND IT MUST BE AN EAGER LIST, NOT AN ITERATOR. MemberData is evaluated at DISCOVERY, before any test in the
+        // assembly runs. A `yield return` method does not run its `finally` until the enumeration is disposed, so the
+        // restore could be left pending while the whole "WorldTerrainActive" collection ran on the island — and the
+        // flat-water tests that spawn at (0,0) under FlatWaterOverride (J3FloatsWaterTests, FloatTests) sit inside
+        // island terrain and go to NaN on their first step. Building the list eagerly means the restore has run by the
+        // time this returns. Two lanes found this bug independently and each fixed half of it; this is both halves.
+        WorldTerrain? before = WorldTerrain.Active;
+        var fields = new List<object[]>();
         try
         {
             WorldTerrain.Active ??= new WorldTerrain();
             foreach (WorldTerrain.Airport a in WorldTerrain.Airports)
-                if (IslandRunways.Water(a, 600) != null) yield return new object[] { a.Name };
+                if (IslandRunways.Water(a, 600) != null) fields.Add(new object[] { a.Name });
         }
-        finally { WorldTerrain.Active = saved; }
+        finally { WorldTerrain.Active = before; }
+        return fields;
     }
 
     /// <summary>
