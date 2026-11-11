@@ -1,3 +1,113 @@
+## The Stearman's CG is 3.3 inches too far forward, and its stagger is 9 inches short — Claude, 2026-11-10, lane/claude-stearman-elev
+
+<!-- stearman tcds-a-743 forward-cg stagger static-margin elevator-limited-vso biplane-interference -->
+
+Ty, told that at its own Vso the Stearman needs 27.4° of elevator against a 29.8° stop so what the sim reports as
+its stall speed is an elevator-limited minimum trim speed: **"Investigate it properly"**, explicitly over *"just
+give it more travel"*, with the reasoning he gave and accepted: *something is wrong — either the elevator is too
+small, the travel too limited, the CG too far forward, or the tail volume is off — and raising the stop would hide
+whichever of the four it is.* He added that it is legitimate for the answer to be that the aeroplane is right and
+the test is measuring an elevator limit.
+
+**IT IS THE THIRD OF HIS FOUR — THE CG — AND THERE IS A SOURCED CAUSE UNDERNEATH IT THAT IS NOT ON HIS LIST: THE
+STAGGER IS 9 INCHES SHORT.** Both come out of one primary document. Full sourcing, verbatim, in
+`docs/research/STEARMAN-PT17-DATA.md`; the measurements are `StearmanElevatorLimitProbe` (`STEARMAN_ELEV=1`).
+
+**The document is FAA TCDS A-743 Rev 16 (25 April 2023), read page by page out of the FAA Dynamic Regulatory
+System** (`rgl.faa.gov` is dead). `Datum — Leading edge of lower wing`. `C.G. Range — (-1.0) to (+7.1)` inches,
+identical in Section I and Section II (A75N1 = PT-17). `Elevator — Up 24° — Down 22°`. NOTE 5: `Incidence — Upper
+wing 4°, lower wing 3°`, `Stagger — 26-13/16" plus or minus 1/8" at strut point`.
+
+**THE TRAVEL IS RULED OUT, AND BACKWARDS.** The certificate allows **24° up**; the config has **29.8° symmetric**,
+which is this repo's generic default (0.52 rad on 21 of 35 types), not a PT-17 figure. The model already has 24 %
+MORE up travel than the real aeroplane. Setting the real stops makes it worse (Vso 55.9 mph at 97 % of 24°), so
+"give it more travel" would have taken the model *further* from the aeroplane — the instruction not to do it was
+right for a stronger reason than the one it was given for.
+
+**THE CG, IN THE CERTIFICATE'S OWN INCHES.** The model's lower-wing leading edge — A-743's datum — is at model
+station x −0.044 m and the CG is at x −0.050 m, so **the CG sits at +0.24 in aft of datum, 15 % of the way into an
+8.1-inch envelope.** A-743 gives no empty weight but gives every loading arm (engine −55, seats +19 and +55, fuel
+−5, oil −26), so the loaded CG can be computed the way the certificate intends: with 170 lb a seat, full fuel and
+oil, **a dual load off a ~2000 lb empty airframe weighs 2649 lb — this model's own 1200 kg — and sits at +3.53 in.**
+The model's CG is **3.3 in (0.084 m) too far forward**, and only an aeroplane at the extreme −4.4 in empty CG would
+sit as far forward as the config does.
+
+| CG, in aft of A-743 datum | Vso | elevator | body α (wing CLmax at 13.50°) | static margin |
+|---|---|---|---|---|
+| −1.00 — certificate FORWARD limit | 56.1 mph | 98 % | 8.05° | 27.5 % |
+| **+0.24 — as configured** | **54.4 mph** | **98 %** | 9.02° | **25.4 %** |
+| +3.53 — this mass on A-743's arms | 50.3 mph | 89 % | 11.80° | 19.9 % |
+| **+7.10 — certificate AFT limit** | **49.2 mph** | **71 %** | 12.38° | **14.0 %** |
+
+**That is the aft-CG number: at the certificate's aft limit it stalls at 49.2 mph on 71 % of travel, and the stall
+is the wing's.** (98 %, not the 92 % this opened with — the game's Vso scan steps 0.5 m/s = 1.1 mph and happened to
+stop just short of the stop. At 0.1 m/s it is pinned from 24.0 m/s down.)
+
+**THE STATIC MARGIN IS THE TELL, AND IT POINTS AT THE STAGGER.** 25.4 % of chord is the **highest in the fleet** —
+PA-18 17.7, Pitts 11.2, Great Lakes 11.1, Jenny 6.3 — and `AeroModel`'s own note on the hinged-section rework calls
+25–70 % the symptom of the 2-D-slope bug it fixed and **5–20 % the real light-aeroplane band**. The cause: the
+model's leading-edge stagger is **17.7 in** against a certificated **26-13/16 in**, so the upper wing is 0.231 m
+too far aft, dragging the cellule's area-weighted lift 0.117 m aft of where it belongs. `git log` says where it
+came from: on **2026-09-08 (630ba1d4, "wings re-centred on the CG")** both wings were moved aft 0.274 m and the CG
+was left where it was. Before that move the CG was 11.0 in aft of datum — *outside* the aft limit — and the move
+overshot by about 0.07 m. Which wing is misplaced is decided by the certificate too: move the LOWER wing aft
+0.231 m instead and the datum moves with it, putting the CG **8.9 in FORWARD** of datum — far outside the
+−1.0 in forward limit — while moving the cellule's lift centroid aft as well, so the static margin gets worse.
+So it is the upper wing, forward. A-743's own arms corroborate 26-13/16: the fuel tank is in the upper-wing centre section at
+(−5) in, and a tank at ~40 % of a 60 in chord puts the upper leading edge about 29 in forward of the lower one.
+
+| variant | Vso | elevator | body α | static margin |
+|---|---|---|---|---|
+| as shipped | 54.4 mph | 98 % | 9.02° | 25.4 % |
+| decalage to A-743 (upper 4 / lower 3 — **the config has them reversed**) | 53.0 mph | 98 % | 9.88° | 25.7 % |
+| **stagger to 26-13/16 in** | 49.7 mph | 87 % | 12.28° | **18.6 %** |
+| **decalage + stagger + CG at +3.53 in** | **49.0 mph** | **60 %** | 12.33° | **13.4 %** |
+
+**THE OTHER TWO OF THE FOUR, AND THE FIFTH THING HE ASKED ABOUT.** *Elevator too small*: it is 32.0 % of the
+horizontal tail's area where its contemporaries here are 43.4 % (Great Lakes, Jenny) and the Cubs 38.6 %, and
+moving chord from the hStab row to the elevator row at constant tail area (32 → 43 %) cuts the deflection needed
+from 27.5° to 23.7° and **does not move Vso at all** — it changes how much stick, not what speed. *Tail volume
+off*: Vh 0.383 is the lowest of the powered fleet (next 0.425, the rest 0.44–0.48) and the tail span is 11 ft 10 in
+against a type-club 12 ft 6 in, but the 2-33 flies at Vh 0.316 using 28 % of its travel, so Vh is not what sets the
+margin. **Both are open items and NEITHER can be settled**: the real stabiliser area, elevator area, total tail
+area and moment arm are **genuinely unpublished** — not in A-743, not in the 1941 Navy handbook, not in Jane's, not
+in the parts catalog, and there is no NACA report on the Model 75. They are in AN 01-70AC-4, which is paid paper.
+**Nothing in this investigation guesses them.** *Downwash and tail q*: ruled out — at the limiting condition every
+hStab strip reads local α 2.74°, downwash 3.49°, **η_t 0.823**, i.e. dε/dα ≈ 0.40 and a healthy tail q.
+
+**THE Vso THE MODEL WAS BEING MEASURED AGAINST WAS THE WRONG NUMBER.** The "book 52" is **Jane's LANDING speed**.
+The primary stall figure is the *Pilot's Handbook for Stearman Airplanes N2S-1/-2/-3* (Report A75NI-9001, 20 Jan
+1941), Table of Characteristics: **53 mph "*With 50% Fuel and Oil Consumed"** at a 2682.7 lb normal gross — so at
+about 2529 lb, where this model flies at 2646 lb. The comparable figure is **54.2 mph**, and the model reads 54.4.
+
+**SO THE NUMBER WAS RIGHT AND THE MECHANISM WAS WRONG, AND FIXING THE MECHANISM BREAKS THE NUMBER.** Corrected
+(CG + stagger + decalage) the Stearman stalls at 49.0 mph — **9.6 % BELOW** the weight-corrected book — on a
+trimmed CLmax of **1.47** where the book speed needs **1.20**, i.e. **22 % high**. The forward CG and the aft wing
+have been masking a cellule CLmax that is too high, and the right stall speed has been coming out of two
+compensating errors. That is exactly the item `docs/research/JN4-JENNY-DATA.md` logs as *"biplane interference,
+which the strip model does not have at all"*, whose own reason for doubt was that *"neither [the Stearman nor the
+Pitts] is actually measuring its wing"*. It isn't; now we know what it reads when it is, and it reads high in the
+same direction as the Jenny. That file is corrected.
+
+**NOTHING WAS CHANGED IN ANY CONFIG FOR THIS.** Moving the CG and the stagger changes the whole aeroplane — static
+margin, trim, the rig, the glide table, the STOL spawn, the approach speeds, even the taildragger stance angle
+(7.9° of nose-over margin now, 11.0° at the correct CG) — and whether to do it *together* with the cellule CLmax or
+to leave the two compensating errors standing until an interference term exists is Ty's call, not a lane's. The
+parity lock is harder than the brief assumed: it refuses ANY shared change while a lane already differs from the
+other, and this lane differs from `lane/claude-quest-islandnav` in **120 shared files** (23 shared commits this
+lane lacks). So **no config on this lane can move at all until a sync** — `controlSpoilerK` is sitting as a saved
+patch for the same reason. Queued for Ty as **Q162**.
+
+**ALSO FOUND AGAINST A-743 AND NOT ACTED ON.** Load factors: the certificate's NOTE 7 gives **+6.67 / −2.67**, the
+config has +5.5 / −2.5. Wing area 27.30 m² against 297.6 sq ft = 27.65 m² (−1.3 %). And **the Stearman has no
+in-flight adjustable stabiliser** — its pitch trim is a ±15° elevator trim tab through an irreversible mechanism at
+the stabiliser front spar, 270° of handle for full range, per both the 1941 handbook and A-743;
+`docs/research/CONTROLS-REVERSIBILITY-AND-SPRINGS.md` asserted an adjustable stabilizer at "medium-low confidence"
+with reference 25 reading "(Stearman trim: no primary source found; flagged)", and dismissed "one web hit
+describing an elevator tab with a hand wheel" as "a different, British type". That web hit was right. Corrected in
+that file and in the Jenny's, which repeated it. The `trimType: "tab"` the config already uses is right, for the
+right reason now.
+
 ## The spoiler coefficient reaches the other ten plate-tailed types, and the onset stops being inert — Claude, 2026-11-10, lane/claude-stearman-elev
 
 <!-- control-spoiler-k fabric-fleet plate-tail elevator-authority damping-unchanged -->
