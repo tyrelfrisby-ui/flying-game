@@ -51,6 +51,9 @@ Shader "FlyingGame/Water"
             // Savitsky and Morabito 2010 read as a free-surface contour): x the cavity's depth at the step, y how
             // far astern it closes, z where the rooster crest stands, w how high the crest is above still water.
             float4 _FoamWake[2];
+            // The aerated keel track (WakeWaves.Sources <- PlaningWake): x the half-width where it leaves the
+            // keel, y how fast that half-width grows with distance astern, z how far astern the bubbles last.
+            float4 _FoamTrack[2];
             // Wind-driven sea state (SeaSurface.cs <- FlyingGame.Core.SeaState). See the long note in frag().
             float4 _SeaWind, _SeaGrowth, _SeaFetch;
             // The aeroplane's shadow on the water (GroundShadow.CastOntoWater): a silhouette mask rendered from the
@@ -312,22 +315,60 @@ Shader "FlyingGame/Water"
                                 float xr = max(wk.z, .05);
                                 float u = saturate(aft / xr);
                                 float arg = 1.5707963 * pow(u, 1.5);
-                                // Across-track the trough is the float's own beam, with the chines as its edges.
-                                // The aerated wake is wider than the float: the chine spray lands outboard of it
-                                // and the hollow's shoulders stand outside the keel line, so 1.6 beams across.
-                                float lateral = exp(-signedSide * signedSide / max(.02, origin.z * origin.z * 2.6));
-                                // The wake decays astern; the solver's own height field carries the far wake.
-                                float decay = exp(-max(0, aft - xr) / (3 * xr));
+                                // The HOLLOW is as wide as the keel that made it: the float's OWN wetted width
+                                // (PlaningWake.TrackHalfWidthM — a V of deadrise beta immersed to d is wetted out
+                                // to d/tan beta, capped at the chine), not a fitted multiple of the beam.
+                                float keelHalf = max(_FoamTrack[f].x, .02);
+                                float lateral = exp(-signedSide * signedSide / (keelHalf * keelHalf));
+                                // Savitsky and Morabito's contour is a NEAR-wake fit — their own note says it is
+                                // fitted for X <= 3 beams. Past the crest it hands over to the solver's wave
+                                // field, which carries the far wake. This is that hand-off window, and it is a
+                                // statement about where the formula stops being measured, not a decay rate.
+                                float handover = 1 - smoothstep(xr, 2 * xr, aft);
                                 // d/dx of the contour above, exactly: the chain rule on that sine.
                                 float dz = (wk.x + wk.w) * cos(arg) * 1.5707963 * 1.5 * sqrt(max(aft, 1e-4))
-                                    / pow(xr, 1.5) * lateral * decay;
+                                    / pow(xr, 1.5) * lateral * handover;
                                 // aft runs OPPOSITE to motion.xy, so the world gradient is -motion·dz, and a height
                                 // field's normal is (-grad.x, 1, -grad.y).
                                 n = normalize(float3(n.x + motion.x * dz, 1, n.z + motion.y * dz));
-                                // Aerated white water where the flow climbs out of the hollow and breaks over the
-                                // crest. origin.w already carries PlaningWake.WhiteWater01, so this is zero below
-                                // Savitsky's planing onset: a displacement taxi gets no rooster at all.
-                                foam = max(foam, origin.w * lateral * decay * smoothstep(.30, 1.0, u) * .85);
+                            }
+
+                            // ---- THE AERATED KEEL TRACK: THE WHITE WATER --------------------------------
+                            // Ty, 2026-11-11: "The spray is directly behind and in line with the floats keels and
+                            // widens at a narrower rate than the wake does it is the mixing of air and water
+                            // together as the keels rub along the water surface forming bubbles (white)."
+                            //
+                            // That is AIR ENTRAINMENT at a surface-piercing contact line, and it is a THIRD
+                            // thing: not the chine spray (thrown outward and forward as droplets, drawn by
+                            // FloatSplash from FloatHydro.SprayRoots) and not the Kelvin arms above (gravity
+                            // waves, half-angle asin(1/3) = 19.47 deg — the .354 in the arm code). Three
+                            // phenomena, three geometries; one fitted band used to stand in for two of them.
+                            // Everything here comes from PlaningWake:
+                            //   tr.x  half-width at the keel = that float's own wetted half-width
+                            //   tr.y  0.085 /m = half a plane turbulent mixing layer's spreading rate with one
+                            //         stream at rest (Brown and Roshko 1974) = 4.86 deg, a QUARTER of the Kelvin
+                            //         angle the arms use. That ratio is Ty's "narrower rate", and PlaningWakeTests
+                            //         pins the inequality at every speed in the planing range.
+                            //   tr.z  V*d / 0.25 m/s = how far astern the entrained bubbles take to rise out.
+                            // The whiteness falls LINEARLY to nothing there, because the bubbles leave at a
+                            // constant speed and the column empties from the top — it does not decay
+                            // exponentially, and it ends.
+                            float4 tr = _FoamTrack[f];
+                            if (tr.x > .001 && tr.z > .001 && aft > 0)
+                            {
+                                float halfW = tr.x + tr.y * aft;
+                                float remaining = saturate(1 - aft / tr.z);
+                                // ACROSS the track the void fraction follows the mixing layer itself, which is
+                                // what halfW measures: densest on the keel line and falling off over the whole
+                                // half-width. A top-hat with a soft edge drew two rails; this draws aerated
+                                // water, and it is the layer's own profile rather than a chosen edge.
+                                float across = 1 - smoothstep(0, halfW, side);
+                                // Bubble rafts, not a painted stripe. Metre-scale along the track, half-metre
+                                // across it, so it reads as foam and not as noise.
+                                float lace = .62 + .38 * noise(float2(aft * .85, signedSide * 2.4) + f * 5.7);
+                                // origin.w already carries load * PlaningWake.WhiteWater01(Cv), which is zero
+                                // below Savitsky's planing onset: a displacement taxi leaves no track at all.
+                                foam = max(foam, origin.w * across * remaining * lace);
                             }
                         }
                         n = normalize(lerp(n, float3(0,1,0), foam * .65));
