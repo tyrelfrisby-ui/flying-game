@@ -24,10 +24,29 @@ namespace FlyingGame.Core.Aero;
 /// The lift acts at the float's own centroid, which on a floatplane is well FORWARD of and well BELOW the centre of
 /// gravity, so it makes a pitching moment and a drag couple that the old mass-plus-drag treatment could not.
 ///
+/// AND THEY DO IT IN SIDESLIP TOO, which is where it costs the pilot something. Ty 2026-11-11: "make sure the floats
+/// inertia lift drag etc is modeled correctly at the correct arm sideslip too", and, on what to do about the result:
+/// "If floats decrease directional stability too much add fins on the stabilizers or a ventral fin on the belly ahead
+/// of the rudder which are both common float plane mods … The j3 has none so leave it alone."
+///
+/// THE SIDE PLANE IS THE SAME BODY SEEN THE OTHER WAY. A float in sideslip is still a sharp-edged low-aspect-ratio
+/// plate — length by DEPTH instead of length by beam, aspect ratio 0.12 instead of 0.12 — with a hard chine down one
+/// side and a deck edge down the other. So <see cref="Coefficients"/> is used unchanged, with the side plane's own
+/// aspect ratio and the sideslip angle. One relation, two planes; nothing new was invented for the second.
+///
+/// AND THAT IS WHY FLOATPLANES GROW FIN AREA. The force lands at the floats' centroid, which is AHEAD of the centre
+/// of gravity — a float's bow reaches out past the propeller — so its yawing moment is DESTABILISING, the opposite
+/// sign to the fin's. It is also BELOW the CG, so it takes away dihedral effect at the same time, exactly as a
+/// ventral fin does. Both moments fall out of applying the force at the right point and would have to be invented if
+/// it were applied anywhere else. Nothing here compensates for either: a J-3 on floats comes out less directionally
+/// stable than a J-3 on wheels because a J-3 on floats IS, and the real aeroplane carries no finlets and no ventral
+/// fin to fix it. Where a type really has those, they belong in its config as authored surfaces alongside its own
+/// vertical tail — not as a coefficient here, and never added because a number came out uncomfortable.
+///
 /// THE INSTALLATION ANGLE IS THE ONE THING GEOMETRY DOES NOT GIVE US. A float is rigged to the airframe at an angle
 /// chosen by the installer, and it is what decides how much of their own weight the floats carry in cruise. It is
 /// therefore a per-type number (floats.incidenceDeg) rather than a constant, and it is the only tunable here —
-/// everything else is the float's measured length, beam and position.
+/// everything else is the float's measured length, beam, depth and position.
 /// </summary>
 public static class FloatAero
 {
@@ -54,12 +73,27 @@ public static class FloatAero
     /// </summary>
     public const double VortexK = Math.PI;
 
+    /// <summary>
+    /// THE VORTEX CONSTANT FOR A PLAIN FLAT PLATE, which is what a SKI is. The same two-term law covers it — Hoerner,
+    /// Fluid-Dynamic Lift ch. VII pp. 7-17/7-19, writes a low-aspect-ratio plate's lift as the slender-wing slope
+    /// πA/2 (0.0274 per degree per unit aspect ratio, the identical number to <see cref="VortexK"/>'s companion
+    /// term above) plus a non-linear k'·sin²α·cos α, with k' = 1.8 fitted to a measured aspect-ratio-0.2 plate. A
+    /// float's hard chine buys it π instead; a ski's plain edges buy 1.8. One relation, two constants, and the
+    /// difference between them is a measurement rather than a preference.
+    /// </summary>
+    public const double PlateVortexK = 1.8;
+
     /// <summary>Lift and drag coefficients of ONE float at this angle of attack (rad), referenced to its planform.</summary>
-    public static (double cl, double cd) Coefficients(double aspectRatio, double alphaRad)
+    public static (double cl, double cd) Coefficients(double aspectRatio, double alphaRad) =>
+        Coefficients(aspectRatio, alphaRad, VortexK);
+
+    /// <summary>As above for any sharp-edged low-aspect-ratio body: <paramref name="vortexK"/> is π for a chined
+    /// float and <see cref="PlateVortexK"/> for a plain plate such as a ski.</summary>
+    public static (double cl, double cd) Coefficients(double aspectRatio, double alphaRad, double vortexK)
     {
         double s = Math.Sin(alphaRad), c = Math.Cos(alphaRad);
         double kp = 0.5 * Math.PI * aspectRatio;
-        double cl = kp * s * c * c + VortexK * c * s * Math.Abs(s);
+        double cl = kp * s * c * c + vortexK * c * s * Math.Abs(s);
         // Vortex lift is a suction normal to the surface, so ALL of it tilts back with the angle: the drag is the
         // lift times the angle it acts at, which is what makes a slender chined body expensive at large alpha.
         double cd = cl * Math.Abs(s);
@@ -89,7 +123,41 @@ public static class FloatAero
         // Lift perpendicular to the free stream, drag along it, both in the body's x-z plane.
         double ca = Math.Cos(alphaBody), sa = Math.Sin(alphaBody);
         Vec3 force = new(-drag * ca + lift * sa, 0, -drag * sa - lift * ca);
-        // At the floats' own centroid: half a length aft of the bow, on the keel.
+
+        // SIDESLIP, the same body in its other plane: length x DEPTH, and the sideslip angle in place of alpha. The
+        // pair is treated as two floats working, which is right over the range that decides stability -- the gap
+        // between them is about 2 m and each is about 4.4 m long, so one does not get into the other's wake until
+        // past atan(2.0/4.4) ~ 24 deg of slip. Beyond that this overestimates, and the shielding is NOT modelled.
+        if (f.DepthM > 0.01)
+        {
+            double betaBody = Math.Atan2(bodyVelocity.Y, Math.Max(1e-6, bodyVelocity.X));
+            double areaSide = f.LengthM * f.DepthM;
+            var (cly, cdy) = Coefficients(f.DepthM / f.LengthM, betaBody);
+            double side = q * areaSide * count * cly, dragY = q * areaSide * count * cdy;
+            double cb = Math.Cos(betaBody), sb = Math.Sin(betaBody);
+            force += new Vec3(-dragY * cb + side * sb, -dragY * sb - side * cb, 0);
+        }
+
+        // At the floats' own centroid: half a length aft of the bow, on the keel. The SIDE force's true centre is the
+        // centroid of the float's side AREA, and on a hull deepest at the step and tapering both ways that is within
+        // a few per cent of mid-length, so it is applied at the same point rather than at a second one invented for
+        // it.
+        //
+        // MEASURED, AND IT IS NOT WHERE THE ARGUMENT SAYS IT SHOULD BE. On the J-3 that centroid sits 0.15 m BEHIND
+        // the centre of gravity, not ahead of it -- a float's bow reaches out past the propeller but its middle does
+        // not -- so the crossflow side force's yawing moment comes out weakly STABILISING, about +18 N m at 30 m/s
+        // and 3 m/s of slip, against 171 N m of roll. The roll term is the big one and its sign is the expected one:
+        // a force below the CG takes away dihedral effect, exactly as a ventral fin does.
+        //
+        // SO THE TERM THAT REALLY DESTABILISES A FLOATPLANE IS MISSING, AND IT IS NOT A FORCE. It is the MUNK MOMENT
+        // (Munk 1924, NACA TR 184; Allen and Perkins, NACA RM A50L07), a pure couple of (k2-k1) q Vol sin 2beta that
+        // turns any closed slender body broadside however you apply the forces. At this condition it is of order
+        // 120 N m nose-out on a pair of 1320s -- seven times the crossflow term and the opposite sign. It is NOT
+        // added here because it needs the float's VOLUME and FloatsConfig carries length, beam and depth but no
+        // displacement. That is a real gap, written down rather than papered over, and nothing has been bent to make
+        // the numbers above read better. (Diehl's Engineering Aerodynamics has a dedicated "Stabilizing Area
+        // Coefficients for Seaplane Floats" chart for sizing the fin needed to cancel this, which is independent
+        // confirmation that the effect is real and that fin area is the documented remedy.)
         Vec3 at = new(f.BowX - 0.5 * f.LengthM, 0, f.KeelZ);
         Vec3 moment = Vec3.Cross(at - c.Mass.CgVec(), force);
         return (force, moment);
