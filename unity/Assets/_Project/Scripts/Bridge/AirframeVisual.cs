@@ -983,7 +983,7 @@ namespace FlyingGame.Bridge
         /// <summary>Move a bent panel's carried surfaces to the shape it is drawn at.</summary>
         /// <remarks>The FOLD goes on the carriers ABOVE their surface and not on the ones below it. An under-surface
         /// carrier holds the outboard share of an aileron that straddles the station, and that aileron is itself hanging
-        /// on an above-surface carrier which has already folded it (<see cref="ShowWingFold"/> gives every aileron of a
+        /// on an above-surface carrier which has already shaped it (<see cref="ShowWingShape"/> gives every aileron of a
         /// folded wing one); folding the share again would take it off the wing twice over.</remarks>
         private void PoseCarriedPanel(FlyingGame.Core.WingPanel p, double flexRad)
         {
@@ -1134,7 +1134,8 @@ namespace FlyingGame.Bridge
 
         // ---- a wing FOLDED UP about its root (Ty 2026-11-10's staggered failure) ------------------------------------
 
-        /// <summary>The pivot holding the INBOARD BAY of a folded wing — root to station, the part no bend pivot owns.</summary>
+        /// <summary>The pivot holding the INBOARD BAY of a wing whose shape reaches its root — a fold, or the
+        /// aerodynamic curve. Root to station: the part no bend pivot owns.</summary>
         private readonly Dictionary<FlyingGame.Core.AirframeComponent, Transform> _foldPivots = new();
 
         /// <summary>Is this surface already on one of <paramref name="comp"/>'s carriers?</summary>
@@ -1142,20 +1143,26 @@ namespace FlyingGame.Bridge
             _carried.TryGetValue(comp, out List<CarriedSurface> list) && OnCarrier(t, list);
 
         /// <summary>
-        /// A CANTILEVER WING FOLDED UP ABOUT ITS ROOT, drawn (Ty 2026-11-10: asked whether to ship the fold's physics
-        /// now and draw it later, he chose "draw it folded and limit the aileron" — nothing may lie about the shape the
-        /// aeroplane is in).
+        /// THE INBOARD BAY OF A WING WHOSE SHAPE REACHES THE ROOT, drawn: a wing that has FOLDED up about its root, or
+        /// one carrying an AERODYNAMIC bend, which is a curve from the root and not a pivot at the station.
         ///
-        /// WHY IT IS NOT <see cref="ShowPanelBend"/> WITH A BIGGER ANGLE. A bend is a kink at the STATION and a fold is
-        /// a kink at the ROOT, so the fold moves geometry the bend never touches: the whole inboard bay between the
-        /// root and the station, which no bend pivot owns. So this cuts that bay out of the wing parts by the same
-        /// splitter the bend uses, with the cut moved to <see cref="FlyingGame.Core.WingPanel.RootY"/>, and hangs it on
-        /// a pivot of its own. The two pivots then coexist and cannot fight:
+        /// Ty 2026-11-10, asked whether to ship the fold's physics now and draw it later: "draw it folded and limit the
+        /// aileron" — nothing may lie about the shape the aeroplane is in. And then, flying a Pitts at a 6.6° set:
+        /// "only the tips stay 'bent' and now they are disjointed from the rest of the wing". That was this method
+        /// running for a FOLD alone: under a plain g-load set the bay was never cut, so the inner wing stayed dead flat
+        /// while the outer panel sat 18.9 cm up at the station. It runs for either shape now.
+        ///
+        /// WHY IT IS NOT <see cref="ShowPanelBend"/> WITH A BIGGER ANGLE. A strike's bend is a kink at the STATION,
+        /// while a fold and the aerodynamic curve both reach the ROOT, so they move geometry the bend never touches:
+        /// the inboard bay between the root and the station, which no bend pivot owns. So this cuts that bay out of the
+        /// wing parts by the same splitter the bend uses and hangs it on a pivot of its own. The two pivots then
+        /// coexist and cannot fight:
         ///
         ///  • the bay's vertices and the panel's are BOTH placed through <see cref="FlyingGame.Core.WingPanel.Shape"/>,
-        ///    the sim's own one function, so they agree at the station to the last bit;
-        ///  • a bay triangle is inboard of the station, where Shape's Deform is the identity, so it gets the fold
-        ///    alone — exactly right, that part of the wing is straight;
+        ///    the sim's own one function and the one the STRIPS fly, so they agree at the station to the last bit and
+        ///    there is no step there;
+        ///  • a bay triangle is inboard of the station, where Shape's station kink is the identity, so it gets the
+        ///    curve and the fold alone — exactly right, a strike bends nothing there;
         ///  • the two pivots are SEPARATE because a bent tip that breaks off hands its pivot to the debris
         ///    (DetachComponentNow), and the inboard bay must not leave with a wingtip. When the whole WING goes the
         ///    bay goes with it, through the same <see cref="TakeBentTips"/> path the bent tips use.
@@ -1169,32 +1176,36 @@ namespace FlyingGame.Bridge
         /// once). Carriers already made by a bend are left alone and simply gain the fold in their motion.
         /// PLACEHOLDER, as the bend is: a one-mesh model whose wing is a skinned region does not fold.
         /// </summary>
-        public void ShowWingFold(FlyingGame.Core.WingPanel p, AircraftConfig cfg)
+        public void ShowWingShape(FlyingGame.Core.WingPanel p, AircraftConfig cfg)
         {
             if (_builder == null) return;
             if (_foldPieces.ContainsKey(p.Component)) { PosePanelPieces(p); return; }
             if (_foldPivots.TryGetValue(p.Component, out Transform pivot) && pivot == null) { PosePanelPieces(p); return; }
-            var go = new GameObject("Folded-" + p.Component);
+            var go = new GameObject("Shaped-" + p.Component);
             pivot = go.transform;
             pivot.SetParent(transform, false);
             pivot.localPosition = new Vector3(p.Side * (float)p.RootY, (float)-p.BreakZ, 0f);
             pivot.localRotation = Quaternion.identity;
-            // The cut: this wing's side, outboard of the ROOT, and on a biplane this wing's own plane. TipPanelTest's
-            // own test with BreakY swapped for RootY — the panel is passed by value, so moving BreakY here changes
-            // nothing the sim or any other reader sees.
+            // The cut: the BAY — this wing's side and, on a biplane, this wing's own plane; outboard of the ROOT and
+            // INBOARD OF THE STATION. Bounded at both ends on purpose, so it can never take the outboard panel's
+            // triangles and the two pivots cannot race each other for them whichever runs first. TipPanelTest's own
+            // test with BreakY swapped for RootY gives the inner edge (a stand-in panel, so nothing the sim reads
+            // moves), and the panel's own gives the outer.
             var atRoot = new FlyingGame.Core.WingPanel
             {
                 Side = p.Side, Lower = p.Lower, SurfaceId = p.SurfaceId,
                 BreakY = p.RootY, BreakZ = p.BreakZ, TipY = p.TipY,
             };
-            System.Func<Vector3, bool> test = TipPanelTest(atRoot, cfg);
+            System.Func<Vector3, bool> pastRoot = TipPanelTest(atRoot, cfg);
+            System.Func<Vector3, bool> pastStation = TipPanelTest(p, cfg);
+            System.Func<Vector3, bool> test = v => pastRoot(v) && !pastStation(v);
             // Every aileron of this wing and side, whole, on a carrier of its own — unless a bend already carries it.
             float? midUp = PanelMidUp(p, cfg);
             bool Mine(Vector3 lo, Vector3 hi) =>
                 Mathf.Min(lo.x * p.Side, hi.x * p.Side) > -0.05f
                 && Mathf.Max(lo.x * p.Side, hi.x * p.Side) > (float)p.RootY
                 && (midUp == null || (p.Lower ? 0.5f * (lo.y + hi.y) < midUp.Value : 0.5f * (lo.y + hi.y) > midUp.Value));
-            List<CarriedSurface> folded = Carry("aileron", p.Component + "-fold", Mine,
+            List<CarriedSurface> folded = Carry("aileron", p.Component + "-bay", Mine,
                 (lo, hi) => (Mathf.Clamp(Mathf.Abs(0.5f * (lo.x + hi.x)), (float)p.BreakY, Mathf.Max((float)p.BreakY, (float)p.TipY)), p.Side),
                 t => AlreadyCarried(p.Component, t));
             _carried.TryGetValue(p.Component, out List<CarriedSurface> bentAlready);
@@ -1212,7 +1223,7 @@ namespace FlyingGame.Bridge
                     // pivot — so what this finds outboard of the root is exactly the bay, whichever ran first.
                     SplitBy(mf.sharedMesh, mf.transform, transform, test, out Mesh lost, out Mesh kept);
                     if (lost == null) continue;
-                    AddPiece(pivot, mf.name + "-folded", lost, mf.GetComponent<Renderer>()?.sharedMaterials,
+                    AddPiece(pivot, mf.name + "-bay", lost, mf.GetComponent<Renderer>()?.sharedMaterials,
                         pivot.InverseTransformPoint(mf.transform.position), Quaternion.Inverse(pivot.rotation) * mf.transform.rotation, mf.transform.lossyScale);
                     if (kept == null && !IsModelMesh(mf)) mf.gameObject.SetActive(false); else mf.sharedMesh = kept;
                 }
@@ -1228,8 +1239,9 @@ namespace FlyingGame.Bridge
             }
             if (pieces.Count == 0)
             {
-                // Nothing of this wing could be cut (a skinned region, unreadable meshes). Then nothing may move: an
-                // aileron folded on its own, off a wing that had not, is the very thing Ty saw the other way round.
+                // Nothing of this wing's bay could be cut (a skinned region, unreadable meshes). Then nothing may
+                // move: an aileron shaped on its own, off a wing that had not, is the very thing Ty saw the other way
+                // round.
                 // Only the carriers THIS fold made are undone — a bend's carriers, and the outboard shares cut onto
                 // them, are the bend's business and must survive untouched.
                 _foldPivots[p.Component] = null;    // one attempt per flight
@@ -1278,7 +1290,7 @@ namespace FlyingGame.Bridge
                 && Mathf.Abs(shape.w - shown.w) < 1e-3f) return;
             _bentShown[p.Component] = shape;
             // BOTH pivots' pieces: the panel outboard of the station, and the inboard bay of a wing that has FOLDED
-            // (ShowWingFold). Every vertex goes through the same WingPanel.Shape, so the two meet at the station.
+            // (ShowWingShape). Every vertex goes through the same WingPanel.Shape, so the two meet at the station.
             _bentPieces.TryGetValue(p.Component, out List<BentPiece> list);
             _foldPieces.TryGetValue(p.Component, out List<BentPiece> foldList);
             if (list == null && foldList == null) return;
