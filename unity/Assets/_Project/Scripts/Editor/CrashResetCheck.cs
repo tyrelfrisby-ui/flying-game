@@ -102,6 +102,69 @@ namespace FlyingGame.EditorTools
             Require(crashes >= 60, $"only {crashes} crashes ran");
         }
 
+        /// <summary>
+        /// NOTHING OF A WING MAY BE LEFT DRAWN WHEN THE WING HAS GONE (Ty 2026-11-09 on the J-3: "when i overstress the
+        /// j3 and pull the wings off the bent up wing tips stayed on"; 2026-11-10 on the Great Lakes: "when the wings
+        /// shed ... they leave little artifacts floating in space top and bottom where the n struts were").
+        ///
+        /// Both reports are one shape of bug: a wing's DRAWN SHAPE does not live in the builder's wing parts, which is
+        /// where everything that breaks a wing up looks. A bent tip rides a <c>Bent-&lt;panel&gt;</c> pivot and a folded
+        /// or aerodynamically curved inboard bay a <c>Shaped-&lt;panel&gt;</c> pivot, and both hang off the AIRFRAME
+        /// ROOT instead. So, for every type that has wing panels: give every panel BOTH pivots, then fail the wings the
+        /// way the g limit does (AirframeVisual.DetachWings — the path the overstress takes, not the per-component one),
+        /// and require that no wing-panel pivot is still drawn on the aeroplane. A biplane has four panels, which is
+        /// exactly the count and the symmetry — two upper, two lower — that Ty photographed.
+        /// </summary>
+        private static void ShedLeftoverCheck()
+        {
+            string dir = System.IO.Path.Combine(Application.streamingAssetsPath, "aircraft");
+            int types = 0, panelled = 0;
+            foreach (string f in System.IO.Directory.GetFiles(dir, "*.json").OrderBy(x => x))
+            {
+                string id = System.IO.Path.GetFileNameWithoutExtension(f);
+                AircraftConfig cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(id);
+                if (cfg == null) continue;
+                var root = new GameObject("Aircraft");
+                try
+                {
+                    FlightSimDriver driver = root.AddComponent<FlightSimDriver>();
+                    SetId(driver, id);
+                    driver.AdoptSim(NewSim(cfg));
+                    AirframeVisual visual = root.AddComponent<AirframeVisual>();
+                    Invoke(visual, "Awake"); Invoke(visual, "Start");
+                    types++;
+                    int n = 0;
+                    foreach (WingPanel p in driver.Sim.Aircraft.Panels)
+                    {
+                        // A wing pulled to the limit: curved from the root (the bay) and kinked at the station (the tip).
+                        p.FoldRad = 0.25; p.BendRad = 0.10;
+                        visual.ShowWingShape(p, cfg);
+                        visual.ShowPanelBend(p, cfg);
+                        n++;
+                    }
+                    if (n == 0) continue;
+                    panelled++;
+                    visual.DetachWings(Vector3.zero);
+                    foreach (Transform t in root.transform)
+                    {
+                        if (t == null || !t.gameObject.activeSelf) continue;
+                        string nm = t.name;
+                        if (!nm.StartsWith("Bent-WingTip") && !nm.StartsWith("Shaped-WingTip")) continue;
+                        Require(false, $"{id}: '{nm}' is still drawn on the aeroplane after both wings left");
+                    }
+                }
+                finally
+                {
+                    foreach (var d in Object.FindObjectsByType<WingDebris>(FindObjectsInactive.Include, FindObjectsSortMode.None)) Object.DestroyImmediate(d.gameObject);
+                    foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                        if (t != null && t.parent == null && (t.name.StartsWith("Debris-") || t.name.StartsWith("WingDebris-"))) Object.DestroyImmediate(t.gameObject);
+                    Object.DestroyImmediate(root);
+                }
+            }
+            Debug.Log($"[CrashReset] shed check: {panelled} of {types} types have wing panels and shed them clean");
+            Require(panelled >= 10, $"only {panelled} types ran the shed check");
+        }
+
         public static void Run()
         {
             _failures = 0;
@@ -146,6 +209,8 @@ namespace FlyingGame.EditorTools
             catch (System.Exception e) { _failures++; Debug.LogError("[CrashReset] threw: " + e); }
             try { GhostCheck(); }
             catch (System.Exception e) { _failures++; Debug.LogError("[CrashReset] ghost check threw: " + e); }
+            try { ShedLeftoverCheck(); }
+            catch (System.Exception e) { _failures++; Debug.LogError("[CrashReset] shed check threw: " + e); }
             finally
             {
                 if (root != null) Object.DestroyImmediate(root);

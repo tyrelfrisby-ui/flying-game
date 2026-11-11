@@ -587,6 +587,51 @@ public sealed partial class Aircraft
         ApplySurfaceDamage(strip);
     }
 
+    /// <summary>
+    /// THE TORN END OF A WING THAT HAS LOST ITS OUTBOARD PANEL. Ty 2026-11-10, having ripped the outer panels off a
+    /// J-3: "the glide ratio was inexplicably good it should be bad with short stubby wing roots". Most of that was
+    /// the induced drag of the stub (Aircraft.RemeasureAspectRatios); this is the rest of it. A panel does not come
+    /// off cleanly — it leaves the spar stubs, the ribs and the torn fabric of an open section square across the
+    /// airflow, and nothing was charging the aeroplane anything for it.
+    ///
+    /// THE AREA IS MEASURED, THE COEFFICIENT IS A JUDGEMENT. The exposed section is the aerofoil's own area at the
+    /// station — 0.7 × chord × thickness, the usual factor for a section's area against its bounding box — which for
+    /// the J-3's station is 0.7 × 1.60 m × 0.19 m ≈ 0.21 m² a side. The drag coefficient is <see cref="TornEndCd"/>.
+    ///
+    /// It is charged to the OUTERMOST SURVIVING ROW of that wing and side, as extra Cd referred to that row's own
+    /// area, so it acts where the tear actually is: losing ONE panel then yaws the aeroplane towards the stub, which
+    /// is right and which a single whole-aeroplane drag area could not express.
+    /// </summary>
+    private void AddTornEndDrag(WingPanel w)
+    {
+        double chord = w.StationChord, depth = WingStructure.DepthAt(w, Config);
+        if (chord <= 0 || depth <= 0) return;
+        double area = 0.7 * chord * depth;
+        // The outermost row of this wing and side that is still flying: the one the tear is at.
+        int at = -1; double best = -1;
+        foreach (int i in w.SideStrips)
+        {
+            if (StripGone(i) || _stripAt[i] is not { } st) continue;
+            double ay = Math.Abs(st.Pos[1]);
+            if (ay > best) { best = ay; at = i; }
+        }
+        if (at < 0 || _stripAt[at]!.Area <= 0) return;
+        _flowState.ExtraCd ??= new double[_stripTotal];
+        _flowState.ExtraCd[at] += TornEndCd * area / _stripAt[at]!.Area;
+    }
+
+    /// <summary>
+    /// What a torn-off wing's exposed end costs, as a drag coefficient on the section area it leaves open.
+    ///
+    /// A flat plate square to the flow is 1.2 and a deep open box is more; a wing that has torn at a structural
+    /// station is neither, because a light aeroplane's wing is mostly air — two spars, ribs at 300 mm and fabric, so
+    /// the flow goes through as much as round it. 0.7 is taken as a little over half a flat plate, and it is the one
+    /// number here that is judgement rather than measurement: the exposed AREA is read from the aerofoil at the
+    /// station. On the J-3 it puts about 0.15 m² of flat plate on each stub against the 0.75 m² the whole aeroplane
+    /// already carries, and takes the best glide with both panels gone from 5.6 to 5.1.
+    /// </summary>
+    public const double TornEndCd = 0.7;
+
     private void ApplySurfaceDamage(int s)
     {
         double d = Math.Max(s < _bendSkinDamage.Length ? _bendSkinDamage[s] : 0.0, s < _stripDamage.Length ? _stripDamage[s] : 0.0);
@@ -637,6 +682,7 @@ public sealed partial class Aircraft
             if (!onlyAileron) shed.AddRange(w.AileronHinged.Where(i => !w.Strips.Contains(i)));
             else shed.RemoveAll(i => w.AileronHinged.Contains(i));
             ShedStrips(shed, w.Component);
+            AddTornEndDrag(w);
             if (onlyAileron) LoseComponent(w.Side < 0 ? AirframeComponent.AileronLeft : AirframeComponent.AileronRight);
             return;
         }

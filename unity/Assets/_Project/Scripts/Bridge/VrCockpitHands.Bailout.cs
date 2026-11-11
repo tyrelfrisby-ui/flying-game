@@ -454,12 +454,19 @@ namespace FlyingGame.Bridge
             bool leave = false;
             if (onSill && climb.Held)
             {
-                ClimbEvents ev = climb.Step(Raw(_hands[(int)ls].Position), cockpit.Harness.Latched, clear, q);
+                // A FOLDED WING ACROSS THE DOORWAY (Ty 2026-11-10: "Negative g wing folds prevent escape/bailout
+                // unless the wing actually departs if a door is blocked"). The wing is still attached, so nothing he
+                // can do moves it; only the wing departing clears the way.
+                bool exitClear = ExitIsClearOfTheAeroplane(climb.Side);
+                ClimbEvents ev = climb.Step(Raw(_hands[(int)ls].Position), cockpit.Harness.Latched, clear, q, exitClear);
                 if ((ev & ClimbEvents.Blocked) != 0 && !_blockedTicked)
                 {
                     _blockedTicked = true;
                     XrHandInput.Tick(ls == HandSide.Left, 0.5f, 0.06f);
-                    Debug.Log($"[VrEgress] can't rise: {(cockpit.Harness.Latched ? "still strapped in" : "the canopy is in the way")}");
+                    string why = cockpit.Harness.Latched ? "still strapped in"
+                               : !exitClear ? "the folded wing is across the door"
+                               : "the canopy is in the way";
+                    Debug.Log($"[VrEgress] can't rise: {why}");
                 }
                 if ((ev & ClimbEvents.Exposed) != 0) Debug.Log($"[VrEgress] shoulders in the slipstream ({ClimbOut.SlipstreamN(q, climb.RiseM):F0} N on him)");
                 leave = climb.Out;
@@ -515,6 +522,40 @@ namespace FlyingGame.Bridge
 
         /// <summary>Over the side: hand the pilot to PilotEgress as a body with the aeroplane's velocity at that point
         /// (finite-differenced from the aeroplane's pose, so its rotation is in it) plus his push.</summary>
+        /// <summary>
+        /// Is the way out of the sill clear of the AEROPLANE'S OWN STRUCTURE? A wing that has folded is still attached
+        /// and lies where its fold put it, so it can be across the doorway — on a high-wing aeroplane under negative g
+        /// the wing folds DOWN about its root, straight across the side door. Measured with the same clearance boxes
+        /// the tail strike uses, built with the PANELS so each wing row sits where its shape puts it
+        /// (FlyingGame.Core.Vr.EgressClearance.From), and rebuilt only when a fold moves, because it loops the strips.
+        /// </summary>
+        private bool ExitIsClearOfTheAeroplane(FlyingGame.Core.Vr.ExitSide side)
+        {
+            Aircraft ac = _driver?.Sim?.Aircraft;
+            if (ac == null) return true;
+            double fold = 0.0;
+            foreach (FlyingGame.Core.WingPanel p in ac.Panels)
+                if (p.State != FlyingGame.Core.PanelState.Broken) fold = System.Math.Max(fold, System.Math.Abs(p.FoldRad));
+            if (fold <= 0.003) { _foldClearance = null; _foldClearanceFor = 0.0; return true; }
+            if (_foldClearance == null || System.Math.Abs(fold - _foldClearanceFor) > 0.01)
+            {
+                _foldClearance = FlyingGame.Core.Vr.EgressClearance.From(ac.Config, ac.Panels);
+                _foldClearanceFor = fold;
+            }
+            // The doorway: out at the cabin side, at the CG's own height, which is about where a seated pilot leaves
+            // through a side door. Measured on the J-3, that point is clear with the wing straight — its wing sits
+            // 0.75 m ABOVE the CG — and inside the wing once it has folded down about its root. It reads the same way
+            // for a low-wing aeroplane folding UP.
+            FlyingGame.Core.MathTypes.Vec3 cg = ac.Config.Mass.CgVec();
+            double y = side == FlyingGame.Core.Vr.ExitSide.Left ? -SillHalfWidthM : SillHalfWidthM;
+            return _foldClearance.Hit(new FlyingGame.Core.MathTypes.Vec3(cg.X, y, cg.Z)) == null;
+        }
+
+        /// <summary>How far out the doorway is from the centreline, m (E: half a light aeroplane's cabin).</summary>
+        private const double SillHalfWidthM = 0.42;
+        private FlyingGame.Core.Vr.EgressClearance _foldClearance;
+        private double _foldClearanceFor;
+
         private void Leave(ClimbOut climb)
         {
             float dt = Mathf.Max(Time.deltaTime, 1e-3f);

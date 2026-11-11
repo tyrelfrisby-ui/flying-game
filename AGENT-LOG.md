@@ -122,6 +122,183 @@ Running record, one bullet per lane, newest last:
   Still Ty's to look at, not an approved gate: `renders/windsocks/` and `renders/airport-lighting/`, Q110–Q113.
   Two findings from the lane that still stand: **the game has no night**, so the runway lights cannot be flown at
   night yet, and the VASI angles are not from a document anyone read.
+## NEEDS YOU — the ground keeps its marks: ruts, skids, ski tracks, gouges and a wreck's scar — Claude, 2026-11-10, lane/claude-imprints
+
+<!-- ground-imprints surface-tracks-part-A-taken-forward plastic-retention bearing-capacity repose-slump imprint-budget -->
+
+Ty: *"if it is penetrating it should leave imprints behind as it slides and rolls displacing the dirt or snow etc"*,
+and on depth: *"I want the penetration to show and stay as ground scars if it is going to be there and I can
+understand several cm on initial impact but just rolling down the hill it should be a few cm not a dozen or more"*.
+
+**NOTHING IS DRAWN YET.** The record is built, tested and engine-free; the Unity quad-per-mark renderer is not written,
+so there is nothing to look at on a device. No Unity build, no deploy, no install. Reference: `docs/GROUND-IMPRINTS.md`.
+
+### lane/claude-surface-tracks: what it built, what stalled it, and how much I took
+
+**Taken: all of it, by cherry-pick of `2684c503`** (`SurfaceContacts.cs` 360 lines, `SurfaceContactTests.cs` 329 lines,
+`docs/SURFACE-CONTACTS.md`, and the plumbing in `LandingGear`/`TireModel`/`WheelSpin`/`Aircraft`). It is NOT stale: it
+applied with ONE conflict — four lines in `WheelState.ClearContact`, where today's `LegStrokeM = 0` (the drawn-wheel
+work of 2026-11-10) landed on the same line as its own clears, and both sides wanted their lines. **SurfaceContactTests
+13/13 on today's tip, unchanged.** This week's gear geometry, tyre cornering and contact changes did not move anything
+it reads. I did **not** merge the lane itself — it carries island-nav merges, 2-33 panel and water-visual commits that
+are nothing to do with this.
+
+Its **"NEEDS YOU" was never a design question**: the log says *"Nothing approved by me; nothing visual changed, so
+there is nothing to look at yet."* It had built the data half (spec PART A) and was waiting for PART B — the drawing —
+which was assigned to Codex and never started. The one substantive open question in it is **Q145: mud** — there is no
+mud `GroundMaterial` and no world surface produces one. Still open. `docs/GROUND-IMPRINTS.md` says exactly what three
+numbers a mud row would need (bearing ~50 kPa, retention ~1.0, repose ~25°), so it is one table row when a mud surface
+exists. Its other flagged gap, snow wetness reading dry, is still true and still waiting on lane/claude-ski-physics; the
+default-ski-size one is CLOSED, below.
+
+### The split: a mark is a world fact, the renderer reads a record
+
+- `src/FlyingGame.Core/GroundImprints.cs` — the soil mechanics, a `GroundImprint` struct, the bounded ring, and the
+  per-aeroplane "pen" that extends a stretch instead of laying a dot per step.
+- `src/FlyingGame.Sim/AircraftImprints.cs` — one pass per physics step over this aeroplane's contacts. It reads; it
+  changes no physics.
+- `GroundImprints.World` is process-wide, like `StrippedTrees`, cleared with it for a new flight. Every aeroplane —
+  player and AI — writes into one field, so you see where the other one landed; each mark carries its `Owner`.
+- **No particles** (standing prohibition). A mark is geometry in the ground.
+
+### Depth is READ from the contact, never recomputed — and two sources are wrong at their source today
+
+- **Tyre / ski / float:** `SurfaceContact.DepthM`. For a tyre that is Bekker compaction (`TireModel.GroundSinkageM`),
+  which is a *permanent set by definition*, so it is the rut as it stands — **no retention applied**.
+- **Airframe hard point:** `ContactPoint.DepthM`, the contact spring's *elastic* penetration, so only
+  `PlasticRetention01` of it stays. `GroundImprintTests.AnAirframeScarIsExactlyTheRetainedPartOfTheContactsOwnPenetration`
+  pins that equality to the millimetre. **REJECTED: clamping the scar to a plausible few cm** — it would hide the
+  penetration bug behind a cosmetic cap and put a second depth model beside the contact's.
+- **1. NEEDS YOU / co-ordination:** `AirframeContact`'s mass-independent 150 kN/m spring means a J-3 wingtip slapping
+  down reads **1.03 m** in and leaves an **82 cm** scar. When `lane/claude-contact-depth` lands "a few cm,
+  mass-independent", the scars become a few cm with **no change to this code**. That test is what proves nothing else
+  moved.
+- **2. NEEDS YOU — a number that is wrong where it is MADE, and nobody is on it:** `TireModel.GroundSinkageM` inverts a
+  **steady-state** relation (R/W = z/((n+1)·l)); handed an impulsive load it gives an impulsive answer. A J-3 put down
+  on grass at 14 m/s reported a **306 mm** rut for the one step of the touchdown spike, against the **3.8 mm** it
+  settles to standing on the same grass. I applied one **geometric** bound here — a tyre's rut cannot exceed the tyre's
+  own rolling radius, because past that the axle is at the surface and the gear leg is making the mark — which brings
+  that spike to 229 mm. It wants fixing in `TireModel` or in how `LandingGear` loads it. REJECTED here: recomputing the
+  sinkage from a filtered load, which would be exactly the parallel rut model this split exists to prevent.
+
+### One interface piece was missing, and it mattered a lot: `WheelState.SurfaceWorld`
+
+`PatchWorld` is the tyre's bottom as the aeroplane's pose puts it, which is **below** the ground by whatever the leg
+and the tyre have compressed. **Measured on a J-3 rolling out on grass: 1.5 cm standing still, up to 21 cm while it
+settles after a touchdown.** Drawing a rut there would have it dive a hand's breadth into the earth and come back out
+every time the suspension worked, and it broke the track into **145 stretches over 58 m** where it should have been a
+handful. So `LandingGear` now also records `ws.SurfaceWorld = wheelWorld + groundUp · penetration` — the undisturbed
+surface, from the same two numbers the force went on, no new query — and `SurfaceContact.SurfaceWorld` carries it
+(floats use the step, `AddSki` uses cp + sinkage). **This is the field that was missing, and the contact lane should
+know the airframe side needs the same thing** if a hard point ever wants its mark put on the surface rather than at
+the part; today I do it with `WorldPos + up·DepthM`, which only works because the airframe contact is vertical.
+
+### How depth and width are decided, per surface — three numbers, all sourced
+
+Bearing pressure is **ultimate**, from presumptive allowable values × their factor of ~3 (IBC Table 1806.2: sandy
+gravel 3000 psf = 144 kPa; silty/clayey sand 2000 psf = 96 kPa), plus asphalt's 3–5 MPa unconfined compressive strength
+and ice's 5–25 MPa crushing stress (Petrovic 2003 — the source `WorldTerrain` already cites for ice being rigid under a
+tyre). Retention is **plasticity, a different property from strength**: asphalt is strong *and* springy, snow is weak
+*and* keeps every millimetre. Repose angles are the published granular values; turf's 60° is the root mat holding a
+near-vertical shoulder.
+
+| | bearing kPa | retention | repose ° |
+|---|---|---|---|
+| Asphalt / Deck / Ice | 3 000 / 200 000 / 5 000 | 0 | — |
+| Gravel | 430 | 0.85 | 38 |
+| Dirt | 250 | 0.80 | 37 |
+| Grass | 200 | 0.35 | 60 |
+| PackedSnow | 200 | 0.90 | 38 |
+| Rough (pasture) | 180 | 0.50 | 45 |
+| Sand (hard, wet-packed) | 150 | 0.90 | 32 |
+| Snow (settled) | 60 | 0.95 | 38 |
+
+- **WIDTH** comes from the bearing capacity, because a `ContactPoint` has no breadth: a load N yields a patch of area
+  N/p, taken square. A tyre, ski or float measures its own footprint and uses that. Then the trough **at the surface**
+  is wider than the patch, because the sides slump to the repose angle: `w = patch + 2d/tan(repose)`.
+- **Hand-checked:** 820 kg on one patch on grass → a 0.20 m patch; on settled snow → 0.37 m, √(200/60) wider. A 1 kN
+  wingtip bow on dirt → 6.3 cm patch, opening to 14.3 cm at 3 cm deep.
+- **The slump compresses ratios, and that is correct.** It adds the *same* amount to a belly and to a wingtip, so
+  patches 2.8× apart become troughs 1.9× apart. A ski's running surface is 2.5× a tyre's footprint but their marks on
+  snow are only 1.2× apart in width — so **a ski's flotation shows up in the DEPTH**, which is where a pilot reads it.
+- **Whether a ground marks at all falls out of the same numbers**, not a switch: asphalt's retention is 0, so a Pitts
+  sliding down a runway leaves nothing (the black streak is already `GroundMaterialRow.SkidMark`). Ice's is 0 too,
+  deliberately: it is brittle, so it **scores** — a texture, not geometry — and nothing draws a mark with no depth.
+- **REJECTED: a 5 mm minimum depth,** on the argument that anything shallower is inside the ground's own micro-relief
+  (gravel's ±12 mm). Wrong gate, and wrong by a visible amount: a Cub's Bekker rut is 3.3 mm on dirt and 5.6 mm on
+  grass, so it erased a Cub's tracks on a dirt strip entirely. **Visibility is the renderer's business** — the record's
+  job is to say honestly that the rut is 3 mm and let the drawing make that flattened, bruised turf rather than a ditch.
+  Now 1 mm.
+
+### A CUB ON SKIS LEAVES A TRACK NOW, and that closed three of the inherited lane's gaps at once
+
+It did not when this lane started, twice over: surface-tracks had no ski geometry to report (it reported the ski
+model's **0.25 x 1.8 m default**) and nothing in the physics computes a ski's **sinkage**, so a ski track had no depth
+and fell under the minimum. Both are fixed by reading what the physics does have:
+
+- `lane/claude-quest-islandnav` brought the ski work on 2026-11-10, so `SkiGear.Geometry` exists: a Super Cub's mains
+  come out **0.289 x 1.980 m** and its TAILWHEEL ski **0.173 x 1.188 m**, each sized from the airframe and the tyre it
+  seats. `LandingGear` now records a bearing ski's real running surface and ground pressure, and the contact reports
+  them per leg. The inherited `SurfaceContactTests` assertion on the 0.25 x 1.8 defaults was updated to assert the real
+  geometry, per leg, with a comment saying what it used to say and why it changed.
+- **New field `WheelState.PenetrationM`** (and `SurfaceContact.PenetrationM`): the whole contact compression along the
+  ground's normal. **This is the per-wheel depth the contact lane was asked to keep readable, and it was not there.**
+  It is documented as ELASTIC and explicitly contrasted with `SinkM`, which is the soil's permanent set. Any leg with
+  no sinkage model — a bearing ski, a skid shoe, a float keel on land, a pilot's feet — now marks from the plastic part
+  of it, exactly as an airframe hard point does. That removed the "deliberately a gap" caveat for all four.
+- **MEASURED, both directions through the real contact path:** a Super Cub on skis in settled snow leaves a 0.338 m
+  track 1.9 cm deep; the same Cub on its bare tyres in the same snow leaves a 0.320 m rut 11.5 cm deep. Narrower and
+  six times deeper. Flotation, and it reads the way a pilot would expect.
+- **STILL WANTED:** a real pressure-sinkage model for a ski, which would say a ski floats where a tyre ploughs by more
+  than their contact penetrations happen to differ. `lane/claude-ski-physics` is where it would come from.
+
+### Rolling, skidding, tracking, gouging, scarring
+
+`Rut` (a rolling tyre, its footprint's width) · `Skid` (locked or sliding: a smear along the slip, not a compaction) ·
+`Track` (ski or float bottom: broad, flat, shallowest of all) · `Gouge` (a wingtip bow, tailskid, fin tip, gear stub:
+narrow and deep for its width) · `Scar` (a belly, nose or wing panel — a wreck down a hillside: same mechanism, broad
+because a structure's breadth carries the load).
+
+**Rolling vs skidding is a slip RATIO, not an absolute slip, and that was measured rather than argued.** A J-3's mains
+are splayed, so rolling straight down a grass strip at 14 m/s each main scrubs sideways at **0.65 m/s** — a 2.7° slip
+angle, an ordinary rolling tyre. Against a flat 0.3 m/s threshold **every Cub main read as a skid for the whole landing
+roll**, which is both wrong and expensive (the kind flipping closes a stretch and opens another). The line is
+`WheelSpin.FallStart` (0.15), the tyre model's own number for where the coefficient starts falling from its peak toward
+the sliding value, with 0.3 m/s as a floor for the standstill case where a ratio means nothing.
+
+### The budget: 1,024 stretches for the whole world
+
+88 B a mark → **88 kB**, allocated once. One quad a mark → **2,048 triangles** for every mark in the world; a single
+detail tree costs more. Per step: one append-or-extend per contact in contact, at most a dozen per aeroplane, a handful
+of dot products each — **no allocation, no dictionary, no terrain query**, deliberately, after the J-3 was found 8.8×
+too expensive on 2026-11-09 with a `ConditionalWeakTable` in the hot path. **Nothing at all runs in the air** (asserted).
+
+A stretch is **extended** while the contact keeps going the same way, so a straight rut is ONE stretch however long.
+What breaks one: straying past 0.3 of the mark's own width off its line **in 3D** (floor 4 cm — so the ground's
+undulation breaks a stretch as surely as a turn does, and a flat quad never stands off the surface by more than that);
+the width or depth changing past 25 % **with absolute floors of 1 cm and 1 mm** — a fraction *alone* was measured wrong
+and expensively so, a braked Cub laying dozens of zero-length stretches because its 3 mm rut deepened to 4 mm between
+two steps, which is 33 %; and the part lifting off, so a bounce is never joined across the gap it flew over.
+
+**MEASURED:** a J-3 put down at 14 m/s on grass and left entirely alone — no rudder, tailwheel castoring — rolls 58 m
+to a stop and lays **135 stretches** on three wheels. Almost none of that is the *length*: while rolling, the stretches
+run 2–4 m each, set by the arc the aeroplane describes because nothing is steering it; the rest is the slow weave as it
+stops. **So 1,024 holds about seven landing rolls of that kind** and effectively unlimited straight rolling — a
+circuit's worth of landings and the taxiing between them. A ground loop is the expensive case because it is all curve;
+that is the right place to spend it, and the **oldest** marks go first.
+
+### Tests, and what is uncompiled
+
+- **`GroundImprintTests` 21/21** (new) and **`SurfaceContactTests` 13/13** (inherited; one assertion updated, see the ski section above).
+- **Compare, never count:** every Contact / Landing / Gear / Wheel / Crash / Wreck / Breakup / Taxi / Float / Scrape /
+  Impact / Bend / GroundSurface / IslandSurface / Tree / Prop suite run on this lane AND on base `651e5515` in a base
+  worktree — **identical failing names, zero introduced.** On the narrower tyre/ski/water/gear filter the same 18 names
+  fail on both (they are the known `SoftWaterBreakup`, `WheelSki`, `WaterSki`, `GlacierLandingZone`, `FlatSpot`,
+  `AlaskaTests`, `WheelHydro` set).
+- **UNCOMPILED: the Unity side entirely.** `src/` compiles clean (0 errors) under .NET 8, but nothing in
+  `unity/Assets/` was touched or built, there is **no renderer for these marks**, and a green .NET suite is not an iOS
+  build. Quest not built, nothing installed, nothing deployed.
+- **Parity:** ONE shared commit (`src/` + `configs/` are shared; `tools/FlightTests/` and `docs/` neutral).
 - **`lane/claude-test-triage`** (`086e261a`) — MERGED, **moved forward out of its briefed place** so the lanes merged
   after it get a trustworthy test run. It only touches `tools/FlightTests/`.
   Half of it had already shipped: all four of its CLAUDE.md lessons are in the file at HEAD, and HEAD already carries

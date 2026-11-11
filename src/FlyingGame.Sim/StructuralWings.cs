@@ -38,8 +38,16 @@ public sealed partial class StructuralState
     /// only on a snatch to 8.6 g; an Extra 300 at gross (10 g) has one g = 0.100, and its wings fold at 19 g and depart
     /// at 20. A LIGHT aeroplane's one g is a bigger step, which is right: it has further to go per g.
     /// </summary>
+    /// <remarks>
+    /// THE MAGNITUDE OF THE NEGATIVE LIMIT, not its signed value. <see cref="Ratio"/> negates for a push so the load
+    /// ratio comes out positive, and this has to match it or one g is NEGATIVE under negative g — which moved the rung
+    /// ABOVE the break (2.0 − (−0.667) = 2.667 on a J-3) so it could never fire, and a push went straight to the break
+    /// with no outboard shed and no fold at all. Measured, and it is exactly what Ty reported on 2026-11-10: "Negative
+    /// g to failure on the cub splits it in half down the fuselage instead of folding the wings" — nothing staggered,
+    /// the wings and the engine mount both gone at −3.00 g on the same step.
+    /// </remarks>
     private double OneGRatio(double wingWeightRatio, double sign) =>
-        wingWeightRatio / (sign >= 0 ? _publishedPos : _publishedNeg);
+        wingWeightRatio / (sign >= 0 ? _publishedPos : -_publishedNeg);
 
     /// <summary>Ultimate over limit, for the fold angle (<see cref="WingFailureLaw.FoldRad"/>).</summary>
     private double UltimateFactor => _limits.UltimateFactor > 1.0 ? _limits.UltimateFactor : 1.5;
