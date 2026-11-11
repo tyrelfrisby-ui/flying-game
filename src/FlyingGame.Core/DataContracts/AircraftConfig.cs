@@ -1040,6 +1040,21 @@ public sealed class PropulsionConfig
     /// </summary>
     public int Cylinders { get; set; }
     public double CompressionRatio { get; set; }
+
+    /// <summary>
+    /// THE ENGINE'S SWEPT VOLUME, in^3 — which the torque law needs because friction and pumping are mean effective
+    /// PRESSURES and a pressure only becomes a torque through a displacement (<see cref="FlyingGame.Core.PistonMep"/>).
+    /// 0 = not authored, and the engine's volume is then backed out of its rated torque at the fleet's BMEP, which is
+    /// a definition rather than a fit (<see cref="FlyingGame.Core.PistonCompression.DisplacementM3"/>).
+    ///
+    /// IT IS AUTHORED HERE AND NOT ONLY ON <see cref="SmokeConfig.DisplacementCuIn"/>, where the same number has lived
+    /// since the exhaust jet wanted it, because the engine model is reached through a <see cref="PropulsionConfig"/>
+    /// alone — PropModel.SteadyDrive, which the RIG solves against, never sees the whole aircraft. Giving the rig and
+    /// the sim two different routes to the engine is the mismatch that cost five types their hands-off trim once
+    /// already. The two copies cannot drift: EngineDisplacementTests asserts every config that authors both authors
+    /// them equal.
+    /// </summary>
+    public double DisplacementCuIn { get; set; }
     /// <summary>
     /// HOW MUCH MORE THAN ITS RUNNING FRICTION THIS ENGINE RESISTS WHEN IT IS DEAD AND DRY, at rest — so 3.0 means
     /// four times (see <see cref="FlyingGame.Core.PistonEngine.BoundaryFrictionFactor"/>). 0 = use the fleet number.

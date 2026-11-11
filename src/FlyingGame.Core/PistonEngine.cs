@@ -33,13 +33,82 @@ public static class PistonEngine
     public const double FrictionManifoldInHg = BladeElement.FrictionManifoldInHg;
     public const double SeaLevelManifoldInHg = BladeElement.SeaLevelManifoldInHg;
 
-    /// <summary>Manifold pressure a naturally aspirated engine can draw: ambient, throttled. <paramref name="pressureRatio"/>
-    /// is the ambient pressure over sea level (0.69 at 10 000 ft), and idle is never a fully closed throttle.</summary>
-    public static double ManifoldInHg(double throttle01, double pressureRatio, double idleFraction = 0.28)
+    /// <summary>
+    /// THE ENGINE, as the torque law needs to know it. It is a struct and not four loose doubles because the law now
+    /// needs the DISPLACEMENT and the CYLINDERS and the COMPRESSION RATIO as well as the rating — friction and pumping
+    /// are mean effective PRESSURES, and a pressure only becomes a torque through a swept volume — and because the rig
+    /// and the sim solving the same propeller against two different engines is a failure this repository has already
+    /// had once (see <see cref="PropModel.SteadyFlownDrive"/>). One struct, built one way, from the config.
+    /// </summary>
+    public readonly struct Spec
     {
-        double t = Math.Clamp(throttle01, 0.0, 1.0);
-        double open = idleFraction + (1.0 - idleFraction) * t;
-        return SeaLevelManifoldInHg * Math.Clamp(pressureRatio, 0.05, 1.3) * open;
+        public readonly double RatedPowerW, RatedRpm, DisplacementM3, CompressionRatio, StrokeM, DryBoundaryExcess;
+        public readonly int Cylinders;
+
+        public Spec(double ratedPowerW, double ratedRpm, double displacementM3, int cylinders, double compressionRatio,
+                    double dryBoundaryExcess)
+        {
+            RatedPowerW = ratedPowerW; RatedRpm = ratedRpm;
+            Cylinders = Math.Max(1, cylinders);
+            CompressionRatio = compressionRatio > 1.0 ? compressionRatio : DefaultCompressionRatio;
+            double qRated = ratedRpm > 0.0 ? ratedPowerW / (ratedRpm * 2.0 * Math.PI / 60.0) : 0.0;
+            // 0 = not authored: back the swept volume out of rated torque at the fleet's BMEP, which is a definition
+            // (BMEP = 4 pi Q / V_d) and not a fit. The same fallback PistonCompression.DisplacementM3 uses.
+            DisplacementM3 = displacementM3 > 0.0 ? displacementM3 : 4.0 * Math.PI * qRated / PistonCompression.FleetBmepPa;
+            StrokeM = PistonMep.StrokeM(DisplacementM3, Cylinders);
+            DryBoundaryExcess = dryBoundaryExcess;
+        }
+
+        /// <summary>Four cylinders and 8.7:1 when nothing says otherwise — the same defaults
+        /// <see cref="DataContracts.AircraftConfig.EngineCylinders"/> carries, so a loose-parameter caller and a
+        /// configured one describe the same engine.</summary>
+        public const int DefaultCylinders = 4;
+        public const double DefaultCompressionRatio = 8.7;
+
+        /// <summary>A rating with no engine data behind it: the fleet BMEP, four cylinders, 8.7:1. Every caller that
+        /// has a config should use <see cref="For"/> instead.</summary>
+        public static Spec Rated(double ratedPowerW, double ratedRpm)
+            => new Spec(ratedPowerW, ratedRpm, 0.0, DefaultCylinders, DefaultCompressionRatio, -1.0);
+
+        /// <summary>THIS type's engine, which is the form every caller in the sim and the rig should use.</summary>
+        public static Spec For(PropulsionConfig p)
+            => new Spec(p.MaxPowerW, p.MaxRpm, p.DisplacementCuIn * PistonCompression.CubicInchM3,
+                        p.Cylinders > 0 ? p.Cylinders : DefaultCylinders,
+                        p.CompressionRatio > 1.0 ? p.CompressionRatio : DefaultCompressionRatio,
+                        BoundaryExcessFor(p));
+
+        public double RatedTorqueNm => RatedRpm > 0.0 ? RatedPowerW / (RatedRpm * 2.0 * Math.PI / 60.0) : 0.0;
+        /// <summary>Brake mean effective pressure at the rating, Pa: BMEP = 4 pi Q / V_d. This fleet runs 9.6 to
+        /// 11.3 bar.</summary>
+        public double RatedBmepPa => DisplacementM3 > 0.0 ? 4.0 * Math.PI * RatedTorqueNm / DisplacementM3 : 0.0;
+        /// <summary>Gross indicated MEP at the rating, sea level, Pa. Gagg and Ferrar say friction is 11.7 % of it,
+        /// so BMEP_rated = IMEP_rated * 0.883 — see <see cref="PistonMep"/>.</summary>
+        public double RatedIndicatedMepPa => RatedBmepPa / (1.0 - PistonMep.GaggFerrarFrictionFraction);
+        /// <summary>A pressure difference as a shaft torque: Q = MEP * V_d / (4 pi), the four-stroke definition.</summary>
+        public double TorquePerPa => DisplacementM3 / (4.0 * Math.PI);
+        /// <summary>What the manifold reads at full throttle at rated rpm at sea level, Pa — the reference every
+        /// normalisation in the torque law is taken against.</summary>
+        public double RatedWideOpenManifoldPa
+            => PistonMep.ManifoldPa(1.0, RatedRpm, RatedRpm, Atmosphere.SeaLevelPressurePa);
+        /// <summary>FMEP at the rating, Pa. NOT A NEW CONSTANT: Gagg and Ferrar's 0.117 of gross indicated power is a
+        /// statement about friction, and this is that statement, less the pumping the induction system already
+        /// accounts for at wide-open throttle.</summary>
+        public double RatedFrictionMepPa
+            => PistonMep.GaggFerrarFrictionFraction * RatedIndicatedMepPa
+             - PistonMep.PumpingMepPa(RatedWideOpenManifoldPa, Atmosphere.SeaLevelPressurePa);
+    }
+
+    /// <summary>
+    /// MANIFOLD PRESSURE, inHg — AND IT DEPENDS ON RPM NOW, which is the term that was missing. A throttle plate is a
+    /// restriction and an engine is a pump whose demand goes as its speed, so the same lever reads a healthy manifold
+    /// at 700 rpm and a few inches of vacuum at 2,500. See <see cref="PistonMep.ManifoldPa"/> for the orifice balance
+    /// and for why friction alone could never have produced engine braking.
+    /// </summary>
+    public static double ManifoldInHg(double throttle01, double pressureRatio, double rpm, double ratedRpm)
+    {
+        double pAmb = Atmosphere.SeaLevelPressurePa * Math.Clamp(pressureRatio, 0.05, 1.3);
+        return PistonMep.ManifoldPa(throttle01, rpm, ratedRpm, pAmb) / Atmosphere.SeaLevelPressurePa
+             * SeaLevelManifoldInHg;
     }
 
     /// <summary>
@@ -62,73 +131,106 @@ public static class PistonEngine
     /// loses, so rpm at a given TRUE airspeed is near enough unchanged, and at a given INDICATED airspeed (where the
     /// true airspeed is higher) it RISES. That is the effect a pilot actually sees.
     ///
-    /// Throttling is a separate thing and keeps the manifold-pressure line: at a given altitude the power is
-    /// proportional to what the engine can draw, from the friction intercept up to whatever full throttle gives
-    /// THERE. So the 26 inHg run-up rule (BladeElement.GovernorStops) is untouched — it is a sea-level, part-throttle
-    /// condition — while the altitude behaviour is now the measured one.
+    /// SINCE THE FMEP/PMEP MODEL LANDED THIS IS NO LONGER APPLIED AS A FACTOR — it is DERIVED. The 0.117 in it is a
+    /// friction statement (friction is 11.7 % of sea-level gross indicated power), and <see cref="Spec"/> reads it
+    /// that way to set FMEP at the rating, so the wide-open-throttle lapse falls out of the decomposition instead of
+    /// multiplying it. The two agree to 1.4 % at 10,000 ft — the model is slightly the LESS lossy of the two, because
+    /// Gagg and Ferrar hold friction and pumping constant with height where the decomposition lets the gas load and
+    /// the back pressure fall with the air. This remains here because it is still the right closed form for anything
+    /// that wants the lapse without an engine to hand, and <see cref="BladeElement.GovernorStops"/> is one.
     /// </summary>
     public static double AltitudePowerFraction(double densityRatio)
         => Math.Clamp((Math.Clamp(densityRatio, 0.05, 1.3) - 0.117) / 0.883, 0.0, 1.2);
 
-    /// <summary>Shaft power, W. <paramref name="densityRatio"/> defaults to the pressure ratio when not supplied,
-    /// which is close enough in ISA and keeps older callers working.</summary>
-    public static double PowerW(double ratedPowerW, double ratedRpm, double rpm, double throttle01, double pressureRatio,
-                                double densityRatio = 0.0)
+    /// <summary>
+    /// SHAFT TORQUE, N.m: gross indicated work, less friction, less pumping, through the swept volume. This is the
+    /// whole of the engine model and <see cref="PistonMep"/> is its derivation; what follows is bookkeeping.
+    ///
+    /// It is NEGATIVE whenever the engine is being driven faster than its throttle can feed it, which is engine
+    /// braking and is what the old law — a torque with no rpm in it — could not produce at all.
+    /// </summary>
+    public static double TorqueNm(in Spec e, double rpm, double throttle01, double pressureRatio, double densityRatio = 0.0)
     {
-        if (ratedRpm <= 0 || rpm <= 0) return 0.0;
-        double sigma = densityRatio > 0 ? densityRatio : pressureRatio;
-        double mpFull = ManifoldInHg(1.0, pressureRatio);
-        double mp = ManifoldInHg(throttle01, pressureRatio);
-        // How far the throttle is open, from the friction intercept to what full throttle gives at THIS altitude.
-        double span = Math.Max(1e-6, mpFull - FrictionManifoldInHg);
-        double openFraction = Math.Clamp((mp - FrictionManifoldInHg) / span, 0.0, 1.0);
-        return ratedPowerW * AltitudePowerFraction(sigma) * openFraction * (rpm / ratedRpm);
+        if (e.RatedRpm <= 1.0 || rpm <= 1.0 || e.DisplacementM3 <= 0.0) return 0.0;
+        double delta = Math.Clamp(pressureRatio, 0.05, 1.3);
+        double sigma = densityRatio > 0.0 ? Math.Clamp(densityRatio, 0.05, 1.3) : delta;
+        double pAmb = Atmosphere.SeaLevelPressurePa * delta;              // ambient IS the exhaust back pressure
+        double mp = PistonMep.ManifoldPa(throttle01, rpm, e.RatedRpm, pAmb);
+
+        double mpWot = e.RatedWideOpenManifoldPa;                         // the sea-level, rated-rpm reference
+        double kIndicated = e.RatedIndicatedMepPa / Math.Max(1.0, mpWot); // gross indicated MEP per Pa of manifold
+
+        // The charge is fresh air less the engine's own residuals, and it is denser than its pressure says when the
+        // air is cold: sigma/delta is T0/T, which is how altitude reaches the charge rather than through a factor.
+        double charge = PistonMep.FreshChargeFactor(mp, pAmb, mpWot, Atmosphere.SeaLevelPressurePa, e.CompressionRatio);
+        // And at idle an engine does not get indicated work in proportion to what it swallows at all: see
+        // PistonMep.IdleIndicatedLossB, solved from Continental's published C-85 idle.
+        double imep = kIndicated * mp * charge * (sigma / delta) * PistonMep.IndicatedEfficiencyFactor(rpm, e.RatedRpm);
+        double pmep = PistonMep.PumpingMepPa(mp, pAmb);
+        double fmep = e.RatedFrictionMepPa * PistonMep.FrictionShape(e.StrokeM, rpm, e.RatedRpm, mp / Math.Max(1.0, mpWot));
+        return (imep - fmep - pmep) * e.TorquePerPa;
     }
 
+    /// <summary>The same for a configured engine, which is the form every caller in the sim and the rig wants.</summary>
+    public static double TorqueNm(PropulsionConfig p, double rpm, double throttle01, double pressureRatio,
+                                  double densityRatio = 0.0)
+        => TorqueNm(Spec.For(p), rpm, throttle01, pressureRatio, densityRatio);
+
+    /// <summary>Shaft power, W — the torque times the speed, and nothing else. It was the other way round before the
+    /// FMEP/PMEP model: a power law with the torque divided out of it, which is how the torque came to have no rpm
+    /// in it.</summary>
+    public static double PowerW(in Spec e, double rpm, double throttle01, double pressureRatio, double densityRatio = 0.0)
+        => TorqueNm(e, rpm, throttle01, pressureRatio, densityRatio) * (rpm * 2.0 * Math.PI / 60.0);
+
+    public static double PowerW(PropulsionConfig p, double rpm, double throttle01, double pressureRatio,
+                                double densityRatio = 0.0)
+        => PowerW(Spec.For(p), rpm, throttle01, pressureRatio, densityRatio);
+
     /// <summary>
-    /// CRANKING RESISTANCE: the torque it takes to TURN a piston engine that is not running, N·m, returned negative
+    /// CRANKING RESISTANCE: the torque it takes to TURN a piston engine that is not running, N.m, returned negative
     /// because it opposes whatever is turning it. Ty 2026-11-10, shown a dead propeller windmilling to 4,414 rpm on a
-    /// 2,700 rpm engine: "You are not accounting for the cranking resistance of the engine". He is right, and the model
-    /// already knew the number — it was being thrown away.
+    /// 2,700 rpm engine: "You are not accounting for the cranking resistance of the engine".
     ///
-    /// <see cref="PowerW"/> clamps its open fraction to [0, 1]. But the fraction is
-    /// (MP − MP_friction) / (MP_sea − MP_friction), and a closed throttle draws 0.28 of ambient, which at sea level is
-    /// 8.4 inHg — BELOW the 10 inHg friction intercept. So the engine's own law says it absorbs about 8 % of rated
-    /// power at rated rpm with the throttle shut, and the lower clamp was discarding exactly that. This is the same
-    /// expression with the clamp lifted below zero, so there is no new constant and nothing to tune: the pumping and
-    /// friction come from the friction intercept that is already in the power curve and in BladeElement.GovernorStops'
-    /// 26 inHg rule.
+    /// IT IS THE SAME DECOMPOSITION WITH THE COMBUSTION TAKEN OUT, which is what a motored engine is: BMEP = 0 - FMEP
+    /// - PMEP. No clamp lifted, no expression reused out of its range — the previous version was
+    /// <see cref="PowerW"/>'s open fraction allowed to go negative, which worked only because that fraction's zero
+    /// happened to sit near where an engine stops making power, and it carried the 10 inHg intercept's whole
+    /// mis-apportioned friction with it.
     ///
-    /// For the Pitts' 260 hp at 2,700 rpm that is about −56 N·m, which is the order a 540 cubic inch engine really
-    /// takes to turn over, and it is what keeps a dead propeller's rpm down to something an aeroplane survives.
+    /// THE GAS LOAD IS A MOTORED ONE. Chen-Flynn's load term is the force the rings and bearings carry, and a cylinder
+    /// that is only being compressed peaks at about a third of a fired one (<see cref="PistonMep.MotoredPeakFraction"/>).
     ///
-    /// DELIBERATELY NOT FOLDED INTO <see cref="TorqueNm"/> or <see cref="PowerW"/>, though the comment on TorqueNm has
-    /// always promised it. Those two also feed the THRUST path, and the drag of an idling or windmilling propeller is
-    /// already carried there by PropulsionConfig.IdleDragCd — a coefficient calibrated against published glide ratios
-    /// (172 8.9:1 on a book 9:1, Cub 8:1, SR22 10:1 on 8.8:1). Letting the power go negative there would count the same
-    /// drag twice and break a calibration that is right. So this belongs only where the RPM is solved from a torque
-    /// balance: <see cref="BladeElement.Windmill"/> and the dead-engine branch of the shaft integration.
+    /// AND THE DRY BOUNDARY EXCESS NOW MULTIPLIES THE FRICTION ONLY, not the pumping, which it did before because the
+    /// two were one undivided number. Boundary friction is friction; a cold engine's pumping loop is the same pumping
+    /// loop. This is one of the reasons the five solved <see cref="PropulsionConfig.DryBoundaryExcess"/> had to be
+    /// re-solved when this landed.
+    ///
+    /// A STOPPED ENGINE PUMPS NOTHING, and that falls out rather than being special-cased: as rpm goes to zero the
+    /// manifold fills to ambient, so PMEP goes to zero and what is left at rest is friction alone — which is exactly
+    /// what a breakaway torque should be made of (<see cref="PistonCompression"/>, AircraftEngine.BreakawayTorqueNm).
     /// </summary>
-    public static double MotoringTorqueNm(double ratedPowerW, double ratedRpm, double rpm, double throttle01,
-                                          double pressureRatio, double densityRatio = 0.0, double boundaryExcess = -1.0)
+    public static double MotoringTorqueNm(in Spec e, double rpm, double throttle01, double pressureRatio,
+                                          double densityRatio = 0.0, double boundaryExcess = -1.0)
     {
-        if (ratedRpm <= 0.0 || rpm <= 1.0) return 0.0;
-        double sigma = densityRatio > 0 ? densityRatio : pressureRatio;
-        double mpFull = ManifoldInHg(1.0, pressureRatio);
-        double mp = ManifoldInHg(throttle01, pressureRatio);
-        double span = Math.Max(1e-6, mpFull - FrictionManifoldInHg);
-        double openFraction = (mp - FrictionManifoldInHg) / span;      // the SAME expression, lower clamp lifted
-        if (openFraction >= 0.0) return 0.0;                           // open enough to make power: not this function's business
-        double powerW = ratedPowerW * AltitudePowerFraction(sigma) * openFraction * (rpm / ratedRpm);
-        return powerW / (rpm * 2.0 * Math.PI / 60.0) * BoundaryFrictionFactor(rpm, boundaryExcess);
+        if (e.RatedRpm <= 1.0 || rpm <= 0.0 || e.DisplacementM3 <= 0.0) return 0.0;
+        double delta = Math.Clamp(pressureRatio, 0.05, 1.3);
+        double pAmb = Atmosphere.SeaLevelPressurePa * delta;
+        double mp = PistonMep.ManifoldPa(throttle01, rpm, e.RatedRpm, pAmb);
+        double mpWot = e.RatedWideOpenManifoldPa;
+        double excess = boundaryExcess >= 0.0 ? boundaryExcess
+                      : e.DryBoundaryExcess > 0.0 ? e.DryBoundaryExcess : DryBoundaryExcess;
+        double peak = mp / Math.Max(1.0, mpWot) * PistonMep.MotoredPeakFraction;
+        double fmep = e.RatedFrictionMepPa * PistonMep.FrictionShape(e.StrokeM, rpm, e.RatedRpm, peak)
+                    * BoundaryFrictionFactor(rpm, excess);
+        double pmep = PistonMep.PumpingMepPa(mp, pAmb);
+        return -(fmep + pmep) * e.TorquePerPa;
     }
 
     /// <summary>The same thing for a configured engine, which is the form every caller in the sim wants: it carries its
     /// own <see cref="PropulsionConfig.DryBoundaryExcess"/> where one has been solved for it.</summary>
     public static double MotoringTorqueNm(PropulsionConfig prop, double rpm, double throttle01,
                                           double pressureRatio, double densityRatio = 0.0)
-        => MotoringTorqueNm(prop.MaxPowerW, prop.MaxRpm, rpm, throttle01, pressureRatio, densityRatio,
-                            BoundaryExcessFor(prop));
+        => MotoringTorqueNm(Spec.For(prop), rpm, throttle01, pressureRatio, densityRatio, BoundaryExcessFor(prop));
 
     /// <summary>
     /// BOUNDARY FRICTION, which is why a dead propeller stops so much earlier than the running friction alone says.
@@ -162,10 +264,20 @@ public static class PistonEngine
     /// strokes are all within 12 % of each other; made per type it would move the answer a few per cent, and the
     /// displacement it would need is authored on six of the twenty-seven propeller types.
     ///
-    /// <see cref="DryBoundaryExcess"/> = 3.0 is the FLEET amplitude: a dry engine resisting 4.0x its running friction
-    /// at rest. It is the geometric mean of what the five types this mechanism is live on each ask for (2.19 to 4.71,
-    /// each solved on its own against Ty's stall-speed anchor; the mean is 3.07 and 3.0 is it to the precision the
-    /// measurement has), and it sits inside what the tribology allows — a
+    /// <see cref="DryBoundaryExcess"/> = 1.45 is the FLEET amplitude: a dry engine resisting 2.45x its running friction
+    /// at rest. It is the geometric mean of what the five types this mechanism is live on each ask for, re-solved
+    /// 2026-11-11 against the FMEP/PMEP engine (<see cref="PistonMep"/>) that replaced the 10 inHg friction intercept.
+    ///
+    /// IT WAS 3.0, AND THE SPREAD BEHIND IT HAS BLOWN OUT. The five used to run 2.19 to 4.71 — a factor of 2.2, which
+    /// is what made one fleet number defensible for the types that have not been solved. They now run 0.21 to 4.41, a
+    /// factor of 21, and the fleet is split: the two 540s and the 360 sit at 2.1 to 4.4 while both J-3s fall to
+    /// almost nothing. That is not noise. The dry excess multiplies FRICTION now and no longer the pumping, and the
+    /// pumping is measured (NACA 262) rather than ideal, so what is left for the excess to do is smaller and the
+    /// airframe's own stall speed — the thing this is solved against — matters more. The C-85 on a 36 mph aeroplane
+    /// is at the end of that: see the two J-3 configs, which record that they no longer reach the anchor at all.
+    ///
+    /// So this fleet default is now a much weaker claim than it was, and a type that starts running this mechanism
+    /// should be solved rather than allowed to inherit it. It still sits inside what the tribology allows — a
     /// boundary friction coefficient is one to two orders of magnitude above a hydrodynamic one at the contact, but
     /// only the film-dependent part of an engine's loss changes, so a cold unlubricated engine's motoring torque comes
     /// out a few times the hot running figure and not a hundred. Types that have been solved carry their own number in
@@ -176,7 +288,7 @@ public static class PistonEngine
     /// What it does NOT leave alone is the windmilling drag at approach speed, and it must not: see
     /// <see cref="PropModel.Windmilling"/> for the measured coefficients and the band they sit in.
     /// </summary>
-    public const double DryBoundaryExcess = 3.0, BoundaryRpmScale = 700.0;
+    public const double DryBoundaryExcess = 1.45, BoundaryRpmScale = 700.0;
 
     /// <summary>The multiplier on the running friction at this rpm for an engine whose dry excess at rest is
     /// <paramref name="excess"/>. Negative = the fleet <see cref="DryBoundaryExcess"/>.</summary>
@@ -209,40 +321,69 @@ public static class PistonEngine
     public static double BoundaryExcessFor(PropulsionConfig? prop)
         => prop is { DryBoundaryExcess: > 0.0 } ? prop.DryBoundaryExcess : DryBoundaryExcess;
 
-    /// <summary>Shaft torque, N·m. Negative when the engine is being driven: below its friction manifold pressure it
-    /// absorbs power rather than making it, which is what lets a windmilling propeller drag.</summary>
-    public static double TorqueNm(double ratedPowerW, double ratedRpm, double rpm, double throttle01, double pressureRatio,
-                                  double densityRatio = 0.0)
-    {
-        if (rpm <= 1.0) return 0.0;
-        return PowerW(ratedPowerW, ratedRpm, rpm, throttle01, pressureRatio, densityRatio) / (rpm * 2.0 * Math.PI / 60.0);
-    }
-
     /// <summary>
     /// WHERE A FIXED-PITCH PROPELLER SETTLES: the rpm at which the engine's torque and the blade's are equal. The
     /// propeller's demand climbs steeply with rpm (roughly as rpm squared) while the engine's torque is nearly flat,
     /// so the crossing is single and a bisection finds it.
     /// </summary>
-    public static double BalancedRpm(BladeElement.Geometry g, double ratedPowerW, double ratedRpm, double idleRpm,
+    public static double BalancedRpm(BladeElement.Geometry g, in Spec e, double idleRpm,
                                      double throttle01, double pressureRatio, double vAxialMs, double rhoKgM3,
                                      double densityRatio = 0.0)
     {
         BladeElement.Geometry blade = g;   // a lambda cannot close over an 'in' parameter
+        Spec spec = e;
         double Excess(double rpm) =>
-            TorqueNm(ratedPowerW, ratedRpm, rpm, throttle01, pressureRatio, densityRatio)
+            TorqueNm(spec, rpm, throttle01, pressureRatio, densityRatio)
             - BladeElement.Solve(blade, vAxialMs, 0.0, rpm, rhoKgM3).TorqueNm;
 
-        throttle01 = Math.Max(throttle01, IdleBleedThrottle(g, ratedPowerW, ratedRpm, idleRpm, pressureRatio, rhoKgM3, densityRatio));
-        double lo = Math.Max(200.0, idleRpm * 0.5), hi = ratedRpm * 1.35;
+        throttle01 = Math.Max(throttle01, IdleBleedThrottle(g, e, idleRpm, pressureRatio, rhoKgM3, densityRatio));
+        double lo = Math.Max(100.0, idleRpm * 0.5), hi = e.RatedRpm * 1.35;
         if (Excess(hi) > 0) return hi;          // the blade cannot hold it back: an overspeed
-        if (Excess(lo) < 0) return lo;          // it cannot even turn it
-        for (int i = 0; i < 36; i++)
+
+        // THE CROSSING IS NO LONGER UNIQUE, AND TAKING THE WRONG ONE IS CATASTROPHIC. This used to bisect straight
+        // from lo to hi on the strength of "the propeller's demand climbs steeply while the engine's torque is nearly
+        // flat, so the crossing is single". That was true of a torque with no rpm in it. A real torque curve has a
+        // PEAK, so the excess can cross zero TWICE: once on the way up, where the engine is only just beating the
+        // blade and the equilibrium is UNSTABLE, and again at the top, which is where the propeller actually runs.
+        //
+        // Caught by the blade fitting, which went from fitting the J-3 to reporting that its finest possible blade
+        // could only be turned at 350 rpm at full throttle: the old code's "if (Excess(lo) < 0) return lo" — "it
+        // cannot even turn it" — fired on the LOW side of a curve that was positive a few hundred rpm higher up.
+        //
+        // So: walk down from the top and bisect the FIRST bracket found, which is the highest crossing. A real
+        // propeller that is somehow below the low crossing is being dragged down by its own blade and belongs at the
+        // bottom, which is what falling through to lo still says.
+        // 96 steps, not a handful: the bracket can be NARROW. With the idle bleed floor applied the engine's curve
+        // is pushed up until it just meets the blade's at idle rpm, so near idle the two are close to tangent and a
+        // coarse scan steps straight over the crossing and falls through to lo — which reads as a propeller stuck at
+        // half idle rpm and is how this was caught (the Pitts returning exactly 350.0, its own lower bound, at
+        // 10 m/s). This is not a hot path: AircraftEngine integrates the shaft instead of solving it.
+        const int steps = 96;
+        double upper = hi, upperE = Excess(hi);          // < 0 here, or we returned above
+        for (int i = 1; i <= steps; i++)
         {
-            double mid = 0.5 * (lo + hi);
-            if (Excess(mid) > 0) lo = mid; else hi = mid;
+            double rpm = hi + (lo - hi) * i / steps;
+            double e2 = Excess(rpm);
+            if (e2 > 0.0)                                 // bracketed between rpm (positive) and upper (negative)
+            {
+                double a = rpm, b = upper;
+                for (int k = 0; k < 30; k++)
+                {
+                    double mid = 0.5 * (a + b);
+                    if (Excess(mid) > 0) a = mid; else b = mid;
+                }
+                return 0.5 * (a + b);
+            }
+            upper = rpm; upperE = e2;
         }
-        return 0.5 * (lo + hi);
+        return lo;                                        // it cannot turn it anywhere in the range
     }
+
+    /// <summary>This type's propeller, balanced against this type's engine — the form the sim and the rig both use,
+    /// so that neither can accidentally solve against a differently specified engine.</summary>
+    public static double BalancedRpm(BladeElement.Geometry g, PropulsionConfig p, double throttle01,
+                                     double pressureRatio, double vAxialMs, double rhoKgM3, double densityRatio = 0.0)
+        => BalancedRpm(g, Spec.For(p), p.IdleRpm, throttle01, pressureRatio, vAxialMs, rhoKgM3, densityRatio);
 
     /// <summary>
     /// THE IDLE STOP IS NOT A CLOSED THROTTLE. A throttle lever at its idle stop leaves the plate cracked — plus,
@@ -261,14 +402,15 @@ public static class PistonEngine
     ///
     /// IdleRpm is published for every type in the fleet and was being bypassed; this makes it mean something again.
     /// </summary>
-    public static double IdleBleedThrottle(BladeElement.Geometry g, double ratedPowerW, double ratedRpm, double idleRpm,
+    public static double IdleBleedThrottle(BladeElement.Geometry g, in Spec e, double idleRpm,
                                            double pressureRatio, double rhoKgM3, double densityRatio = 0.0)
     {
-        if (idleRpm <= 1.0 || ratedRpm <= 1.0) return 0.0;
+        if (idleRpm <= 1.0 || e.RatedRpm <= 1.0) return 0.0;
         BladeElement.Geometry blade = g;
+        Spec spec = e;
         double demand = BladeElement.Solve(blade, 0.0, 0.0, idleRpm, rhoKgM3).TorqueNm;
         if (demand <= 0.0) return 0.0;
-        double Excess(double t) => TorqueNm(ratedPowerW, ratedRpm, idleRpm, t, pressureRatio, densityRatio) - demand;
+        double Excess(double t) => TorqueNm(spec, idleRpm, t, pressureRatio, densityRatio) - demand;
         if (Excess(0.0) >= 0.0) return 0.0;            // a closed throttle already holds it
         double lo = 0.0, hi = 1.0;
         if (Excess(hi) < 0.0) return hi;               // it cannot hold idle at all: say so by asking for everything
@@ -279,6 +421,11 @@ public static class PistonEngine
         }
         return 0.5 * (lo + hi);
     }
+
+    /// <summary>This type's idle stop, from its own engine and its own published idle rpm.</summary>
+    public static double IdleBleedThrottle(BladeElement.Geometry g, PropulsionConfig p, double pressureRatio,
+                                           double rhoKgM3, double densityRatio = 0.0)
+        => IdleBleedThrottle(g, Spec.For(p), p.IdleRpm, pressureRatio, rhoKgM3, densityRatio);
 
     /// <summary>
     /// FIT A FIXED-PITCH BLADE TO ITS AEROPLANE, from the one number every pilot reads on every run-up: the rpm at
@@ -295,11 +442,12 @@ public static class PistonEngine
     /// speed curve. The search is therefore bounded to the unstalled range rather than allowed to wander into it.
     /// </summary>
     public static double FitPitchForStaticRpm(int blades, double radiusM, double activityFactor, double hubFraction,
-                                              double targetStaticRpm, double ratedPowerW, double ratedRpm, double idleRpm,
+                                              double targetStaticRpm, Spec e, double idleRpm,
                                               double rhoKgM3 = 1.225, double loDeg = 8.0, double hiDeg = 18.0)
     {
+        Spec spec = e;
         double Static(double pitch) => BalancedRpm(new BladeElement.Geometry(blades, radiusM, pitch, activityFactor, hubFraction),
-                                                   ratedPowerW, ratedRpm, idleRpm, 1.0, 1.0, 0.0, rhoKgM3);
+                                                   spec, idleRpm, 1.0, 1.0, 0.0, rhoKgM3);
         if (Static(loDeg) < targetStaticRpm) return loDeg;      // even the finest blade will not turn that fast
         if (Static(hiDeg) > targetStaticRpm) return hiDeg;      // even the coarsest will not hold it down
         for (int i = 0; i < 30; i++)
@@ -327,10 +475,10 @@ public static class PistonEngine
     /// </summary>
     public static Governed Govern(int blades, double radiusM, double activityFactor, double hubFraction,
                                   BladeElement.Stops stops, double commandedRpm,
-                                  double ratedPowerW, double ratedRpm, double idleRpm,
+                                  Spec e, double idleRpm,
                                   double throttle01, double pressureRatio, double vAxialMs, double rhoKgM3)
     {
-        double qEngine = TorqueNm(ratedPowerW, ratedRpm, commandedRpm, throttle01, pressureRatio);
+        double qEngine = TorqueNm(e, commandedRpm, throttle01, pressureRatio);
         double pitch = BladeElement.PitchForTorqueDeg(blades, radiusM, activityFactor, hubFraction, qEngine,
                                                       commandedRpm, vAxialMs, rhoKgM3, stops.FineDeg, stops.CoarseDeg);
         double qAtFine = BladeElement.Solve(new BladeElement.Geometry(blades, radiusM, stops.FineDeg, activityFactor, hubFraction), vAxialMs, 0.0, commandedRpm, rhoKgM3).TorqueNm;
@@ -338,12 +486,12 @@ public static class PistonEngine
         if (qEngine > qAtCoarse)     // even the coarsest blade cannot absorb it: the rpm runs up from the coarse stop
         {
             var g = new BladeElement.Geometry(blades, radiusM, stops.CoarseDeg, activityFactor, hubFraction);
-            return new Governed(BalancedRpm(g, ratedPowerW, ratedRpm, idleRpm, throttle01, pressureRatio, vAxialMs, rhoKgM3), stops.CoarseDeg, false, true);
+            return new Governed(BalancedRpm(g, e, idleRpm, throttle01, pressureRatio, vAxialMs, rhoKgM3), stops.CoarseDeg, false, true);
         }
         if (qEngine < qAtFine)       // the finest blade still absorbs more than the engine makes: the rpm sags
         {
             var g = new BladeElement.Geometry(blades, radiusM, stops.FineDeg, activityFactor, hubFraction);
-            return new Governed(BalancedRpm(g, ratedPowerW, ratedRpm, idleRpm, throttle01, pressureRatio, vAxialMs, rhoKgM3), stops.FineDeg, true, false);
+            return new Governed(BalancedRpm(g, e, idleRpm, throttle01, pressureRatio, vAxialMs, rhoKgM3), stops.FineDeg, true, false);
         }
         return new Governed(commandedRpm, pitch, false, false);
     }
