@@ -1,3 +1,48 @@
+## The idle glide table was stale for twelve types — Claude, 2026-11-10, lane/claude-backlog2
+
+<!-- glide-table-stale flat-plate-tails fin-lowAR regenerate landing-lessons -->
+
+`GlideTableTests.GlideTableIsCurrentForEveryAircraftAndFlapSetting` was **RED** on the shipping lane, for twenty rows
+across twelve types, and had been since the flat-plate horizontal tails and `fin-lowAR` landed without the table being
+regenerated. Found while bringing the Extra's wing section across: regenerating the table for the Extra's one row
+moved fifteen, and fourteen of them were nothing to do with the Extra.
+
+**How it was proved to be somebody else's drift and not mine**, before any of it was committed: the table was
+regenerated **twice** — once on the pristine base, once with the Extra's new section — and the two outputs diffed
+against each other. **Exactly one row differed between them**, the Extra's. Everything else was already stale. So the
+Extra's row went in with the wing-section commit and this commit carries the rest, which keeps both diffs legible.
+
+**Regenerated** with `REGEN_GLIDE_TABLE=1 dotnet test --filter GlideTable`, which is the documented way
+(docs/NEW-AIRPLANE-PROTOCOL.md), on today's merged base.
+
+**What moved, and it is all one direction**: a slightly steeper glide and more sink, which is what a flat-plate
+horizontal tail does — more drag at the same trim.
+
+| type | glide ° | ratio | sink fpm |
+|---|---|---|---|
+| Stearman PT-17 | 7.7 → **8.0** | 7.4 → 7.1:1 | 818 → **893** |
+| JN-4 Jenny | 7.2 → **7.5** | 7.9 → 7.6:1 | 545 → **581** (and Vso 38 → 39 mph) |
+| J-3 Cub | 9.3 → 9.4 | 6.1 → 6.0:1 | 797 → 809 |
+| J-3 floats | 8.7 → 8.9 | 6.5 → 6.4:1 | 781 → 792 |
+| PA-18 ×3, PA-18 floats ×3, PA-18 bush ×3 | +0.1 each | −0.1:1 each | +11 to +14 each |
+| PA-25 Pawnee ×3 | +0.1 each | −0.1:1 each | +11 to +13 each |
+| Decathlon | 9.9 → 10.1 | 5.7 → 5.6:1 | 1103 → 1121 |
+| Pitts S-2B | 10.0 → 10.1 | 5.7 → 5.6:1 | 1329 → 1352 |
+| Great Lakes | 7.3 → 7.4 | 7.8 → 7.7:1 | 746 → 759 |
+| SGS 2-33 | 5.4 → 5.5 | 10.7 → 10.5:1 | 339 → 346 |
+
+The Stearman and the Jenny moved most: the Stearman's Vso goes 54 → 56 mph and its 1.3 Vso 70 → 73, the Jenny's
+38 → 39 and 49 → 51. **Those are the numbers a landing lesson puts a player on**, so a lesson in either type has
+been teaching an approach speed two or three mph slow since the tails changed. The Extra's row is already correct
+from the wing-section commit and does not move here.
+
+**This does NOT fix the related red.** `RigTests.ConfigRigMatchesTheHandCopiedTable` is 27/34 — the same tail change
+left seven types' stored rig angles disagreeing with the hand-copied `RigTable.Rows`, and worse, the rigs themselves
+no longer close (the Pitts leaves N = −2.6e-2 at its own rig point against a 2e-4 tolerance and rolls 43° in ten
+seconds hands off). Re-running RigTool for those seven and re-copying the literals in the same commit belongs to
+whoever changed the tails; a glide-table regeneration cannot touch it.
+
+**Not built for a device, not deployed** (the owner holds that slot) and **not merged anywhere**.
 ## The Extra's wing section, and ONLY that, lifted off two conflicting lanes — with its cl_max scaled to measured data — Claude, 2026-11-10, lane/claude-backlog2
 
 <!-- extra-300-airfoil candidate-b ladson-measured-clmax own-stall-separation-band orphaned-lane-extraction gault-disagreement -->
