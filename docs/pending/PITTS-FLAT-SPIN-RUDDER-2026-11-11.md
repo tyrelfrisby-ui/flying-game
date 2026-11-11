@@ -187,3 +187,10 @@ with other agents' suites when this was written.
 
 This belongs to whoever lands that change, not here — but a pin that is failing is not protecting anything, and
 these are the pins that would otherwise have caught the spin attitude moving under the rudder measurement above.
+
+**Final tally, isolated run:** 8 tests, 2 passed, **6 failed**. The failures are not confined to the upright
+band — `InvertedFlatSpinIsFlat`, `FlatSpinAileronFlattensAndSpeedsUpTheInvertedSpin` and
+`FlatSpinAileronRaisesTheNoseOfTheIdleInvertedSpin` fail alongside `UprightSpinsWithAileronsNeutralAreUnchanged`.
+That breadth fits the same cause rather than arguing against it: the aft-fuselage broadside camber is documented
+to be *"always body-up aft of the CG, so always nose-down: it steepens an upright spin and flattens an inverted
+one"*, so it moves both senses off their pinned bands at once, which is exactly the pattern here.
