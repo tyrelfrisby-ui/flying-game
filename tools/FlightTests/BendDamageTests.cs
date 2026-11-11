@@ -191,9 +191,35 @@ public class BendDamageTests : IDisposable
     [Fact]
     public void ABentWingRollsAndDragsInFlight()
     {
-        // The panel as a 10 m/s tip strike leaves it (bent ~9°, twisted, cracked), flown at 30 m/s.
-        (Aircraft ac, _, _) = RightTipStrike(25, 10, 0, 3);
+        // THIS USED TO NAME ONE STRIKE AND THE STRIKE WENT OUT FROM UNDER IT. 25 m/s forward, tip coming down at 10,
+        // sinking 3 bent the J-3's tip for five days; then the fleet re-rig of 2026-11-10 (2b84d298) moved its trimmed
+        // alpha by 0.33° and its fin offset by 0.19°, and the same arrival tore the tip off instead. The tearing
+        // threshold is sourced and was not touched (doped covering stretches about 20 %, so 2 × 20 % = 0.40 rad of
+        // plastic path, MemberMaterials), so the model was right both times and the test was reporting a rig change as
+        // a damage bug.
+        //
+        // MEASURED either side of that commit with the sweep below: the hardest 25 m/s arrival that bends without
+        // tearing was 10.0 m/s or better before the re-rig and is 8.0 m/s after it. The DAMAGE MODE changed with it —
+        // before: bend 12.6°, twist 4.1°; after: bend 2.4°, twist −5.0°, so the tip now fails in torsion rather than
+        // in bending, on a third of a degree of alpha. That sensitivity is worth someone's attention and is not this
+        // test's business; what IS this test's business is that a bent, twisted panel rolls and drags.
+        //
+        // So the strike is MEASURED rather than named: come down the tip speed until the panel bends without tearing.
+        // The band below then fails if the boundary MOVES rather than when it is crossed, which is the thing worth
+        // knowing, and the number is printed on every run.
+        Aircraft? found = null; double tipAtBend = 0;
+        for (double tip = 10.0; tip >= 4.0; tip -= 0.5)
+        {
+            (Aircraft a, _, _) = RightTipStrike(25, tip, 0, 3);
+            if (a.IsLost(AirframeComponent.WingTipRight)) continue;
+            if (Panel(a, AirframeComponent.WingTipRight).State != PanelState.Bent) continue;
+            found = a; tipAtBend = tip; break;
+        }
+        Assert.NotNull(found);
+        Aircraft ac = found!;
         WingPanel w = Panel(ac, AirframeComponent.WingTipRight);
+        _o.WriteLine($"the hardest 25 m/s tip strike this J-3 bends without tearing: tip down {tipAtBend:F1} m/s");
+        Assert.InRange(tipAtBend, 5.0, 10.0);
         Assert.False(ac.IsLost(AirframeComponent.WingTipRight));
         AircraftConfig c = ac.Config;
         var tables = Aircraft.BuildAirfoilTables(c);
