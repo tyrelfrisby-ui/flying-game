@@ -50,7 +50,7 @@ or run here, following Ty's no-build instruction. Nothing is approved by this do
 ## Local commit blocked by sandbox
 
 The final tracked-ignore check printed nothing. Git staging failed because this worktree's index is under
-`/Users/tyfrisby/Developer/flying-game/.git/worktrees/codex-instrument-style/`, outside this session's writable
+`~/Developer/flying-game/.git/worktrees/codex-instrument-style/`, outside this session's writable
 roots (`index.lock: Operation not permitted`). No local commit was created. Changes remain in this lane's
 working tree; no push, main update or other worktree change was attempted.
 

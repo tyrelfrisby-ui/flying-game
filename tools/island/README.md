@@ -1,6 +1,6 @@
 # Island world checks
 
-These commands only generate repository artefacts, compile locally, or run tests. They never build/export/install a device player, push, or deploy. Keep dotnet/Swift caches under `$TMPDIR`. Use the installed `dotnet` (on Ty's machine: `/Users/tyfrisby/.dotnet/dotnet`) and existing NuGet package cache.
+These commands only generate repository artefacts, compile locally, or run tests. They never build/export/install a device player, push, or deploy. Keep dotnet/Swift caches under `$TMPDIR`. Use the installed `dotnet` (on Ty's machine: `~/.dotnet/dotnet`) and existing NuGet package cache.
 
 ```sh
 python3 docs/pending/tools/verify_island.py --rebuild

@@ -1,11 +1,11 @@
   Determining projects to restore...
   All projects are up-to-date for restore.
-/Users/tyfrisby/.dotnet/sdk/8.0.424/Microsoft.Common.CurrentVersion.targets(888,5): warning MSB3539: The value of the property "BaseIntermediateOutputPath" was modified after it was used by MSBuild which can lead to unexpected build results. Tools such as NuGet will write outputs to the path specified by the "MSBuildProjectExtensionsPath" instead. To set this property, you must do so before Microsoft.Common.props is imported, for example by using Directory.Build.props.  For more information, please visit https://go.microsoft.com/fwlink/?linkid=869650 [/Users/tyfrisby/Developer/flying-game-worktrees/claude-172-instruments/src/FlyingGame.Sim/FlyingGame.Sim.csproj]
-/Users/tyfrisby/.dotnet/sdk/8.0.424/Microsoft.Common.CurrentVersion.targets(888,5): warning MSB3539: The value of the property "BaseIntermediateOutputPath" was modified after it was used by MSBuild which can lead to unexpected build results. Tools such as NuGet will write outputs to the path specified by the "MSBuildProjectExtensionsPath" instead. To set this property, you must do so before Microsoft.Common.props is imported, for example by using Directory.Build.props.  For more information, please visit https://go.microsoft.com/fwlink/?linkid=869650 [/Users/tyfrisby/Developer/flying-game-worktrees/claude-172-instruments/src/FlyingGame.Core/FlyingGame.Core.csproj]
-  FlyingGame.Core -> /Users/tyfrisby/Developer/flying-game-worktrees/claude-172-instruments/src/FlyingGame.Core/bin~/Debug/net8.0/FlyingGame.Core.dll
-  FlyingGame.Sim -> /Users/tyfrisby/Developer/flying-game-worktrees/claude-172-instruments/src/FlyingGame.Sim/bin~/Debug/net8.0/FlyingGame.Sim.dll
-  FlightTests -> /Users/tyfrisby/Developer/flying-game-worktrees/claude-172-instruments/tools/FlightTests/bin/Debug/net8.0/FlightTests.dll
-Test run for /Users/tyfrisby/Developer/flying-game-worktrees/claude-172-instruments/tools/FlightTests/bin/Debug/net8.0/FlightTests.dll (.NETCoreApp,Version=v8.0)
+~/.dotnet/sdk/8.0.424/Microsoft.Common.CurrentVersion.targets(888,5): warning MSB3539: The value of the property "BaseIntermediateOutputPath" was modified after it was used by MSBuild which can lead to unexpected build results. Tools such as NuGet will write outputs to the path specified by the "MSBuildProjectExtensionsPath" instead. To set this property, you must do so before Microsoft.Common.props is imported, for example by using Directory.Build.props.  For more information, please visit https://go.microsoft.com/fwlink/?linkid=869650 [~/Developer/flying-game-worktrees/claude-172-instruments/src/FlyingGame.Sim/FlyingGame.Sim.csproj]
+~/.dotnet/sdk/8.0.424/Microsoft.Common.CurrentVersion.targets(888,5): warning MSB3539: The value of the property "BaseIntermediateOutputPath" was modified after it was used by MSBuild which can lead to unexpected build results. Tools such as NuGet will write outputs to the path specified by the "MSBuildProjectExtensionsPath" instead. To set this property, you must do so before Microsoft.Common.props is imported, for example by using Directory.Build.props.  For more information, please visit https://go.microsoft.com/fwlink/?linkid=869650 [~/Developer/flying-game-worktrees/claude-172-instruments/src/FlyingGame.Core/FlyingGame.Core.csproj]
+  FlyingGame.Core -> ~/Developer/flying-game-worktrees/claude-172-instruments/src/FlyingGame.Core/bin~/Debug/net8.0/FlyingGame.Core.dll
+  FlyingGame.Sim -> ~/Developer/flying-game-worktrees/claude-172-instruments/src/FlyingGame.Sim/bin~/Debug/net8.0/FlyingGame.Sim.dll
+  FlightTests -> ~/Developer/flying-game-worktrees/claude-172-instruments/tools/FlightTests/bin/Debug/net8.0/FlightTests.dll
+Test run for ~/Developer/flying-game-worktrees/claude-172-instruments/tools/FlightTests/bin/Debug/net8.0/FlightTests.dll (.NETCoreApp,Version=v8.0)
 VSTest version 17.11.1 (arm64)
 
 Starting test execution, please wait...
@@ -15,7 +15,7 @@ A total of 1 test files matched the specified pattern.
   Error Message:
    full air brake should also brake the wheel: rolled NaN m linked against NaN m with the linkage out
   Stack Trace:
-     at FlyingGame.FlightTests.ModelRigTests.FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake() in /Users/tyfrisby/Developer/flying-game-worktrees/claude-172-instruments/tools/FlightTests/ModelRigTests.cs:line 337
+     at FlyingGame.FlightTests.ModelRigTests.FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake() in ~/Developer/flying-game-worktrees/claude-172-instruments/tools/FlightTests/ModelRigTests.cs:line 337
    at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
    at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
 
