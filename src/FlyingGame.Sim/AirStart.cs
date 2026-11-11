@@ -21,11 +21,27 @@ public static class AirStart
     public sealed class Plan
     {
         public RigidBodyState State { get; set; }
-        /// <summary>The deflections the aircraft is built with (elevator at the trim, aileron and rudder centred).</summary>
+        /// <summary>The deflections the aircraft is built with (elevator at the trim, rudder centred, aileron on
+        /// <see cref="AileronPresetRad"/> — which is zero at the rig altitude).</summary>
         public ControlDeflections Deflections { get; set; }
         /// <summary>The raw elevator stick (−1…1) that reproduces the trim through the config's shaping: the trim slider's
         /// preset.</summary>
         public double TrimStick { get; set; }
+        /// <summary>
+        /// PRESET AILERON TRIM, rad of aileron (<see cref="RigSolver.AileronTrimForAltitude"/>): what cancels the
+        /// rolling moment the FIXED rig leaves at this height. Zero at <see cref="RigSolver.RigAltitudeM"/>, so a
+        /// start there is bit-identical to before this existed, and under a tenth of a degree everywhere the altitude
+        /// picker can reach. The tension with Ty's "trims centred every flight" rule is written out in full on
+        /// <see cref="RigSolver.AileronTrimForAltitude"/>; that is the paragraph to read if a non-centred aileron trim
+        /// is ever a surprise.
+        /// </summary>
+        public double AileronPresetRad { get; set; }
+        /// <summary>The raw aileron stick (−1…1) that reproduces <see cref="AileronPresetRad"/> through the config's
+        /// shaping: what the aileron trim slider is set to. |x| &lt; 0.01 at every reachable height.</summary>
+        public double AileronTrimStick { get; set; }
+        /// <summary>Why the aileron preset is zero when it could not be derived (null when it was, or when the start is
+        /// at the rig altitude and there is nothing to cancel).</summary>
+        public string? AileronPresetWarning { get; set; }
         /// <summary>The <see cref="ControlInputs.ThrottleLever"/> the start is trimmed at: 75 % power on a powered type
         /// (lever = 1 − 2 × throttle), spoilers stowed (0) on a glider.</summary>
         public double Lever { get; set; }
@@ -57,6 +73,21 @@ public static class AirStart
         }
         plan.TrimStick = Aircraft.StickForDeflection(startElevator, config.Controls.Elevator);
         plan.Lever = config.Propulsion != null ? 1.0 - 2.0 * RigSolver.RigThrottle : 0.0;
+        // PRESET AILERON TRIM (Ty, 2026-11-10): the fixed rig zeroes the rolling moment at RigSolver.RigAltitudeM only,
+        // so a start anywhere else rolls off hands off. This cancels it from the rig solver's own answer at this
+        // height, and is exactly zero at the rig altitude. The whole argument, including where it fights "trims
+        // centred every flight", is on RigSolver.AileronTrimForAltitude.
+        // THE ALREADY-SOLVED LEVEL STATE IS PASSED IN, which is the whole reason this is affordable at a spawn: the
+        // preset is then a 1-D aileron find on top of the solve this method had to do anyway, not a second Newton
+        // solve (RigSolver.AileronForZeroRoll explains what the re-solve version cost and why it was thrown away).
+        double aileronPreset = 0.0;
+        if (rig.Converged)   // a start already standing in a power-off trim has a bigger problem than the rig drift
+        {
+            aileronPreset = RigSolver.AileronTrimForAltitude(config, rig, out string? presetWhy);
+            plan.AileronPresetWarning = presetWhy;
+        }
+        plan.AileronPresetRad = aileronPreset;
+        plan.AileronTrimStick = Aircraft.StickForDeflection(aileronPreset, config.Controls.Aileron);
 
         // (the bank is the fraction of a degree that carries the fin's side force with the ball centred)
         double half = startTheta / 2.0, halfBank = startBank / 2.0;
@@ -71,7 +102,7 @@ public static class AirStart
         Vec3 velocityBody = new Vec3(startTas * Math.Cos(startAlpha), 0, startTas * Math.Sin(startAlpha))
             + attitude.Conjugate().Rotate(Atmosphere.WindAtPosition(spawnPos));
         plan.State = new RigidBodyState(spawnPos, attitude, velocityBody, Vec3.Zero);
-        plan.Deflections = new ControlDeflections(0, startElevator, 0, 0);
+        plan.Deflections = new ControlDeflections(aileronPreset, startElevator, 0, 0);
         return plan;
     }
 
@@ -140,8 +171,9 @@ public static class AirStart
         return ac;
     }
 
-    /// <summary>Hands off at the start's trim: stick and rudder centred, the elevator on the trim, the power at the rig
-    /// lever. HELD (stick-fixed) — what the aircraft flies until the pilot's controls publish their first frame, so the
-    /// first steps of a new flight never fly the previous flight's stick and throttle.</summary>
-    public static ControlInputs HeldInputs(Plan plan) => new(0, plan.TrimStick, 0, plan.Lever);
+    /// <summary>Hands off at the start's trim: rudder centred, the elevator on its trim, the AILERON ON ITS PRESET
+    /// (<see cref="Plan.AileronTrimStick"/>, zero at the rig altitude), the power at the rig lever. HELD (stick-fixed)
+    /// — what the aircraft flies until the pilot's controls publish their first frame, so the first steps of a new
+    /// flight never fly the previous flight's stick and throttle.</summary>
+    public static ControlInputs HeldInputs(Plan plan) => new(plan.AileronTrimStick, plan.TrimStick, 0, plan.Lever);
 }

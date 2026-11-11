@@ -26,6 +26,18 @@ namespace FlyingGame.Bridge
         /// stick shaping — the pitch-trim slider is preset to this so the aircraft holds level hands-off.</summary>
         public double TrimStick { get; set; }
 
+        /// <summary>
+        /// Raw AILERON stick fraction (-1..1) that reproduces the spawn's preset aileron trim
+        /// (<see cref="AirStart.Plan.AileronTrimStick"/>): zero at the rig altitude, and what cancels the rolling
+        /// moment the fixed rig leaves at any other start height. TouchFlightControls.PresetTrim seeds the AIL TRIM
+        /// bar with it, which is what makes it a trim the pilot holds and can change rather than a few frames of
+        /// held input that the first published stick erases. 0 on every start that is not an in-air start.
+        ///
+        /// Ty 2026-11-10 chose this knowing it is an exception to his own "trims centred every flight";
+        /// RigSolver.AileronTrimForAltitude carries the argument.
+        /// </summary>
+        public double AileronTrimStick { get; set; }
+
         private SimLoop _sim;
 
         /// <summary>The flying aeroplane. Assigning it applies the pilot's saved loadout, so every path that builds or
@@ -186,7 +198,7 @@ namespace FlyingGame.Bridge
             if (HasSlot && !_slotApplied) ShiftBySlot();
             double lever = Powered ? (GroundStart || IdleStart ? 1.0 : 1.0 - 2.0 * RigSolver.RigThrottle)   // idle, or the air start's 75 %
                 : GroundStart ? 1.0 : IdleStart ? StartSpoilerFraction : 0.0;                              // glider: spoilers as TouchFlightControls.PresetTrim sets them
-            Inputs = new ControlInputs(0, TrimStick, 0, lever);
+            Inputs = new ControlInputs(AileronTrimStick, TrimStick, 0, lever);
         }
 
         // The scripted crash (FlyingGame.Sim.CrashScenario): with the launch argument "-crashtest runway|grass" the first flight
@@ -196,6 +208,9 @@ namespace FlyingGame.Bridge
 
         private void SpawnAircraft()
         {
+            // Centred unless an in-air start says otherwise, so no branch can inherit the last flight's preset: the
+            // air-start branch below is the only one that sets it (preset aileron trim, Ty 2026-11-10).
+            AileronTrimStick = 0;
             string crash = _crashTestDone ? null : CrashScenario.FromArgs(System.Environment.GetCommandLineArgs());
             if (crash != null)
             {
@@ -387,6 +402,8 @@ namespace FlyingGame.Bridge
             AirStart.Plan start = AirStart.Compute(config, spawnX, spawnY, spawnAlt, spawnHdg, SpawnIasMs);
             if (start.Warning != null) Debug.LogWarning(start.Warning);
             TrimStick = start.TrimStick;
+            AileronTrimStick = start.AileronTrimStick;
+            if (start.AileronPresetWarning != null) Debug.LogWarning(start.AileronPresetWarning);
             Sim = new SimLoop(AirStart.Build(config, start));
             ApplyFixedSlats(config);
             ApplyStateToTransform();
