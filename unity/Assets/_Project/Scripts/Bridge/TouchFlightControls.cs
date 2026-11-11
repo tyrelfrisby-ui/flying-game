@@ -72,13 +72,20 @@ namespace FlyingGame.Bridge
 
         // Fleet the on-screen "Aircraft" button cycles through (matches KeyboardTestControls 1-0/F1-F2). The retired
         // 737-800 is not on it (owner 2026-11-01).
-        private static readonly string[] Fleet =
+        // AllCycleFleet is declared FIRST on purpose: static field initialisers run in textual order, so a Fleet that
+        // read AllCycleFleet from above its declaration would see null and throw in the type initialiser.
+        private static readonly string[] AllCycleFleet =
         {
             "glider-2-33-like", "glider-eb29r-like", "glider-swift-s1-like", "glider-grob103-acro-like", "c172-like", "pa28-archer-like", "cirrus-sr22-like", "pitts-s2b-like", "stearman-pt17-like", "jn4-jenny-like",
             "cassutt-f1-like", "geebee-r2-like", "glasair3-like",
             "extra-300-like", "p51d-like", "f86-sabre-like", "seminole-like",
             "dc3-like", "hughes-h4-like", "pa18-cub-like", "dhc2-beaver-like", "dhc2-beaver-floats-like", "decathlon-8kcab-like",
+            "j3-cub-like", "great-lakes-like",
         };
+        // Cut to what this build OFFERS (the same allow-list as SessionSettings.Fleet; on iOS the five proven types,
+        // Ty 2026-11-03 and again 2026-11-10: "Keep the five - it was about quality"). Everywhere else, all of them.
+        private static readonly string[] Fleet =
+            System.Array.FindAll(AllCycleFleet, id => FlyingGame.Core.FleetAllowList.Allows(SessionSettings.PlatformAllowList, id));
         // What the button and the number keys actually cycle: Fleet, except in the TestFlight slim package (FG_TF_SLIM,
         // FlyingGame.Core.TestFlightFleet), which ships only its own six types.
 #if FG_TF_SLIM

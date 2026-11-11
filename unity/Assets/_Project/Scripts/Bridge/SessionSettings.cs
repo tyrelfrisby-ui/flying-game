@@ -39,6 +39,8 @@ namespace FlyingGame.Bridge
         /// <summary>A streak never draws shorter than this many bubble diameters (0 = length purely from speed).</summary>
         public static float StreakMinAspect => BubbleStreaks == Streaks.Long ? 6f : 0f;
         public static string AircraftId = "glider-2-33-like";
+        /// <summary>The type a fresh install starts in, and what a saved type this build does not offer falls back to.</summary>
+        public const string DefaultAircraftId = "glider-2-33-like";
         public static string TugId = "pa25-pawnee-like";
         public enum InstrumentMode { Analog, Hud, None }
         /// <summary>Lift/sink markers: Auto = on for gliders, off for powered types; or forced On / Off.</summary>
@@ -399,9 +401,10 @@ namespace FlyingGame.Bridge
         /// Every aeroplane a picker offers. RETIRED types (the 737-800, owner 2026-11-01) and PLACEHOLDERS (types the
         /// progression names that are not built yet) are deliberately NOT here — see FlyingGame.Sim.Ratings.Hangar —
         /// and `ProgressionTests` fails if one comes back. Their configs, models and liveries stay on disk. A saved
-        /// AircraftId that is no longer on this list falls back to the first entry when the settings load.
+        /// AircraftId that is no longer on this list falls back to <see cref="DefaultAircraftId"/> when the settings load.
+        /// This is the MASTER list; what a given build offers is <see cref="Fleet"/> below.
         /// </summary>
-        public static readonly (string id, string name)[] Fleet =
+        public static readonly (string id, string name)[] MasterFleet =
         {
             ("paraglider-en-b-like", "Paraglider-like (EN-B)"), ("hang-glider-like", "Hang Glider-like"),
             ("glider-2-33-like", "2-33-like Glider"), ("glider-eb29r-like", "EB29R-like Open Class"), ("glider-swift-s1-like", "Swift S-1-like"), ("glider-grob103-acro-like", "Twin III Acro-like"), ("c172-like", "172-like"), ("pa28-archer-like", "Archer-like"), ("cirrus-sr22-like", "SR22-like"), ("pa18-cub-like", "Super Cub-like"),
@@ -414,11 +417,38 @@ namespace FlyingGame.Bridge
             ("aircam-like", "AirCam-like"), ("aircam-amphib-like", "AirCam-like Amphib"),
         };
 
+        /// <summary>
+        /// THE AIRCRAFT THIS BUILD OFFERS: the master list above, cut to the platform's allow-list. iOS (iPhone and
+        /// iPad are one build) offers only the five proven aircraft — the 2-33, the J-3, the Great Lakes, the Pitts and
+        /// the Extra (Ty 2026-11-03: "the phone (iOS) build should only offer our proven airplanes in the aircraft
+        /// selector"; re-confirmed 2026-11-10 when the size problem had been solved another way: "Keep the five - it
+        /// was about quality"). The Mac, the Quest and the editor offer everything. Nothing is deleted: every type
+        /// keeps its config and stays in the other builds.
+        ///
+        /// THIS IS NOT <see cref="FlyingGame.Core.TestFlightFleet"/>, and the two must never be read as each other.
+        /// This list is a QUALITY judgement about what the selector shows on a phone, and it is permanent. That one is
+        /// a PACKAGING choice — which Resources/Models folders go into one opt-in TestFlight build so it fits App Store
+        /// Connect's 4 GB limit — it lists six types rather than these five (it includes the J-3 on floats), and it
+        /// says in its own header "PACKAGING ONLY, OPT-IN. Nothing is deleted from the tree". They happen to overlap;
+        /// they answer different questions and may part again.
+        /// </summary>
+        public static readonly (string id, string name)[] Fleet =
+            FlyingGame.Core.FleetAllowList.Offered(MasterFleet, PlatformAllowList);
+
+        /// <summary>This platform's allow-list, or null for "every aeroplane in the master list".</summary>
+        public static string[] PlatformAllowList =>
+#if UNITY_IOS && !UNITY_EDITOR
+            FlyingGame.Core.FleetAllowList.Ios;
+#else
+            null;
+#endif
+
 #if FG_TF_SLIM
         /// <summary>THE TESTFLIGHT SLIM PACKAGE (Ty 2026-11-05; FlyingGame.Core.TestFlightFleet): only the 2-33, both J-3s,
         /// the Pitts, the Extra and the Great Lakes are offered, and the other types' models are left out of the build. A
-        /// saved aircraft that is not listed falls back to Fleet[0], the 2-33. Compiled only into that package
-        /// (FLYINGGAME_TF_SLIM=1 tools/deploy/deploy.sh); every other build offers the whole list above.</summary>
+        /// saved aircraft that is not listed falls back to <see cref="DefaultAircraftId"/>, the 2-33. Compiled only into
+        /// that package (FLYINGGAME_TF_SLIM=1 tools/deploy/deploy.sh); every other build offers <see cref="Fleet"/>.
+        /// On iOS this filters what the allow-list has already cut, so the slim package offers the intersection.</summary>
         static SessionSettings() { Fleet = FlyingGame.Core.TestFlightFleet.Filter(Fleet); }
 #endif
 
@@ -426,8 +456,11 @@ namespace FlyingGame.Bridge
 #if FG_TF_SLIM
         public static string DogfightOpponentId = "pitts-s2b-like";   // the slim package has no P-51 (TestFlightFleet)
 #else
-        public static string DogfightOpponentId = "p51d-like";
+        public static string DogfightOpponentId = DefaultDogfightOpponent();
 #endif
+        /// <summary>The opponent when the P-51 is not one this build offers (iOS's five): the Extra.</summary>
+        private static string DefaultDogfightOpponent() =>
+            FlyingGame.Core.FleetAllowList.Allows(PlatformAllowList, "p51d-like") ? "p51d-like" : "extra-300-like";
         public static int DogfightSkill = 1;
         public static readonly string[] SkillNames = { "Easy", "Moderate", "Difficult" };
 
@@ -578,7 +611,11 @@ namespace FlyingGame.Bridge
             IsaDeviationC      = PlayerPrefs.GetFloat("set.isaDev", IsaDeviationC);
             ThermalScale       = PlayerPrefs.GetFloat("set.thermalScale", ThermalScale);
             SimSpeed           = PlayerPrefs.GetFloat("set.simSpeed", SimSpeed);
-            if (!System.Array.Exists(Fleet, f => f.id == AircraftId)) AircraftId = Fleet[0].id;
+            // A saved type this build does not offer (a phone that last flew the 172) opens on the default, the 2-33.
+            AircraftId = FlyingGame.Core.FleetAllowList.Resolve(AircraftId, Fleet, DefaultAircraftId);
+#if !FG_TF_SLIM
+            if (!FlyingGame.Core.FleetAllowList.Allows(PlatformAllowList, DogfightOpponentId)) DogfightOpponentId = DefaultDogfightOpponent();
+#endif
             AirportIndex = Mathf.Clamp(AirportIndex, 0, WorldTerrain.Airports.Length - 1);
             SimSpeed = Mathf.Clamp(SimSpeed, SimSpeeds[SimSpeeds.Length - 1], 1f);
         }
