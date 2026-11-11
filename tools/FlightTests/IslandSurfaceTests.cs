@@ -509,10 +509,11 @@ public class IslandSurfaceTests : IDisposable
         Assert.True(LandingGear.SurfaceGrip(ice) < LandingGear.SurfaceGrip(WorldTerrain.Surface.PackedGlacierSnow));
         // A keel or skid sliding on it: metal on ice, 0.03 (steel-ice; brass-ice is 0.02 at 0 C).
         Assert.Equal(0.03, WorldTerrain.KeelSlidingCoefficient(ice), 9);
-        // On hard ice the wheel of a wheel-ski carries the load; on snow the ski does, at the same drag everywhere.
-        var cfg = new AircraftConfig { Skis = true };
-        Assert.False(LandingGear.OnSki(cfg, ice));
-        Assert.True(LandingGear.OnSki(cfg, WorldTerrain.Surface.Snow));
+        // A lowered ski on bare ice slides on it like a keel, metal on ice (it is not snow, so not the ski's snow law);
+        // on snow it runs on its own base, at the same drag everywhere.
+        Assert.False(SkiGear.IsSnow(ice));
+        Assert.Equal(0.03, SkiGear.HardSlidingCoefficient(ice), 9);
+        Assert.True(SkiGear.IsSnow(WorldTerrain.Surface.Snow));
         Assert.Equal(.055, LandingGear.SkiRolling(WorldTerrain.Surface.Snow), 6);
         // Every patch, the glacier snow and the ski zone report the SAME surface, so the ski drag is the same on
         // all of them: Ty's "consistent ski drag".

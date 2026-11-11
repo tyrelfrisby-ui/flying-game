@@ -1,3 +1,61 @@
+## Ski bottoms are one long shallow sweep, and a straight ski's pedestal is derived from its own tyre — Claude, 2026-11-10, lane/claude-skis
+
+<!-- ski-tip-curve ski-sweep-traced-from-photo straight-ski-pedestal-keel-handle ground-attitude-asserted -->
+
+Ty, on the 2026-11-05 wheel-ski renders: **"The front of the skis should curve up not a sharp angle"**. Then, on the
+straight ski: **"The straight ski (not the wheel ski) has a pedestal the radius of a normal tire for that airplane so
+the aoa on the ground is the same. The pedestal is a tapered 'tower'. The top of the ski has a keel for strength and
+the front has a handle for lifting/dragging the skis"**. Then reference photographs of his own choosing — an Aero Ski
+pair, a Federal A-1500 pair, and a page of Federals — which **corrected the brief as well as the model**.
+
+**THE SHAPE IS MEASURED, NOT CHOSEN.** The first attempt gave the tip a tangent circular arc (R = 0.50 m turning
+36.9°) from the one figure the project had: the Federal A-1500A "upturn 0.30 x 0.10 m" on `lane/claude-j3-skis`,
+marked ESTIMATE with no Federal drawing found. **The photographs say that is wrong** — the sweep is far longer and
+shallower, flat under the pedestal and already rising before you can point at where it started, and the TAIL is swept
+too. So the side-on Aero Ski photograph was traced by threshold (every column's lowest bright pixel) over the ski's
+whole 561-pixel length, and the trace fitted:
+
+| | share of the ski's length | Super Cub main (1.72 m) |
+|---|---|---|
+| nose rises | 0.127 | 0.218 m over the forward 0.774 m |
+| tail rises | 0.032 | 0.055 m over the aft 0.206 m |
+| flat | 0.45 to 0.88 back from the nose | the pin is at 0.58 |
+
+`rise = R ((uF - u)/uF)^2.5` — any power above 2 leaves the flat with no slope AND no curvature, which is why the
+sweep has no visible start. The exponent fits the ten traced points at 2.49. Caveat kept in the code: a photograph is
+not an orthographic view, the camera is low and off the beam, and both rises are therefore overstated a little. One
+published manufacturer dimension would settle it and **none is public** — Airglas's site, Aircraft Spruce's TrickAir
+pages and the Federal listings publish weight and static load only; AC 43.13-2B 504 gives rigging angles, not sizes.
+
+**It moves the physics, in two places.** The ski is now `length` long overall instead of 1.3 x `length` (the old tip
+was bolted on past the flat), so a J-3's main ski is 1.72 m against the real A-1500A's 1.75 m, and mass and drag
+follow: the installation goes 31 -> 24 kg (53 lb, still inside the published 50-80 lb for a Cub kit) and its
+flat-plate drag 0.167 -> 0.139 m². And the CONTACT moves: held nose-down at a pitch stop the ski used to stand on the
+corner at the front of its flat at any angle; now it bears on the point of the sweep whose own slope matches, so the
+contact rolls forward along the curve — 0.22 m ahead of the pin at level, 0.49 m at 8°, 0.64 m at 16°. That is,
+geometrically, climbing out of a rut. Suite compared, not counted: the same 5 `WheelSkiTests` fail before and after.
+
+**THE STRAIGHT SKI'S PEDESTAL IS DERIVED AND ASSERTED.** It was the literals .2235 m and .076 m in
+`build_j3_skis.py`. What Ty's rule really says is "put the running surface where the tyre's bottom was", so it is now
+measured per leg off the aeroplane's own wheel mesh before the wheels are deleted: `axle.z - wheel's lowest vertex`.
+On the mains the pivot IS the axle, so it comes out at the tyre radius, .2235 m, with nothing typed in. On the tail
+the pivot is the leaf spring's swivel head, so it comes out **.071 m, not .076 m — the old literal stood the tail
+5 mm low**, 0.06° of nose-up on a 4.6 m wheelbase. `check_j3_skis.py` now measures the three-point pitch off both
+GLBs and fails past 0.01°: 13.4798° on skis against 13.4798° on wheels.
+
+Also on the straight ski, from the photographs: the pedestal is a **tapered tower with a flared riveted base** (was
+two flat sheet cheeks); the **keel** is a narrow formed member 90 mm proud running 0.03 to 0.97 of the length (was a
+55 mm crown over four fifths of the width, which read as a flat top); there is a **bent-tube handle bail on the very
+nose**, where every photograph puts a fitting and where the nose cable picks the ski up (there was none); and the
+plan tapers to a rounded nose and a narrower rounded heel.
+
+**Renders:** `~/Developer/agent-lanes/renders/skis-2026-11-10/` (README there). The straight-ski ones are real,
+rendered in Blender from the shipped GLB, and include the angle-of-attack pair `deck-skis.png` / `deck-wheels.png`
+from one camera. **The wheel-ski ones are a PREVIEW** drawn from `SkiGear`'s own numbers
+(`WheelSkiShapeProbe` -> `build/wheel-ski/*.json`), because the real shots need a Unity batch run of
+`FlyingGame.EditorTools.WheelSkiShots` and this lane does not hold the build slot. **NEEDS YOU** for that run and for
+Ty's yes/no on the shape.
+
 ## The 2-33's Vne is 98 mph, the number painted on the aeroplane — Claude, 2026-11-10, lane/claude-vne-cam
 
 <!-- vne-2-33 placard-vs-config unsourced-scaffolding-number asi-face-fifth overspeed-events -->
@@ -1652,6 +1710,54 @@ Lane lane/claude-floats (from island-nav 6a42a199). Ty 08:58 + 09:00 (agent-lane
   rest load, Cub skim, J-3 below planing, Cub skis vs wheels); island-nav's base reds stay (two Knik ski tests, and
   `NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs`, whose `grob` pattern catches the approved Grob 103 Acro files — the
   2-33 itself is yellow only; the test was not touched). New after the merge: Beaver skis vs wheels on snow (0.606).
+
+<!-- wheel-skis needs-you -->
+## NEEDS YOU — hinged wheel-skis + shared WHEELS/SKIS selector: REVIEW THE RENDERS (Claude, 2026-11-05)
+Lane lane/claude-wheel-skis (from island-nav 938a865c). Ty 07:58/07:59: wheel-skis on every aeroplane, a wheels/skis
+selector in the cockpit, skis rotate forward and up when raised, down and aft when lowered, tyre ON TOP of the lowered ski.
+- **Ty, please look:** `~/Developer/agent-lanes/renders/wheel-skis/README.md` (Super Cub / C172 / J-3 exterior raised,
+  half and lowered; the selector from the seat eye in the C172, J-3 and Pitts). Questions Q079–Q083.
+- **Built, not installed, not merged:** iOS 2026.1105.1405 ** BUILD SUCCEEDED **, 0 error CS, NOINSTALL; Unity batch
+  (WheelSkiShots) 0 error CS, PASS; `check-parity.sh --strict` PARITY: OK. Commits 9c83ca90, 20e14e82, f10cdc0f. Nothing
+  approved by me.
+- **Mechanism (docs/WHEEL-SKIS.md):** each wheel's ski hangs from its axle on parallel links. SKIS = links 12 deg over
+  centre, the tyre sits on solid ski; WHEELS = links 80 deg forward, ski 30 cm forward and 20 cm up (Cub), the tyre down
+  through a slot SWEPT from the kinematics. Whichever of ski bottom / tyre is deeper bears the leg: no surface rule, no
+  per-type pose. Brakes do nothing on lowered skis. Ski on pavement scrapes (Cub 12.7 m from 8 m/s vs 52 m on snow);
+  skis up on snow = wheel plane. Weight (Cub 31 kg, Beaver 61 kg) with CG + inertia; drag (Cub 0.167 m2).
+- **Selector:** one shared part (Core SkiSelectorPart + Bridge SkiSelectorLever only; a test fails if any aircraft
+  builds its own), placed by `seats[].skiSelector` anchors MEASURED on the GLBs (WheelSkiShots WS_MEASURE): C172 lower
+  panel left of the yoke, J-3 left wall low beside the rear seat, Pitts rear panel under the G-meter; other types a
+  default offset from the eye. Lever = command, lamps = WHEELS / TRANSIT / SKIS. Click / tap / GEAR-slot SKIS UP-DOWN
+  button / L key / Quest poke or grip. Quest menu Gear row (wheels / bushwheels / wheel-skis).
+- **Tests:** WheelSkiHingeTests 55/55. Also failing on base 938a865c, not mine: GlacierLandingZoneTests x7,
+  WheelSkiTests.ACubOnSkisCanBePutOnTheKnikAndStop, OnSnowASkiRunsOnAfterTheWheelHasStopped(pa18-cub-like), and
+  NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs (its `grob` pattern catches the tracked Grob 103 GLBs; not weakened).
+- **Open:** lowered ski on water not modelled; the ski is a box placeholder in form (geometry/motion are the point).
+
+## NEEDS YOU — hinged wheel-skis + shared WHEELS/SKIS selector: NOT YET BUILT OR RENDERED (Claude, 2026-11-05)
+Lane lane/claude-wheel-skis (from island-nav 938a865c). Ty 07:58/07:59: wheel-skis on every aeroplane, a wheels/skis
+selector in the cockpit, skis rotate forward and up when raised, down and aft when lowered, tyre ON TOP of the lowered ski.
+- **Status, honestly:** Core physics + tests done (9c83ca90); Unity side written and committed (20e14e82) but **NOT
+  compiled by Unity**: the gated batch (compile + review renders, `WheelSkiShots.Run`) waited two hours for a free build
+  slot behind other lanes and was stopped by the time limit. So: **no renders, no BUILD SUCCEEDED, parity --strict not
+  run.** Next agent: run the batch (below), fix any `error CS`, look at the renders, then `zsh tools/deploy/deploy.sh
+  NOINSTALL`. Not merged, not installed. Nothing approved by me.
+- **Mechanism (docs/WHEEL-SKIS.md):** each wheel's ski hangs from its axle on parallel links. SKIS = links 12 deg over
+  centre, the tyre sits on solid ski; WHEELS = links 80 deg forward, ski 30 cm forward and 20 cm up (Cub), the tyre down
+  through a slot SWEPT from the kinematics. Whichever of ski bottom / tyre is deeper bears the leg: no surface rule, no
+  per-type pose. Brakes do nothing on lowered skis. Ski on pavement scrapes (Cub 12.7 m from 8 m/s vs 52 m on snow);
+  skis up on snow = wheel plane. Weight (Cub 31 kg, Beaver 61 kg) with CG + inertia; drag (Cub 0.167 m2).
+- **Selector:** one shared part (Core SkiSelectorPart + Bridge SkiSelectorLever only; a test fails if any aircraft
+  builds its own), anchored by `seats[].skiSelector` or a default offset from the eye. Lever = command, lamps =
+  WHEELS / TRANSIT / SKIS. Click / tap / GEAR-slot button / L key / Quest poke or grip. Quest menu Gear row.
+- **Tests:** WheelSkiHingeTests 52/52 pass. Failures also on base 938a865c (not mine): GlacierLandingZoneTests x7,
+  WheelSkiTests.ACubOnSkisCanBePutOnTheKnikAndStop, OnSnowASkiRunsOnAfterTheWheelHasStopped(pa18-cub-like).
+- **Questions:** Q079 (is this your hinge?), Q080 (hydraulic 8 s?), Q081 (ski-on-pavement mu), Q082 (selector
+  position), Q083 (weight/drag). Lowered ski on water not modelled.
+- **To finish:** `cd claude-wheel-skis && nice -n 5 <Unity> -batchmode -quit -projectPath $PWD/unity -executeMethod
+  FlyingGame.EditorTools.WheelSkiShots.Run -logFile build/ws-shots.log` (renders to agent-lanes/renders/wheel-skis/),
+  then deploy.sh NOINSTALL and `./tools/check-parity.sh --strict`. Restore the StreamingAssets mirrors after.
 
 ## NEEDS YOU — crash flight-path camera shoots to sky: fly-test (Claude, 2026-11-05)
 <!-- crash-camera-flightpath needs-you -->

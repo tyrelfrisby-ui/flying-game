@@ -251,11 +251,12 @@ public class GlacierLandingZoneTests : IDisposable
         Assert.Equal(WorldTerrain.RollingCoefficient(WorldTerrain.Surface.Gravel),
                      LandingGear.SnowSinkageRolling(hard, WorldTerrain.Surface.Gravel, 12000), 6);
 
-        // A wheel-ski is a ski on both snows.
-        AircraftConfig onSkis = Load(WheelSkiTests.Cub, skis: true);
-        Assert.True(LandingGear.OnSki(onSkis, packed));
-        Assert.True(LandingGear.OnSki(onSkis, WorldTerrain.Surface.Snow));
-        Assert.False(LandingGear.OnSki(onSkis, WorldTerrain.Surface.Gravel));
+        // A lowered ski runs on its snow law on both snows; on gravel it scrapes (SkiGear, Ty 2026-11-05: which part
+        // bears is the selector's and the hinge's business now, not the surface's).
+        Assert.True(SkiGear.IsSnow(packed));
+        Assert.True(SkiGear.IsSnow(WorldTerrain.Surface.Snow));
+        Assert.False(SkiGear.IsSnow(WorldTerrain.Surface.Gravel));
+        Assert.Equal(0.45, SkiGear.HardSlidingCoefficient(WorldTerrain.Surface.Gravel), 9);
     }
 
     // ---- flown ------------------------------------------------------------------------------------
