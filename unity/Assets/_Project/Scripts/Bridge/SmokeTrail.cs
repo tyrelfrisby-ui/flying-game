@@ -198,13 +198,20 @@ namespace FlyingGame.Bridge
             return list.ToArray();
         }
 
-        /// <summary>A glider's smoke: both wingtips, at the outermost wing strip's trailing edge.</summary>
+        /// <summary>A glider's smoke: both wingtips, at the trailing edge of the actual tip.</summary>
         public static Vec3[] WingtipsFor(AircraftConfig cfg)
         {
             FlyingGame.Core.DataContracts.StripConfig tip = null;
             foreach (var sf in cfg.Surfaces) foreach (var st in sf.Strips) if (System.Math.Abs(st.Pos[2]) < 1.0 && (tip == null || System.Math.Abs(st.Pos[1]) > System.Math.Abs(tip.Pos[1]))) tip = st;
             if (tip == null || System.Math.Abs(tip.Pos[1]) < 1.0) return System.Array.Empty<Vec3>();
-            double y = System.Math.Abs(tip.Pos[1]) * 1.03, x = tip.Pos[0] - 0.75 * tip.Chord;
+            // THE ACTUAL WINGTIP, not 3 % outboard of the outermost strip's CENTRE. Ty 2026-11-10: "Make the 2-33
+            // smoke come from the trailing edge of the actual wingtip." A strip's Pos is its centre and its span is
+            // its own Area/Chord, so the tip is half a strip further out. That derivation lands on every glider's
+            // published span to the centimetre -- 2-33 15.54 m, Grob 103 18.0, Swift S-1 12.66, EB29R 29.3 -- where
+            // the old 1.03 factor was a guess that scaled with span and so erred in both directions: 18 cm OUTBOARD
+            // of the 2-33's tip, leaving the canister hanging in clear air, and 17 cm INBOARD of the Swift's.
+            double halfStrip = tip.Chord > 0.0 ? 0.5 * tip.Area / tip.Chord : 0.0;
+            double y = System.Math.Abs(tip.Pos[1]) + halfStrip, x = tip.Pos[0] - 0.75 * tip.Chord;
             return new[] { new Vec3(x, y, tip.Pos[2]), new Vec3(x, -y, tip.Pos[2]) };
         }
 

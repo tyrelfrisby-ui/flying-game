@@ -100,4 +100,30 @@ public class SmokeGeometryTests
             Assert.False(new SmokeConfig { OutletBodyM = p }.TryOutlet(out _));
         }
     }
+
+    // A GLIDER'S SMOKE COMES FROM THE ACTUAL WINGTIP (Ty 2026-11-10: "Make the 2-33 smoke come from the trailing
+    // edge of the actual wingtip"). SmokeTrail.WingtipsFor lives in the Unity bridge and cannot be called from here,
+    // so this pins the CONFIG DATA that its derivation stands on: a strip's span is its own Area/Chord, and the
+    // outermost strip's OUTER EDGE -- centre plus half a strip -- is the real wingtip. If that stops landing on the
+    // published semi-span, the canister starts hanging in clear air again and nothing else would catch it.
+    [Theory]
+    [InlineData("glider-2-33-like", 7.770)]          // Schweizer SGS 2-33, 51 ft span
+    [InlineData("glider-grob103-acro-like", 9.000)]  // Grob 103, 18.0 m
+    [InlineData("glider-swift-s1-like", 6.330)]      // Swift S-1, 12.66 m
+    [InlineData("glider-eb29r-like", 14.650)]        // Schempp-Hirth EB29R, 29.3 m
+    public void AGlidersOutermostStripEndsAtThePublishedWingtip(string id, double semiSpanM)
+    {
+        AircraftConfig cfg = Load(id);
+        StripConfig tip = null;
+        foreach (SurfaceConfig sf in cfg.Surfaces)
+            foreach (StripConfig st in sf.Strips)
+                if (Math.Abs(st.Pos[2]) < 1.0 && (tip == null || Math.Abs(st.Pos[1]) > Math.Abs(tip.Pos[1]))) tip = st;
+
+        Assert.NotNull(tip);
+        Assert.True(tip.Chord > 0.0, id + ": the outermost strip has no chord, so its span cannot be derived");
+        double outerEdge = Math.Abs(tip.Pos[1]) + 0.5 * tip.Area / tip.Chord;
+        Assert.True(Math.Abs(outerEdge - semiSpanM) < 0.01,
+            $"{id}: outermost strip's outer edge {outerEdge:F3} m is not the published semi-span {semiSpanM:F3} m " +
+            $"(strip centre {Math.Abs(tip.Pos[1]):F3}, chord {tip.Chord:F3}, area {tip.Area:F4})");
+    }
 }
