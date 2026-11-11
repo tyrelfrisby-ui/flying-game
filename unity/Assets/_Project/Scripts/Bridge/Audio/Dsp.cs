@@ -245,5 +245,9 @@ namespace FlyingGame.Bridge
         public volatile int DeadCylinders;                // cylinders an over-rev has broken a ring in (Aircraft.DeadCylinders): their pulse goes missing
         public volatile float BearingKnock01;             // a spun bearing's life gone (Aircraft.BearingDamage01): it knocks at crank rate
         public volatile bool ImpulseEngaged;              // below 400 rpm the magneto's impulse coupling snaps (Aircraft.ImpulseCouplingEngaged)
+        // FLUTTER (Aircraft.FlutterHz / FlutterG): the frequency falling from 35 Hz to 8 while the amplitude rises.
+        // It is the pilot's ONLY warning before the structure fails, so it has its own pair rather than riding on
+        // the prop shake, which it must be distinguishable from (PropVibrationG works in tenths of a g).
+        public volatile float FlutterHz, FlutterG;
     }
 }

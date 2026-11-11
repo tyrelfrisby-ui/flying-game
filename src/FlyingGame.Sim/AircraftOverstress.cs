@@ -131,7 +131,21 @@ public sealed partial class Aircraft
     /// moment tells them apart, so a rolling pull loads the down-aileron wing harder and the stagger can be
     /// asymmetric (Ty 2026-11-10).</remarks>
     private void UpdateStructure(double dt) =>
-        StepStructure(WingSideLoadFactor(-1), WingSideLoadFactor(1), AeroLoadFactorZ, dt);
+        StepStructure(WingSideLoadFactor(-1), WingSideLoadFactor(1), AeroLoadFactorZ, dt, FinSideLoadN);
+
+    /// <summary>
+    /// THE LATERAL LOAD ON THE VERTICAL TAIL, N (+ = the force pushes the tail to the RIGHT, which is what LEFT
+    /// rudder makes). The fin's and the rudder's strips' own side force, summed by the aero model as it makes it
+    /// (<see cref="FlyingGame.Core.Aero.StripFlowState.FinSideForceN"/>).
+    ///
+    /// It is the fin's analogue of <see cref="AeroLoadFactorZ"/> and it is a real per-step load: the structure reads
+    /// it every step whether anything is fluttering or not, exactly as the wings read theirs. Nothing special-cases
+    /// flutter.
+    /// </summary>
+    public double FinSideLoadN => _flowState.FinSideForceN;
+
+    /// <summary>The fin's load as a multiple of its limit, signed; 0 on a type with no published fin limit.</summary>
+    public double FinLoadRatio => Structure.FinRatioAt(FinSideLoadN);
 
     /// <summary>Put the structure through one step at held load factors (scenarios, lessons, tests): exactly what a step
     /// that flew them does to it — the overstress pattern, any part that departs, and the shapes the aero and the visual
@@ -143,12 +157,21 @@ public sealed partial class Aircraft
     public void HoldWingLoadFactors(double nLeft, double nRight, double nTotal, double dt) =>
         StepStructure(nLeft, nRight, nTotal, dt);
 
-    private void StepStructure(double nLeft, double nRight, double nTotal, double dt)
+    /// <summary>Hold a LATERAL load on the vertical tail (tests, probes), N — the fin's analogue of
+    /// <see cref="HoldLoadFactor"/>, and a force rather than a load factor because that is what loads a fin. The
+    /// rest of the airframe is held at 1 g, which is what an aeroplane kicking the rudder in level flight is
+    /// carrying.</summary>
+    public void HoldFinSideLoad(double sideForceN, double dt) => StepStructure(1.0, 1.0, 1.0, dt, sideForceN);
+
+    private void StepStructure(double nLeft, double nRight, double nTotal, double dt, double finSideForceN = 0.0)
     {
-        StructuralBreak broke = Structure.Step(nLeft, nRight, nTotal, WingWeightRatio, dt);
+        StructuralBreak broke = Structure.Step(nLeft, nRight, nTotal, WingWeightRatio, dt, finSideForceN);
         ApplyWingBreaks(broke);
         if ((broke & StructuralBreak.HorizontalTail) != 0 && !IsLost(AirframeComponent.TailHorizontal) && !IsLost(AirframeComponent.TailBoom))
             LoseComponent(AirframeComponent.TailHorizontal);
+        // The fin has failed: it goes, and the rudder with it, because the rudder hangs on it.
+        if ((broke & StructuralBreak.VerticalTail) != 0 && !IsLost(AirframeComponent.TailVertical) && !IsLost(AirframeComponent.TailBoom))
+            LoseComponent(AirframeComponent.TailVertical);
         if ((broke & StructuralBreak.EngineMount) != 0) LoseEngineMount();
         ApplyOverstressShape();
     }

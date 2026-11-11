@@ -2604,7 +2604,12 @@
     "gMax": 6.0,
     "gMin": -5.0,
     "gMinSource": "Ty 2026-11-05 06:29: 'Make the Pitts negative limit -5 so it is more fun the s2c was negative 5' (Pitts S-2C: +6 / -5 g aerobatic). Was -3.0 (S-2B).",
-    "_vneSource": "TCDS A8SO S-2B VNE 212 mph CAS"
+    "_vneSource": "TCDS A8SO S-2B VNE 212 mph CAS",
+    "vaMs": 72.2599,
+    "vaSource": "DERIVED 2026-11-11, not read off a manual: Va = Vs1 * sqrt(n_limit), which is the definition of the manoeuvring speed (FAR 23.335(c)) -- the speed at which full control deflection makes exactly the limit load factor. Vs1 is this model's own clean stall speed at sea level (PracticeScenario.EstimateVso, flaps 0) so the figure is INDICATED, and n_limit is this type's own limits.gMax. Capped at vneMs where the product runs past it. FinLoadProbe prints Vs1 and Va for the whole fleet and re-derives them; it was needed because Ty's 2026-11-11 fin limit load is measured AT Va and only glider-grob103-acro-like published one.",
+    "finLimitLoadN": 3663.6,
+    "finOrdinaryLoadN": 2180.6,
+    "finLoadSource": "MEASURED 2026-11-11 by FinLoadProbe, flying Ty's manoeuvre: \"At va measure the force on the vertical tail with a yaw one way followed by an immediate yaw full deflection the other way then add 15% and call that the limit load with a 2.0 ultimate strength before any fatigue\". That is the rudder-reversal case of the yaw manoeuvring conditions (FAR 23.441 / 25.351), the case that took the fin off AA587, and it is flown as the real thing: trimmed power-off at Va (72.3 m/s IAS) at 900 m in still air, full rudder one way, then the opposite stop applied at the sideslip's overswing peak (23.6 deg, 0.63 s in) so the slip angle and the opposite deflection ADD on the fin. Peak fin+rudder lateral force: 2181 N on the single deflection, 3186 N on the reversal -- 1.46x worse, which is why the case is a reversal. finLimitLoadN = 3186 x 1.15 (Ty's 15%). The 2.0 ultimate is Ty's and is not the usual 1.5; it needs no field because OverstressMember.BreakRatio is already 2.0. finOrdinaryLoadN is the single-deflection peak and is the fin's FATIGUE ENDPOINT -- the coordinator's reading, not Ty's, of what the wing's \"ultimate strength of 1g\" means for a surface that carries almost nothing in balanced flight: a fully fatigued fin fails the next time the pilot uses the rudder the way he always does."
   },
   "loading": {
     "cgLimits": [

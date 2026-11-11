@@ -36,6 +36,14 @@ namespace FlyingGame.Bridge
             if (_wired) return;
             _wired = true;
             TuningSession.UseStore(PrefsStore.Instance);
+            // THE GLOBAL KNOBS ARE APPLIED HERE AND NOWHERE ELSE, and that is the deliberate difference from the
+            // per-aircraft path above. A per-aircraft knob lives on a config object that ResetFlight re-reads from
+            // StreamingAssets on every spawn, so it has to be written back each time (ApplyTo). A global lives in a
+            // static field, which no spawn reloads: applying it once is correct, and applying it on the spawn path
+            // would be worse than pointless — the defaults capture that runs there would read the pilot's own
+            // modified value as the shipped one and RESET would stop working. UseStore is idempotent, so it is safe
+            // that this method itself sits on the spawn path.
+            GlobalTuningSession.UseStore(PrefsStore.Instance);
         }
 
         /// <summary>

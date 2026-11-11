@@ -8871,8 +8871,11 @@
   "airbrakeGMax": 3.5,
   "airbrakeGMin": -1.5,
   "categories": [],
-  "_comment": "Not wired (the sim has no field for them): VRA 200, VT 185, VW 140 km/h ([POH] 2.2, [TCDS] N.III.7). Without OSB 315-66: VNE 250, VA = VRA = VT 170 km/h, no aerobatics ([POH] 2.2A) -- not modelled."
- },
+  "_comment": "Not wired (the sim has no field for them): VRA 200, VT 185, VW 140 km/h ([POH] 2.2, [TCDS] N.III.7). Without OSB 315-66: VNE 250, VA = VRA = VT 170 km/h, no aerobatics ([POH] 2.2A) -- not modelled.",
+    "finLimitLoadN": 2007.9,
+    "finOrdinaryLoadN": 1408.6,
+    "finLoadSource": "MEASURED 2026-11-11 by FinLoadProbe, flying Ty's manoeuvre: \"At va measure the force on the vertical tail with a yaw one way followed by an immediate yaw full deflection the other way then add 15% and call that the limit load with a 2.0 ultimate strength before any fatigue\". That is the rudder-reversal case of the yaw manoeuvring conditions (FAR 23.441 / 25.351), the case that took the fin off AA587, and it is flown as the real thing: trimmed power-off at Va (51.4 m/s IAS) at 900 m in still air, full rudder one way, then the opposite stop applied at the sideslip's overswing peak (25.7 deg, 1.38 s in) so the slip angle and the opposite deflection ADD on the fin. Peak fin+rudder lateral force: 1409 N on the single deflection, 1746 N on the reversal -- 1.24x worse, which is why the case is a reversal. finLimitLoadN = 1746 x 1.15 (Ty's 15%). The 2.0 ultimate is Ty's and is not the usual 1.5; it needs no field because OverstressMember.BreakRatio is already 2.0. finOrdinaryLoadN is the single-deflection peak and is the fin's FATIGUE ENDPOINT -- the coordinator's reading, not Ty's, of what the wing's \"ultimate strength of 1g\" means for a surface that carries almost nothing in balanced flight: a fully fatigued fin fails the next time the pilot uses the rudder the way he always does."
+  },
  "wakeBlanketMaxLoss": 0.65,
  "stallDynamics": {
   "stripSepTau": 0.15,

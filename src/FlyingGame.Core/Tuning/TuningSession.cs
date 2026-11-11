@@ -239,7 +239,13 @@ public static class TuningSession
             if (t.Derived) sb.Append("  [DERIVED — ").Append(t.Rule).Append(']');
             n++;
         }
-        if (n == 0) sb.Append("\nstock — every knob at its shipped value");
+        // THE GLOBAL KNOBS GO IN THE SAME REPORT. A flight flown on a moved flutter law is not a flight on the
+        // shipped model, and the reader of a bug report cannot be expected to ask; nor can the header of a
+        // flight-test recording, which is the other caller of this function.
+        string globals = GlobalTuningSession.DeltaReport();
+        if (n == 0 && globals.Length == 0) sb.Append("\nstock — every knob at its shipped value");
+        else if (n == 0) sb.Append("\nthis aeroplane is stock; the GLOBAL knobs below are not");
+        sb.Append(globals);
         return sb.ToString();
     }
 

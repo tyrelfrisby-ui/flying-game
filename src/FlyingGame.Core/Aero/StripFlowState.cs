@@ -60,6 +60,18 @@ public sealed class StripFlowState
     public double[]? SystemAspectRatio;
     public double[]? ExtraCd;
 
+    /// <summary>
+    /// THE LATERAL LOAD ON THE VERTICAL TAIL, N (body +Y, right), summed over the fin's and the rudder's strips by
+    /// <see cref="AeroModel.Compute"/> every evaluation. It is the fin's analogue of the normal load factor: a real
+    /// per-step load, not a flutter special case, and it is what <c>StructuralState.VerticalTail</c> is driven by.
+    ///
+    /// It was the thing missing when the fin pool was declined on 2026-11-11 ("a fin member would be a shadow nothing
+    /// drove"). Every term the fin makes is in it — its own lift and drag, the fuselage sidewash amplification
+    /// (SpinAeroConfig.FinSidewashK), the rudder's spoiler term in separated flow — because it is taken from the
+    /// strip's finished force vector rather than rebuilt from coefficients.
+    /// </summary>
+    public double FinSideForceN;
+
     // Downwash transport lag (proposal 1): eps lagged by tail-arm/V (the Cm-alphadot term).
     public double DownwashEpsLagged;
 

@@ -193,25 +193,48 @@ public sealed partial class Aircraft
     /// WHICH STRUCTURE CARRIES THE FLUTTERING SURFACE: aileron or flap -> the wing it is on, elevator -> the
     /// horizontal tail, rudder -> the fin.
     ///
-    /// AND THE FIN HAS NO POOL, which is stated rather than worked around. StructuralState carries the two wings,
-    /// the horizontal tail and the engine mount, and every one of them is loaded by the NORMAL load factor — there
-    /// is no lateral load factor anywhere in this model, and no config publishes a fin limit load. A fin member
-    /// would be a shadow nothing drove, which is the mistake the Wings property's own comment warns against. So
-    /// rudder flutter sheds the rudder and does NOT weaken anything: half of what Ty specified, and the half that is
-    /// missing needs a fin load signal and a fin limit, neither of which exists.
+    /// THE FIN NOW HAS A POOL, as of 2026-11-11. It had none for one day, and the reason it had none was real and is
+    /// worth keeping: a member driven by nothing, or driven against a guessed limit, is a shadow that quietly
+    /// disagrees with the members that are real. Both of the missing pieces arrived together — the lateral load is
+    /// the fin's and rudder's own strips summed every step (<see cref="FinSideLoadN"/>), and the limit is Ty's
+    /// rudder-reversal measurement at Va plus 15 % (<see cref="LimitsConfig.FinLimitLoadN"/>). A type that has not
+    /// been measured publishes no limit, has no fin member, and is back to the honest half: the rudder sheds and
+    /// nothing is weakened.
     /// </summary>
     private OverstressMember? CarryingStructure() => _flutterSurface switch
     {
         AirframeComponent.AileronLeft or AirframeComponent.AileronLowerLeft => Structure.LeftWing.Member,
         AirframeComponent.AileronRight or AirframeComponent.AileronLowerRight => Structure.RightWing.Member,
         AirframeComponent.ElevatorLeft or AirframeComponent.ElevatorRight => Structure.HorizontalTail,
-        _ => null,                                   // the rudder: no fin pool to degrade
+        AirframeComponent.Rudder => Structure.VerticalTail,
+        _ => null,
     };
 
-    /// <summary>The <see cref="OverstressMember.Strength"/> at which the carrying structure breaks at 1 g — Ty's
-    /// endpoint, taken from the ratio that member is really driven by rather than from a published limit.</summary>
+    /// <summary>
+    /// THE <see cref="OverstressMember.Strength"/> AT THE END OF THE FATIGUE — where a full life leaves the carrying
+    /// structure. Taken from the ratio that member is really driven by rather than from a published limit, because
+    /// the member's ratio is against the published limit scaled by the wing's weight share and neither is the number
+    /// a reader would guess.
+    ///
+    /// THE WING AND TAIL ENDPOINT IS TY'S: "an ultimate strength of 1g" — it fails carrying the aeroplane in level
+    /// flight, so a fully fatigued wing fails doing nothing.
+    ///
+    /// THE FIN'S ENDPOINT IS NOT HIS AND IS FLAGGED AS SUCH. In balanced flight the fin carries almost nothing, so
+    /// "fails in steady flight" would have it drop off unprompted, which is plainly wrong. The true analogue of the
+    /// wing's 1 g is the next ORDINARY use of the thing: a fully fatigued fin fails the next time the pilot uses the
+    /// rudder the way he always does — one full deflection at Va, which is
+    /// <see cref="LimitsConfig.FinOrdinaryLoadN"/>, measured by the same probe as the limit and always smaller than
+    /// the reversal it is derived beside. That reading is the COORDINATOR'S, 2026-11-11, put to Ty and cheap for him
+    /// to overturn: one number moves and nothing else does.
+    /// </summary>
     private double CarryingStrengthAtOneG()
     {
+        if (_flutterSurface == AirframeComponent.Rudder)
+        {
+            double finLimit = Structure.FinLimitLoadN, ordinary = Config.Limits?.FinOrdinaryLoadN ?? 0.0;
+            if (finLimit <= 0.0 || ordinary <= 0.0) return 1.0;   // unmeasured: nothing to degrade toward
+            return Flutter.StrengthAtOneG(ordinary / finLimit);
+        }
         bool tail = _flutterSurface is AirframeComponent.ElevatorLeft or AirframeComponent.ElevatorRight;
         double ratio = tail ? Structure.TailRatioAt(1.0, WingWeightRatio) : Structure.WingRatioAt(1.0, WingWeightRatio);
         return Flutter.StrengthAtOneG(ratio);
