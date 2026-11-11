@@ -13,8 +13,11 @@ public static class WreckAtoms
         AirframeComponent.WingRight or AirframeComponent.WingRightInner => new[] { WreckAtom.WingRInner, WreckAtom.WingROuter, WreckAtom.AileronR },
         AirframeComponent.WingLeftOuter => new[] { WreckAtom.WingLOuter, WreckAtom.AileronL },
         AirframeComponent.WingRightOuter => new[] { WreckAtom.WingROuter, WreckAtom.AileronR },
-        AirframeComponent.AileronLeft => new[] { WreckAtom.AileronL },
-        AirframeComponent.AileronRight => new[] { WreckAtom.AileronR },
+        // A lower aileron shares its side's atom: the wreck model cuts a biplane's ailerons as one box per side, so
+        // both surfaces on a side float and flood as that box. Telling them apart in the WRECK would need the model
+        // to carry two boxes a side, which is its own change and is not what the per-surface identity is for.
+        AirframeComponent.AileronLeft or AirframeComponent.AileronLowerLeft => new[] { WreckAtom.AileronL },
+        AirframeComponent.AileronRight or AirframeComponent.AileronLowerRight => new[] { WreckAtom.AileronR },
         AirframeComponent.TailHorizontal => new[] { WreckAtom.HStab, WreckAtom.ElevatorL, WreckAtom.ElevatorR },
         AirframeComponent.TailVertical => new[] { WreckAtom.VStab, WreckAtom.Rudder },
         AirframeComponent.TailBoom => new[] { WreckAtom.TailCone, WreckAtom.HStab, WreckAtom.ElevatorL, WreckAtom.ElevatorR, WreckAtom.VStab, WreckAtom.Rudder, WreckAtom.GearTail },

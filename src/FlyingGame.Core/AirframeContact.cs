@@ -19,6 +19,20 @@ public enum AirframeComponent
     // (WingStructure) — a biplane's interplane strut, a strut-braced wing's lift-strut attach, a cantilever wing's aileron
     // inboard end. WingTip* is a monoplane's wing or a biplane's upper wing; WingTipLower* a biplane's lower wing.
     WingTipLeft, WingTipRight, WingTipLowerLeft, WingTipLowerRight,
+    // A BIPLANE'S LOWER AILERONS (Ty 2026-11-11, "And flaps anything in a pair"). AileronLeft/AileronRight above meant
+    // "every aileron strip on that side", so a Pitts - which has FOUR ailerons, upper and lower on each side
+    // (configs: wing-upper-aileron and wing-lower-aileron; the model's own nodes are Aileron_UL/UR/LL/LR) - could not
+    // lose one of them. It had to lose both on a side or neither, which makes the asymmetry Ty is describing
+    // impossible to produce on the aeroplane he actually flies. These name the lower pair, and AileronLeft/Right now
+    // mean the UPPER pair on a type that has two, or simply "the ailerons" on a type that has one.
+    //
+    // APPENDED, NEVER INSERTED, and here is the reason in full: TrackRecorder writes a lost part into a flight
+    // recording as (int)AirframeComponent (FlightTrack.TrackEvent.Arg) and RecordingCodec puts that ordinal on disk
+    // in the .fgrec. Inserting a member renumbers every one after it and silently reinterprets every recording ever
+    // saved. The format is versioned and refuses anything NEWER than it knows, so appending is safe and inserting is
+    // not. An old recording that says AileronLeft still sheds a left aileron; on a Pitts it now sheds the upper one
+    // rather than both, which is a behaviour change on replay and not a misreading.
+    AileronLowerLeft, AileronLowerRight,
 }
 
 /// <summary>Where the wing splits into its two panels: |y| beyond this fraction of the semispan is the outer panel.</summary>
