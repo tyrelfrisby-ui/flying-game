@@ -67,6 +67,11 @@ GraphicsSettings:
   - {fileID: 4800000, guid: 5fda959b1ee24779b1ffe65206c94cfe, type: 3}
   - {fileID: 4800000, guid: 08c99c9f92ac4a23a593f0f0ae9f2334, type: 3}
   - {fileID: 4800000, guid: 7bcc721697f04cb3835187f8be8ca637, type: 3}
+  - {fileID: 4800000, guid: f2b9c675f7b94d05899b8f3e7fd6fd9b, type: 3}
+  - {fileID: 4800000, guid: 73d399bd14a045cc8986128a8f582b52, type: 3}
+  - {fileID: 4800000, guid: eaa50cb79f1ab4a20a7f522b4ac51a48, type: 3}
+  - {fileID: 4800000, guid: 826292197f6f040cea8911cbe310bf1a, type: 3}
+  - {fileID: 4800000, guid: 1d2829b04b5f4f58a7812b8bda68f074, type: 3}
   m_PreloadedShaders: []
   m_PreloadShadersBatchTimeLimit: -1
   m_SpritesDefaultMaterial: {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
