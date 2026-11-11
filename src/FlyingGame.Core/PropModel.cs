@@ -178,15 +178,15 @@ public static class PropModel
     ///
     ///     Pitts, FINE stop (11 deg)          Pitts, COARSE stop (33 deg)
     ///       30 m/s    STOPPED                  30 m/s    STOPPED
-    ///       38.4    1,675 rpm  Cd 0.196        38.4      STOPPED
-    ///       45      2,169      Cd 0.141        45        478 rpm  Cd 0.085
-    ///       60      3,114      Cd 0.088        60        936      Cd 0.040
-    ///       80      4,280      Cd 0.063        80      1,375      Cd 0.019
+    ///       38.4    1,671 rpm  Cd 0.198        38.4      STOPPED
+    ///       45      2,167      Cd 0.142        45        466 rpm  Cd 0.085
+    ///       60      3,113      Cd 0.089        60        934      Cd 0.041
+    ///       80      4,280      Cd 0.063        80      1,374      Cd 0.019
     ///
-    /// The fine stop at APPROACH speed — 38.4 m/s, 1.3 Vso — is Cd 0.196 on disc area, and the authored coefficient's
+    /// The fine stop at APPROACH speed — 38.4 m/s, 1.3 Vso — is Cd 0.198 on disc area, and the authored coefficient's
     /// own note says a fine-pitch prop driven by the air is "C_D ~ 0.15-0.25 on disc area". The model and the
     /// calibration agree, from opposite directions, which is the only evidence worth having, and all five types this
-    /// applies to land in the band at their own approach speeds (0.152 to 0.225 — OilLossPitchTests measures it).
+    /// applies to land in the band at their own approach speeds (0.153 to 0.223 — OilLossPitchTests measures it).
     ///
     /// AND AT 30 M/S BOTH STOPS ARE STOPPED, which was not true before 2026-11-10's second pass and is the whole point
     /// of it: 30 m/s is the Pitts' stall speed, and Ty's anchor is that a dead propeller stops right there. The dry
@@ -200,7 +200,7 @@ public static class PropModel
     /// right shape for a windmilling propeller and no authored coefficient on q could have it. What a coefficient also
     /// could not have is the step at the breakaway: a propeller drags HARDEST just before it gives up and a stopped
     /// disc drags much less, so the drag jumps down as the speed falls through the stop's own breakaway — on the Pitts'
-    /// coarse stop, 324 N windmilling at 45 m/s against 208 N stopped at 38.
+    /// coarse stop, 326 N windmilling at 45 m/s against 208 N stopped at 38.
     ///
     /// Cached: the solve is up to thirty disc solutions and a glide asks every step. The buckets (0.25 deg, 1 m/s, 2 %
     /// of density) are finer than anything downstream resolves.
