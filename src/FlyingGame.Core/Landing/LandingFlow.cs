@@ -46,9 +46,9 @@ public sealed class StationRow
 /// THE LANDING FLOW (Ty 2026-11-05 05:48, docs/LANDING-V2.md). The state machine and every view-model the pages bind to.
 /// One instance drives the iPhone / iPad / Mac page and the Quest panel alike; nothing here draws.
 ///
-///  PAGE 1, CHOOSE: the hero (the last-flown aeroplane; the 2-33 the first time), four thumbnail menus on the left
-///    (Aircraft, Configuration, Location, Viewpoint) and the right-hand column (Challenges, Lessons). Picking a
-///    challenge or lesson RESTRICTS the left-hand menus (<see cref="ActivityRules"/>); picking Free flight lifts that.
+///  PAGE 1, CHOOSE: the hero (the last-flown aeroplane; the 2-33 the first time), five menus in the stack (Aircraft,
+///    Configuration, Location, Start, Camera view) and the activity pair (Challenges, Lessons). Picking a challenge or
+///    lesson RESTRICTS the stack's menus (<see cref="ActivityRules"/>); picking Free flight lifts that.
 ///  PAGE 2, LOAD: the seats (me, a default person, or an invited player as passenger or on the other controls), the
 ///    fuel and the baggage, the weight-and-balance plot (warn, never block), and the settings: reliability, weather,
 ///    time of day, units (Standard | Metric, <see cref="DisplayUnits"/>). LAUNCH.
@@ -76,7 +76,11 @@ public sealed class LandingFlow
     public string FamilyId { get; private set; }
     public string GearId { get; private set; } = "standard";
     public int LocationIndex { get; private set; }
+    /// <summary>Where the flight BEGINS (<see cref="PickerKind.Start"/>). Not the camera: that is <see cref="CameraView"/>.</summary>
     public Viewpoint Viewpoint { get; private set; } = Viewpoint.InTheAir;
+    /// <summary>Which camera the flight starts in (<see cref="PickerKind.CameraView"/>). The default is the one the
+    /// game has always started in, so nobody who never opens the menu sees a change.</summary>
+    public CameraView CameraView { get; private set; } = CameraView.RelativeWind;
     public string? ActivityId { get; private set; }
     public TimeOfDay TimeOfDay { get; private set; } = TimeOfDay.Midday;
     public Reliability Reliability { get; private set; } = Reliability.NeverFails;
@@ -120,6 +124,8 @@ public sealed class LandingFlow
     public string ViewpointName =>
         Rules.FixedViewpointNote ?? LandingCatalog.Viewpoints.First(v => v.v == Viewpoint).name;
 
+    public string CameraViewName => LandingCatalog.CameraViews.First(v => v.v == CameraView).name;
+
     // ================================================================ navigation
 
     public bool CanGoBack => Page == LandingPage.Load;
@@ -143,8 +149,11 @@ public sealed class LandingFlow
     public bool IsFixed(PickerKind k) => k switch
     {
         PickerKind.Configuration => Items(k).Count <= 1,
-        PickerKind.Viewpoint => Rules.ViewpointLocked,
+        PickerKind.Start => Rules.ViewpointLocked,
         PickerKind.Location => Rules.FixedLocation || Catalog.Locations.Count <= 1,
+        // The camera is never fixed by an activity: what you look THROUGH is not part of any contest. (A side-view
+        // practice drill points its own camera at the runway once it begins; that is the drill's camera, not a
+        // restriction on the menu, and the drill puts it back.)
         _ => false,
     };
 
@@ -191,7 +200,7 @@ public sealed class LandingFlow
                     });
                 }
                 break;
-            case PickerKind.Viewpoint:
+            case PickerKind.Start:
                 foreach (var (v, name, blurb) in LandingCatalog.Viewpoints)
                 {
                     if (rules.FixedViewpoint.HasValue && v != rules.FixedViewpoint) continue;
@@ -203,6 +212,12 @@ public sealed class LandingFlow
                         Thumbnails = ThumbnailKeys.LocationFallbacks(Family.Id, GearId, LocationId, v).ToList(), IconKey = ThumbnailKeys.Icon("viewpoint", v.ToString()),
                     });
                 }
+                break;
+            case PickerKind.CameraView:
+                // No thumbnails: a camera view has nothing to photograph that the hero does not already show, and the
+                // card is read as words (the view's name and where the camera sits).
+                foreach (var (v, name, blurb) in LandingCatalog.CameraViews)
+                    list.Add(new PickerItem { Kind = k, Id = v.ToString(), Title = name, Subtitle = blurb, Selected = v == CameraView, IconKey = ThumbnailKeys.Icon("view", v.ToString()) });
                 break;
             case PickerKind.Challenge:
             case PickerKind.Lesson:
@@ -236,7 +251,8 @@ public sealed class LandingFlow
                 break;
             case PickerKind.Configuration: GearId = id; break;
             case PickerKind.Location: LocationIndex = Catalog.Locations.First(l => l.Id == id).Index; break;
-            case PickerKind.Viewpoint: Viewpoint = (Viewpoint)Enum.Parse(typeof(Viewpoint), id); break;
+            case PickerKind.Start: Viewpoint = (Viewpoint)Enum.Parse(typeof(Viewpoint), id); break;
+            case PickerKind.CameraView: CameraView = (CameraView)Enum.Parse(typeof(CameraView), id); break;
             case PickerKind.Challenge:
             case PickerKind.Lesson:
                 ActivityId = string.IsNullOrEmpty(id) ? null : id;
@@ -505,7 +521,7 @@ public sealed class LandingFlow
     /// <summary>What LAUNCH will do, a line each (the page's summary strip and the Quest panel's last rows).</summary>
     public List<string> Summary()
     {
-        var lines = new List<string> { $"{Family.Name}, {Gear.Name}", $"{Location?.Name}, {ViewpointName}", Activity?.Name ?? "Free flight" };
+        var lines = new List<string> { $"{Family.Name}, {Gear.Name}", $"{Location?.Name}, {ViewpointName}, {CameraViewName} view", Activity?.Name ?? "Free flight" };
         var people = Seats.Where(s => s.Occupant != Occupant.Empty).Select(s => s.Occupant switch
         {
             Occupant.Me => $"me ({s.Label})",
@@ -576,7 +592,8 @@ public sealed class LandingFlow
         _store.Set(K + "lastFlown", FamilyId);
         _store.Set(K + "gear." + FamilyId, GearId);
         _store.Set(K + "location", LocationIndex.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        _store.Set(K + "viewpoint", Viewpoint.ToString());
+        _store.Set(K + "viewpoint", Viewpoint.ToString());      // the START; the key keeps its old name (PickerKind.Start)
+        _store.Set(K + "cameraView", CameraView.ToString());
         _store.Set(K + "activity", ActivityId ?? "");
         _store.Set(K + "time", TimeOfDay.ToString());
         _store.Set(K + "reliability", Reliability.ToString());
@@ -607,6 +624,9 @@ public sealed class LandingFlow
         if (Family.Configs.All(c => c.Id != GearId)) GearId = Family.Standard.Id;
         if (int.TryParse(_store.Get(K + "location"), out int li)) LocationIndex = Math.Clamp(li, 0, Math.Max(0, Catalog.Locations.Count - 1));
         if (Enum.TryParse(_store.Get(K + "viewpoint"), out Viewpoint vp)) Viewpoint = vp;
+        // A saved "Locked" is not offered any more (it was never offered): fall back to the default rather than
+        // launching into a frozen direction nobody picked.
+        if (Enum.TryParse(_store.Get(K + "cameraView"), out CameraView cv) && cv != Landing.CameraView.Locked) CameraView = cv;
         string? act = _store.Get(K + "activity");
         ActivityId = string.IsNullOrEmpty(act) || Catalog.Activity(act) == null ? null : act;
         if (Enum.TryParse(_store.Get(K + "time"), out TimeOfDay t)) TimeOfDay = t;

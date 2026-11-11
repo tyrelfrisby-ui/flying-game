@@ -88,6 +88,22 @@ namespace FlyingGame.Bridge
                           + string.Join(", ", f.Seats.Where(s => s.Occupant == Occupant.InvitedPlayer).Select(s => $"{s.SeatId}:{s.Role}")));
         }
 
+        /// <summary>
+        /// The camera the flight starts in (Ty 2026-11-11: "we need a viewpoint button like flight path tail fly by
+        /// cockpit etc"). Called AFTER <see cref="StartMenu.Fly"/>, not with the rest of the launch: Fly re-spawns the
+        /// aeroplane, and <see cref="ChaseCamera.SetView"/> entering the cockpit asks the aircraft's own
+        /// <see cref="CockpitView"/> for the eye point — ask the one that is about to be thrown away and the pilot
+        /// starts the flight looking at nothing.
+        ///
+        /// Every chase camera in the scene, because split screen gives each local player one; both start in the view
+        /// that was picked, and either can change it from the VIEW button a second later.
+        /// </summary>
+        public static void ApplyCameraView(LandingFlow f)
+        {
+            var v = (ChaseCamera.View)(int)f.CameraView;
+            foreach (var cam in Object.FindObjectsByType<ChaseCamera>(FindObjectsSortMode.None)) cam.SetView(v);
+        }
+
         // ---------------------------------------------------------------- memory
 
         /// <summary>PlayerPrefs, under "landing.", except the keys the game already kept (see the class notes).</summary>

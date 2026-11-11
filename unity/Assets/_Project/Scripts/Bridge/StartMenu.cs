@@ -77,8 +77,14 @@ namespace FlyingGame.Bridge
             LandingSession.ApplyLaunch(flow);
             string key = FlyingGame.Core.Landing.ThumbnailKeys.Location(flow.Family.Id, flow.GearId, flow.LocationId, flow.Viewpoint);
             bool ownStart = flow.Rules.ViewpointLocked && flow.Rules.FixedViewpoint == null;
+            // The location thumbnail is keyed by (aircraft, gear, airport, START) and by nothing else, so only the
+            // standard chase view may write it: launch in the cockpit and the capture would put a photograph of an
+            // instrument panel behind every LOCATION and START card for that airport, for good (Ty 2026-11-11, with
+            // the camera-view menu).
+            bool ownCamera = flow.CameraView != FlyingGame.Core.Landing.CameraView.RelativeWind;
             Fly();
-            if (!ownStart && LandingPreview.Instance != null) LandingPreview.Instance.StartCoroutine(LandingPreview.Instance.CaptureAfterLaunch(key));
+            LandingSession.ApplyCameraView(flow);   // after Fly(): the camera has to look at the aeroplane that just spawned
+            if (!ownStart && !ownCamera && LandingPreview.Instance != null) LandingPreview.Instance.StartCoroutine(LandingPreview.Instance.CaptureAfterLaunch(key));
         }
 
         // ---- the classic chapters, behind "More settings" ----

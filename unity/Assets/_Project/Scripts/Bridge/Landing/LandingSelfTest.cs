@@ -68,7 +68,7 @@ namespace FlyingGame.Bridge
                 flow.GoTo(LandingPage.Choose);
                 yield return Settle();
                 yield return Shot($"{sh.name}-p1-choose");
-                foreach (var k in new[] { PickerKind.Aircraft, PickerKind.Location, PickerKind.Viewpoint, PickerKind.Challenge, PickerKind.Lesson })
+                foreach (var k in new[] { PickerKind.Aircraft, PickerKind.Location, PickerKind.Start, PickerKind.CameraView, PickerKind.Challenge, PickerKind.Lesson })
                 {
                     flow.Open(k);
                     yield return new WaitForSecondsRealtime(0.6f);
@@ -176,7 +176,7 @@ namespace FlyingGame.Bridge
                 {
                     flow.Pick(PickerKind.Aircraft, fam.Id);
                     flow.Pick(PickerKind.Configuration, cfg.Id);
-                    flow.Pick(PickerKind.Viewpoint, "InTheAir");
+                    flow.Pick(PickerKind.Start, "InTheAir");
                     yield return Settle();
                     yield return new WaitForSecondsRealtime(0.5f);   // CaptureMissing runs at the settle
                     n++;
@@ -189,7 +189,7 @@ namespace FlyingGame.Bridge
                 {
                     if (v == Viewpoint.InAeroBox || v == Viewpoint.InCombatZone) continue;   // one box, one zone: not per airport
                     flow.Pick(PickerKind.Location, loc.Id);
-                    flow.Pick(PickerKind.Viewpoint, v.ToString());
+                    flow.Pick(PickerKind.Start, v.ToString());
                     yield return Settle();
                     yield return new WaitForSecondsRealtime(0.5f);
                     LandingPreview.CaptureLaunchView($"loc/{ThumbnailKeys.Any}/{ThumbnailKeys.Safe(loc.Id)}/{v}");
