@@ -95,6 +95,19 @@ namespace FlyingGame.EditorTools
             WorldClock.TimeS = 20;
             Atmosphere.Field = null; Atmosphere.ActiveTurbulence = null; Atmosphere.Thermals.Clear();
             Atmosphere.SteadyWind = Vec3.Zero; Atmosphere.SimTimeSec = 0;
+            // BEFORE the world is built, because IslandWorldBuilder.Build attaches the GroundImprintVisual itself and
+            // the visual takes its shader once. Shader.Find returns NULL for this project's own shaders in a bare
+            // -executeMethod batchmode editor: measured 2026-11-10, for FlyingGame/GroundImprint and for its
+            // FlyingGame/UnlitTransparent fallback alike, both present and compiling clean, so the LOOKUP was the
+            // problem and not the assets. An editor tool has the asset database instead — the same answer this repo
+            // already uses for glTFast under IsEditorImport, and the same hand-off PilotBodyShots makes to
+            // VrPilotBody.PrefabOverride.
+            GroundImprintVisual.ShaderOverride = AssetDatabase.LoadAssetAtPath<Shader>(GroundImprintVisual.ShaderAssetPath);
+            if (GroundImprintVisual.ShaderOverride == null)
+                throw new System.InvalidOperationException(
+                    $"GroundImprintShots: {GroundImprintVisual.ShaderAssetPath} did not load from the asset database. " +
+                    "Nothing would draw the marks and every plate would be a picture of empty ground.");
+
             GameObject world = WorldBuilder.BuildAll();
             SunsetLighting.ApplyDay();
             RenderSettings.fog = false;
@@ -109,11 +122,12 @@ namespace FlyingGame.EditorTools
             var log = new System.Text.StringBuilder();
 
             GroundImprintVisual marks = GroundImprintVisual.Attach(world.transform);
+            if (marks != null) marks.Refresh();   // picks up the shader if the world built before it was set
             // The second way this harness could lie: the marks are recorded, nothing draws them, and the plate is a
             // picture of empty ground that reads exactly like a flight that left none.
             if (marks == null || !marks.Drawable)
                 throw new System.InvalidOperationException(
-                    "GroundImprintShots: GroundImprintVisual has no material (FlyingGame/GroundImprint missing). The " +
+                    "GroundImprintShots: GroundImprintVisual has no material even though the shader asset loaded. The " +
                     "ground would keep its marks and the plates would show empty ground, which is a lie, not a render.");
 
             // Each scene rolls on ground that REALLY IS the surface it claims, and nothing is overridden.
