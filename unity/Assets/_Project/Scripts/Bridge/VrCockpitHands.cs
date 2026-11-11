@@ -142,6 +142,7 @@ namespace FlyingGame.Bridge
             Drive();
             DriveGlider();
             DrivePanel();
+            DriveSkiSelector();
             DriveBailout();
         }
 
