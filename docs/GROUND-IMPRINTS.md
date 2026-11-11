@@ -20,9 +20,10 @@ mark is **the ground that did not come back**.
 Engine-free, so it is on the Quest and the Mac for free, which is the parity requirement. **No particles** (a standing
 prohibition of Ty's): a mark is geometry in the ground.
 
-`GroundImprints.World` is process-wide, like `StrippedTrees` and `Forest`'s snapped tops, and cleared with them for a
-new flight. Every aeroplane — player and AI — writes into it, so you can see where the other one landed, and each mark
-carries its `Owner`.
+`GroundImprints.World` is process-wide, like `StrippedTrees` and `Forest`'s snapped tops, and `Clear()` is meant to be
+called with them for a new flight — **that call site does not exist yet**; see *What the renderer still has to do*.
+Every aeroplane — player and AI — writes into it, so you can see where the other one landed, and each mark carries its
+`Owner`.
 
 ## Depth: read from the contact, never recomputed
 
@@ -49,7 +50,7 @@ behind a cosmetic cap and put a second depth model beside the contact's.
 ### Two depths that are wrong at their source today
 
 1. **The airframe penetration.** `AirframeContact`'s penalty spring is mass-independent (150 kN/m, no position
-   correction), so depth = weight/k: a J-3 wingtip slapping down reads **1.03 m** in and leaves an 82 cm scar. Being
+   correction), so depth = weight/k: a J-3 wingtip slapping down reads **1.04 m** in and leaves an 83 cm scar. Being
    fixed on `lane/claude-contact-depth` ("a few centimetres, mass-independent"; Ty called a Pitts on its belly at
    3.3 cm about right). When that lands, the scars become a few centimetres with **no change here**.
 2. **The tyre rut at an impulsive load.** `TireModel.GroundSinkageM` inverts a *steady-state* relation
