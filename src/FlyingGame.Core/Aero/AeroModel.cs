@@ -1427,7 +1427,17 @@ public static class AeroModel
                 // the practice scoring read. Shift the threshold by the section's own asymmetry on the negative
                 // branch only, which leaves every upright number and every symmetric section exactly as before.
                 double stallAt = WingWake.StallAlpha;
-                if (localAlpha < 0.0 && airfoilTables is not null && airfoilTables.TryGetValue(strip.Airfoil, out AirfoilTable? sTab))
+                if (config.StallDynamics.SeparationOnPastStallDeg is double onPast && airfoilTables is not null
+                    && airfoilTables.TryGetValue(strip.Airfoil, out AirfoilTable? oTab))
+                {
+                    // A type whose separation band is measured from each strip's own stall (StallDynamicsConfig) counts
+                    // the strip stalled from that same angle, so the stalled FRACTION and the separation MEMORY agree.
+                    // WingWake.StallAlpha's fixed 15° is the fleet's calibration against ~14° feel tables; on the
+                    // Extra's derived wing (static stall ~22°) it collapsed the tail downwash five degrees early and the
+                    // aeroplane could not be pulled to its own stall at idle.
+                    stallAt = Math.Max(2.0 * Math.PI / 180.0, (localAlpha < 0.0 ? -oTab.AlphaClMinRad : oTab.AlphaClMaxRad) + onPast * Math.PI / 180.0);
+                }
+                else if (localAlpha < 0.0 && airfoilTables is not null && airfoilTables.TryGetValue(strip.Airfoil, out AirfoilTable? sTab))
                 {
                     stallAt = Math.Max(2.0 * Math.PI / 180.0, stallAt + (-sTab.AlphaClMinRad - sTab.AlphaClMaxRad));
                 }

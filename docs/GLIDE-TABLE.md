@@ -32,7 +32,7 @@ Valley field (1000 ft), windmilling-prop drag included; gliders at half spoiler.
 | dhc2-beaver-like | up | kt | 60 | 78 | 8.2 | 6.9:1 | 1132 | -2.5 | 5.7 | -2.2 | -0.11 |
 | dhc2-beaver-like | half | kt | 55 | 72 | 8.3 | 6.9:1 | 1053 | -3.9 | 4.4 | 3.5 | +0.16 |
 | dhc2-beaver-like | full | kt | 52 | 68 | 8.8 | 6.4:1 | 1062 | -6.2 | 2.6 | 10.0 | +0.39 |
-| extra-300-like | up | kt | 56 | 73 | 9.9 | 5.7:1 | 1272 | -1.6 | 8.2 | -5.6 | -0.27 |
+| extra-300-like | up | kt | 55 | 72 | 8.2 | 7.0:1 | 1038 | 2.8 | 11.0 | -7.6 | -0.35 |
 | f86-sabre-like | up | kt | 138 | 179 | 9.0 | 6.3:1 | 2830 | -2.1 | 6.9 | -0.7 | -0.06 |
 | f86-sabre-like | half | kt | 122 | 159 | 8.8 | 6.5:1 | 2457 | -3.4 | 5.4 | 6.2 | +0.25 |
 | f86-sabre-like | full | kt | 122 | 159 | 9.8 | 5.8:1 | 2749 | -7.9 | 1.9 | 15.3 | +0.57 |

@@ -149,4 +149,15 @@ for D in $DEVICES; do
   fi
 done
 echo "== installed on $INSTALLED of ${#DEVICES} device(s)"
+# Private Tailscale OTA refresh (Ty t908u). Opt-in only via FLYINGGAME_PUBLISH_OTA=1.
+# Never enables Funnel / public hosting. Never uploads to TestFlight/App Store.
+# On failure the previous last-good OTA set is retained by publish-ota.sh.
+if [[ "${FLYINGGAME_PUBLISH_OTA:-0}" == "1" ]]; then
+  echo "== private OTA publish $(date)"
+  if tools/deploy/publish-ota.sh --app "$APP"; then
+    echo "== private OTA refreshed"
+  else
+    echo "== private OTA publish FAILED — last-good retained; USB install above still stands"
+  fi
+fi
 echo "== DONE $(date)"

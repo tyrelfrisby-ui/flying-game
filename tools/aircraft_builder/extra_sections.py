@@ -1,5 +1,5 @@
-"""EXTRA 300L WING SECTIONS: TWO CANDIDATES, BOTH FROM PUBLISHED EPPLER COORDINATES (lane/claude-inertia run 5d,
-2026-11-02; docs/aircraft/extra-300-airfoil-DERIVATION.md section 1).
+"""EXTRA 300L WING SECTIONS: CANDIDATES A AND B (B WIRED), FROM PUBLISHED EPPLER COORDINATES (lane/claude-inertia
+runs 5d/5e, 2026-11-02; docs/aircraft/extra-300-airfoil-DERIVATION.md sections 1, 1d and 1e).
 
 The Extra's own sections are published by NAME only (300L Information Manual sec. 1.3.3: root "MA 15 S", tip "MA 12 S";
 symmetrical, zero incidence). No coordinates for them exist in any source found. Both candidates start from the
@@ -24,6 +24,10 @@ CANDIDATE B (Extra-style "ice cream cone"): a smooth geometric reshape of the sa
   candidate A's own spline (ab_sections linearly interpolates the 61 published points, which makes a faceted nose), and
   the warped section is evaluated exactly, h(w^-1(x)), instead of by linear interpolation on the grid. Resulting
   numbers against ab_sections.py's: see derivation sec. 1.
+
+WIRED: candidate B at full thickness (run 5e; derivation sec. 1e). Run 5e's EXPERIMENT, rejected (sec. 1d): B thinned by
+  one common factor (THIN_K below; 0.6625 gave the book's Vs at a 10.7 % root and an 8.0 % tip, not a realistic Extra
+  section). _thin() and THIN_K are kept so the experiment can be reproduced; no candidate uses them.
 
 STATIONS  The wing is ruled: chord and ABSOLUTE thickness linear in span between the root (1.85 m, E473's t/c) and the tip
   (0.88 m, E472's t/c) at y = 4.00 m: t/c(y) = (T_ROOT*1.85*(1-e) + T_TIP*0.88*e) / c(y), e = y/4. At each strip station
@@ -186,7 +190,18 @@ T_ROOT, XM_ROOT = _tmax(A_ROOT)
 T_TIP, XM_TIP = _tmax(A_TIP)
 B_ROOT, B_ROOT_C, B_ROOT_A = reshape(A_ROOT, *B_SPEC['root'])
 B_TIP, B_TIP_C, B_TIP_A = reshape(A_TIP, *B_SPEC['tip'])
-ENDS = {'A': (A_ROOT, A_TIP), 'B': (B_ROOT, B_TIP)}
+
+# EXPERIMENT (run 5e, rejected; derivation sec. 1d): B thinned by one common factor THIN_K on every ordinate (y only).
+# EXTRA_THIN_K sets it; nothing wired uses it.
+THIN_K = float(os.environ.get('EXTRA_THIN_K', '1.0'))
+
+
+def _thin(h, k):
+    return Half(lambda x: k * h(x), k * h.a)
+
+
+THIN_ROOT, THIN_TIP = _thin(B_ROOT, THIN_K), _thin(B_TIP, THIN_K)
+ENDS = {'A': (A_ROOT, A_TIP), 'B': (B_ROOT, B_TIP), 'C': (THIN_ROOT, THIN_TIP)}   # 'C': the experiment only
 
 
 def half(w, cand='A'):

@@ -158,7 +158,11 @@ namespace FlyingGame.Bridge
             _nextRouteCheck = Time.unscaledTime + 0.25f;
             int n = VO_RouteOutputs(_routeBuf, _routeBuf.Length);
             string outputs = n > 0 ? System.Text.Encoding.UTF8.GetString(_routeBuf, 0, n) : "";
-            bool voice = IntercomOn || RadioAvailable;
+            // Narration counts as voice in use: it is the one setting that holds the microphone open with nobody
+            // talking (VoiceIO.mm MicWanted), so a TV cannot have the audio while it is ticked — play-and-record has
+            // no HDMI output to give it. Left out, the policy would ask for the mic to be released, MicWanted would
+            // ask for it straight back, and the two would fight every quarter second.
+            bool voice = IntercomOn || RadioAvailable || NarrateClips;
             var route = FlyingGame.Core.TvAudioPolicy.Decide(voice, TvOutput.ExternalDisplay, FlyingGame.Core.TvAudioPolicy.FromPortTypes(outputs));
             // A TV with nobody talking has to have the mic RELEASED, not just the route changed: play-and-record
             // has no HDMI output to offer (VoiceIO.mm ApplySession).
@@ -196,7 +200,13 @@ namespace FlyingGame.Bridge
                            : st == -2 && Native ? "Microphone unavailable" : null;
             }
             // Narration keeps the gate open through a menu: the options screen is a thing he is filming and talking over.
-            VO_SetIntercom((IntercomOn && !menu) || NarrateClips ? 1 : 0);
+            //
+            // Bit 1 says the microphone may be HELD while nobody is talking, and only narration asks for it. Ty
+            // 2026-11-10: "The app is listening to my mic even when I do[n't] have PTT pressed unchecked intercom
+            // just now". The intercom used to hold the mic for the rest of the session the moment it was ticked;
+            // VoiceIO.mm MicWanted now lets it go unless PTT is down, narration is on, or there is a headset for the
+            // voice-activated sidetone to be heard in.
+            VO_SetIntercom(((IntercomOn && !menu) || NarrateClips ? 1 : 0) | (NarrateClips ? 2 : 0));
             VO_SetPtt(ptt ? 1 : 0);
             VO_SetRxVolume(FlightAudio.MasterVolume);
             if (RoutesAroundTv && Time.unscaledTime >= _nextRouteCheck) KeepOffTheTv();

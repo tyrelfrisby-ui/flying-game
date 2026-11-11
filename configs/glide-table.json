@@ -340,15 +340,15 @@
   {
     "Id": "extra-300-like",
     "Flaps": 0,
-    "VsoKt": 56.37,
-    "SpeedKt": 73.28,
-    "GlideDeg": 9.872,
-    "GlideRatio": 5.746,
-    "SinkFpm": 1272.4,
-    "AlphaDeg": 8.244,
-    "PitchDeg": -1.629,
-    "ElevatorDeg": -5.611,
-    "TrimStick": -0.2703
+    "VsoKt": 55.4,
+    "SpeedKt": 72.02,
+    "GlideDeg": 8.185,
+    "GlideRatio": 6.952,
+    "SinkFpm": 1038.4,
+    "AlphaDeg": 11.003,
+    "PitchDeg": 2.818,
+    "ElevatorDeg": -7.567,
+    "TrimStick": -0.3523
   },
   {
     "Id": "f86-sabre-like",
