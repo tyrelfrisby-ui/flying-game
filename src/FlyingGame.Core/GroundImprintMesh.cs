@@ -69,19 +69,33 @@ public static class GroundImprintDrawing
     public const int IndicesPerMark = 3 * TrianglesPerMark;
 
     /// <summary>
-    /// How far the mark is lifted off the surface along its normal, m. 2 cm.
+    /// How far the mark is lifted off the surface, m. **5 cm, and it is a MEASUREMENT, not a taste.**
     ///
     /// It is not a fudge for the record's depth — a mark is drawn ON the ground, at the ground's height, and its depth
-    /// is in its colour and not in its geometry. This is the clearance that stops it z-fighting the terrain it lies on,
-    /// and it is the same order as the measured gap between the analytic ground and the drawn 25 m mesh (see the class
-    /// remarks: p50 0 mm, p95 38 mm on rollable ground), so most of the time the mark sits proud of the mesh rather
-    /// than inside it. A depth bias in the material (the FlyingGame/GroundImprint shader's Offset) covers the rest.
+    /// is in its colour and not in its geometry. This is the clearance that keeps it clear of the DRAWN mesh, which
+    /// interpolates the same height function on a 25 m lattice and therefore stands above the analytic surface the
+    /// marks (and the wheels) sit on.
+    ///
+    /// 2 cm was the first value and it was NOT ENOUGH, and the way that showed is worth keeping: in the first real
+    /// renders the marks were plainly visible from half a metre up and **completely absent from every plan view**,
+    /// which is the signature of losing the depth test face-on. The material's Offset is SLOPE-SCALED, so at a
+    /// grazing angle it biases the mark by a lot and rescues it; seen flat-on the slope is zero, the bias is nothing,
+    /// and the only thing holding the mark above the mesh is this number.
+    ///
+    /// MEASURED over the AP1 grass strip against its own 25 m lattice: the mesh stands up to **120 mm** above the
+    /// analytic surface, the 95th percentile is **47 mm**, and at a 2 cm lift **14.8 %** of the strip buries the
+    /// mark. (On the 5 m sub-lattice a shaped field gets at LOD0 it is ±9 mm and nothing is buried — but the LOD in
+    /// use is the renderer's business, not this one's, so the lift has to survive the coarse case.) 5 cm clears the
+    /// 95th percentile there and the 95th percentile of open rollable land (38 mm, class remarks).
+    ///
+    /// The cost of 5 cm is a mark that floats half a finger's width above the ground, which at any distance a pilot
+    /// looks at his tracks from is nothing — and a mark that floats slightly beats a mark that is invisible.
     ///
     /// Straight UP, not along the surface's normal: moving a vertex along the normal moves it sideways as well, off
     /// the ground whose height it was just given, which on a slope is a bigger error than the lift itself. Lifting
     /// vertically costs a cosine of the clearance on a slope and keeps the vertex over its own ground.
     /// </summary>
-    public const double SurfaceLiftM = 0.02;
+    public const double SurfaceLiftM = 0.05;
 
     /// <summary>
     /// How far past each end of the stretch the mark is drawn, as a fraction of its own WIDTH. Half.
