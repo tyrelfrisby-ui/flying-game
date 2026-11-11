@@ -283,6 +283,19 @@ namespace FlyingGame.Bridge
             string id = _driver != null ? _driver.AircraftId : null;
             _engine = EngineSynth.Build(id, config, _fs, (float)(_driver?.EngineRpm ?? 0.0), (float)(_driver?.Throttle01 ?? 0.0));
             _builtForId = id;
+            // WHICH ENGINE WE ARE ABOUT TO PLAY, AND WHAT IT WAS BUILT FROM. Once per aircraft, so it costs nothing,
+            // and it answers tonight's question outright (Ty 2026-11-10: "Engine and air are definitely missing tire
+            // noise works and some crash noise like wing strikes").
+            //
+            // EngineSynth.Build returns NULL whenever the config has no Propulsion — EngineProfiles.PistonFor and
+            // JetFor both bail on that before they ever look at the id — and a null engine is silent for good: the
+            // Update guard above only rebuilds when AircraftId CHANGES, and _builtForId has just been set to the
+            // live id. So a powered aeroplane whose SIM is a glider's (the known switch bug, where the previous
+            // type's flight model runs under the new livery) is silent for the whole session, and silent in exactly
+            // the way reported: no engine, no thrust so no airspeed so no wind, but wheels on the ground and
+            // crashes as normal. If this line says "pitts-s2b-like ... propulsion no", that is what happened.
+            Debug.Log($"[FlightAudio] engine for '{id}': {EngineProfileName} · config {(config != null ? "yes" : "NO")}" +
+                      $" · propulsion {(config?.Propulsion != null ? "yes" : "NO")} · wheels {sim?.Aircraft?.Wheels?.Count ?? -1}");
         }
 
         private void Update()
@@ -307,6 +320,31 @@ namespace FlyingGame.Bridge
 
             PushTelemetry();
             if (!Mathf.Approximately(_savedMaster, MasterVolume) && Time.frameCount % 120 == 0) SaveMaster();
+            WhyIsItQuiet();
+        }
+
+        private float _nextQuietLog;
+
+        /// <summary>
+        /// WHY THE ENGINE AND THE WIND ARE SILENT, once a second, and ONLY while one of them is (Ty 2026-11-10:
+        /// "I think engine and air noise is missing"). A healthy aeroplane never prints this, so it can stay.
+        ///
+        /// These two are worth singling out because they are the only voices in <see cref="Render"/> with no gate
+        /// but their own telemetry: WindSynth is silent below about 8 m/s and has no other switch, and the engine is
+        /// silent only if <c>_engine</c> is null or the rpm is zero. There is no shared mute, no ambient bus and no
+        /// menu duck that could take those two and leave the tyres — so if both are quiet, the numbers below say
+        /// which field is wrong, and the rebuild log in <see cref="RebuildEngine"/> says why.
+        /// </summary>
+        private void WhyIsItQuiet()
+        {
+            var t = _tele;
+            bool quiet = _engine == null || t.EngineRpm <= 1f || t.IasMs < 8f;
+            if (!quiet || Time.unscaledTime < _nextQuietLog) return;
+            _nextQuietLog = Time.unscaledTime + 1f;
+            var ac = _driver != null ? _driver.Sim?.Aircraft : null;
+            Debug.Log($"[FlightAudio] quiet: engine {(_engine == null ? "NULL" : EngineProfileName)} rpm {t.EngineRpm:F0}" +
+                      $" running {(ac != null ? ac.EngineRunning.ToString() : "no aircraft")} thr {t.Throttle01:F2}" +
+                      $" · ias {t.IasMs:F1} m/s · onGround {t.OnGround} master {t.MasterGain:F2} rollSpeed {t.RollSpeedMs:F1}");
         }
 
         private void LateUpdate()
