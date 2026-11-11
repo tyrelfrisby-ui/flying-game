@@ -175,7 +175,7 @@ namespace FlyingGame.Bridge.Widget
             try
             {
                 string line;
-                while (_run && (line = reader.ReadLine()) != null)
+                while (_run && (line = ReadLineCapped(reader, writer)) != null)
                 {
                     if (string.IsNullOrWhiteSpace(line)) continue;
                     string l = line;
@@ -190,6 +190,44 @@ namespace FlyingGame.Bridge.Widget
             catch { }
             lock (_subLock) _subs.RemoveAll(s => s.w == writer);
             c.Close();
+        }
+
+        /// <summary>
+        /// One command line, or null at end of stream — the same contract as StreamReader.ReadLine, with a LIMIT.
+        ///
+        /// The reader used to be a bare ReadLine(), which has no limit at all: a peer that opens the socket and
+        /// sends bytes without ever sending a newline grows one string until the process dies, and it costs the
+        /// peer nothing to do it (pre-ship audit, 2026-11-11). Before this lane the port answered the whole
+        /// network, so "a peer" meant anyone.
+        ///
+        /// Over the cap the line is DISCARDED UP TO THE NEXT NEWLINE and the connection is told why, rather than
+        /// dropped: a client that sends one oversized command — a huge caption, a pasted blob — stays connected and
+        /// sees what happened. The limit is ~60× the largest command the protocol has (a vectorStyle with every
+        /// field set measures about 1.1 KB), so no real client can reach it by accident.
+        /// </summary>
+        private static string ReadLineCapped(StreamReader reader, StreamWriter writer)
+        {
+            var sb = new StringBuilder(256);
+            while (true)
+            {
+                int ch = reader.Read();
+                if (ch < 0) return sb.Length > 0 ? sb.ToString() : null;
+                if (ch == '\n') return sb.ToString();
+                if (ch == '\r') continue;
+                if (sb.Length >= WidgetAccess.MaxLineBytes)
+                {
+                    // Swallow the rest of this line so the next one still parses, then say so.
+                    while ((ch = reader.Read()) >= 0 && ch != '\n') { }
+                    lock (writer)
+                    {
+                        try { writer.WriteLine($"{{\"ok\":false,\"error\":\"command line longer than {WidgetAccess.MaxLineBytes} characters: discarded\"}}"); } catch { }
+                    }
+                    if (ch < 0) return null;
+                    sb.Clear();
+                    continue;
+                }
+                sb.Append((char)ch);
+            }
         }
 
         // ---- HTTP (phone / iPad remote): GET / (the page), GET /state[?from=…&name=…], POST /cmd ----
@@ -210,20 +248,31 @@ namespace FlyingGame.Bridge.Widget
             {
                 c.NoDelay = true; c.ReceiveTimeout = 5000;
                 using var ns = c.GetStream();
-                // Request line + headers (ASCII), then the body by Content-Length.
-                var head = new StringBuilder(); int b; int crlf = 0;
+                // Request line + headers (ASCII), then the body by Content-Length. BOTH ARE CAPPED (pre-ship audit,
+                // 2026-11-11). The head loop already stopped at 16 KB, but it stopped by BREAKING OUT and then
+                // parsing whatever it had as though the request were complete — so a peer that sent 16 KB of
+                // header bytes and no blank line got its truncated first line treated as a request line. It is now
+                // a refusal: a request whose headers do not end is not a request.
+                var head = new StringBuilder(); int b; int crlf = 0; bool headComplete = false;
                 while ((b = ns.ReadByte()) >= 0)
                 {
                     head.Append((char)b);
                     crlf = (b == '\r' || b == '\n') ? crlf + 1 : 0;
-                    if (crlf == 4 || head.Length > 16384) break;
+                    if (crlf == 4) { headComplete = true; break; }
+                    if (head.Length > WidgetAccess.MaxHeadBytes) break;
                 }
+                if (!headComplete) { Refuse(ns, 431, "request headers too long or incomplete"); return; }
                 string[] lines = head.ToString().Split(new[] { "\r\n" }, System.StringSplitOptions.None);
                 string[] rl = lines[0].Split(' ');
                 if (rl.Length < 2) return;
                 string method = rl[0], target = rl[1];
                 int len = 0;
                 foreach (var l in lines) if (l.StartsWith("Content-Length:", System.StringComparison.OrdinalIgnoreCase)) int.TryParse(l.Substring(15).Trim(), out len);
+                // THE BODY WAS ALLOCATED FROM THE REQUEST'S OWN CLAIM: `new byte[len]` with len straight out of
+                // Content-Length, so a 40-byte request saying "Content-Length: 2000000000" asked the widget for a
+                // 2 GB array — a crash, or a Mac on its knees, per request and for free. The remote page's largest
+                // POST is a few hundred bytes.
+                if (len > WidgetAccess.MaxBodyBytes) { Refuse(ns, 413, $"body over {WidgetAccess.MaxBodyBytes} bytes"); return; }
                 string body = "";
                 if (len > 0)
                 {
@@ -256,6 +305,19 @@ namespace FlyingGame.Bridge.Widget
             }
             catch { }
             finally { try { c.Close(); } catch { } }
+        }
+
+        /// <summary>A short HTTP refusal with a reason in the body. Never a silent drop: the caller is a browser or
+        /// a script, and whoever reads the message is the person who can fix the request.</summary>
+        private static void Refuse(NetworkStream ns, int status, string why)
+        {
+            try
+            {
+                byte[] payload = Encoding.UTF8.GetBytes(new JObject { ["ok"] = false, ["error"] = why }.ToString(Newtonsoft.Json.Formatting.None));
+                byte[] hb = Encoding.ASCII.GetBytes($"HTTP/1.1 {status} \r\nContent-Type: application/json\r\nContent-Length: {payload.Length}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n");
+                ns.Write(hb, 0, hb.Length); ns.Write(payload, 0, payload.Length); ns.Flush();
+            }
+            catch { }
         }
 
         // ---- (legacy HttpListener path, unused) ----

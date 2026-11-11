@@ -112,6 +112,32 @@ public sealed class WidgetServerSurfaceTests
         Assert.Contains(needle, File.ReadAllText(path), StringComparison.Ordinal);
     }
 
+    // ---- request sizes --------------------------------------------------------------------------------------
+
+    [Fact]
+    public void TheTcpPortNoLongerReadsAnUnboundedLine()
+    {
+        string code = Code(Source("WidgetServer.cs"));
+        // A bare StreamReader.ReadLine() on a socket has no limit: a peer that never sends a newline grows one
+        // string until the process dies, and it costs the peer nothing.
+        Assert.DoesNotMatch(new Regex(@"reader\.ReadLine\(\)"), code);
+        Assert.Contains("ReadLineCapped(reader, writer)", code, StringComparison.Ordinal);
+        Assert.Contains("WidgetAccess.MaxLineBytes", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheHttpBodyIsNotAllocatedFromTheRequestsOwnClaim()
+    {
+        string code = Code(Source("WidgetServer.cs"));
+        int alloc = code.IndexOf("new byte[len]", StringComparison.Ordinal);
+        Assert.True(alloc > 0, "WidgetServer.cs no longer allocates the body as new byte[len] — this test reads it");
+        int cap = code.IndexOf("WidgetAccess.MaxBodyBytes", StringComparison.Ordinal);
+        Assert.True(cap > 0 && cap < alloc, "Content-Length must be capped BEFORE the array is allocated");
+        Assert.Contains("WidgetAccess.MaxHeadBytes", code, StringComparison.Ordinal);
+        // A truncated header block used to be parsed as though the request were complete.
+        Assert.Contains("headComplete", code, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void TheSnapshotDirectoryIsTheWidgetsOwnAndNotTheRepository()
     {
