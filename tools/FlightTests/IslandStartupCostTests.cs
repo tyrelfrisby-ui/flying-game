@@ -25,7 +25,13 @@ namespace FlyingGame.FlightTests;
 /// NaN (B1 qualification, t971u: 40 names, reproduced by running this class before it). <see cref="Dispose"/> puts back
 /// whatever terrain was there before, after every test, pass or fail.
 /// </summary>
-[Collection("WorldTerrainActive")]   // swaps the global terrain: never in parallel with the legacy-world tests
+// FLIES an aeroplane, so it READS the global ground and weather (WorldTerrain.Active, Atmosphere.*,
+// FloatHydro) through the sim even though it sets none of them. The collection was protecting the
+// classes that WRITE that state from each other and leaving their victims outside it, so this class ran
+// in parallel with 68 that install worlds and weather: StructuralTests went 39 of 40 NaN in one run and
+// passed clean in the next on identical code (2026-11-01). A reader needs the same serialisation as a
+// writer. It swaps the global terrain itself too, so it is never in parallel with the legacy-world tests.
+[Collection("WorldTerrainActive")]
 public class IslandStartupCostTests : IDisposable
 {
     private readonly ITestOutputHelper _o;

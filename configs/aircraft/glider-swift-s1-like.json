@@ -1989,6 +1989,12 @@
     "canRelease": true
   },
   "loading": {
+    "cgLimits": [
+      { "massKg": 410.0, "forwardM": 0.0044032, "aftM": -0.1525968 }
+    ],
+    "cgDatumM": 0.2614032,
+    "hasCgDatum": true,
+    "_cgLimitsSource": "EASA TCDS A.038, Swift S-1 (assets-incoming/ref-swift-s1/MEASUREMENTS.md, quoted): \"MAC is 984 mm; 0% MAC is situated at 1,3 mm aft of the datum. CG operational limits: fwd 257 mm aft of datum (26,0% MAC), aft 414 mm aft of datum (41,9% MAC). Maximum mass 410 kg\". The datum is placed 1.3 mm forward of this config's measured MAC leading edge (body x +0.26010), i.e. body x 0.2614032, so body x = datum - arm: forward 0.0044032 m, aft -0.1525968 m, at all weights. Our measured MAC is 970 mm against EASA's 984, so the percent-MAC route would put the limits 3.4 mm (fwd) and 6.1 mm (aft) further forward; the datum stations are used so the chart reads as the certificate does.",
     "emptyMassKg": 0,
     "emptyCg": [
       0.0,

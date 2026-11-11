@@ -105,7 +105,7 @@ public class MountainFrontTests
     /// four share an x, so every front keeps the old cliff across the middle, and the spurs are out to the
     /// sides where there is room for them.
     /// </summary>
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the mountain front aerodrome bays. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheAerodromesSitInBaysInTheRange()
     {
         for (int i = 0; i < WorldTerrain.StepCount; i++)

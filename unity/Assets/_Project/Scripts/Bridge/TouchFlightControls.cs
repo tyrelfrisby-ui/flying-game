@@ -72,13 +72,20 @@ namespace FlyingGame.Bridge
 
         // Fleet the on-screen "Aircraft" button cycles through (matches KeyboardTestControls 1-0/F1-F2). The retired
         // 737-800 is not on it (owner 2026-11-01).
-        private static readonly string[] Fleet =
+        // AllCycleFleet is declared FIRST on purpose: static field initialisers run in textual order, so a Fleet that
+        // read AllCycleFleet from above its declaration would see null and throw in the type initialiser.
+        private static readonly string[] AllCycleFleet =
         {
             "glider-2-33-like", "glider-eb29r-like", "glider-swift-s1-like", "glider-grob103-acro-like", "c172-like", "pa28-archer-like", "cirrus-sr22-like", "pitts-s2b-like", "stearman-pt17-like", "jn4-jenny-like",
             "cassutt-f1-like", "geebee-r2-like", "glasair3-like",
             "extra-300-like", "p51d-like", "f86-sabre-like", "seminole-like",
             "dc3-like", "hughes-h4-like", "pa18-cub-like", "dhc2-beaver-like", "dhc2-beaver-floats-like", "decathlon-8kcab-like",
+            "j3-cub-like", "great-lakes-like",
         };
+        // Cut to what this build OFFERS (the same allow-list as SessionSettings.Fleet; on iOS the five proven types,
+        // Ty 2026-11-03 and again 2026-11-10: "Keep the five - it was about quality"). Everywhere else, all of them.
+        private static readonly string[] Fleet =
+            System.Array.FindAll(AllCycleFleet, id => FlyingGame.Core.FleetAllowList.Allows(SessionSettings.PlatformAllowList, id));
         // What the button and the number keys actually cycle: Fleet, except in the TestFlight slim package (FG_TF_SLIM,
         // FlyingGame.Core.TestFlightFleet), which ships only its own six types.
 #if FG_TF_SLIM
@@ -1096,6 +1103,12 @@ namespace FlyingGame.Bridge
             FlyingGame.Core.PedalFrame pedals = RudderPedals.Frame;
             float handBias = brake > 0f ? Mathf.Clamp(_rudder * BrakeRudderBias, -1f, 1f) : 0f;
             (double simBrake, double simBias) = FlyingGame.Core.PedalBlend.Combine(brake, handBias, pedals);
+            // Separate LEFT / RIGHT wheel brakes from the triggers (8BitDo LT / RT; the Quest Touch triggers), harder wins.
+            {
+                var gpb = GamepadInput.Now;
+                float wl = Mathf.Max(gpb.Connected ? gpb.BrakeLeft : 0f, _questBrakeL), wr = Mathf.Max(gpb.Connected ? gpb.BrakeRight : 0f, _questBrakeR);
+                (simBrake, simBias) = FlyingGame.Core.GamepadShaping.CombineWheelBrakes(simBrake, simBias, wl, wr);
+            }
             _driver.Sim.Aircraft.BrakeInput = simBrake;
             _driver.Sim.Aircraft.BrakeBias = simBias;
             // Trim biases the elevator like a real trim tab: hands-off stick still holds the trimmed attitude.
@@ -1141,7 +1154,7 @@ namespace FlyingGame.Bridge
         // itself is QuestControlMapper in Core (tested in QuestControlsTests); the table is docs/quest-controls.md.
 
         private readonly FlyingGame.Core.Vr.QuestControlMapper _quest = new();
-        private float _questBrake;
+        private float _questBrake, _questBrakeL, _questBrakeR;
         private bool _questFlying, _questWaitRelease;
         /// <summary>A headset hand is holding the cockpit's own stick (VrCockpitHands): the stick is held even at neutral.</summary>
         private bool _vrStickHeld;
@@ -1209,7 +1222,7 @@ namespace FlyingGame.Bridge
 
         private void QuestInput()
         {
-            _questBrake = 0f;
+            _questBrake = 0f; _questBrakeL = _questBrakeR = 0f;
             _vrStickHeld = false;
             if (!XrHeadset.Active) { _questFlying = false; return; }
             // The press that closed the VR menu (A, B, X, Y, a trigger) must not carry on into trim, flaps or guns:
@@ -1248,7 +1261,7 @@ namespace FlyingGame.Bridge
                 _rudder = (float)c.Rudder;
                 if (c.ThrottleMoved) { _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * (float)c.Throttle01); _leftKnob = IdleLeftKnob(); _vrHandle = -1f; }
             }
-            _questBrake = (float)c.Brake;
+            _questBrake = (float)c.Brake; _questBrakeL = (float)c.BrakeLeft; _questBrakeR = (float)c.BrakeRight;
             if (c.PitchTrimRate != 0.0) _pitchTrim = Mathf.Clamp(_pitchTrim + (float)c.PitchTrimRate * dt, -1f, 1f);
             ApplyCockpitHands(hands);
             var ac = _driver.Sim?.Aircraft;
@@ -1259,7 +1272,9 @@ namespace FlyingGame.Bridge
                 _deskFlapStep = step; _flapTapThird = step; _tapped.Add(Btn.Flaps);
             }
             if (c.Gear) _tapped.Add(ac?.Config?.Propulsion == null ? Btn.Tow : Btn.Gear);   // a glider has no gear: the stick click is TOW / RELEASE
-            if (c.Smoke) _tapped.Add(Btn.Smoke);
+            // Right grip (Touch) / RB (pad): guns where they are hot, else smoke on / off (2026-11-04: the right
+            // trigger is now the right wheel brake, so the guns moved to the grip).
+            if (c.Smoke && !FireAvailable) _tapped.Add(Btn.Smoke);
             _combat ??= GetComponent<CombatController>();
             if (c.Fire && FireAvailable && _combat != null) _combat.Firing = true;
             ActOnTaps();

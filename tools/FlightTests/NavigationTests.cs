@@ -125,7 +125,7 @@ public class NavigationTests : IDisposable
     /// The hills earn their place. A station on the Mesa field hears a seventh of the world; the two hill
     /// sites hear half of it. If somebody ever "tidies" the stations onto the airports, this fails.
     /// </summary>
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy navaid sites. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheHillSitesBeatTheAirportSites()
     {
         double Coverage(double x, double y)
@@ -166,7 +166,7 @@ public class NavigationTests : IDisposable
         Assert.False(NavReception.InConeOfConfusion(v.X, v.Y, v.AntennaM, v.X + 100, v.Y, v.GroundM));
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy navaid sites. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheGroundInTheWayTakesTheSignalAway()
     {
         // The Valley VOR, read from the Bench plateau just the other side of the escarpment: on the deck
@@ -182,7 +182,7 @@ public class NavigationTests : IDisposable
         Assert.True(sHigh > sLow, "climbing must help");
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy navaid sites. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheFresnelFadeIsSoftRatherThanABinary()
     {
         // Climbing through the shadow edge, the signal must pass through intermediate values rather than
@@ -408,7 +408,7 @@ public class NavigationTests : IDisposable
     /// an ADF approach in mountains a different thing from a VOR one — so the error has to be real, bounded,
     /// and ZERO where there is nothing in the way.
     /// </summary>
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy navaid sites. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheTerrainBendsTheNeedleButOnlyWhereThereIsTerrain()
     {
         Ndb bn = Navaids.NdbById("BN");
@@ -454,7 +454,7 @@ public class NavigationTests : IDisposable
         Assert.Equal(0, NavReception.RelativeBearingDeg(brg, 270), 1);
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy navaid sites. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheBeaconsSitOnTheGroundTheTableSaysTheyDo()
     {
         // A navaid's elevation is a surveyed fact on a chart. If the terrain moves under one, the chart is

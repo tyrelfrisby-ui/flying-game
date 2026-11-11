@@ -48,7 +48,7 @@ public class WaterfallTunnelTests : IDisposable
 
     // ---- the low bore: the way out ----
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the waterfall tunnels and their bores. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheBoreFloorIsFlatAndFlushWithTheShelfOutsideItsMouth()
     {
         var (t, f) = World();
@@ -106,7 +106,7 @@ public class WaterfallTunnelTests : IDisposable
 
     // ---- the maze as a whole ----
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the waterfall tunnels and their bores. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void EveryLegHasAMountainOverItsCrown()
     {
         // The layout is written as a path, not as coordinates, so this is the test that says the path stayed
@@ -280,7 +280,7 @@ public class WaterfallTunnelTests : IDisposable
         Assert.True(wide.Value.depth > 0);
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the waterfall tunnels and their bores. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void ThereIsPavementToLandOnAndItIsPavedOnlyWhereItShouldBe()
     {
         var (_, f) = World();
@@ -468,7 +468,7 @@ public class WaterfallTunnelTests : IDisposable
 
     // ---- water, which is what made all of this possible ----
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the waterfall tunnels and their bores. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void NoWaterInsideTheTunnelThoughTheRiverRunsOverIt()
     {
         var (t, f) = World();
@@ -482,7 +482,7 @@ public class WaterfallTunnelTests : IDisposable
         Assert.Null(FloatHydro.WaterSurfaceAt(x, y, floor + 0.5));
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the waterfall tunnels and their bores. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheAmphitheaterBehindEveryCurtainIsDryUnderTheShelf()
     {
         // This was wrong before the tunnel went in: the slot behind a curtain is meant to be flyable, and the
@@ -498,7 +498,7 @@ public class WaterfallTunnelTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the waterfall tunnels and their bores. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheRiverItselfStillHasWaterAboveAndBelowTheFall()
     {
         var t = Fresh();

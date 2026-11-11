@@ -87,6 +87,8 @@ public static class IslandGeometry
     public static readonly List<IslandCombatZone> Zones = new();
     public static readonly List<(string id, IslandPoint p, double up)> ObstructionLights = new();
     public static readonly List<(string id, IslandPoint p, double up)> MarkerBalls = new();
+    /// <summary>Every windsock: three per airport runway (<see cref="WindsockPart"/>). Drawn by Bridge/Windsock only.</summary>
+    public static readonly List<WindsockPart.Site> Windsocks = new();
     private static IslandValue W => IslandTerrain.World;
     private static uint Hash(int i, int seed) { uint x = unchecked((uint)(i * 73856093) ^ (uint)seed); x ^= x >> 13; x *= 1274126177; return x ^ (x >> 16); }
     public static double Random(int i, string seed) => (Hash(i, (int)W["seeds"].N(seed)) & 0xffffff) / 16777215.0;
@@ -120,12 +122,14 @@ public static class IslandGeometry
         => Cables.Add(new Cable(id, mat, new Vec3(a.X, a.Y, -za), new Vec3(b.X, b.Y, -zb), radius));
     public static void Build()
     {
-        Slopes.Clear(); Blocks.Clear(); Cables.Clear(); Arches.Clear(); Rings.Clear(); Zones.Clear(); ObstructionLights.Clear(); MarkerBalls.Clear();
+        Slopes.Clear(); Blocks.Clear(); Windsocks.Clear(); Cables.Clear(); Arches.Clear(); Rings.Clear(); Zones.Clear(); ObstructionLights.Clear(); MarkerBalls.Clear();
         WorldSolids.Boxes.Clear(); WorldSolids.Shapes.Clear(); WorldDecks.All.Clear();
         BuildAirparks(); BuildFloatBases(); BuildHazards(); BuildBoxes(); BuildCombat(); BuildCavities(); BuildFeatures();
         foreach (var b in Blocks) { WorldSolids.Shapes.Add(b); if (b.Landable) WorldDecks.All.Add(b); }
         foreach (var slope in Slopes) { WorldDecks.All.Add(slope); WorldSolids.Shapes.Add(slope); }
         foreach (var c in Cables) WorldSolids.Shapes.Add(c);
+        // Windsocks last, so they can keep clear of every building and parked aeroplane (WindsockPart: the shared part).
+        Windsocks.AddRange(WindsockPart.Sites(Blocks)); foreach (var s in Windsocks) WorldSolids.Shapes.Add(WindsockPart.MastSolid(s));
         foreach (var a in Arches) WorldSolids.Shapes.Add(new CanyonLake.ArchSolid(a));
         foreach (var r in Rings) WorldSolids.Shapes.Add(new FlyCity.TorusSolid(r.Centre.X, r.Centre.Y, r.Up, r.Radius, 1.4, r.Spinning ? (double?)null : r.Heading * Math.PI / 180));
         WorldSolids.Shapes.Add(new IslandCavities.Roof()); Carrier.Register(); Forest.RegisterSolids(); WorldSolids.Version++;
@@ -157,10 +161,6 @@ public static class IslandGeometry
                 Add(f.Id + ":parked:" + i + ":wing", "aircraft", p, z + 1.1, z + 1.3, 1.6, 10, f.Heading + 12);
                 Add(f.Id + ":parked:" + i + ":tail", "aircraft", p - f.U * .0025, z + .7, z + .9, .8, 3.6, f.Heading + 12);
             }
-            var sock = f.Centre + f.V * ((f.Width / 2 + 55) / 1000); double zg = f.SurfaceHeight(sock);
-            Add(f.Id + ":windsock-pole", "white", sock, zg, zg + 6, .16, .16);
-            // Fixed visual reference only. Claude owns wind animation.
-            CableBetween(f.Id + ":windsock", "orange", sock, zg + 6, sock + IslandPoint.Heading(240) * .002, zg + 5.7, .35);
         }
     }
     private static void BuildFloatBases()

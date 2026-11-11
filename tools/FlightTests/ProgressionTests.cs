@@ -126,9 +126,9 @@ public class ProgressionTests
         string bridge = Path.Combine(Repo, "unity", "Assets", "_Project", "Scripts", "Bridge");
         var pickers = new (string what, string[] ids)[]
         {
-            ("the start menu fleet (SessionSettings.Fleet)", IdsIn(Path.Combine(bridge, "SessionSettings.cs"), "public static readonly (string id, string name)[] Fleet", "};",
+            ("the start menu fleet (SessionSettings.Fleet)", IdsIn(Path.Combine(bridge, "SessionSettings.cs"), "public static readonly (string id, string name)[] MasterFleet", "};",
                                                                   @"\(""([a-z0-9-]+-like)"",")),   // the id, not the display name
-            ("the on-screen Aircraft button", IdsIn(Path.Combine(bridge, "TouchFlightControls.cs"), "private static readonly string[] Fleet", "};")),
+            ("the on-screen Aircraft button", IdsIn(Path.Combine(bridge, "TouchFlightControls.cs"), "private static readonly string[] AllCycleFleet", "};")),
             ("the keyboard number keys", IdsIn(Path.Combine(bridge, "KeyboardTestControls.cs"), "KeyCode.Alpha1", "KeyCode.V")),
         };
         foreach (var (what, ids) in pickers)

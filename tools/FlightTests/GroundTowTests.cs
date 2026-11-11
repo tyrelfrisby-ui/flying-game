@@ -10,6 +10,13 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>Aerotow from the runway with the TugPilot: launch, climb, pattern; glider releases; tug returns,
 /// lands with the rope and stops. Plus the rope-angle auto-release when the glider climbs far too high.</summary>
+// FLIES an aeroplane, so it READS the global ground and weather (WorldTerrain.Active, Atmosphere.*,
+// FloatHydro) through the sim even though it sets none of them. The collection was protecting the
+// classes that WRITE that state from each other and leaving their victims outside it, so this class ran
+// in parallel with 68 that install worlds and weather: StructuralTests went 39 of 40 NaN in one run and
+// passed clean in the next on identical code (2026-11-01). A reader needs the same serialisation as a
+// writer.
+[Collection("WorldTerrainActive")]
 public class GroundTowTests
 {
     private readonly ITestOutputHelper _out;
@@ -124,5 +131,45 @@ public class GroundTowTests
         }
         _out.WriteLine($"tug released at t={tRelease:F1}");
         Assert.True(tRelease > 30 && tRelease < 90, $"tug should release once the glider is far above (got {tRelease})");
+    }
+
+    /// <summary>Ty 2026-11-06 (t906u): "Use the Great Lakes as a tow plane for the 2-33 until we get the super cub built."
+    /// The same runway launch the game runs (TowController: tug at rest 66.2 m ahead, throttle brought up, TugPilot),
+    /// with the Great Lakes on the rope: both aeroplanes must leave the runway still connected, the tug must climb the
+    /// 2-33 out to the pattern on the weak link, and the tug must not lose a part doing it.</summary>
+    [Fact]
+    public void GreatLakesTowsThe233OffTheRunwayAndClimbsOut()
+    {
+        var gcfg = TestAircraftConfig.Load();
+        Assert.Equal("glider-2-33-like", gcfg.Id);
+        Assert.Equal("great-lakes-like", TowPlanes.TugFor(gcfg.Id, "pa25-pawnee-like"));
+        var tcfg = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "great-lakes-like.json"));
+        var glider = OnGround(gcfg, 0);
+        var tug = OnGround(tcfg, 61.0 + 2.0 + 3.4 - 0.2);
+        var lost = new List<string>(); tug.ComponentLost += c => lost.Add(c.ToString());
+        var tow = new AeroTow(tug, glider, 61.0); _towTrim = 0;
+        var pilot = new TugPilot { ThresholdX = -100, RunwayY = 0, RunwayElevM = 0 };
+        double dt = SimLoop.DefaultFixedDtSec, tTugOff = -1, tGliderOff = -1, maxTension = 0;
+        for (double t = 0; t < 120; t += dt)
+        {
+            if (tow.Connected) tow.Apply(dt);
+            maxTension = Math.Max(maxTension, tow.Tension);
+            pilot.PowerLimit01 = Math.Min(1.0, t / 2.0);   // the glider pilot brings the tug's power up, then it latches
+            glider.Step(tow.Connected ? FollowTug(glider, tug, 0.0) : new ControlInputs(0, 0, 0, 0.3), dt);
+            ControlInputs ci = pilot.Update(tug, dt, tow.Tension, tow.Connected ? RopeDirBody(tow) : null);
+            if (pilot.WantsRelease && tow.Connected) tow.Release("tug");
+            tug.Step(ci, dt);
+            if (tGliderOff < 0 && -glider.State.Position.Z > 3) tGliderOff = t;
+            if (tTugOff < 0 && -tug.State.Position.Z > 3) tTugOff = t;
+            if (System.Environment.GetEnvironmentVariable("TOWTRACE") != null && Math.Abs(t / 5.0 - Math.Round(t / 5.0)) < dt / 2)
+                _out.WriteLine($"   t={t:F0} {pilot.Phase} tug V {tug.State.Velocity.Length:F1} agl {-tug.State.Position.Z:F1} glider V {glider.State.Velocity.Length:F1} agl {-glider.State.Position.Z:F1} tension {tow.Tension:F0}");
+            if (!tow.Connected) break;
+        }
+        _out.WriteLine($"Great Lakes tug: glider off at {tGliderOff:F1} s, tug off at {tTugOff:F1} s, at 120 s tug {-tug.State.Position.Z:F0} m, glider {-glider.State.Position.Z:F0} m, {pilot.Phase}, rope {(tow.Connected ? "on" : tow.SeverReason)}, peak {maxTension:F0} N");
+        Assert.Empty(lost);
+        Assert.True(tGliderOff > 0 && tGliderOff < 40, $"the 2-33 should be off the runway within 40 s (got {tGliderOff:F1})");
+        Assert.True(tTugOff > 0 && tTugOff < 50, $"the Great Lakes should be off the runway within 50 s (got {tTugOff:F1})");
+        Assert.True(tow.Connected, $"the rope should hold through the climb-out (severed: {tow.SeverReason})");
+        Assert.True(-tug.State.Position.Z > 100, $"the tug should have climbed the 2-33 above 100 m in two minutes (at {-tug.State.Position.Z:F0} m)");
     }
 }

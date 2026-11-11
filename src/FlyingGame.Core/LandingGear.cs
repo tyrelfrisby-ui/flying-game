@@ -726,6 +726,12 @@ public static class LandingGear
                         ws.InContact = true; ws.OverWater = true; ws.LoadN = -hydro.Z;
                         ws.VFwdMs = System.Math.Sqrt(vWater.X * vWater.X + vWater.Y * vWater.Y);
                         ws.Material = GroundMaterial.Water; ws.Brake01 = wheelBrake;
+                        ws.GroundUpWorld = new Vec3(0, 0, -1);
+                        ws.GroundVelocityWorld = new Vec3(vWater.X, vWater.Y, 0);
+                        ws.HeadingWorld = SurfaceContacts.InPlane(s.Attitude.Rotate(new Vec3(1, 0, 0)), ws.GroundUpWorld);
+                        ws.SinkM = tyreDepth;
+                        ws.SurfaceWorld = new Vec3(wheelWorld.X, wheelWorld.Y, wheelWorld.Z - tyreDepth);
+                        ws.PenetrationM = tyreDepth;
                     }
                     totalForce += hydro;
                     totalMoment += Vec3.Cross(s.Attitude.Rotate(rBody) + cpOffset, hydro);
@@ -841,6 +847,28 @@ public static class LandingGear
                 ws.InContact = true; ws.LoadN = normalN; ws.Surface = surface; ws.Brake01 = wheelBrake;
                 ws.TyreLoadN = normalN; ws.PatchWorld = wheelWorld;
                 ws.OverWater = overWater;
+                // Where the UNDISTURBED surface is: the patch carried back up the normal by the contact compression.
+                // The marks in the ground lie here, not at the patch, which is inside the ground by the leg's and the
+                // tyre's deflection (WheelState.SurfaceWorld).
+                ws.SurfaceWorld = wheelWorld + groundUp * penetration;
+                // The whole contact compression, for a leg whose own mark cannot come from a sinkage model (a bearing
+                // ski, a skid, a float keel): WheelState.PenetrationM says what it is and is not.
+                ws.PenetrationM = penetration;
+                if (skiBears && skiGeo != null)
+                {
+                    // A BEARING SKI's running surface, from the ski the type actually carries (SkiGear.Geometry, built
+                    // from the airframe's own dimensions) rather than a default. These are the tyre's footprint fields
+                    // because a leg on its ski has no tyre in the load path at all (`tire` is null above), so nothing
+                    // else writes them, and every reader of them wants "the patch this leg stands on".
+                    ws.FootprintWidthM = skiGeo.WidthM;
+                    ws.FootprintLengthM = skiGeo.LengthM;
+                    ws.GroundPressurePa = skiGeo.WidthM > 0 && skiGeo.LengthM > 0 ? normalN / (skiGeo.WidthM * skiGeo.LengthM) : 0.0;
+                }
+                // For the surface tracks: the ground's plane here and the patch's way over it (a tyre's own heading
+                // replaces the body's below, once it is steered).
+                ws.GroundUpWorld = groundUp;
+                ws.GroundVelocityWorld = contactVelWorld - groundUp * Vec3.Dot(contactVelWorld, groundUp);
+                ws.HeadingWorld = SurfaceContacts.InPlane(s.Attitude.Rotate(new Vec3(1, 0, 0)), groundUp);
                 if (tire != null)
                 {
                     ws.RollingRadiusM = TireModel.RollingRadiusM(tire, tyreDefl);
@@ -903,7 +931,7 @@ public static class LandingGear
             // left the heavier types with a fifth of their friction budget and they skated sideways (owner).
             double slip = System.Math.Atan2(vSide, System.Math.Abs(vFwd) + 0.5);
             bool onSki = skiBears;
-            if (ws != null && firstStage) { ws.OnSki = onSki; ws.VFwdMs = vFwd; }
+            if (ws != null && firstStage) { ws.OnSki = onSki; ws.VFwdMs = vFwd; ws.VSideMs = vSide; ws.HeadingWorld = tireFwd; }
             double cornerPerLoad = onSki ? SkiCorneringPerLoad : (g.IsTailwheel ? TailwheelCorneringPerLoad : CorneringPerLoad);
             double cornering = onSki ? cornerPerLoad * normalN
                                      : System.Math.Max(g.CorneringStiffnessN, cornerPerLoad * normalN);
@@ -923,6 +951,8 @@ public static class LandingGear
                             ? (tire != null ? SnowSinkageRolling(tire, tyrePsi, surface, staticLoadN) : SnowSinkageRolling(config, surface, staticLoadN))
                             : TireModel.RollingCoefficient(tire, tyrePsi, surface, normalN, tyreDefl);
             double rollN = rollMu * normalN;
+            // The rut that rolling resistance is the price of (the surface tracks read it; nothing here does).
+            if (ws != null && firstStage && !onSki) ws.SinkM = TireModel.GroundSinkageM(tire, rollMu, surface, tyreDefl);
             // A soft or flat tyre is squashed further and loses more to its own hysteresis (TyreWear).
             if (!onSki && ws?.Tyre != null) rollN += ws.Tyre.ExtraRollingCoefficient(WorldTerrain.RollingCoefficient(WorldTerrain.Surface.Paved)) * normalN;
             // Math.Sign THROWS on NaN, and this is reached four times a step. An aeroplane deep inside geometry
@@ -998,6 +1028,7 @@ public static class LandingGear
                 if (ws != null && ws.IsWheel && firstStage && dt > 0 && double.IsFinite(lateralN) && double.IsFinite(vSide))
                 {
                     double pSide = System.Math.Abs(lateralN * vSide);
+                    ws.SidePowerW = pSide;
                     ws.SideSlipEnergyJ += pSide * dt;
                     ws.SideSlipImpulseNs += System.Math.Abs(lateralN) * dt;
                     if (double.IsFinite(latDemand))

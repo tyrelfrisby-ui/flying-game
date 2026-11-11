@@ -6,18 +6,20 @@ namespace FlyingGame.Core;
 ///
 /// Pure arithmetic, no Unity: the Unity side reads the pad and hands the raw numbers here. A thumb stick travels a
 /// centimetre where a real stick travels a hand's width, so it gets a dead zone of its own (pads rest a few percent
-/// off centre and drift) and HEAVY expo, so the middle of that short travel is fine control and the stops are
-/// still full deflection.
+/// off centre and drift). Its expo is NOT here any more: the pad used to add a heavy 0.65 curve of its own, and
+/// Aircraft.ShapeAxis then added the aeroplane's on top — two curves. Since 2026-11-04 the pad hands over its zoned
+/// sticks linearly (<see cref="DefaultExpo"/> = 0) and the one shared <see cref="InputExpo"/> curve is applied by the
+/// sim, the same for a pad, the touch pads, a joystick and the Quest.
 ///
 ///  • DEAD ZONE: everything inside it is exactly zero, and what is left is rescaled so the edge of the zone is 0 and
 ///    the stop is 1 — no step at the edge, and nothing lost at the end. The two sticks use a RADIAL zone, measured on
 ///    the stick's distance from centre, so a small diagonal is not cut to a pure axis the way two separate axis zones
 ///    would cut it.
-///  • EXPO: out = (1 − e)·x + e·x³. At x = ±1 that is ±1 for every e, so full deflection is exactly full; for e in
+///  • EXPO (available, off by default): out = (1 − e)·x + e·x³ (<see cref="InputExpo.Apply"/>). At x = ±1 that is ±1 for every e, so full deflection is exactly full; for e in
 ///    0…1 the slope (1 − e) + 3e·x² is never negative, so more stick never gives less control.
 ///
 /// The mapping (Ty, 2026-11-02, "the right hand on the stick"): RIGHT stick = roll and pitch, LEFT stick X = rudder
-/// (triggers as a second rudder), LEFT stick Y = throttle as a rate (<see cref="ThrottleRate"/>). Expo on the three
+/// (the triggers are the LEFT / RIGHT toe brakes since 2026-11-04; they were a second rudder), LEFT stick Y = throttle as a rate (<see cref="ThrottleRate"/>). Expo on the three
 /// flight controls only. This file is shared by every platform (iOS, Mac, Quest).
 ///
 /// Sign conventions are the PAD'S: stick right and stick up (pushed away from you) are positive, triggers 0…1.
@@ -31,8 +33,9 @@ public static class GamepadShaping
     public const double DefaultStickDeadZone = 0.02;
     /// <summary>The triggers' dead zone: they rest at zero and do not drift, so they need less.</summary>
     public const double DefaultTriggerDeadZone = 0.05;
-    /// <summary>The expo blend, 0 = linear … 1 = pure cube.</summary>
-    public const double DefaultExpo = 0.65;
+    /// <summary>The pad's OWN expo blend, 0 = linear … 1 = pure cube. Zero: the shared <see cref="InputExpo"/> curve,
+    /// applied once by Aircraft.ShapeAxis, is the expo (Ty 2026-11-04; was 0.65 here, stacked on the aeroplane's).</summary>
+    public const double DefaultExpo = 0.0;
 
     /// <summary>One axis through a symmetric dead zone, rescaled so the stop is still ±1.</summary>
     public static double DeadZone(double x, double deadZone)
@@ -56,11 +59,7 @@ public static class GamepadShaping
     }
 
     /// <summary>The cubic expo blend (1 − e)·x + e·x³, with e clamped to 0…1 and x to ±1.</summary>
-    public static double Expo(double x, double expo)
-    {
-        double e = Math.Clamp(expo, 0.0, 1.0), c = Math.Clamp(x, -1.0, 1.0);
-        return (1.0 - e) * c + e * c * c * c;
-    }
+    public static double Expo(double x, double expo) => InputExpo.Apply(x, expo);
 
     /// <summary>The flying stick (the RIGHT stick), dead zone then expo per axis: (roll, pitch).</summary>
     public static (double X, double Y) Stick(double x, double y,
@@ -81,6 +80,29 @@ public static class GamepadShaping
         double s = DeadZone(leftStickX, stickDeadZone);
         double t = DeadZone(Math.Clamp(rightTrigger, 0.0, 1.0), triggerDeadZone) - DeadZone(Math.Clamp(leftTrigger, 0.0, 1.0), triggerDeadZone);
         return Math.Clamp(Expo(s, expo) + Expo(t, expo), -1.0, 1.0);
+    }
+
+    /// <summary>The rudder from the LEFT stick's X alone (Ty 2026-11-04: the triggers are now the toe brakes, see
+    /// <see cref="TriggerBrakes"/>; the stick was already full rudder by itself, so nothing is lost).</summary>
+    public static double StickRudder(double leftStickX, double stickDeadZone = DefaultStickDeadZone, double expo = DefaultExpo)
+        => Expo(DeadZone(leftStickX, stickDeadZone), expo);
+
+    /// <summary>
+    /// The triggers as TOE BRAKES (Ty 2026-11-04, 8BitDo on iOS / Mac / Quest): LEFT trigger = LEFT wheel brake,
+    /// RIGHT trigger = RIGHT wheel brake, proportional — trigger travel is brake pressure. Dead zone then linear
+    /// (no expo: like a pedal, half pull is half brake).
+    /// </summary>
+    public static (double Left, double Right) TriggerBrakes(double leftTrigger, double rightTrigger,
+        double triggerDeadZone = DefaultTriggerDeadZone)
+        => (DeadZone(Math.Clamp(leftTrigger, 0.0, 1.0), triggerDeadZone), DeadZone(Math.Clamp(rightTrigger, 0.0, 1.0), triggerDeadZone));
+
+    /// <summary>Add separate left / right wheel brakes (triggers) to a (brake, bias) pair the sim already has: each
+    /// wheel gets the harder of the two, the same rule as the rudder pedals (<see cref="PedalBlend.Combine"/>).</summary>
+    public static (double Brake, double Bias) CombineWheelBrakes(double brake, double bias, double left, double right)
+    {
+        if (left <= 0.0 && right <= 0.0) return (brake, bias);
+        var (l, r) = PedalBlend.FromSim(brake, bias);
+        return PedalBlend.ToSim(Math.Max(l, left), Math.Max(r, right));
     }
 
     /// <summary>

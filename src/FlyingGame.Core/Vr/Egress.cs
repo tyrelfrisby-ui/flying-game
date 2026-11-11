@@ -30,6 +30,11 @@ namespace FlyingGame.Core.Vr
     public sealed class ClimbOut
     {
         public const double StrappedRiseM = 0.02, CanopyRiseM = 0.08, ExposedRiseM = 0.30, OverRiseM = 0.50, MaxRiseM = 0.60;
+        /// <summary>How far he gets with a FOLDED WING lying across the opening (Ty 2026-11-10: "Negative g wing folds
+        /// prevent escape/bailout unless the wing actually departs if a door is blocked"). Less than the canopy allows,
+        /// because a canopy he is pressing on is above his head and a wing across the door is in front of his shoulders:
+        /// he can get out of the seat and no further. Only the wing DEPARTING clears it.</summary>
+        public const double WingBlockedRiseM = 0.05;
         public const double TorsoCdA = 0.35;
 
         public double RiseM { get; private set; }
@@ -56,12 +61,16 @@ namespace FlyingGame.Core.Vr
 
         /// <summary>One frame. <paramref name="hand"/>: the hand on the sill, cockpit frame, measured from where the seat
         /// is NOW (i.e. without the rise already applied — the body rises, the hand stays on the sill).</summary>
-        public ClimbEvents Step(Vec3 hand, bool strapped, bool canopyClear, double q)
+        /// <param name="exitClear">Is the way out of the opening clear of the AEROPLANE? False when a folded wing lies
+        /// across it (EgressClearance.From with the panels, then Hit at the opening). A folded wing is still attached,
+        /// so nothing else will move it: he is trapped until it departs.</param>
+        public ClimbEvents Step(Vec3 hand, bool strapped, bool canopyClear, double q, bool exitClear = true)
         {
             ClimbEvents ev = ClimbEvents.None;
             if (Out || !Held) return ev;
             double want = Math.Clamp(_grabRise + (_grabY - hand.Y), 0.0, MaxRiseM);
             double cap = strapped ? StrappedRiseM : canopyClear ? MaxRiseM : CanopyRiseM;
+            if (!exitClear) cap = Math.Min(cap, WingBlockedRiseM);
             if (want > cap + 1e-4) ev |= ClimbEvents.Blocked;
             RiseM = Math.Min(want, cap);
             if (RiseM >= ExposedRiseM && !_exposed) { _exposed = true; ev |= ClimbEvents.Exposed; }
@@ -144,15 +153,43 @@ namespace FlyingGame.Core.Vr
 
         public readonly List<Box> Boxes = new();
 
-        public static EgressClearance From(AircraftConfig cfg)
+        public static EgressClearance From(AircraftConfig cfg) => From(cfg, null);
+
+        /// <summary>
+        /// The same, with the WING WHERE IT ACTUALLY IS. Each wing strip's box is placed through its panel's
+        /// <see cref="WingPanel.Shape"/> — the strike's kink, the aerodynamic curve and, the reason this exists, the
+        /// FOLD — so a wing that has folded over the cockpit is a box over the cockpit.
+        ///
+        /// Ty 2026-11-10: "Negative g wing folds prevent escape/bailout unless the wing actually departs if a door is
+        /// blocked." A push folds a wing DOWN (the set a negative overstress leaves is tips down), and on a high-wing
+        /// aeroplane like the Cub — whose door is in the side of the cabin, under the wing root — a wing folded down
+        /// about its root sweeps straight across that door. Nothing in the straight-strip boxes could ever say so,
+        /// because they are the aeroplane as authored.
+        ///
+        /// <paramref name="panels"/> null, or a panel whose wing is straight, gives exactly the boxes this always
+        /// gave: Shape is the identity on an undamaged wing.
+        /// </summary>
+        public static EgressClearance From(AircraftConfig cfg, IReadOnlyList<WingPanel> panels)
         {
             var c = new EgressClearance();
             if (cfg?.Surfaces == null) return c;
+            // Which panel owns each strip (AeroModel strip order), so a wing row can be put where its panel is.
+            WingPanel[] owner = null;
+            if (panels is { Count: > 0 })
+            {
+                int total = 0; foreach (SurfaceConfig sf in cfg.Surfaces) total += sf.Strips?.Count ?? 0;
+                owner = new WingPanel[total];
+                foreach (WingPanel p in panels)
+                    foreach (int i in p.SideStrips)
+                        if (i >= 0 && i < total) owner[i] = p;
+            }
+            int idx = -1;
             foreach (SurfaceConfig s in cfg.Surfaces)
             {
                 if (s.Strips == null) continue;
                 foreach (StripConfig st in s.Strips)
                 {
+                    idx++;
                     if (st.Pos == null || st.Pos.Length < 3) continue;
                     double chord = Math.Max(0.05, st.Chord);
                     double halfSpan = chord > 1e-6 ? 0.5 * st.Area / chord : 0.1;
@@ -161,6 +198,18 @@ namespace FlyingGame.Core.Vr
                                     || s.Id.IndexOf("fin", StringComparison.OrdinalIgnoreCase) >= 0
                                     || s.Id.IndexOf("rudder", StringComparison.OrdinalIgnoreCase) >= 0;
                     Vec3 half = vertical ? new Vec3(0, ThicknessM, halfSpan) : new Vec3(0, halfSpan, ThicknessM);
+                    // Where this row's section actually is. A shaped wing's box is taken about the MOVED centre and
+                    // grown to hold the span it sweeps through, which is what a folded wing does to a doorway: it is
+                    // the box being in the way that blocks the door, not its exact corners.
+                    WingPanel own = owner is not null && idx < owner.Length ? owner[idx] : null;
+                    if (own is not null)
+                    {
+                        Vec3 at = own.Shape(new Vec3(x, y, z));
+                        Vec3 outer = own.Shape(new Vec3(x, y + Math.Sign(y == 0 ? 1 : y) * halfSpan, z));
+                        y = at.Y; z = at.Z;
+                        double dy = Math.Abs(outer.Y - at.Y), dz = Math.Abs(outer.Z - at.Z);
+                        half = new Vec3(0, Math.Max(ThicknessM, dy), Math.Max(ThicknessM, dz));
+                    }
                     var min = new Vec3(x - 0.75 * chord, y - half.Y, z - half.Z);
                     var max = new Vec3(x + 0.25 * chord, y + half.Y, z + half.Z);
                     c.Boxes.Add(new Box(s.Id, min, max));   // the configs list both halves strip by strip

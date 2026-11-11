@@ -1,3 +1,398 @@
+## The ten orphaned lanes Ty approved, merged one at a time — Claude, 2026-11-10, lane/claude-backlog-merge
+
+<!-- orphaned-lanes-merge triage-2026-11-10 glb-sidecar-collision parity-lock -->
+
+`docs/pending/ORPHANED-LANES-TRIAGE-2026-11-10.md` classified 75 lanes in neither shipping lane. Ty approved ten of
+them for merging — the READY ones plus the NEEDS YOU ones whose question he answered. They are merged here in the
+order the brief set: trivial first, so an early failure is cheap; the riskiest last. Tests between every merge, so a
+failure is attributable to one lane. **Nothing pushed, nothing merged to `main`, no `--no-verify`.**
+
+Running record, one bullet per lane, newest last:
+
+- **`lane/claude-app-icon`** (`dd679087`) — MERGED. The AP letter icon, 1024 opaque, replacing
+  `unity/Assets/_Project/Art/AppIcon.png` in place under the same GUID `069fd8c6…`, which all 19 iPhone/iPad/App
+  Store slots in `ProjectSettings.asset` already point at — so iOS and iPad get the new icon from the PNG alone.
+  `AGENT-LOG.md` conflicted (both sides kept in full, as always). One piece was held back at first: the
+  `m_BuildTargetIcons` hunk, which sets the *Default* icon so Mac (OSXUniversal) and Quest/Android pick the same
+  texture up, because Ty's standing rule for this run is *never commit
+  `unity/ProjectSettings/ProjectSettings.asset`*. **Asked, he said "Commit just that line."** The rule is there to
+  keep the build's `bundleVersion` bump out of git, not to freeze the whole file, so that hunk alone went in as
+  `bb4904c3`, `bundleVersion` untouched. Mac and Quest get the AP icon too.
+- **`lane/claude-trigger-brakes`** (`b29dd07b`) — MERGED. The triggers become independent LEFT / RIGHT toe brakes on
+  the 8BitDo (iOS/Mac/Quest) and on the Quest Touch, proportional past a 0.05 dead zone and no expo (like a pedal,
+  half pull is half brake); the guns move off the right trigger to the right grip, the VR menu navigates on the
+  sticks with A/X select, and the always-shown MENU tab is hidden behind a `const bool`. Only `AGENT-LOG.md`
+  conflicted; the four Bridge scripts auto-merged.
+  **Two things the lane had gone stale on, both finished here rather than resolved away:**
+  1. `tools/FlightTests/QuestControlsTests.cs` still pinned the OLD mapping and failed —
+     `BrakesFollowTheLeftTrigger` (left trigger = both wheels) and the right-trigger half of
+     `SmokeTogglesOncePerSqueezeAndGunsAreHeld`. The lane updated `QuestStickFeelTests` and missed this file. Both
+     tests are re-pinned to the mapping Ty asked for: the triggers are the two toe brakes, `Fire` follows the right
+     grip.
+  2. `LocalPadControls.cs` — the split-screen second seat — did not exist when this lane was written. Its triggers
+     were a second rudder through `gp.Rudder`, which this lane narrows to the left stick alone, so P2 would have
+     lost the triggers entirely and gained nothing. Three lines put the same `CombineWheelBrakes` on that seat, so
+     both players' triggers are their own toe brakes.
+  Tests: `GamepadShaping|QuestStickFeel|QuestControls|PedalBlend|LocalPad|Brake` — **122 passed, 0 failed.**
+- **`lane/claude-input-expo`** (`bee2ffc7`) — MERGED. One shared `InputExpo` curve, applied ONCE after the dead zone
+  by `Aircraft.ShapeAxis`, on every input path and every platform: 30 % pitch and roll, 20 % yaw (the rudder takes
+  `YawPerPitchRoll` = 0.20/0.30 of the one setting). The pad's own 0.65 goes to zero — it used to stack its curve on
+  the aeroplane's — and the headset's own 0.65 default goes with it. The per-axis expo sliders are replaced by one
+  "Stick expo" row, 0…70 %, in OPTIONS › Controls and in the VR menu, on one pref (`feel.stickExpo`); the per-axis
+  DEAD ZONE stays. Its own log said why it never landed: *"stick expo not merged (no grob103 merge in island-nav
+  after 3 h)"* — the merge it was waiting for never came.
+  **Two conflicts, both real:**
+  1. `OptionsPanel.cs` — the shipping lane has since moved every slider onto a wrapping `SliderRow` helper, and the
+     lane was still drawing raw `UiLayout.Label` + `GUI.HorizontalSlider`. Resolved to the shipping lane's
+     `SliderRow` for both the new Stick-expo row and the surviving dead-zone row. Taking the lane's side would have
+     reverted the wrapping rows Ty asked for on 11-08 (the clipped `":ontrol:"` tab fix's sibling).
+  2. `GamepadShapingTests.TriggersAreTheLeftAndRightToeBrakes`, which the previous merge had just written, asserted
+     `StickRudder(0.51) == 0.25625` — the pad's 0.65 curve. With the pad's expo now zero the left stick is linear,
+     so (0.51 − 0.02)/0.98 = 0.5. Re-pinned, with the reason in the test.
+  **FLYING FEEL, for Ty:** centre stick on the 8BitDo will be LIVELIER than the pad he liked on 11-03 (one 30 %
+  curve, not 0.65 stacked on the aeroplane's 0.1–0.3), and the Quest loses its headset-only 65 %. Both come back by
+  raising "Stick expo" to 65–70 %.
+- **`lane/claude-233-launch`** — **HALF MERGED, deliberately, and the other half is a question for Ty.** The branch
+  carries two unrelated pieces:
+  **TAKEN** (`1d595817`, cherry-picked): a glider runway start is on the rope at once, and
+  `FlyingGame.Core.TowPlanes.TugFor` gives the 2-33 the Great Lakes whatever the TOW PLANE picker says — Ty's own
+  t905u and t906u: *"Use the Great Lakes as a tow plane for the 2-33 until we get the super cub built."* The tug sits
+  at rest 66.2 m ahead and waits at idle until the glider pilot brings its power up; TOW / RELEASE / stick click are
+  unchanged. The reason t905u happened at all is in the lane's own message: the tug appeared only when TOW was
+  tapped, and on the Quest that button is `OnGUI`, which the headset never draws. Self-contained — `TowPlanes.cs`,
+  `TowController.cs`, `StartMenu.cs`, `TowStartCheck.cs` and two test files — and it cherry-picked with no conflict.
+  **NOT TAKEN** (`22289144`, 2026-11-03): a PERMANENT iOS five-aircraft allow-list. It renames
+  `SessionSettings.Fleet` to `MasterFleet`, adds `FleetAllowList.cs`, makes the iPhone's selector offer only the
+  2-33, J-3, Great Lakes, Pitts and Extra with every other type hidden on iOS, and edits `NoRed233Tests` and
+  `ProgressionTests` to follow the rename. **Ty's answer is needed before that ships**: `TestFlightFleet` (11-05) is
+  the later answer to the same problem and says in its own header *"PACKAGING ONLY, OPT-IN. Nothing is deleted from
+  the tree"*, it lists six types rather than five, and tonight's ASTC 4x4 work took the whole fleet to 0.95 GB, so
+  the size pressure is gone. But his 11-03 words were about *"our proven airplanes"*, which is a quality judgement
+  and not a size one, so it may still be what he wants. **Q: does the iPhone still offer only those five in the
+  selector, or the whole fleet now that size is solved?** Nothing was deleted; the branch is intact.
+  **One stale test, fixed:** `TowPlanesTests.TheInterimTugIsAShippedConfig` asserted
+  `unity/Assets/StreamingAssets/aircraft/great-lakes-like.json` exists. That mirror is generated and untracked since
+  2026-11-10, so it is simply absent in a fresh checkout and the test failed there. Re-pinned to the source of
+  truth, `configs/aircraft/great-lakes-like.json`, found by walking up for the `configs/aircraft` directory the way
+  the other tests do.
+- **`lane/claude-233-launch`, the other half — TAKEN AFTER ALL.** Ty, asked whether the iPhone still offers only the
+  five proven types now that the 4 GB problem has been solved another way: **"Keep the five - it was about
+  quality."** So `FleetAllowList` is in: iOS (iPhone and iPad are one build) offers the 2-33, the J-3, the Great
+  Lakes, the Pitts and the Extra, and nothing else; the Mac, the Quest and the editor offer everything; no aircraft,
+  config or model is deleted. `SessionSettings.Fleet` is now `FleetAllowList.Offered(MasterFleet, PlatformAllowList)`
+  and the big list is `MasterFleet`; a saved type this build does not offer falls back to the 2-33, and the dogfight
+  opponent falls from the P-51 to the Extra on iOS. `TouchFlightControls` cycles the same subset.
+  **It was applied by hand, file by file, NOT cherry-picked**, and that was necessary: commit `22289144` also carries
+  the red-and-white 2-33 removal, which shipped on 11-04, and `Livery.cs`, `AirframeVisual.cs` and
+  `AirframeModels.cs` with it. CLAUDE.md's standing warning is *never take the old side of* those exact files, and a
+  cherry-pick conflicted in all three plus five `.meta` deletions. Only `FleetAllowList.cs`,
+  `FleetAllowListTests.cs` and the `SessionSettings` / `TouchFlightControls` / `NoRed233Tests` / `ProgressionTests`
+  hunks were taken.
+  **A real bug in the lane, fixed rather than carried:** it declared `Fleet` (which reads `AllCycleFleet`) ABOVE
+  `AllCycleFleet` in `TouchFlightControls`. C# runs static field initialisers in textual order, so `Fleet` would
+  have been handed a null array and the type initialiser would have thrown the first time the touch controls were
+  used. `AllCycleFleet` is declared first here, with the reason in a comment.
+  **The two fleet lists now coexist and must never be read as each other**, which is written into
+  `SessionSettings.Fleet`'s own doc comment: this allow-list is a permanent QUALITY judgement about what the phone's
+  selector shows (five types), and `FlyingGame.Core.TestFlightFleet` is an opt-in PACKAGING choice about which
+  `Resources/Models` folders go into one TestFlight build (six types, including the J-3 on floats, and its own header
+  says "PACKAGING ONLY, OPT-IN. Nothing is deleted from the tree"). Under `FG_TF_SLIM` on iOS the slim filter now
+  runs on top of the allow-list, so that build offers the intersection.
+- **`lane/claude-windsocks`** (`4021041a`) — MERGED. Two features in one lane, both of them Ty's own words.
+  **Windsocks** (08:43: *"every airport has a wind sock off to the side of the runway at each end and in the middle"*):
+  one shared part, `src/FlyingGame.Core/WindsockPart.cs`, drawn only by `Bridge/Windsock.cs` — three per runway on all
+  43 island runways, 129 of them, abeam each end and midfield, 12 m outside the FAA RSA (30.3 / 34.9 / 88.2 m off the
+  centreline), swinging and filling from `Atmosphere.WindAtPosition` (droop 80° calm → 0 at 15 kt).
+  **Airport lighting** (08:44: *"only airports with instrument approaches have vasi or papi make sure both are
+  represented at one airport or more the rest of the airports have no visual aids and roughly half have runway lights
+  for night flying"*): PAPI at PANC KSNA PHDH KMYL KMEV KPGA, 2-bar VASI at KAVX and PATK, nothing anywhere else;
+  edge lights at 19 of 39 airports, 1,224 lamps on 22 runways. Light **colour is emergent** — each PAPI box and VASI
+  bar is white above its own setting angle and red below it, computed from the angle between that lens and the eye
+  every frame, lit toward its approach only (±10°, gone by 15°).
+  Only `AGENT-LOG.md` conflicted; both sides kept.
+  **Two deletions checked before taking them**, because they look alarming: the lane removes
+  `WorldBuilder.BuildWindsocks` and the whole runway-edge / threshold / static-PAPI block from
+  `Bridge/AirportVisuals.cs`. **Both are dead code.** `AirportVisuals` is referenced nowhere in the tree, and
+  `WorldBuilder.BuildAll` does nothing but `return IslandWorldBuilder.Build()`. So the old world's copies cost
+  nothing live, and the new shared parts are drawn from the island builder, which is the only one that runs.
+  Tests: `Windsock|AirportLighting|IslandSurface|IslandGeometry` — **55 passed, 0 failed.**
+  Carried forward for the wake lane: the windsock lane's own log says `WindsockPart.AirAt` is
+  `Atmosphere.WindAtPosition` alone and that *"lane/claude-wake-vortex has a field, one line in WindsockPart.AirAt
+  when it merges"*. That line goes in with the wake lane, or the socks will not move in a wake.
+  Still Ty's to look at, not an approved gate: `renders/windsocks/` and `renders/airport-lighting/`, Q110–Q113.
+  Two findings from the lane that still stand: **the game has no night**, so the runway lights cannot be flown at
+  night yet, and the VASI angles are not from a document anyone read.
+## NEEDS YOU — the ground keeps its marks: ruts, skids, ski tracks, gouges and a wreck's scar — Claude, 2026-11-10, lane/claude-imprints
+
+<!-- ground-imprints surface-tracks-part-A-taken-forward plastic-retention bearing-capacity repose-slump imprint-budget -->
+
+Ty: *"if it is penetrating it should leave imprints behind as it slides and rolls displacing the dirt or snow etc"*,
+and on depth: *"I want the penetration to show and stay as ground scars if it is going to be there and I can
+understand several cm on initial impact but just rolling down the hill it should be a few cm not a dozen or more"*.
+
+**NOTHING IS DRAWN YET.** The record is built, tested and engine-free; the Unity quad-per-mark renderer is not written,
+so there is nothing to look at on a device. No Unity build, no deploy, no install. Reference: `docs/GROUND-IMPRINTS.md`.
+
+### lane/claude-surface-tracks: what it built, what stalled it, and how much I took
+
+**Taken: all of it, by cherry-pick of `2684c503`** (`SurfaceContacts.cs` 360 lines, `SurfaceContactTests.cs` 329 lines,
+`docs/SURFACE-CONTACTS.md`, and the plumbing in `LandingGear`/`TireModel`/`WheelSpin`/`Aircraft`). It is NOT stale: it
+applied with ONE conflict — four lines in `WheelState.ClearContact`, where today's `LegStrokeM = 0` (the drawn-wheel
+work of 2026-11-10) landed on the same line as its own clears, and both sides wanted their lines. **SurfaceContactTests
+13/13 on today's tip, unchanged.** This week's gear geometry, tyre cornering and contact changes did not move anything
+it reads. I did **not** merge the lane itself — it carries island-nav merges, 2-33 panel and water-visual commits that
+are nothing to do with this.
+
+Its **"NEEDS YOU" was never a design question**: the log says *"Nothing approved by me; nothing visual changed, so
+there is nothing to look at yet."* It had built the data half (spec PART A) and was waiting for PART B — the drawing —
+which was assigned to Codex and never started. The one substantive open question in it is **Q145: mud** — there is no
+mud `GroundMaterial` and no world surface produces one. Still open. `docs/GROUND-IMPRINTS.md` says exactly what three
+numbers a mud row would need (bearing ~50 kPa, retention ~1.0, repose ~25°), so it is one table row when a mud surface
+exists. Its other flagged gap, snow wetness reading dry, is still true and still waiting on lane/claude-ski-physics; the
+default-ski-size one is CLOSED, below.
+
+### The split: a mark is a world fact, the renderer reads a record
+
+- `src/FlyingGame.Core/GroundImprints.cs` — the soil mechanics, a `GroundImprint` struct, the bounded ring, and the
+  per-aeroplane "pen" that extends a stretch instead of laying a dot per step.
+- `src/FlyingGame.Sim/AircraftImprints.cs` — one pass per physics step over this aeroplane's contacts. It reads; it
+  changes no physics.
+- `GroundImprints.World` is process-wide, like `StrippedTrees`, cleared with it for a new flight. Every aeroplane —
+  player and AI — writes into one field, so you see where the other one landed; each mark carries its `Owner`.
+- **No particles** (standing prohibition). A mark is geometry in the ground.
+
+### Depth is READ from the contact, never recomputed — and two sources are wrong at their source today
+
+- **Tyre / ski / float:** `SurfaceContact.DepthM`. For a tyre that is Bekker compaction (`TireModel.GroundSinkageM`),
+  which is a *permanent set by definition*, so it is the rut as it stands — **no retention applied**.
+- **Airframe hard point:** `ContactPoint.DepthM`, the contact spring's *elastic* penetration, so only
+  `PlasticRetention01` of it stays. `GroundImprintTests.AnAirframeScarIsExactlyTheRetainedPartOfTheContactsOwnPenetration`
+  pins that equality to the millimetre. **REJECTED: clamping the scar to a plausible few cm** — it would hide the
+  penetration bug behind a cosmetic cap and put a second depth model beside the contact's.
+- **1. NEEDS YOU / co-ordination:** `AirframeContact`'s mass-independent 150 kN/m spring means a J-3 wingtip slapping
+  down reads **1.03 m** in and leaves an **82 cm** scar. When `lane/claude-contact-depth` lands "a few cm,
+  mass-independent", the scars become a few cm with **no change to this code**. That test is what proves nothing else
+  moved.
+- **2. NEEDS YOU — a number that is wrong where it is MADE, and nobody is on it:** `TireModel.GroundSinkageM` inverts a
+  **steady-state** relation (R/W = z/((n+1)·l)); handed an impulsive load it gives an impulsive answer. A J-3 put down
+  on grass at 14 m/s reported a **306 mm** rut for the one step of the touchdown spike, against the **3.8 mm** it
+  settles to standing on the same grass. I applied one **geometric** bound here — a tyre's rut cannot exceed the tyre's
+  own rolling radius, because past that the axle is at the surface and the gear leg is making the mark — which brings
+  that spike to 229 mm. It wants fixing in `TireModel` or in how `LandingGear` loads it. REJECTED here: recomputing the
+  sinkage from a filtered load, which would be exactly the parallel rut model this split exists to prevent.
+
+### One interface piece was missing, and it mattered a lot: `WheelState.SurfaceWorld`
+
+`PatchWorld` is the tyre's bottom as the aeroplane's pose puts it, which is **below** the ground by whatever the leg
+and the tyre have compressed. **Measured on a J-3 rolling out on grass: 1.5 cm standing still, up to 21 cm while it
+settles after a touchdown.** Drawing a rut there would have it dive a hand's breadth into the earth and come back out
+every time the suspension worked, and it broke the track into **145 stretches over 58 m** where it should have been a
+handful. So `LandingGear` now also records `ws.SurfaceWorld = wheelWorld + groundUp · penetration` — the undisturbed
+surface, from the same two numbers the force went on, no new query — and `SurfaceContact.SurfaceWorld` carries it
+(floats use the step, `AddSki` uses cp + sinkage). **This is the field that was missing, and the contact lane should
+know the airframe side needs the same thing** if a hard point ever wants its mark put on the surface rather than at
+the part; today I do it with `WorldPos + up·DepthM`, which only works because the airframe contact is vertical.
+
+### How depth and width are decided, per surface — three numbers, all sourced
+
+Bearing pressure is **ultimate**, from presumptive allowable values × their factor of ~3 (IBC Table 1806.2: sandy
+gravel 3000 psf = 144 kPa; silty/clayey sand 2000 psf = 96 kPa), plus asphalt's 3–5 MPa unconfined compressive strength
+and ice's 5–25 MPa crushing stress (Petrovic 2003 — the source `WorldTerrain` already cites for ice being rigid under a
+tyre). Retention is **plasticity, a different property from strength**: asphalt is strong *and* springy, snow is weak
+*and* keeps every millimetre. Repose angles are the published granular values; turf's 60° is the root mat holding a
+near-vertical shoulder.
+
+| | bearing kPa | retention | repose ° |
+|---|---|---|---|
+| Asphalt / Deck / Ice | 3 000 / 200 000 / 5 000 | 0 | — |
+| Gravel | 430 | 0.85 | 38 |
+| Dirt | 250 | 0.80 | 37 |
+| Grass | 200 | 0.35 | 60 |
+| PackedSnow | 200 | 0.90 | 38 |
+| Rough (pasture) | 180 | 0.50 | 45 |
+| Sand (hard, wet-packed) | 150 | 0.90 | 32 |
+| Snow (settled) | 60 | 0.95 | 38 |
+
+- **WIDTH** comes from the bearing capacity, because a `ContactPoint` has no breadth: a load N yields a patch of area
+  N/p, taken square. A tyre, ski or float measures its own footprint and uses that. Then the trough **at the surface**
+  is wider than the patch, because the sides slump to the repose angle: `w = patch + 2d/tan(repose)`.
+- **Hand-checked:** 820 kg on one patch on grass → a 0.20 m patch; on settled snow → 0.37 m, √(200/60) wider. A 1 kN
+  wingtip bow on dirt → 6.3 cm patch, opening to 14.3 cm at 3 cm deep.
+- **The slump compresses ratios, and that is correct.** It adds the *same* amount to a belly and to a wingtip, so
+  patches 2.8× apart become troughs 1.9× apart. A ski's running surface is 2.5× a tyre's footprint but their marks on
+  snow are only 1.2× apart in width — so **a ski's flotation shows up in the DEPTH**, which is where a pilot reads it.
+- **Whether a ground marks at all falls out of the same numbers**, not a switch: asphalt's retention is 0, so a Pitts
+  sliding down a runway leaves nothing (the black streak is already `GroundMaterialRow.SkidMark`). Ice's is 0 too,
+  deliberately: it is brittle, so it **scores** — a texture, not geometry — and nothing draws a mark with no depth.
+- **REJECTED: a 5 mm minimum depth,** on the argument that anything shallower is inside the ground's own micro-relief
+  (gravel's ±12 mm). Wrong gate, and wrong by a visible amount: a Cub's Bekker rut is 3.3 mm on dirt and 5.6 mm on
+  grass, so it erased a Cub's tracks on a dirt strip entirely. **Visibility is the renderer's business** — the record's
+  job is to say honestly that the rut is 3 mm and let the drawing make that flattened, bruised turf rather than a ditch.
+  Now 1 mm.
+
+### A CUB ON SKIS LEAVES A TRACK NOW, and that closed three of the inherited lane's gaps at once
+
+It did not when this lane started, twice over: surface-tracks had no ski geometry to report (it reported the ski
+model's **0.25 x 1.8 m default**) and nothing in the physics computes a ski's **sinkage**, so a ski track had no depth
+and fell under the minimum. Both are fixed by reading what the physics does have:
+
+- `lane/claude-quest-islandnav` brought the ski work on 2026-11-10, so `SkiGear.Geometry` exists: a Super Cub's mains
+  come out **0.289 x 1.980 m** and its TAILWHEEL ski **0.173 x 1.188 m**, each sized from the airframe and the tyre it
+  seats. `LandingGear` now records a bearing ski's real running surface and ground pressure, and the contact reports
+  them per leg. The inherited `SurfaceContactTests` assertion on the 0.25 x 1.8 defaults was updated to assert the real
+  geometry, per leg, with a comment saying what it used to say and why it changed.
+- **New field `WheelState.PenetrationM`** (and `SurfaceContact.PenetrationM`): the whole contact compression along the
+  ground's normal. **This is the per-wheel depth the contact lane was asked to keep readable, and it was not there.**
+  It is documented as ELASTIC and explicitly contrasted with `SinkM`, which is the soil's permanent set. Any leg with
+  no sinkage model — a bearing ski, a skid shoe, a float keel on land, a pilot's feet — now marks from the plastic part
+  of it, exactly as an airframe hard point does. That removed the "deliberately a gap" caveat for all four.
+- **MEASURED, both directions through the real contact path:** a Super Cub on skis in settled snow leaves a 0.338 m
+  track 1.9 cm deep; the same Cub on its bare tyres in the same snow leaves a 0.320 m rut 11.5 cm deep. Narrower and
+  six times deeper. Flotation, and it reads the way a pilot would expect.
+- **STILL WANTED:** a real pressure-sinkage model for a ski, which would say a ski floats where a tyre ploughs by more
+  than their contact penetrations happen to differ. `lane/claude-ski-physics` is where it would come from.
+
+### Rolling, skidding, tracking, gouging, scarring
+
+`Rut` (a rolling tyre, its footprint's width) · `Skid` (locked or sliding: a smear along the slip, not a compaction) ·
+`Track` (ski or float bottom: broad, flat, shallowest of all) · `Gouge` (a wingtip bow, tailskid, fin tip, gear stub:
+narrow and deep for its width) · `Scar` (a belly, nose or wing panel — a wreck down a hillside: same mechanism, broad
+because a structure's breadth carries the load).
+
+**Rolling vs skidding is a slip RATIO, not an absolute slip, and that was measured rather than argued.** A J-3's mains
+are splayed, so rolling straight down a grass strip at 14 m/s each main scrubs sideways at **0.65 m/s** — a 2.7° slip
+angle, an ordinary rolling tyre. Against a flat 0.3 m/s threshold **every Cub main read as a skid for the whole landing
+roll**, which is both wrong and expensive (the kind flipping closes a stretch and opens another). The line is
+`WheelSpin.FallStart` (0.15), the tyre model's own number for where the coefficient starts falling from its peak toward
+the sliding value, with 0.3 m/s as a floor for the standstill case where a ratio means nothing.
+
+### The budget: 1,024 stretches for the whole world
+
+88 B a mark → **88 kB**, allocated once. One quad a mark → **2,048 triangles** for every mark in the world; a single
+detail tree costs more. Per step: one append-or-extend per contact in contact, at most a dozen per aeroplane, a handful
+of dot products each — **no allocation, no dictionary, no terrain query**, deliberately, after the J-3 was found 8.8×
+too expensive on 2026-11-09 with a `ConditionalWeakTable` in the hot path. **Nothing at all runs in the air** (asserted).
+
+A stretch is **extended** while the contact keeps going the same way, so a straight rut is ONE stretch however long.
+What breaks one: straying past 0.3 of the mark's own width off its line **in 3D** (floor 4 cm — so the ground's
+undulation breaks a stretch as surely as a turn does, and a flat quad never stands off the surface by more than that);
+the width or depth changing past 25 % **with absolute floors of 1 cm and 1 mm** — a fraction *alone* was measured wrong
+and expensively so, a braked Cub laying dozens of zero-length stretches because its 3 mm rut deepened to 4 mm between
+two steps, which is 33 %; and the part lifting off, so a bounce is never joined across the gap it flew over.
+
+**MEASURED:** a J-3 put down at 14 m/s on grass and left entirely alone — no rudder, tailwheel castoring — rolls 58 m
+to a stop and lays **135 stretches** on three wheels. Almost none of that is the *length*: while rolling, the stretches
+run 2–4 m each, set by the arc the aeroplane describes because nothing is steering it; the rest is the slow weave as it
+stops. **So 1,024 holds about seven landing rolls of that kind** and effectively unlimited straight rolling — a
+circuit's worth of landings and the taxiing between them. A ground loop is the expensive case because it is all curve;
+that is the right place to spend it, and the **oldest** marks go first.
+
+### Tests, and what is uncompiled
+
+- **`GroundImprintTests` 21/21** (new) and **`SurfaceContactTests` 13/13** (inherited; one assertion updated, see the ski section above).
+- **Compare, never count:** every Contact / Landing / Gear / Wheel / Crash / Wreck / Breakup / Taxi / Float / Scrape /
+  Impact / Bend / GroundSurface / IslandSurface / Tree / Prop suite run on this lane AND on base `651e5515` in a base
+  worktree — **identical failing names, zero introduced.** On the narrower tyre/ski/water/gear filter the same 18 names
+  fail on both (they are the known `SoftWaterBreakup`, `WheelSki`, `WaterSki`, `GlacierLandingZone`, `FlatSpot`,
+  `AlaskaTests`, `WheelHydro` set).
+- **UNCOMPILED: the Unity side entirely.** `src/` compiles clean (0 errors) under .NET 8, but nothing in
+  `unity/Assets/` was touched or built, there is **no renderer for these marks**, and a green .NET suite is not an iOS
+  build. Quest not built, nothing installed, nothing deployed.
+- **Parity:** ONE shared commit (`src/` + `configs/` are shared; `tools/FlightTests/` and `docs/` neutral).
+- **`lane/claude-test-triage`** (`086e261a`) — MERGED, **moved forward out of its briefed place** so the lanes merged
+  after it get a trustworthy test run. It only touches `tools/FlightTests/`.
+  Half of it had already shipped: all four of its CLAUDE.md lessons are in the file at HEAD, and HEAD already carries
+  `[Collection("WorldTerrainActive")]` on 161 of 396 test files against the lane's 93. **What is still only here is
+  the half its own writeup says took two goes to see:** 24 classes HEAD lacks it on, and they are precisely the ones
+  that FLY — `SoaringTests`, `StructuralTests`, `SpawnSpeedTests`, `ReversibleControlTests`, `AeroTowTests`,
+  `GroundTowTests`, `LandingGearTests`, `SpinTests`, `MultiEngineTests`, `FloatsOnLandTests`, `TipWheelTests`,
+  `AircraftLoadTests`, `ChallengeTests`, `ExtraCouplingTests`, `StructuralBandTests`, `LateralProbeTests` and the
+  eight spin/stall probes. Its rule: a class needs the collection if it ASSIGNS the global ground and weather **or if
+  it constructs an `Aircraft` or a `SimLoop`** — the writers were being protected from each other while their victims
+  were left outside. It measured 211 failures → 7 and NaN messages 82 → 1, at no measurable wall-clock cost. Also
+  here: the `LanMeshTests` UDP band offset by the process id, which HEAD lacks, so several worktrees can run the LAN
+  tests at once instead of the second arrival losing every port in its block.
+  **One stale thing in it, NOT taken:** it puts `[Fact(Skip = "Legacy world: the approved island world does not
+  build the Frank Church backcountry strips")]` on four `FrankChurchTests` facts. **Those four pass today** — 13
+  passed, 0 failed, measured on the pristine base — so the Skip is stale and ours is kept. Parking four passing tests
+  silently is worse than the untidiness it was meant to fix. `IslandStartupCostTests` keeps HEAD's attribute with the
+  lane's fuller explanation of why a READER of the globals needs it too.
+  **AND IT DOES NOT FIX THE SEVEN.** The reason for merging it early was to find out whether the unattributed
+  failures were a parallelism artefact. They are not. `Grob103|IslandStart|ReversibleControl|FrankChurch|
+  IslandStartupCost|LanMesh` gives **88 passed, 7 failed**, and the seven are the SAME NAMES as on the pristine base:
+  `Grob103Tests.RecoveryControlsSlowTheSpin`, `Grob103Tests.PedalsSteerTheNoseWheelOnTheGround(0.5)`,
+  `IslandStartTests.TheControlsMoveTheAeroplaneAtEveryStart`,
+  `ReversibleControlTests.HandsOffHoldsTrimAndReturnsAfterAPull(p51d)`, and the three
+  `ReversibleControlTests.TailslideSlamsFreeControlsToTheStops` (pitts-s2b, pa18-cub, extra-300). **The baseline of
+  seven is real, and it is now the session's baseline.** Serialising the flying classes is still right, and it did
+  stop the p51d case flapping between runs, but it is not what these seven are.
+- **`lane/claude-landing-v2`** (`8ca16bac`) — MERGED, and it carries `lane/codex-landing-v2` with it: that branch is
+  an ANCESTOR of this one (0 commits ahead), so the Codex UI restyle is already inside the Claude half and the "pair"
+  is one merge, not two. The pre-flight flow Ty approved on 11-05 (*"Landing page is good but give page two a
+  standard or metric option; most users will be American/standard"*): two pages, Choose then Load & Launch, a live
+  preview, Standard | Metric on one pref key `landing.units` defaulting to Standard, and a handbook-style W&B chart
+  — CG across, weight up — with each type's certificated envelope: Pitts S-2B (FAA A8SO), J-3 (A-691), Great Lakes
+  (A18EA), Swift S-1 (EASA A.038) and Grob 103 (POH 2.7). LAUNCH out of limits asks first, in his exact words, with
+  **Go back** | **Fly**; in limits there is no popup. Types with no verified envelope say "No envelope authored"
+  rather than inventing one, and the C172's is the open question already in the queue.
+  **Three real conflicts, all resolved by combining rather than choosing:**
+  1. `StartMenu.cs`'s FLY button. The shipping lane had rewritten its SIZE (`flyW` / `flyH`, from the stacked bottom
+     row) while the lane rewrote what it DOES (through the Load page, so the weight and balance is seen before the
+     aeroplane is — Ty t881u/t882u). Kept the shipping layout and the lane's action. Either side whole loses one.
+  2. `QuestMenu.cs`'s Seat row — the shipping lane added a Gear row (wheels / bushwheels / wheel-skis) exactly where
+     the lane rewrote the Seat label to read from the W&B flow. Both kept.
+  3. `ClipSelfTest.cs` — one self-test mode each (`options` ours, `landing` and `landing-thumbs` theirs). Both kept.
+  `AGENT-LOG.md` and `CLAUDE.md`: both sides in full.
+  Tests: `LandingFlow|AircraftLoad|WeightBalance|FleetAllowList` — **144 passed, 0 failed.**
+- **`lane/claude-vr-cockpit`** (`45bf124f`) — MERGED WHOLE **except its own underwater-view layer**, with the shipping
+  one extended instead. Ty's *"you can always get out"*: belt, then the door handle or the canopy release — whichever
+  the type has — and the exit follows BY SITUATION (`Vr/ExitTable.AutoExit.Classify`): in flight the canopy goes and
+  he leaves as the P2 jumper; stopped on the ground the door swings and he climbs down and walks; afloat he goes over
+  the sill and treads water; under water the opening waits on the water's load (`Vr/DoorWaterLoad`) and he swims up.
+  Belt latched means nothing happens, ever. New Core: `ExitTable`, `GroundEgress`, `PilotSwim`, `DoorWaterLoad`,
+  `EgressWater`, `CrashWaterSeam`; new Bridge: `VrCockpitHands.Exit.cs`, `PilotWaterSound`, `PilotEgress.LeaveOnFoot`
+  / `MoveOnFoot`.
+  **THE LANE HAD ITS OWN UNDERWATER VIEW AND THE SHIPPING LANE ALREADY HAS ONE, FOUR DAYS NEWER.** This lane
+  (2026-11-02) carries `Core/Vr/UnderwaterView.cs`'s `UnderwaterViewMode`, `Bridge/UnderwaterRender.cs`,
+  `Shaders/Underwater.shader` and `_WaterSeeThrough`/`_UwBlend` paths in `Water.shader`. The shipping lane has
+  `Core/UnderwaterView.cs` + `Bridge/PilotUnderwater.cs` + `Shaders/PilotUnderwater.shader` from **Ty's own t922u on
+  2026-11-06** (*"the instrument panel and top of the cockpit don't look different from dry areas even though
+  underwater"*), carrying t923u (*"the water itself looks great"*) as the reason it touches only the seat view. The
+  class names differ, so it would have COMPILED — and `SceneBootstrap` would then have put both renderers on the
+  main camera and double-murked a flooded cockpit, with two sets of globals on one shader. Asked, Ty chose the newer
+  one, extended: *"teach PilotUnderwater about an eye that is OUTSIDE the cockpit … one source of truth, extended —
+  not two layers."*
+  **Dropped:** `UnderwaterRender.cs` (+meta), `Underwater.shader` (+meta), the `_WaterSeeThrough` / `_UwBlend` /
+  `_UwSigma` / `_UwSurfaceY` / `_UwColor` uniforms and both their blocks in `Water.shader` with the header comment
+  that documented them, `"FlyingGame/Underwater"` from BuildScript's shader list, and the
+  `AddComponent<UnderwaterRender>()` line in `SceneBootstrap` — with a comment there saying why, so nobody re-adds it.
+  **Kept:** `Core/Vr/UnderwaterView.cs`'s `UnderwaterViewMode` and `PilotWaterAudio`. Those are pure logic with no
+  renderer in them (1 cm hysteresis, 0.25 s blend; the audio's gain and low-pass table) and `VrEgressTests` pins
+  them. Not a second layer — the state machine the one renderer now steps.
+  **THE EXTENSION, four small pieces.** `Core/UnderwaterView.ModeFor`'s first parameter widens from `inCockpit` to
+  `pilotsOwnEye`, with Ty's words in the doc comment — no signature change, so every existing call and all of
+  `UnderwaterViewTests` still passes, including the one asserting the chase and aerial views are never touched.
+  `PilotUnderwater` passes `ChaseCamera.InCockpit || PilotEyeOutOfTheAeroplane`, steps one `UnderwaterViewMode`, and
+  publishes `EyeUnder` and `Blend01`. `PilotEgress.Update` sets
+  `PilotUnderwater.PilotEyeOutOfTheAeroplane = (PilotOut || OnFoot) && _pilot.FirstPerson` every frame, both ways,
+  so climbing back into a flight resets it. `PilotWaterSound` reads those two instead of the dropped renderer, so the
+  muffling and the view agree by construction rather than by two measurements of the same water.
+  **Honest caveat:** a swimming pilot now gets the SEAT treatment's numbers — `NearAboveM` 1.0 m, extinction 0.55/m,
+  the near-field 4→8 m fade that exists to keep a nosed-in panel wet without touching the lake beyond. Those were
+  chosen for a flooded cockpit, and for a head bobbing in open water the near-field taper in particular may look
+  wrong. It is now one place to tune instead of two implementations to reconcile, which is what Ty asked for, but it
+  has not been seen in a headset and nothing here claims it is right.
+  **Conflicts: thirteen, every one of them additive on the lane's side, and two that mattered.**
+  - `CockpitGrab`'s `DoorHandle` / `CanopyRelease` could NOT keep the lane's slots 14/15: phase 3 took 14–16 for the
+    2-33's dive-brake handle, trim lever and tow release, and 32–79 for the panel controls, while this lane sat
+    unmerged. Renumbered to 17/18 with `Slots` left at 80; nothing stores them as numbers.
+  - `VrCockpitHands.Bailout.cs` — the shipping lane had just gained `ExitIsClearOfTheAeroplane` (a folded wing lies
+    across the doorway; measured with the tail-strike clearance boxes) AND refactored `Leave`'s tail into
+    `BeginJumper`, while the lane changed `Leave`'s SIGNATURE from `Leave(ClimbOut)` to `Leave(ExitSide, bool)`
+    because the automatic exit has no `ClimbOut`. Kept the shipping body and the lane's signature, and fixed the
+    caller. Taking the lane's side would have deleted the folded-wing door check — the exact thing Ty reported.
+  Tests: `VrEgress|UnderwaterView|CockpitGrab|ModelRig|Egress|Jumper` — **60 passed, 0 failed.**
+
 ## ASTC 4x4: the textures come out of the GLBs, and the whole fleet with every livery is 0.95 GB — Claude, 2026-11-10, lane/claude-textures
 
 <!-- astc-4x4 glb-sidecar-textures gltfast-external-texture 4gb-limit livery-policy-superseded -->
@@ -1183,6 +1578,120 @@ wifi and I install in place, no uninstall.
   anything this repair touches. The 139 are NOT a green suite and NOT a blanket exemption for future branches.
   Focused replay tests on the delivered tree: **18/18 passed**.
 <!-- /replay-damage-t1001 needs-you -->
+## ACTIVE BRIEF ADDENDUM — t881u + t882u (same W&B job)
+- No "you can still fly". Labels: Over gross / Aft c.g. / Forward c.g. (factual only).
+- Popup EXACT: "Your W&B is out of limits which will negatively affect aircraft handling and performance." · Go back | Fly.
+- Still NO merge/install until revised renders approved. Queued first free slot.
+
+## ACTIVE BRIEF — Ty t880u W&B envelope (2026-11-06 ~04:51 PT) — NO MERGE/INSTALL
+Ty rejected landing-units merge: W&B graph must plot **CG and weight limits** so the user can see where they fall.
+Reuse tip **a1ca8481**. Claude: envelope calc/config/tests from verified data only (flag missing). Codex: UI + iPhone/iPad Standard|Metric renders. **Do not merge or install** until revised renders approved.
+Launch briefs in agent-lanes/prompts/*landing-wb-envelope-1106*. Job QUEUED first free slot (cap full).
+
+## NEEDS YOU
+- **LANDING W&B CODEX RENDERS READY (2026-11-06 ~11:32 AKST).** Tip `ea75e7b2`. Coordinator ran `mac-shots.sh pages` → 57 PNGs at `~/Developer/agent-lanes/renders/landing-v2/codex/envelope/` (envelope standard/metric/outside + wb-popup on iPhone land + iPad land/port). Box copies: `/workspace/uploads/landing-wb-evidence-1106/`. **Batch2 staged — NOT Batch1.** No merge/install/TF until Ty visual OK. Foreign aircraft StreamingAssets dirt left unstaged.
+- **LANDING W&B CODEX UI PREPARED — RENDERS BLOCKED (2026-11-06 11:13 PT).** Based on Claude calc `43048f25`; graph gets more vertical space, limit-edge labels, and separate color-keyed takeoff/zero-fuel legend rows. `LandingSelfTest` now captures wheel J-3 verified envelope (inside/outside) and exact t882u popup, both unit systems, both landscape device shapes. No invented limits. **NOT LANDING-WB-ENVELOPE-RENDERS-DONE**: no new images, no Unity compile, no commit, no merge/install/upload. `git diff --check`, `zsh -n tools/landing-v2/mac-shots.sh`, tracked ignore audit clean.
+  - **Coordinator action:** run `SHOTS=$HOME/Developer/agent-lanes/renders/landing-v2/codex/envelope zsh tools/landing-v2/mac-shots.sh pages` here once the single Unity slot is free. Sandbox denies ps/pgrep; script now fails closed (exit 2) rather than treating that as idle. Review actual PNGs and iterate before marking done. Expected `iphone-land` / `ipad-land` `-p2-envelope-{standard,metric}.png`, `-p2-envelope-outside-{standard,metric}.png`, `-p2-wb-popup-{standard,metric}.png`. Paths are planned, **not generated**.
+  - **Local commit blocked too:** `git add` cannot create `/Users/tyfrisby/Developer/flying-game/.git/worktrees/codex-landing-v2/index.lock` (Operation not permitted). Three UI/runner files plus this log remain unstaged. Coordinator must commit locally after compile/visual QA and clean ignore audit, never add -f. No Ty visual approval requested until actual renders exist.
+- **TY SPOKEN APPROVAL — LANDING FLOW (Grok Bot, 2026-11-05 11:00 PT).** Ty ~10:56 PT: "Landing page is good but give page two a standard or metric option; most users will be American/standard." **Q088 APPROVED** (two-page Choose → Load & Launch). Units follow-up: lane follow-up on this worktree (`prompts/claude-landing-units.md`); default **Standard**; persist preference. Do not redesign the flow. Q089–Q094 still open. Nothing else marked approved by me.
+
+<!-- landing-v2 needs-you -->
+- **LANDING-WB-ENVELOPE-CALC-DONE (Claude, lane/claude-landing-v2, 2026-11-06; Ty t880u + t881u + t882u). Local commit only:
+  NOT merged, NOT pushed, NOT installed, renders NOT made, nothing approved by me.** Codex's turn:
+  `prompts/codex-landing-wb-envelope-1106-launch.md` (UI restyle + iPhone/iPad Standard|Metric renders + popup render).
+  - **What it does.** The W&B chart is now handbook-style (CG across, weight up) with the type's verified envelope:
+    forward/aft limits that move with weight (`loading.cgLimits`, straight line between certificate rows), named limit
+    lines (`Forward c.g. limit` / `Aft c.g. limit` / `Max gross`), ticks in lb + in (Standard, default) or kg + mm
+    (Metric) aft of the type's own datum, the takeoff point and the zero-fuel point, each checked at its own weight.
+    Labels are factual only: `Over gross` / `Forward c.g.` / `Aft c.g.` (+ `... at zero fuel`); "(you can still fly)"
+    is gone. LAUNCH / FLY out of limits asks first with exactly "Your W&B is out of limits which will negatively affect
+    aircraft handling and performance." and **Go back** | **Fly** (flat page, classic FLY, Quest rows). In limits: no popup.
+  - **Envelopes drawn (verified, cited in each config):** Pitts S-2B (FAA A8SO: +86.35 at 1475 lb or less → +89.58 at
+    1625, aft +90.50), J-3 (A-691: +10.6 to +22.7), Great Lakes (A18EA: +20.0 to +23.8; datum anchor MEDIUM, ±25 mm),
+    Swift S-1 (EASA A.038: 257–414 mm), Grob 103 (POH 2.7: 270–480 mm, was already wired). Every type as authored sits
+    inside its own envelope.
+  - **NEEDS YOU: types with NO envelope drawn** (they show "No envelope authored"; nothing invented):
+    - `c172-like`: the POH envelope is known (git e4755c98) but its config's derived empty weight is 877 kg, so the real
+      2300 lb gross would flag every two-person load "Over gross". Re-adding it means retuning the 172's mass: your call.
+    - `extra-300-like`: EASA A.362 gives 75.0–89.8 cm aft of the firewall at 820 kg, but the firewall's body x is only
+      known ±5 cm (a third of the range) and no gross is authored. Needs the firewall located on the model.
+    - `glider-2-33-like` (the first-timer default): no certificate limits in the repo. Needs the SGS 2-33 type certificate's
+      C.G. range and the datum's body x.
+    - `j3-cub-floats-like`: shows the 1.2× float gross only. Needs the J3C-65S float C.G. range (not assumed equal to wheels).
+    - No loading block at all (no W&B plot): pa18 family, pa28-archer (blocked, datum mapping fails, docs/WEIGHT-AND-BALANCE.md),
+      decathlon, stearman, cassutt, p51d, cirrus, glasair, seminole, pawnee, beaver, jenny, geebee, eb29r, aircam, dc3, f86,
+      737, h4, hang glider, paraglider, target drone.
+  - **Checks:** LandingFlowTests + AircraftLoadTests + Grob103Tests: 158 / 160, the 2 failures (`Grob103Tests.RecoveryControlsSlowTheSpin`,
+    `PedalsSteerTheNoseWheelOnTheGround(0.5)`) fail identically on the base a1ca8481 (same 11.588 value), so not this change.
+    Full suite not run (other lanes' suites were running). iOS `deploy.sh NOINSTALL`: see the line below.
+- **LANDING V2: STANDARD / METRIC ON PAGE 2 (Claude, lane/claude-landing-v2, 2026-11-05 13:40; Ty 10:56 "give page two a
+  standard or metric option; most users will be American/standard"). Local commit only: NOT merged, NOT pushed, NOT
+  installed. Nothing approved by me.**
+  - **What:** a UNITS row (Standard | Metric) at the foot of page 2's settings column, and a `Units:` row on the Quest
+    panel. **Default Standard** when nothing is saved. Changes seat/baggage weights (lb / kg), the − / + step (10 lb /
+    5 kg), the W&B heading, over-gross warning and summary, the Quest W&B line, airport elevation (ft / m) and wind on
+    the weather cards (kt / km/h). Display only: flow, store, SessionSettings and the sim stay SI.
+  - **One key for the whole game:** PlayerPrefs `landing.units` = `standard` | `metric` (`DisplayUnits.PrefKey`), saved
+    the moment it changes (and again at LAUNCH). No units setting existed anywhere before; HUD/instruments that grow one
+    read `LandingSession.SavedUnits`, never a second key. docs/LANDING-V2.md.
+  - **Checks:** LandingFlowTests 25/25 (.NET, 4 new); LandingV2Tests 7/7 EditMode (MemoryLandingStore round-trip + the
+    Bridge reader), 0 error CS; iOS `deploy.sh NOINSTALL` ** BUILD SUCCEEDED ** (12:51). Ignore check clean.
+  - **RENDERS DONE 2026-11-05 19:37 (Q134, please look; NOT approved by me, NOT merged, NOT installed).** In
+    `~/Developer/agent-lanes/renders/landing-v2/claude/`: `iphone-land-p2-load.png` (Standard) / `iphone-land-p2-load-metric.png`,
+    same for `ipad-land-*`, and `quest-landing-units-standard.png` / `quest-landing-units-metric.png`. The 09:40 set is kept
+    in `prior-0940/`. Made by `LandingQuestShots.Run` (exit 0, both summary checks passed) and `tools/landing-v2/mac-shots.sh
+    pages` (macOS build SUCCEEDED, `[LandingSelfTest] DONE pages`) from a1ca8481, with no code changes.
+    Checked by eye: UNITS is the last block of the right-hand column, under Reliability, Standard highlighted by default.
+    The numbers agree across systems: 190 lb = 86 kg, 265 lb = 120 kg, 1657 of 1464 lb = 751 of 664 kg, over gross 193 lb = 87 kg,
+    10/18/25/6 kt = 19/33/46/11 km/h. Quest: `Units: Standard (lb · ft · kt)` and the W&B line `1542 / 1464 lb OVER GROSS 78 lb`
+    = `699 / 664 kg OVER GROSS 35 kg`.
+    Things to note, none caused by units: (a) the Units tiles sit flush on the column's bottom edge on iPhone and iPad
+    landscape (tight, not clipped); (b) the shots keep the self-test's earlier state: the friend weighs 120 kg and the baggage is full
+    in `*-p2-load` (the 09:40 set had this too), and the iPad set inherits Gusty from the iPhone pass; (c) `ipad-port-*`
+    rendered at 410x542 (the player window could not take the portrait shape), so those are unusable as before; (d) the
+    live preview's camera framing differs between the Standard and Metric shots (the preview kept moving between the two
+    shots). Codex may restyle the control (binding: `UnitItems()` / `SetUnits`).
+  - My first deploy attempt started 1 s after ground-volume's island-nav install; stopped at once on claude-floats-f8's
+    request, retried after the slot was idle (CLAUDE.md lesson added: sleep before the gate's last check, not after).
+
+- **LANDING PAGE V2: PLEASE LOOK AT THE RENDERS (Claude, lane/claude-landing-v2, 2026-11-05 09:40; Ty's 05:48 spec + 05:50
+  addendum). Local commits only: NOT merged, NOT pushed, NOT installed on any device. Nothing approved by me.**
+  Renders (29): `~/Developer/agent-lanes/renders/landing-v2/claude/` — `iphone-land-*` (2556x1180) and `ipad-land-*` (1180x820), each page and every open
+  menu; `quest-landing-*` (the headset panel); `thumbs-*` none (no Pillow here: open
+  `unity/Assets/_Project/Resources/LandingThumbs/` instead). Codex's 48 design boards: `../codex/mockups/`. iPad
+  PORTRAIT was not rendered: the Mac player's window opened on the 1024x600 second display and could not take the shape.
+  - **The flow.** Page 1, CHOOSE: the live aeroplane in the middle (the last one you launched; the yellow 2-33 the first
+    time), Aircraft / Configuration / Location / Viewpoint tiles on the left, each opening a sideways strip of picture
+    cards; Challenges and Lessons on the right. A lesson or challenge shrinks the left-hand lists (lessons: trainers,
+    standard gear, the lesson's own start; a config challenge: its own aeroplane; the box: aerobats; scored contests:
+    standard gear and locked weather). NEXT. Page 2, LOAD & LAUNCH: seats (tap: empty → passenger → friend riding →
+    friend on the other controls, where the seat has controls; ± kg), fuel (Empty/¼/Tabs/Full + per station), baggage,
+    the W&B plot (loaded point, zero-fuel point, the burn line; warning text, LAUNCH never blocked), and time of day /
+    weather / reliability cards. The old chapters are behind "More settings" (instruments, multiplayer, runway, livery,
+    tow plane, exact wind, lesson options), so nothing the old page did is gone.
+  - **Visual feedback (addendum).** The preview is the REAL airframe re-spawned at its launch pose on every change:
+    floats, skis, tyres are the real models; occupied seats get a seated figure; time of day relights the scene at once
+    (midday = today's sun, unchanged for everyone else). Floats get 1.2 x the wheel gross (J-3: 553 → 664 kg) on the
+    plot only.
+  - **Never touched = as authored.** A type nobody has loaded opens at exactly its authored mass and CG (test on 5 real
+    configs), so this page does not move anyone's book numbers. Physics code untouched.
+  - **Thumbnails.** Captured on the device whenever a card has no picture (aeroplane from the preview, location from
+    the actual launch view, again on the first frame after LAUNCH); 106 bench captures ship as the fallback (74 aircraft
+    cards, 32 any-aircraft location views; 8.8 MB of PNG, no mipmaps). `AERO_SELFTEST=landing-thumbs` + 
+    `tools/landing-v2/import-thumbs.sh` regenerate them.
+  - **Quest:** the VR panel's landing rows step the same flow (aircraft, configuration, location, passenger, fuel, time,
+    weather, engine, W&B line); FLY there is the flow's LAUNCH. The Seat row moves "me" in the flow too.
+  - **Decisions queued: Q088–Q094** (two pages vs Codex's three; lesson trainer list; floats on ANY airframe needs a
+    float kit; reliability is saved but EngineReliability is not wired to the sim; most configs' envelopes are in datum
+    inches and not read, so the plot says "no envelope authored"; no night lighting; which transport the invite uses).
+  - **Checks:** LandingFlowTests 21/21 (.NET); LandingV2Tests 6/6 EditMode; Unity batch 0 error CS (EditMode run, the Mac
+    IL2CPP player twice, the Quest shot batch); `check-parity` hook passed on commit; ignore check clean.
+    **NOT run:** `deploy.sh` (iOS BUILD SUCCEEDED is still needed before merge: src/ changed), an Android/Quest player
+    build, the full .NET suite (only the Landing, AircraftLoad, SeatChoice and config classes; 133 tests green).
+  - **Codex:** its 05:51 handoff (LandingVisuals.cs, docs/landing-v2, tools/landing-v2) is committed unchanged; nothing
+    newer appeared in its worktree. LandingView.cs is the functional baseline it is to restyle (contract above).
+<!-- /landing-v2 needs-you -->
+
 ## NEEDS YOU — Pitts spin Q007 reopened (t918u): the wakes, not the gyro (Claude, 2026-11-06, lane/claude-q007-pitts-spin-t918)
 <!-- q007-t918 needs-you -->
 Your t918u on 0703: "upright spin is still too flat and difficult recover … inverted (right right is too nose low and too easy
@@ -2181,6 +2690,67 @@ Lane lane/claude-floats (from island-nav 6a42a199). Ty 08:58 + 09:00 (agent-lane
   2026.1105.0855 (build only, 0 error CS). **NOT merged and NOT installed** on purpose: your 08:50 crosswind note
   (squeal threshold + fade-in) is queued as the follow-up session in this same lane, and it does the merge into both
   lanes and the iPhone / iPad mini / Quest installs once, with both changes in. Nothing here is an approved gate.
+<!-- airport-lighting needs-you -->
+- **AIRPORT LIGHTING: built and rendered, waiting for Ty's look (Claude, 2026-11-05, lane/claude-windsocks 0c73b1b6+).
+  `** BUILD SUCCEEDED **` (deploy.sh NOINSTALL, 13:42, stamp 2026.1105.1334, not installed); Unity batch 0 error CS.
+  NOT merged, NOT installed.** Ty 08:44: "only airports with instrument approaches have vasi or papi
+  make sure both are represented at one airport or more the rest of the airports have no visual aids and roughly half
+  have runway lights for night flying". Doc: docs/AIRPORT-LIGHTING.md.
+  - **Ty, please look at** `renders/airport-lighting/`: papi-{slightly-high,on-path,slightly-low,low}-{tele,pilot},
+    vasi-{on-path,low,high}-{tele,pilot}, night-{panc,patk,ap10,3u2}-final; `cameras.txt` lists each eye's angle and
+    the colour every box computed for it. Questions Q110-Q113 in the queue.
+  - **Who has what.** Instrument approach yes/no per airport (`AirportLighting.Table`, 39 airports;
+    `WorldTerrain.Airport.InstrumentApproach`), from the island's ifr.approaches: PANC KSNA PHDH KMYL KMEV KPGA KAVX
+    PATK. PAPI at the first six, **2-bar VASI at KAVX and PATK**, on each runway end a procedure leads to (KAVX's VOR-A
+    is circling: both ends). Every other airport: no aid. **Runway lights at 19 of 39**: the 8 + PALH SITX TERN NHVN
+    KITE RIME + AP1 AP3 AP8 AP10 AP12 (1,224 lamps on 22 runways; KMEV's grass 13G/31G unlit).
+  - **Colour is emergent.** Each PAPI box / VASI bar is white above its setting angle, red below (PAPI 3°30' 3°10'
+    2°50' 2°30', 3' pink band; VASI 2.75° near / 3.25° far), from the angle between its lens and the camera, every
+    frame. Lit toward its approach only (±10°, gone by 15°). Edge lights: white MIRL, 200 ft max spacing; yellow over
+    the last 2,000 ft each way on instrument runways; green-out / red-in threshold and end bars.
+  - **One shared part each**: Core `PapiPart`, `VasiPart`, `EdgeLightPart`; `Bridge/AirportLights.cs` is the only
+    drawer (`AirportLightingTests.EachAidIsOneSharedPart`). AirportLightingTests 20/20.
+  - Findings (not changed): **the game has no night** (always day; halos only under the debug sunset), so the runway
+    lights can't be flown at night yet (Q112). The VASI angles are not from a document I read (Q113).
+  - Step 1 grep (what existed): `Bridge/AirportVisuals.cs` (OLD world, not built since the island) had a static
+    2-red/2-white PAPI (not angle-sensitive) and white edge / green-red end lamps on every paved strip, with AirportGlow
+    halos. Both removed now (the old world keeps its taxi lamps). `Editor/WorldRender.cs` has old runway-papi-*
+    capture cameras (left alone). The island drew no runway lamps at all. ILS `HasGlideslope` exists on navaids
+    (Navaid.cs, NavReceiver) but there was no airport flag; no VASI code anywhere.
+  - Status: <!-- airport-lighting status -->Rendered 13:33 and LOOKED AT: every plate matches what Core computed
+    (cameras.txt). PAPI at PHDH 26, 1 NM: 3.35° R W W W, 3.00° R R W W, 2.65° R R R W, 2.20° all red (red always
+    nearest the runway, row left of the runway). VASI at PATK 2: on path far bar red over near bar white, 2.4° all red,
+    3.7° all white. Night: PANC, PATK and AP10 show white edges, green threshold, red far end and the PAPI/VASI glow;
+    3U2 (unlit) is dark. Notes on the plates: in the 40° pilot views at 1 NM the boxes are a few pixels (real size;
+    the 3-4° telephotos show them). The red-white pole in the PAPI telephoto is the end windsock ~80 m beyond the row
+    (depth compressed). **Night plates are a stand-in**: the terrain shaders ignore sun and ambient, so the ground stays
+    day-bright under a black sky, and at 3 km the 200 ft-spaced edge lights merge into solid bars (the shared
+    AirportGlow halo's pixel floor, not changed here). The AP10 camera sits low over a glacier.
+  - Not an approved gate.
+
+## NEEDS YOU
+<!-- windsocks needs-you -->
+- **WINDSOCKS: built and rendered, waiting for Ty's look (Claude, 2026-11-05, lane/claude-windsocks 872fd1a3+).**
+  Update 13:42: WindsockShots ran (0 error CS) -> `renders/windsocks/`, and the lane's deploy.sh NOINSTALL reached
+  `** BUILD SUCCEEDED **` (stamp 2026.1105.1334, same build as the airport lighting). Looked at: the sock hangs at calm,
+  fills throat-first and sags at 7 kt, no winding faults. The "NOT done" lines below are superseded.
+  Ty 08:43: "every airport has a wind sock off to the side of the runway at each end and in the middle".
+  - Done: one shared part (`src/FlyingGame.Core/WindsockPart.cs`, drawn only by `Bridge/Windsock.cs`); 3 per runway
+    on all 43 airport runways (129), abeam each end and midfield, 12 m outside the FAA RSA (sock 30.3 / 34.9 / 88.2 m
+    off the centreline); swings and fills from `Atmosphere.WindAtPosition` (droop 80 deg calm -> 0 at 15 kt).
+    WindsockTests 18/18; targeted island classes: same 6 reds as the branch point. Doc: docs/WINDSOCKS.md.
+  - **NOT done: the Unity batch (compile + renders) and `** BUILD SUCCEEDED **`.** The slot gate (3 idle minutes, no
+    Unity/xcodebuild/deploy) never opened in 2 h; the job hit the background limit before Unity started. Next owner:
+    run `Unity -batchmode -quit -projectPath unity -buildTarget iOS -executeMethod FlyingGame.EditorTools.WindsockShots.Render`
+    (writes renders/windsocks/), LOOK at the renders (winding of the sock mesh is unverified), then
+    `zsh tools/deploy/deploy.sh NOINSTALL`. Do not merge or install before Ty sees the renders.
+  - Findings for Ty (not changed): no night in the game, so no lit sock; wake vortices / prop wash are not in the wind
+    query (lane/claude-wake-vortex has a field, one line in `WindsockPart.AirAt` when it merges); the regional
+    atmosphere config fails to load on the island (`airport:Bench` anchor) so free flight is uniform air; and uniform-air
+    turbulence never drifts (`Turbulence.MeanWind` unset), so gusts stand still over the ground and a sock holds still.
+  - Not an approved gate.
+
+## NEEDS YOU
 <!-- merge-tundra-recorder needs-you -->
 - **Ty to fly-check and confirm defaults: TUNDRA TYRES + FLIGHT RECORDER phase 1 MERGED (Claude, 2026-11-05, Ty approved
   05:36 "take each lane's defaults"). island-nav 04278266 (tundra) + 23922ee1 (recorder); Quest 221db87f. PARITY: OK.
@@ -2447,6 +3017,31 @@ Lane lane/claude-crash-camera. Ty (2026-11-05 06:01 PST, iPhone 17 Pro, build 20
      threshold. Is that what you see? DC-3: the weight rule gives 255 psi, so V_p is 144 kt (a real 17.00-16 runs
      ~50–60 psi). Not changed.
   3. You will fly the J-3 float idle turn (254° in 20 s, rudder up or down within 5°).
+
+## LANDING V2: VIEW-MODEL INTERFACES FOR CODEX (Claude, published 2026-11-05 06:40)
+Full table: `docs/LANDING-V2.md` (in lane/claude-landing-v2's worktree, `~/Developer/flying-game-worktrees/claude-landing-v2`).
+Codex: copy `src/FlyingGame.Core/Landing/*.cs` and `unity/Assets/_Project/Scripts/Bridge/Landing/*.cs` from that worktree
+read-only for reference; bind to them, do not change them (ask here). Your `LandingVisuals.cs` is fine as a sibling.
+- `LandingSession.Flow` (Bridge) → `FlyingGame.Core.Landing.LandingFlow`: `Page` (Choose/Load), `OpenPicker`, `Version`,
+  `Changed`; `Next() Back() GoTo() Open(kind) ClosePicker() Launch()`; `Items(PickerKind)` → `PickerItem{Kind, Id, Title,
+  Subtitle, Selected, Enabled, DisabledReason, Thumbnails, IconKey}`; `Pick(kind, id)`; `IsFixed(kind)`; hero
+  `HeroTitle/HeroSubtitle/HeroThumbnails`; `Seats` (`SeatRow`), `CycleSeat/SetSeat/SetSeatKg/SetInviteName`; `Stations`
+  (`StationRow`), `SetStationKg/SetFuelFraction/FuelFraction`; `WeightBalance` (plot 0..1, `Envelope`, `PointX/Y`,
+  `ZeroFuelX/Y`, `Warnings`, `CanLaunch` always true); `TimeItems/ReliabilityItems/WeatherItems` + setters; `Light`,
+  `IsDark` (your `Theme(night)`); `ConditionsLocked`; `Summary()`.
+- Pictures: `LandingThumbnails.Get(item)` → Texture2D or null (draw `item.IconKey`'s icon); live 3-D aeroplane:
+  `LandingPreview.Instance.Texture` (every page).
+- The flat page is `Bridge/Landing/LandingView.cs` (called from StartMenu.OnGUI): its drawing is yours to restyle, its
+  calls into the flow are the binding. Quest: QuestMenu's landing rows (same flow).
+- Claude review of Codex's 05:51 handoff (2026-11-05 06:55): `LandingVisuals.cs`, `docs/landing-v2/`, `tools/landing-v2/`
+  copied into lane/claude-landing-v2 unchanged (commit pending the Unity compile). Your 48 boards are now in
+  `~/Developer/agent-lanes/renders/landing-v2/codex/mockups/` (your sandbox could not write there). ONE CHANGE TO THE
+  PAGE PLAN: Ty's spec puts the conditions on the people page ("the next page is loading people fuel baggage then
+  launch ... on this page is where settings like reliability weather time of day etc are all available"), so the flow
+  is TWO pages: `LandingPage.Choose` (aircraft & place + right rail) and `LandingPage.Load` (people, fuel, baggage, W&B,
+  time/weather/reliability, LAUNCH). Your "03 Conditions" board's cards belong on page 2's right column. The hero is the
+  LIVE airframe (`LandingPreview.Instance.Texture`, addendum: visible on every page), not a static image.
+
 ## NEEDS YOU — crash reset: fly-test on devices (Claude, 2026-11-04)
 <!-- crash-reset needs-you -->
 Lane lane/claude-crash-reset. Seven of Ty's reports in one lane. NOTHING approved by me.
@@ -3003,6 +3598,21 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
      `tools/check-parity.sh --strict` PARITY: OK. Shared GLB/rig change: lane/claude-quest-islandnav must merge it
      with island-nav, the same day, under the lock.
 <!-- /c172-yoke needs-you -->
+<!-- input-expo needs-you -->
+- **STICK EXPO ON EVERY INPUT, ONE CURVE, ONE SLIDER (Claude, 2026-11-04, lane/claude-input-expo; Ty 05:55 "hand flying
+  needs some expo"). iOS `2026.1104.1433` `** BUILD SUCCEEDED **` (lane HEAD b770986f = island-nav 94b70e6b + this); **NOT merged into island-nav**: the brief was to merge only after a grob103 merge landed there; polled 14:38–17:38 PST, none landed (island-nav moved on to 6615db2d, 4b902fca C172 yoke, 73d7702b). **Not installed** (4016 at 14:37; at 17:38 another lane's Unity + xcodebuild were running). To land it: `git merge --no-ff lane/claude-input-expo` in `claude-island-nav-merge` (that worktree holds the branch; `claude-island-nav` is a DETACHED HEAD at aeb9695a), then the Quest lane the same day.**
+  out = (1 − e)·x + e·x³ after the existing dead zone; 30 % pitch/roll, 20 % rudder by default; OPTIONS › Controls
+  "Stick expo" 0–70 % (rudder follows at 2/3), and the VR menu's "Stick expo" row edits the same setting.
+  **Two feel changes you should know about before flying:**
+  1. **Gamepad (8BitDo):** it used to put its own 0.65 curve on the sticks and then the aircraft's 0.1–0.3 on top of that,
+     two curves stacked. Now it gets the one shared curve, 30 % by default, so centre stick will feel LIVELIER than the
+     pad you liked on 11-03. If you want it back, set Stick expo to about 65–70 %.
+  2. **Quest:** the headset had its own 65 % default (your 11-02 "far too sensitive"). Parity puts it on the same 30 %.
+     Same fix: raise the slider in the VR menu.
+  **⚠ PARITY: lane/claude-quest-islandnav must merge this (lane/claude-input-expo, or island-nav after it) the same
+  day.** `src/` and `Bridge/SessionSettings.cs`, `OptionsPanel.cs`, `QuestMenu.cs` are shared paths. Not merged into
+  the Quest lane by this lane (as instructed).
+
 <!-- crash-tuning needs-you -->
 - **CRASH TUNING MERGED INTO BOTH LANES AND INSTALLED — PLEASE FLY IT (Claude, 2026-11-04 ~4:05 PM PT; Ty approved the
   merge 2:29 PM PT). Nothing approved by me; no push, main untouched.**
@@ -3256,6 +3866,18 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
      - `WheelWaterTests.ALightTouchAtSpeedSkims…(glider-swift-s1-like)`: the real 300×100 main tyre (r 0.15, the old auto
        rule gave 0.31) is too small to plane at 25 m/s, digs in, and the nose breaks off. It passes with the auto radius.
      - Also red, and red at the branch point too (not mine): the same water test for the SR22 and the Glasair III.
+- **TRIGGER TOE BRAKES (Claude, 2026-11-04, lane/claude-trigger-brakes off lane/claude-island-nav, local only, not
+  merged into either lane — the parity rule needs it merged into BOTH island-nav and quest-islandnav).** Decide / test:
+  1. 8BitDo (iOS/Mac/Quest): LT = LEFT wheel brake, RT = RIGHT wheel brake, analog. The old "RT − LT = rudder" is gone
+     (left stick X is still full rudder). X button still = both brakes.
+  2. Quest Touch: triggers = left / right wheel brake. DISPLACED: right trigger guns -> RIGHT GRIP (held, where guns are
+     hot; elsewhere the grip is still smoke toggle — modal, check you like it); left trigger collective brake -> split.
+  3. Quest menu: the always-shown MENU tab is hidden by logic (QuestRig MenuTabEnabled=false, art untouched); opens from
+     the left ☰ button (left stick click held 1 s still works too — say if you want it gone). Inside: sticks move,
+     A/X select, B/Y back; trigger-pointing is off for controllers, kept only for tracked hands (no sticks). iOS
+     on-screen menu button is a different component, untouched. Meta's right ☰/Meta button is system-reserved, not used.
+  4. Not built (Unity build not run by me); fly-test on iPhone + Quest.
+
 <!-- parity-merge needs-you -->
 - **PARITY MERGE DONE: BOTH LANES ARE ONE COMMIT AND LOCKED (Claude, 2026-11-04, Ty approved 07:29).**
   lane/claude-island-nav = lane/claude-quest-islandnav = **b7d1a680**; `tools/check-parity.sh --strict` PARITY: OK.
@@ -4474,6 +5096,43 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
      file must still play.
   5. **From the Mac:** `zsh tools/deploy/quest-record.sh` records the left eye with sound until Ctrl-C
      (`--full` both eyes, `--watch` a live window, `--no-audio`). Is the left-half crop right on your 3S?
+- **QUEST: YOU CAN ALWAYS GET OUT — BELT + DOOR / CANOPY RELEASE → OUT BY SITUATION; WALK, SWIM, TREAD WATER; THE PARACHUTE
+  WATER LANDING; THE EYE UNDER WATER (Claude, 2026-11-02, lane/claude-vr-cockpit, P2d) — from your 13:28, 14:30 and 14:31
+  notes. Code only: NOT built, NOT on the headset. Design and every number: docs/vr-cockpit.md "P2d". NEEDS YOU:**
+  1. **Questions for you.** (a) **The P2 hand-over-hand climb on the sill: keep it as an optional manual way out, or remove
+     it?** I KEPT it (whichever comes first wins); the automatic exit is the main path. (b) **Treading water puts the water at
+     the top of your chest only while the suit still holds its air**: physics gives eye 0.21 m clear (waterline just under
+     the notch at the base of the throat) fresh, then 0.12 m (water at the neck, chin just out) after a couple of minutes as
+     the suit's 2 L leak out, with a 60 N tread (E). True mid-chest would need the lungs out of the water — a life vest — or
+     a tread no one sustains. Without treading he floats eyes-under (−0.09 m) and then sinks. Is 60 N right for you, and
+     do you want a life vest option? (c) **The canopy on your head rule**: it lands over you only in wind below 1.1 m/s
+     (≈ 2 kt), derived from its 3.5 s fall; otherwise wind × 3.5 s downwind. OK? (d) **The Para-Cushion has no canopy release**
+     (risers sewn to the harness), so I added none — confirm, or tell me which rig you wear. (e) The exit table guesses
+     (marked G in the docs): every door side except the 172 / PA-28 / Seminole / Cub, the gliders' and warbirds' generic
+     canopy-release lever and its place, airliners (placeholder path). Correct any you know.
+  2. **Ground, in the headset.** Parked, engine at idle: release the belt(s), then unlatch the canopy (Pitts ball / Extra
+     handles, or the jettison) or, in the Cub / 172, take the door handle and pull it aft 4 cm. The canopy opens by itself
+     (or the door swings), your view rises out of the seat, over the sill, onto the wing walk / step and down onto the ground
+     on the type's side (Pitts / Extra / Great Lakes LEFT, Cub / PA-28 / Seminole RIGHT, 172 by seat), ~5–7 s. The view is
+     levelled ONCE as you stand up (the bail-out's rule). Then: left stick walks 1.4 m/s, left trigger or stick click runs
+     3.5 m/s; right stick turns as VR menu → "Turn on foot" says (Snap 30° default / Smooth / Off). You cannot walk through
+     the wings, fuselage or propeller. Does any of that make you feel ill? The levelling is the one I would look at first.
+  3. **In flight.** Belt + canopy release (or the Pitts knob alone — it counts): the canopy flings or is pushed open, you
+     rise out over the side in 1.2 s and are the P2 jumper (pull the ripcord yourself).
+  4. **Water.** Land under the canopy on a lake: you plunge about 1 m (eye) at 6.5 m/s, the view goes green-blue and foggy
+     with moving caustics and muffled sound, you come up in ~3.8 s and settle treading water in ~5 s, bobbing about 1 cm.
+     The canopy deflates and lies downwind, floats ~45 s, then sinks. Only a light splash and soft lapping — no bubbles,
+     no gurgles, ever. Look down at the water from above in the headset: it is now semi-transparent (6 m visibility).
+     A sunk-cockpit exit (door held by the water until the cabin is nearly full: 7.7 cm head difference for a 172 door)
+     exists in code and tests but **cannot happen in this lineage** (the aeroplane never sinks here) until crash-water lands.
+  **Seam:** water through `ICockpitWaterState` / `IPilotWater` only (CONTRACT.md "Egress ↔ crash-water seam"); this
+  lineage's cockpit filling is a stated stub (τ 20 s). The crash-water adapter is written and compiled out
+  (`CrashWaterSeam.cs`, `FLYINGGAME_CRASH_WATER`). crash-water was read only; nothing merged or cherry-picked.
+  **Evidence (bench only):** 19 new `VrEgressTests` green (one or more per path: in-flight belt/canopy/Pitts jettison,
+  ground climb side + ground height, walk/run speeds, turning, airframe keep-out, door Δp gate until flooded, canopy release
+  not gated, swim-up time, tread stability, plunge vs entry speed, settle + chest equilibrium, eye above while treading,
+  camera-mode switch, canopy deflation vs wind, audio cues) — literals from an independent Python sketch, which agrees with
+  the shipped Core to 4 digits. Full suite, frozen 0a1a7b4 copy then this branch, one at a time with nothing else building: **base 233 failed / 1094 passed (145 unique names), branch 120 failed / 1306 passed (116 unique)** — **no failing name only on the branch** (29 only on the base: the coupled suite's flakes). Unity batch, scripts only, final code: **Android 0 error CS, iOS 0 error CS**, both shaders imported clean (device shader compile not exercised: no player build); ProjectSettings untouched. No APK, no xcodebuild, nothing installed. **Nothing here is approved.**
 - **QUEST: THE EXTRA'S REAL LATCH, THE CANOPY FLUNG OPEN AND TORN AWAY IN FLIGHT, THE JETTISON KNOB (Claude, 2026-11-02,
   lane/claude-vr-cockpit, P2c / P2c-2 / P2c-3) — from your "the rear handle is fixed, the front handle is spring-loaded
   forward …", "suction … flings it open; above 80 KIAS on the Extra, or 80 MPH on the Pitts, the hinges fail and the canopy
@@ -5736,6 +6395,59 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
      same surfaces, via their elevators: the Pitts needs −4.97° of elevator to trim where it needed −4.71°,
      glide ratio 5.697 → 5.695). Everything else is bit-for-bit unchanged, protected by a 1 % deadband on the
      coverage measurement. Visuals unaffected. Local commits only; not merged, not installed, no TestFlight.
+- **TEST SUITE TRIAGE (Claude, 2026-11-01, lane/claude-test-triage) — three decisions are yours, and one
+  number in the brief was wrong:**
+  1. **It was never 109 failing of 783. On a QUIET machine the branch point `aacb429` fails 211 of 1233.**
+     The 109/783 in the 2026-10-31 entry is long stale. Worse, the same tree run while three other worktrees
+     were running their suites gave **198**, and re-run alone gave **211** — the two runs disagree with each
+     other, so any count taken here has to say what else was running.
+  2. **DOES THE LEGACY WORLD CONTENT COME BACK? 104 tests are parked waiting on your answer.** The approved
+     island world (1fe347d, your G1 in a0617a1) replaced the old world outright: `WorldTerrain.HeightAt`
+     returns `IslandTerrain.HeightAt` and nothing else, and `LegacyHeightAt` is dead code Codex left marked
+     *"Retained solely for Claude's later legacy-code/test cleanup"*. So the tests for **the Alaska range and
+     its glaciers, the Frank Church strips, the high desert, the alpine range, the seaside coast and Golden
+     Gate, the waterfalls and their tunnels, the stacked plateaus, the playground, the maze tow, the carrier,
+     the legacy navaids, procedures, light-lines and weather sites** are all asserting ground that no longer
+     exists. I **parked them with `Skip`, I did not delete them**: each one still specifies what that content
+     has to do, so if you want any of it rebuilt on the island the specification is still there. **Tell me
+     which to rebuild and which to retire.** I did NOT rewrite them against island values — there is no island
+     Denali to update the number to, and inventing expectations for content I did not author is how a test
+     stops meaning anything.
+  3. **The aircraft StreamingAssets mirrors: still your open decision, untouched.** Two `StreamingAssetsTests`
+     fail because the mirrors are tracked, which `.gitignore` already records as an open question. Either
+     `git rm --cached` the 69 tracked paths and let ConfigSync generate them (what `c3cc22c`'s one-copy policy
+     intends, and what stopped great-lakes shipping with no config), or retire the two tests. **Note the trap:
+     ignoring them while they are still tracked makes the `git ls-files | git check-ignore` guard print, so it
+     has to be `rm --cached` AND ignore in ONE commit.** I changed nothing here.
+  4. **The Pitts still does not land or roll out well** (3 `AerobatGroundHandlingTests`: swings off the runway
+     three-point, bounces on a wheel landing, and will not recover at 12 m/s). That is a handling-feel number
+     and therefore yours; I did not touch it, and I did not loosen the tolerance to hide it.
+  5. **The suite now fails 7, not 211** — and all seven are named below, none of them coupling noise. Making
+     it REPEAT that is the bit that matters, because a suite that disagrees with itself cannot show you a
+     regression; two full runs now give 1116/7/107 with IDENTICAL failing sets by name, so it
+     repeats. It took two goes to get there: with only
+     `SoaringTests` serialised the suite gave 27 failures on one run and **53 on the next from the same tree**.
+     The collection attribute was protecting the classes that WRITE the global ground and weather from each
+     other and leaving their VICTIMS outside it — 24 classes fly an aeroplane, and so read that state through
+     the sim, while declaring no collection at all. All 24 are serialised now. NaN messages across the suite:
+     82 → 1. Runtime is unchanged: 16m27s and 22m20s after, against 23m21s and 21m43s before
+     — overlapping ranges, no speed-up either way (I claimed one off a single run and the repeat disproved it).
+  6. **The rest of what I fixed, all of it test-side — no flight-model number, config performance figure,
+     tolerance or world file was changed.** `LanMeshTests` used fixed UDP port blocks that collide when several
+     worktrees run the suite at once (four were). `j3-cub-like` and `j3-cub-floats-like` shipped own-built
+     models with **no LICENSE.txt and no CREDITS.md entry at all** — written now from the provenance doc, with
+     nothing invented. `ModelRigTests` installed a world and left it standing for the next class.
+  Not merged and not deployed unless the suite improved and the build is green; see the report.
+- **STRAY MAIN-CHECKOUT `OptionsPanel.cs` EDIT — RESOLVED, no action needed, can be closed** (Claude,
+  2026-11-01, lane/claude-test-triage). The "uncommitted OptionsPanel.cs change in the main checkout" noted in
+  the 2026-10-28 handover entry (aaa5b9d, written 16:45 -0700) is **gone**: as of 2026-11-01 ~12:10 PST the
+  main checkout (split-surfaces @ 1b67dd5) is clean, nothing is stashed, and no worktree holds an uncommitted
+  `OptionsPanel.cs`. The file's mtime (2026-10-28 16:56:33 -0700) equals the fast-forward of
+  `lane/claude-menu-aero` into `split-surfaces`, which rewrote the panel into chapters (0936079) — so the old
+  edit (an earlier fix for the unclosable-menu bug, superseded by that rewrite) was already gone by then. The
+  `OptionsPanel` changes made since are intentional and committed: the look-settings move, 934a866
+  (2026-11-01 05:16) and cd30d02 (05:47), on `lane/claude-device-look` and the lanes built on it, not on
+  `split-surfaces`. **Nothing to keep and nothing to drop.** I did not touch the file or the main checkout.
 - **GREAT LAKES LEVER ORDER PUT BACK (Claude, 2026-11-01, lane/claude-gl-lever-order) — my mistake, and how it
   is pinned shut:**
   1. **Throttle (black), prop (blue), mixture (red), left to right from the seat** — your order, in both
@@ -7129,6 +7841,35 @@ with a green range and two red lines ... Usually the suction gage is a tiny 1 in
   check_c172_cockpit.py PASS; FlightTests C172 filter 49/49. renders/c172/yoke-v1/*suction_closeup.png still show 5.5 (not re-rendered).
 
 C172-YOKE-DONE
+
+### 2026-11-04 06:00– PST — Claude · lane/claude-input-expo · stick expo: one shared curve, applied once
+Ty 05:55: "hand flying needs some expo."
+- **Where it is applied.** Every hand-flying path already met at one point: `Aircraft.ShapeAxis` (src, so iOS, Mac and
+  Quest alike), which zones the stick and then curved it with the axis's `Expo`. Touch pads pass raw positions
+  (TouchFlightControls `Shape` is only a clamp), the keyboard ramp, a calibrated joystick, USB rudder pedals
+  (RudderPedals: linear + dead zone), the gamepad and the Quest controllers (QuestControlMapper: dead zone only) all
+  write `_aileron/_elevator/_rudder` and go through it. The curve is now `FlyingGame.Core.InputExpo.Apply`, called
+  from there, after the dead zone; the dead-zone code is untouched.
+- **Double application removed.** `GamepadShaping.Stick/Rudder` put a 0.65 curve on the pad BEFORE ShapeAxis put the
+  aircraft's on top. `GamepadShaping.DefaultExpo` is 0 now (the pad's dead zones and PreCompensateDeadZone stay).
+- **Which e.** `SessionSettings.StickExpo` (pref `feel.stickExpo`, default `InputExpo.DefaultPitchRoll` 0.30, clamped
+  0…0.70). `ApplyFeel` writes aileron/elevator = it, rudder = `InputExpo.Yaw` (× 0.20/0.30). It replaces each aircraft's
+  own config expo for hand flying; the configs are unchanged (the sim tests still fly them). The three per-axis expo
+  sliders became one; the old `feel.expo.0…2` prefs are left in place and no longer read. Dead-zone sliders unchanged.
+- **Quest.** island-nav had the Quest lane's `QuestStickFeel` (headset-only expo 0.65 when unset). Merging island-nav
+  into this lane conflicted in `ApplyFeel`: kept the headset DEAD-ZONE rule exactly (`QuestStickFeel.Resolve`,
+  `DefaultExtraDeadZone`), and made the expo the shared setting. `QuestStickFeel.DefaultExpo` = 0.30, its `Curve`
+  calls InputExpo; the VR menu row edits `StickExpo`. `QuestStickFeelTests` re-derived by hand for k = 0.30.
+- **Tests.** `InputExpoTests` (new): endpoints ±1 → ±1 and 0 → 0 for e in 0…0.7, past-the-stop clamp, defaults,
+  yaw = 2/3, slider clamp, hand-worked literals, e = 0 identity, strict monotonicity on 0…0.7, odd symmetry, and
+  ShapeAxis order (stick 0.525 with dz 0.05, e 0.3 → 0.3875 of travel, via `StickForDeflection`). Filters
+  InputExpo|GamepadShaping|QuestStickFeel|QuestControls|TouchSticksGamepad|GamepadStickFree|RudderPedal: 155/155;
+  LaunchReplicationTests (Pitts, Cub, PilotControlsLetGo): 9/9. NOT a full-suite run: ShapeAxis' arithmetic is the same
+  expression as before (e is now clamped to 0…1, which no config exceeds), so the sim's numbers cannot move; the
+  Mac had other lanes' full suites running.
+- Build: `deploy.sh 00008150-001629A83662401C` on b770986f → Unity 0 `error CS`, `** BUILD SUCCEEDED **`, `2026.1104.1433`.
+  Install: the iPhone refused (CoreDevice 4016, usage assertion, as for island-nav's 0957; usually locked). Retried after
+  the merge: not retried, merge not done (above). ProjectSettings bump and the StreamingAssets copies not committed.
 
 ### 2026-11-04 09:30– PST — Claude · lane/claude-crash-tuning · crash tuning: steel-tube fuselages crush, wreck friction, branch damage
 Ty, after flying 2026.1104.0427: "momentum is still too weak or the friction is too high. The fuselage is really strong
@@ -13077,3 +13818,21 @@ NEEDS YOU: Ty, approve `renders/grob103/blanc-v1/` and the proposed visual eyes.
 - Copies delivered to `/Users/tyfrisby/Developer/agent-lanes/xfer/grob-blanc-v1/`, including review images, GLBs, attribution, rig and editable Blender scene. Source STL remains in its original transfer folder. Local commit only; no push, merge, deploy or install. No forced add. Required tracked-file ignore audit must be silent immediately before commit; visual approval stays PENDING.
 
 PITTS-V2-MERGED
+
+## 2026-11-04 — lane/claude-app-icon: AP letter app icon (Ty approved)
+- Replaced unity/Assets/_Project/Art/AppIcon.png (same GUID 069fd8c6…, so all 19 iPhone/iPad/App Store icon slots in Player Settings pick it up) with the AP letter icon (aero/vector/png/ap-icon-color-1024.png): 1024×1024, opaque, no alpha (sips hasAlpha: no).
+- ProjectSettings.asset: set the Default icon (m_BuildTargetIcons) to the same texture so Mac (OSXUniversal) and Quest/Android builds get it too (Android adaptive slots stay empty → fall back to default).
+- tools/check-parity.sh: PARITY OK. Branch is off lane/claude-island-nav b7d1a680.
+- BUILD NOT RUN: the parity-merge agent was mid-tests (dotnet test pid 27644) with its iOS/Quest builds queued next; did not start a Unity/xcodebuild alongside it. No install (rides the parity-merge install).
+- NEXT: after the parity merge, merge lane/claude-app-icon into lane/claude-island-nav AND lane/claude-quest-islandnav (ProjectSettings.asset touched — merge carefully with the parity merge's ProjectSettings), then build: need ** BUILD SUCCEEDED **.
+
+## 2026-11-04 trigger toe brakes (Claude, lane/claude-trigger-brakes)
+Found: gamepad mapping in unity/Assets/_Project/Scripts/Bridge/GamepadInput.cs Read() (LT/RT fed GamepadShaping.Rudder as
+a second rudder; X = Brakes held); Quest pad -> QuestGamepadMap.ToFrame (src/FlyingGame.Core/Vr/QuestControls.cs), Touch
+LT = c.Brake, RT = c.Fire; QuestMenu selected with trigger > 0.6 and a pointer laser; QuestMenuTabView = always-shown tab.
+Sim already has differential braking (Aircraft.BrakeInput + BrakeBias, LandingGear.Compute; PedalBlend.ToSim/FromSim).
+Changed: GamepadShaping.StickRudder / TriggerBrakes / CombineWheelBrakes (Core, shared); GamepadInput Frame.BrakeLeft/
+Right; TouchFlightControls folds pad + Quest per-wheel brakes into BrakeInput/BrakeBias (max per wheel, like pedals);
+QuestControlMapper BrakeLeft/Right from triggers, Fire = right grip; Bridge grip = guns if FireAvailable else smoke;
+QuestMenu: no trigger select, pointing only HandsOnly; QuestRig tab disabled. Tests: GamepadShapingTests (+2),
+QuestStickFeelTests updated. GamepadShaping.Rudder(lx,lt,rt) left in place (tests/replication use it).

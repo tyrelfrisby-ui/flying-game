@@ -187,7 +187,7 @@ public class WheelSkiTests : IDisposable
         return ac.State.Position.X - start;
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the Knik glacier the wheel-ski landing is flown on. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void ACubOnSkisCanBePutOnTheKnikAndStop()
     {
         // The whole feature, flown on the real glacier: touch down on the tongue going UP the ice, which is
@@ -238,7 +238,7 @@ public class WheelSkiTests : IDisposable
         Assert.True(slowest < 0.4, $"it never stopped (slowest {slowest:0.0} m/s)");
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the Knik glacier the wheel-ski landing is flown on. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheSameCubOnWheelsSlidesMuchFurtherUpTheKnik()
     {
         // The comparison that says the ski is worth fitting: a WHEEL on the same ice digs in and stops sooner,

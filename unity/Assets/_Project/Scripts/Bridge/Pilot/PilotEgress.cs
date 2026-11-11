@@ -44,6 +44,14 @@ namespace FlyingGame.Bridge
         public float ChuteInflate01 => _pilot?.Chute != null ? _pilot.Chute.Fill : 0f;
         public bool ChuteOut => _pilot?.Chute != null;
         public bool PilotLanded => _pilot != null && _pilot.Landed;
+        /// <summary>At rest in the water (a parachute landing on a lake, or he went in from the cockpit).</summary>
+        public bool PilotLandedOnWater => _pilot != null && _pilot.Landed && _pilot.LandedOnWater;
+        /// <summary>His velocity the instant he reached the ground or the water.</summary>
+        public Vector3 PilotLandingVelocity => _pilot != null ? _pilot.LandingVelocity : Vector3.zero;
+        /// <summary>A soaked canopy hanging on his harness, N (Core CanopyOnWater).</summary>
+        public float ChuteLoadOnPilotN => _pilot != null ? _pilot.ChuteLoadN : 0f;
+        /// <summary>He left the aeroplane on foot or into the water (headset, P2d), not through the air.</summary>
+        public bool OnFoot { get; private set; }
         /// <summary>The non-gravitational acceleration on the pilot (drag, opening shock), in g.</summary>
         public float PilotLoadG => _pilot != null ? _pilot.AeroAccelG : 0f;
 
@@ -213,6 +221,7 @@ namespace FlyingGame.Bridge
             _seq = null;
             IsGhost = false;
             CrashOutcome = LandingOutcome.Unhurt;
+            OnFoot = false;
             _status = ""; LastLine = ""; _restT = _voiceT = -1f; _spoken = false;
             PilotVoice.Stop();
             UpdateRemark();   // takes the world-space one-liner down
@@ -258,7 +267,15 @@ namespace FlyingGame.Bridge
 
         // ---- sequence --------------------------------------------------------------------------------
 
-        private void Update() => Tick(Time.deltaTime);
+        private void Update()
+        {
+            Tick(Time.deltaTime);
+            // The ONE underwater renderer needs to know the camera is the pilot's own eye once he is out of the
+            // aeroplane, or a swimming pilot gets no murk while a seated one in a flooded cockpit does
+            // (Ty 2026-11-10: "one source of truth, extended - not two layers"). Written every frame, both ways, so
+            // climbing back into a flight resets it.
+            PilotUnderwater.PilotEyeOutOfTheAeroplane = (PilotOut || OnFoot) && (_pilot?.FirstPerson ?? false);
+        }
 
         /// <summary>One frame of the sequence with a stated dt: for an editor batch tool, where Update never fires
         /// (BailoutHeavenCheck).</summary>
@@ -354,6 +371,9 @@ namespace FlyingGame.Bridge
         /// wince (hard) a tenth of a second later. Severity from the impact speed (a 5 m/s canopy landing is soft).</summary>
         private void OnPilotHit(float impactMs, bool stillTumbling)
         {
+            // Into water: no body thud and no grunt (Ty, 2026-11-02 14:31 — a light splash only, which the headset's
+            // PilotWaterSound plays; seen from outside the water takes him silently).
+            if (_pilot != null && _pilot.LandedOnWater) return;
             float sev = Mathf.Clamp01((impactMs - 1.5f) / 10f);
             var au = GetComponent<FlightAudio>();
             au?.PilotThud(sev);
@@ -516,6 +536,47 @@ namespace FlyingGame.Bridge
             Current = Phase.FreeFall;
             Log($"pilot climbed out by hand at {(vel - _driver.WorldVelocityUnity).magnitude:F1} m/s relative to the aircraft");
             FirePilotLeft();
+        }
+
+        /// <summary>
+        /// THE OTHER WAYS OUT (headset, P2d "you can always get out"): he climbed out of a parked aeroplane, or over the sill
+        /// of a floating one, or swam out of a sunk one (VrCockpitHands.Exit). <paramref name="centre"/>: his body centre,
+        /// world. No fall and no chute: the body is at rest where he is and the headset moves it (<see cref="MoveOnFoot"/>);
+        /// the aeroplane is left as it is.
+        /// </summary>
+        public void LeaveOnFoot(Vector3 centre, float headingDeg, bool water)
+        {
+            if (Current != Phase.InCockpit) return;
+            HandsOn = true;
+            OnFoot = true;
+            _eject = false;
+            _t = 0f;
+            _canopyDone = _chuteDone = true;
+            _pilot = new PilotBody(centre, Vector3.zero, Vector3.zero, headingDeg, withSeat: false, seatUp: Vector3.up,
+                initialRotation: Quaternion.Euler(0f, headingDeg, 0f));
+            _pilot.FirstPerson = true;
+            _pilot.PlaceOnFoot(centre, water);
+            PilotTransform = _pilot.Transform;
+            AbandonAircraft();
+            // A parked aeroplane is left at idle with the brakes on (E: he closed the throttle and held the brakes as he
+            // went); a floating one is simply left.
+            _abandoned = new ControlInputs(0, _abandoned.Elevator, 0, 0.0);
+            _driver.Inputs = _abandoned;
+            if (_driver.Sim?.Aircraft != null) _driver.Sim.Aircraft.BrakeInput = 1;
+            Current = Phase.Landed;
+            Log(water ? "pilot out of the aeroplane into the water" : "pilot climbed out on the ground");
+            FirePilotLeft();
+        }
+
+        /// <summary>The headset moved him (walk, swim, tread): his body centre this frame.</summary>
+        public void MoveOnFoot(Vector3 centre, bool water) => _pilot?.MoveTo(centre, water);
+
+        /// <summary>A hand on a canopy-release of a type with no hands-on canopy (P2d's generic release): the rig's own
+        /// canopy (or the stand-in shell) leaves, as the menu's bail-out does it.</summary>
+        public void JettisonCanopyByHand()
+        {
+            if (_canopyDone) return;
+            JettisonCanopy();
         }
 
         /// <summary>Show or hide the primitive canopy (when the pilot-gear asset's own Parachute_Deployed is drawn).</summary>

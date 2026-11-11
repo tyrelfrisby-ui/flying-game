@@ -10,6 +10,13 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>Diagnostic (LETGO_PROBE=1): a developed spin, then the pilot lets go (all three free) vs neutralises (held at
 /// neutral) vs keeps pro-spin — at idle. Prints yaw rate, α and the surfaces' deflections.</summary>
+// FLIES an aeroplane, so it READS the global ground and weather (WorldTerrain.Active, Atmosphere.*,
+// FloatHydro) through the sim even though it sets none of them. The collection was protecting the
+// classes that WRITE that state from each other and leaving their victims outside it, so this class ran
+// in parallel with 68 that install worlds and weather: StructuralTests went 39 of 40 NaN in one run and
+// passed clean in the next on identical code (2026-11-01). A reader needs the same serialisation as a
+// writer.
+[Collection("WorldTerrainActive")]
 public class LetGoProbe
 {
     private readonly ITestOutputHelper _out;

@@ -1463,7 +1463,6 @@ namespace FlyingGame.Bridge
             }
             // Apron + open hangar.
             BuildHangar(root.transform, a.X + WorldTerrain.HangarDx, a.Y + WorldTerrain.HangarDy, a.ElevationM);
-            BuildWindsocks(root.transform, a);
             AirportVisualDressing(root.transform, a);
             // Field name on the apron.
             Label(root, a.Name.ToUpperInvariant(), a.X + WorldTerrain.HangarDx + 60, a.Y + WorldTerrain.HangarDy - 70, a.ElevationM + 0.1, 8f);
@@ -1857,59 +1856,6 @@ namespace FlyingGame.Bridge
             go.transform.localScale = onStrip ? new Vector3(1f / s.x, 1f / s.y, 1f / s.z) : Vector3.one;
             var tm = go.AddComponent<TextMesh>();
             tm.text = text; tm.fontSize = 48; tm.characterSize = size * 0.1f; tm.anchor = TextAnchor.MiddleCenter; tm.color = Paint;
-        }
-
-        /// <summary>Windsocks (owner 2026-09-10): several along each side of every runway/strip, plus one by the apron and
-        /// one at each far corner of the pad, all reading the live wind where they stand.</summary>
-        private static void BuildWindsocks(Transform parent, WorldTerrain.Airport a)
-        {
-            var spots = new List<(double x, double y)>();
-            foreach (WorldTerrain.Strip s in WorldTerrain.AirportStrips)
-            {
-                double h = s.HeadingDeg * System.Math.PI / 180, c = System.Math.Cos(h), sn = System.Math.Sin(h);
-                double off = s.Width / 2 + 35;                       // clear of the edge lights, on both sides
-                int n = s.Length > 1000 ? 3 : 2;                     // three along the long runways, two on the strips
-                for (int i = 0; i < n; i++)
-                {
-                    double along = n == 1 ? 0 : -s.Length * 0.38 + s.Length * 0.76 * i / (n - 1);
-                    foreach (double side in new[] { -1.0, 1.0 })
-                    {
-                        double across = side * off;
-                        spots.Add((a.X + s.Dx + along * c - across * sn, a.Y + s.Dy + along * sn + across * c));
-                    }
-                }
-            }
-            spots.Add((a.X + WorldTerrain.ApronDx, a.Y + WorldTerrain.ApronDy + WorldTerrain.ApronWidthM / 2 + 25));
-            spots.Add((a.X + WorldTerrain.PadHalfX - 60, a.Y + WorldTerrain.PadHalfY - 60));
-            spots.Add((a.X - WorldTerrain.PadHalfX + 60, a.Y - WorldTerrain.PadHalfY + 60));
-            foreach ((double x, double y) in spots) Windsock(parent, x, y, WorldTerrain.Active?.HeightAt(x, y) ?? a.ElevationM);
-        }
-
-        private static void Windsock(Transform parent, double x, double y, double ground)
-        {
-            var root = new GameObject("Windsock"); root.transform.SetParent(parent, false);
-            root.transform.position = U(x, y, ground);
-            var pole = GameObject.CreatePrimitive(PrimitiveType.Cylinder); Kill(pole.GetComponent<Collider>());
-            pole.name = "Pole"; pole.transform.SetParent(root.transform, false);
-            pole.transform.localPosition = new Vector3(0f, 3.5f, 0f); pole.transform.localScale = new Vector3(0.12f, 3.5f, 0.12f);
-            pole.GetComponent<MeshRenderer>().sharedMaterial = Lit(new Color(0.75f, 0.75f, 0.78f));
-            // Ring at the top; the cone pivots there and points downwind (Windsock turns it).
-            var pivot = new GameObject("Cone"); pivot.transform.SetParent(root.transform, false);
-            pivot.transform.localPosition = new Vector3(0f, 7.0f, 0f);
-            var orange = new Color(1f, 0.45f, 0.05f);
-            // Five bands: orange, white, orange, white, orange — each a tapering cone segment along +z.
-            float len = 3.6f, r0 = 0.45f, r1 = 0.18f;
-            for (int i = 0; i < 5; i++)
-            {
-                float za = len * i / 5f, zb = len * (i + 1) / 5f;
-                float ra = Mathf.Lerp(r0, r1, i / 5f), rb = Mathf.Lerp(r0, r1, (i + 1) / 5f);
-                var seg = new GameObject($"Band{i}"); seg.transform.SetParent(pivot.transform, false);
-                seg.transform.localPosition = new Vector3(0f, 0f, za);
-                seg.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);   // ConeMesh grows along local +y → +z
-                seg.AddComponent<MeshFilter>().sharedMesh = ConeMesh(ra, rb, zb - za, 12);
-                seg.AddComponent<MeshRenderer>().sharedMaterial = Lit(i % 2 == 0 ? orange : Color.white);
-            }
-            root.AddComponent<Windsock>().Cone = pivot.transform;
         }
 
         public static void BuildHangar(Transform parent, double cx, double cy, double elev)

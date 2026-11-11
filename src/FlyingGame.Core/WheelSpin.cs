@@ -317,6 +317,35 @@ public sealed class WheelState
     public double LoadN, VFwdMs, SlipRatio, SlipPowerW, Brake01, BrakeTorqueNm;
     public WorldTerrain.Surface Surface;
     public GroundMaterial Material;
+    /// <summary>For the surface tracks (<see cref="SurfaceContacts"/>), as the step's first stage found the patch: the
+    /// ground's normal (world), the way the leg points along it (a tyre's steered rolling direction), the patch's velocity
+    /// over the ground in its plane, the side slip speed, the side slip's friction power (W), and how deep the leg is in
+    /// the surface (a tyre's rut, <see cref="TireModel.GroundSinkageM"/>, or its depth in water), m.</summary>
+    public MathTypes.Vec3 GroundUpWorld, HeadingWorld, GroundVelocityWorld;
+    public double VSideMs, SidePowerW, SinkM;
+    /// <summary>
+    /// The UNDISTURBED ground surface at this contact (world, NED): <see cref="PatchWorld"/> carried back up the
+    /// ground's normal by the whole contact compression. It is where a mark in the ground lies
+    /// (<see cref="GroundImprints"/>).
+    ///
+    /// It is NOT <see cref="PatchWorld"/>. The patch is the tyre's bottom as the aeroplane's pose puts it, which is
+    /// BELOW the surface by whatever the leg and the tyre have compressed — measured on a J-3 rolling out on grass,
+    /// 1.5 cm standing still and up to 21 cm while it settles after a touchdown. Drawing a rut at the patch would have
+    /// it dive a hand's breadth into the earth and come back out again every time the suspension worked, and it broke
+    /// the track into 145 stretches over 58 m where it should have been a handful (GroundImprintTests).
+    /// </summary>
+    public MathTypes.Vec3 SurfaceWorld;
+    /// <summary>
+    /// The WHOLE contact compression at this leg this step, along the ground's normal, m: how far the leg's lowest
+    /// point (the tyre's bottom, or a bearing ski's own contact point) is inside the ground. The leg's spring, the
+    /// tyre's spring and the damper all act on it, so it is an ELASTIC deflection — let the load off and it returns —
+    /// which is exactly why the marks in the ground take only <see cref="GroundImprints.PlasticRetention01"/> of it.
+    ///
+    /// NOT the same as <see cref="SinkM"/>. SinkM is the tyre's Bekker compaction of the SOIL, a permanent set; this is
+    /// the geometric overlap the contact model resolves with a force. A leg with no sinkage model at all — a bearing
+    /// ski, a skid shoe, a float keel on land, a pilot's feet — has SinkM 0 and leaves its mark from this instead.
+    /// </summary>
+    public double PenetrationM;
     /// <summary>The wheel's ground speed if it were rolling without slip: ω·r (r the rolling radius, a flat's smaller one).</summary>
     public double RimSpeedMs => OmegaRadS * RollingRadiusM;
 
@@ -427,6 +456,8 @@ public sealed class WheelState
         FootprintLengthM = 0; FootprintWidthM = 0; GroundPressurePa = 0;
         // A leg off the ground hangs on its own: the drawn wheel goes back to where the model draws it.
         LegStrokeM = 0;
+        VSideMs = 0; SidePowerW = 0; SinkM = 0; PenetrationM = 0;
+        GroundUpWorld = HeadingWorld = GroundVelocityWorld = SurfaceWorld = MathTypes.Vec3.Zero;
     }
 
     /// <summary>Not advanced against the ground this step (in the air, on a ski, in the water): the wheel turns down in

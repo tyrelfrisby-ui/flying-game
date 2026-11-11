@@ -245,15 +245,36 @@ public static class TireModel
     {
         double table = WorldTerrain.RollingCoefficient(s);
         if (t == null || loadN <= 0) return table;
-        double hard = WorldTerrain.RollingCoefficient(WorldTerrain.Surface.Paved);
-        Reference(out double refRel, out double refPg, out double refL);
-        double rel = System.Math.Max(1e-4, delta / t.OdM);
-        double hyst = hard * System.Math.Sqrt(rel / refRel);
-        double ground = System.Math.Max(0, table - hard);
+        double hyst = HysteresisCoefficient(t, delta);
+        Reference(out _, out double refPg, out double refL);
+        double ground = System.Math.Max(0, table - WorldTerrain.RollingCoefficient(WorldTerrain.Surface.Paved));
         if (ground <= 0) return hyst;
         double l = System.Math.Max(0.01, FootprintLengthM(t, delta));
         double pg = GroundPressurePa(t, loadN, delta);
         return hyst + ground * System.Math.Pow(pg / refPg, 1.0 / SinkageExponent(s)) * (refL / l);
+    }
+
+    /// <summary>The tyre's own hysteresis share of its rolling resistance at deflection <paramref name="delta"/> (the whole of
+    /// it on pavement): ∝ √(δ/d), the reference tyre's being the paved table value.</summary>
+    public static double HysteresisCoefficient(TireSpec t, double delta)
+    {
+        Reference(out double refRel, out _, out _);
+        double rel = System.Math.Max(1e-4, delta / t.OdM);
+        return WorldTerrain.RollingCoefficient(WorldTerrain.Surface.Paved) * System.Math.Sqrt(rel / refRel);
+    }
+
+    /// <summary>
+    /// The rut a tyre presses into the ground, m: the sinkage its rolling resistance <paramref name="rollingMu"/> charged
+    /// for. Bekker's compaction resistance is R/W = z/((n+1)·l) (Wong, Theory of Ground Vehicles; the relation
+    /// <see cref="RollingCoefficient"/> is built on), so z = (μ_roll − μ_hysteresis)·(n+1)·l, l the footprint length.
+    /// 0 on pavement and ice, where the whole coefficient is the tyre's own; 0 for a leg with no tyre model.
+    /// </summary>
+    public static double GroundSinkageM(TireSpec? t, double rollingMu, WorldTerrain.Surface s, double delta)
+    {
+        if (t == null || !double.IsFinite(rollingMu)) return 0.0;
+        double ground = rollingMu - HysteresisCoefficient(t, delta);
+        if (ground <= 0) return 0.0;
+        return ground * (SinkageExponent(s) + 1.0) * System.Math.Max(0.0, FootprintLengthM(t, delta));
     }
 
     /// <summary>Bekker's sinkage exponent n (Wong, Theory of Ground Vehicles, via NASA/TM-20250006958 Table 1) for the

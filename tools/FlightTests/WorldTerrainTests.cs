@@ -19,7 +19,7 @@ public class WorldTerrainTests : IDisposable
         Assert.Equal(0.0, WorldTerrain.GroundHeightAt(0, -5000));
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy terrain layout. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void AirportsSitOnFlatPadsAtTheirElevations()
     {
         var t = new WorldTerrain();
@@ -44,7 +44,7 @@ public class WorldTerrainTests : IDisposable
             Assert.InRange(WorldTerrain.Airports[i].ElevationM * 3.28084, ft - 1, ft + 1);
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy terrain layout. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void WallsAreSteepAndIrregular()
     {
         var t = new WorldTerrain();
@@ -63,7 +63,7 @@ public class WorldTerrainTests : IDisposable
         Assert.True(Math.Abs(e1 - e2) > 100 || Math.Abs(e2 - e3) > 100);
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy terrain layout. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void LakesAndRiverHaveWater()
     {
         var t = new WorldTerrain();

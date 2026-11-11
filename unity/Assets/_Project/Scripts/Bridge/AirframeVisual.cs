@@ -577,6 +577,7 @@ namespace FlyingGame.Bridge
                 TakeFoldedBays(leftSide ? -1 : 1, tips);
                 GameObject whole = DetachStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, comp, worldVelocityUnity, tips);
                 HideBentTipsLeftBehind(tips);
+                HideWingPivotsLeftBehind(leftSide ? -1f : 1f);
                 return whole;
             }
             return DetachStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, comp, worldVelocityUnity);
@@ -645,6 +646,35 @@ namespace FlyingGame.Bridge
         {
             foreach (Transform t in tips)
                 if (t != null && t.parent == transform && t.gameObject.activeSelf) t.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// BELT AND BRACES, as <see cref="AirframeBuilder.Clear"/> has for a rebuild: once the whole wing on
+        /// <paramref name="side"/> has gone, NO pivot carrying that wing's drawn shape may still be on the aeroplane —
+        /// whichever pass made it and whether or not the hand-over above knew about it. A wing's shape does not live in
+        /// the builder's wing parts: a bent tip rides a <c>Bent-&lt;panel&gt;</c> pivot and a folded or aerodynamically
+        /// curved inboard bay a <c>Shaped-&lt;panel&gt;</c> pivot, and both hang off the AIRFRAME ROOT, which is why
+        /// each new kind of pivot has had to be hunted down one at a time (Ty 2026-11-09, the J-3's bent tips;
+        /// 2026-11-10, the Great Lakes' four). This closes the kind rather than the instance.
+        ///
+        /// Only a WING PANEL's pivot on that side, and only when the WHOLE wing left: a single tip panel breaking off a
+        /// biplane must not hide the other wing's pivot on the same side, and the Nose and TailBoom pivots in
+        /// <see cref="_bentPanels"/> belong to the fuselage and stay exactly where they are.
+        /// </summary>
+        private void HideWingPivotsLeftBehind(float side)
+        {
+            for (int i = transform.childCount - 1; i >= 0; i--)
+            {
+                Transform c = transform.GetChild(i);
+                if (c == null || !c.gameObject.activeSelf) continue;
+                string n = c.name;
+                string tail = n.StartsWith("Bent-") ? n.Substring(5) : n.StartsWith("Shaped-") ? n.Substring(7) : null;
+                if (tail == null) continue;
+                if (!System.Enum.TryParse<FlyingGame.Core.AirframeComponent>(tail, out FlyingGame.Core.AirframeComponent comp)) continue;
+                if (!IsTipPanel(comp) || TipSide(comp) != side) continue;
+                Debug.LogWarning($"[Airframe] '{n}' was still drawn after its wing left; hidden");
+                c.gameObject.SetActive(false);
+            }
         }
 
         /// <summary>
@@ -1665,9 +1695,17 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>Model meshes that are never wing, though they reach outboard of the body: the tailplane, the gear,
-        /// the propeller (a named model's own nodes; a one-mesh model is held to the wing's chord band instead).</summary>
+        /// the propeller (a named model's own nodes; a one-mesh model is held to the wing's chord band instead).
+        ///
+        /// AND THE CABANE. On a biplane the INTERPLANE struts are bolted to both panels and go with them (they are
+        /// "strut", so NamedWing takes them out past the body), while the CABANE struts are bolted to the FUSELAGE and
+        /// stay on it when the wings leave: what departs above the pilot is the upper wing's centre section, not its
+        /// legs. Until this line the Great Lakes' six Cabane_Leg_* nodes matched no name rule at all, so the wing cut
+        /// held them to the wing's chord band and threw the ~10 cm of each that reaches outboard of the body radius
+        /// away with the wing, leaving six notched legs behind.</summary>
         private static bool NotWing(string baseName) =>
-            baseName.StartsWith("stab") || baseName.StartsWith("hstab") || baseName.StartsWith("elevator") || baseName.StartsWith("fin")
+            baseName.Contains("cabane")
+            || baseName.StartsWith("stab") || baseName.StartsWith("hstab") || baseName.StartsWith("elevator") || baseName.StartsWith("fin")
             || baseName.StartsWith("rudder") || baseName.StartsWith("gear") || baseName.Contains("wheel") || baseName.Contains("pant")
             || baseName.StartsWith("oleo") || baseName.StartsWith("prop") || baseName.StartsWith("spinner") || baseName.StartsWith("blade")
             || baseName.StartsWith("float") || baseName.StartsWith("ski");
@@ -1860,10 +1898,23 @@ namespace FlyingGame.Bridge
             // geometry is on a pivot under the airframe root and not in the builder's wing parts, so the break-up could
             // not see it — the wings went and the bent tips stayed (Ty 2026-11-10). They leave with their own side.
             TakeBentTips(-1f, _bentTipsL);
+            // AND THE INBOARD BAY OF A WING THAT HAD FOLDED OR CARRIED THE AERODYNAMIC CURVE, which is the case this
+            // path IS: pulling to the g limit curves every panel from the root (StructuralDamage calls ShowWingShape
+            // whenever |FoldRad| or |AeroBendRad| passes 0.003 rad), so by the time the wings let go each one's bay is
+            // on a Shaped-<panel> pivot under the AIRFRAME ROOT — not in the builder's wing parts, where everything
+            // that breaks a wing up looks. DetachComponentNow has taken them since the staggered-failure work; this
+            // path never did, so the g-limit failure threw the wings and left their root bays drawn on the fuselage,
+            // four of them on a biplane — two upper, two lower (Ty 2026-11-10, the Great Lakes: "when the wings shed
+            // ... they leave little artifacts floating in space top and bottom where the n struts were").
+            // After TakeBentTips for the same side, which clears the list.
+            TakeFoldedBays(-1, _bentTipsL);
             TakeBentTips(1f, _bentTipsR);
+            TakeFoldedBays(1, _bentTipsR);
             var (l, r) = DetachWingsStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, worldVelocityUnity, _bentTipsL, _bentTipsR);
             HideBentTipsLeftBehind(_bentTipsL);
             HideBentTipsLeftBehind(_bentTipsR);
+            HideWingPivotsLeftBehind(-1f);
+            HideWingPivotsLeftBehind(1f);
             ReplayActors.RegisterAirframePart(l, transform);   // on the aeroplane in the replay until now (Ty pt1001)
             ReplayActors.RegisterAirframePart(r, transform);
             return (l, r);

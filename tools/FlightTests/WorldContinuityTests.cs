@@ -121,7 +121,7 @@ public class WorldContinuityTests
         return System.Math.Abs(h1 - h0);
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy terrain layout. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void NowhereDoesTheGroundStopDead()
     {
         List<(double x, double y, bool alongX)> candidates = new();

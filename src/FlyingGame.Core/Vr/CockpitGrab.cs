@@ -15,6 +15,10 @@ namespace FlyingGame.Core.Vr
         CanopyLatchAft = 11, CanopyLatchFwd = 12, CanopyJettison = 13,
         // Phase 3 (hands): the 2-33's dive-brake handle (whichever cockpit you sit in), its trim lever and tow release.
         SpoilerHandle = 14, TrimLever = 15, TowRelease = 16,
+        /// <summary>P2d: a cabin door's handle; a canopy's generic release lever (types without a hands-on latch).
+        /// Numbered 17 / 18, not the 14 / 15 lane/claude-vr-cockpit wrote: phase 3 took 14-16 for the 2-33's handles
+        /// while that lane sat unmerged, and nothing stores these as numbers — every use is by name.</summary>
+        DoorHandle = 17, CanopyRelease = 18,
         // Phase 3 (switches and knobs): the seat's own panel controls, one slot each, PanelFirst + their index.
         PanelFirst = 32, PanelLast = 79,
     }
