@@ -157,11 +157,20 @@ namespace FlyingGame.EditorTools
         // SlimHoldDir, which is under no Resources folder and referenced by nothing, so the player build skips them.
         // Nothing is deleted. If a build dies between the two moves, the next iOS build (slim or not) puts them back first.
         private const string ModelsDir = "Assets/_Project/Resources/Models";
-        private const string SlimHoldDir = "Assets/_Project/TfSlimHold";
+        // BOTH hold directories end in "/Models" and that is load-bearing, not tidiness. Since 2026-11-10 a GLB's
+        // textures are sidecar files reached by the relative URI "../../../ModelTextures/...", which glTFast
+        // resolves against the GLB's OWN directory (GLTFast.UriHelper.GetUriString walks up one directory per
+        // leading ".."). From Assets/_Project/Resources/Models/<id> three up is Assets/_Project. A hold directory
+        // has to be the same five segments deep — Assets/_Project/<hold>/Models/<id> — or the moment a GLB is moved
+        // into it for a build, Unity re-imports it, the URI resolves to a path that does not exist, and the import
+        // fails. Any future staging directory for these models is under the same obligation.
+        private const string SlimHoldRoot = "Assets/_Project/TfSlimHold";
+        private const string SlimHoldDir = SlimHoldRoot + "/Models";
 
         private static void HoldOutUnlistedModels()
         {
-            if (!AssetDatabase.IsValidFolder(SlimHoldDir)) AssetDatabase.CreateFolder("Assets/_Project", "TfSlimHold");
+            if (!AssetDatabase.IsValidFolder(SlimHoldRoot)) AssetDatabase.CreateFolder("Assets/_Project", "TfSlimHold");
+            if (!AssetDatabase.IsValidFolder(SlimHoldDir)) AssetDatabase.CreateFolder(SlimHoldRoot, "Models");
             var kept = new System.Collections.Generic.List<string>();
             var held = new System.Collections.Generic.List<string>();
             foreach (string dir in AssetDatabase.GetSubFolders(ModelsDir))
@@ -186,7 +195,9 @@ namespace FlyingGame.EditorTools
         // What is NEVER held out: the downloaded <id>.glb (most types draw it), the .obj meshes, and the loose textures
         // the 172's own GLB reads. Nothing is deleted, and nothing is authored twice (docs/PARITY.md: a build-time
         // subset of shared art is not a fork).
-        private const string LiveryHoldDir = "Assets/_Project/PhoneLiveryHold";
+        // Five segments deep, for the reason spelled out above SlimHoldDir.
+        private const string LiveryHoldRoot = "Assets/_Project/PhoneLiveryHold";
+        private const string LiveryHoldDir = LiveryHoldRoot + "/Models";
 
         private static void HoldOutAlternateLiveries()
         {
@@ -203,7 +214,8 @@ namespace FlyingGame.EditorTools
                         if (file.StartsWith(folder + "-own", System.StringComparison.Ordinal)) kept[folder] = file;
                         continue;
                     }
-                    if (!AssetDatabase.IsValidFolder(LiveryHoldDir)) AssetDatabase.CreateFolder("Assets/_Project", "PhoneLiveryHold");
+                    if (!AssetDatabase.IsValidFolder(LiveryHoldRoot)) AssetDatabase.CreateFolder("Assets/_Project", "PhoneLiveryHold");
+                    if (!AssetDatabase.IsValidFolder(LiveryHoldDir)) AssetDatabase.CreateFolder(LiveryHoldRoot, "Models");
                     if (!AssetDatabase.IsValidFolder(LiveryHoldDir + "/" + folder)) AssetDatabase.CreateFolder(LiveryHoldDir, folder);
                     string err = AssetDatabase.MoveAsset(dir + "/" + file, LiveryHoldDir + "/" + folder + "/" + file);
                     if (!string.IsNullOrEmpty(err)) throw new BuildFailedException($"[phone liveries] could not hold out {dir}/{file}: {err}");
@@ -245,7 +257,11 @@ namespace FlyingGame.EditorTools
                 }
                 if (Directory.GetFiles(dir, "*.glb").Length == 0) AssetDatabase.DeleteAsset(dir);
             }
-            if (AssetDatabase.GetSubFolders(LiveryHoldDir).Length == 0) AssetDatabase.DeleteAsset(LiveryHoldDir);
+            if (AssetDatabase.GetSubFolders(LiveryHoldDir).Length == 0)
+            {
+                AssetDatabase.DeleteAsset(LiveryHoldDir);
+                AssetDatabase.DeleteAsset(LiveryHoldRoot);
+            }
             else Debug.LogError($"[phone liveries] {LiveryHoldDir} still holds files; move them back to {ModelsDir} by hand");
             Debug.Log($"[phone liveries] restored {back} livery GLB(s) to {ModelsDir}");
         }
@@ -261,7 +277,11 @@ namespace FlyingGame.EditorTools
                 if (string.IsNullOrEmpty(err)) back++;
                 else Debug.LogError($"[TF slim] could not restore {dir} -> {to}: {err}");
             }
-            if (AssetDatabase.GetSubFolders(SlimHoldDir).Length == 0) AssetDatabase.DeleteAsset(SlimHoldDir);
+            if (AssetDatabase.GetSubFolders(SlimHoldDir).Length == 0)
+            {
+                AssetDatabase.DeleteAsset(SlimHoldDir);
+                AssetDatabase.DeleteAsset(SlimHoldRoot);
+            }
             else Debug.LogError($"[TF slim] {SlimHoldDir} still holds folders; move them back to {ModelsDir} by hand");
             Debug.Log($"[TF slim] restored {back} model folder(s) to {ModelsDir}");
         }

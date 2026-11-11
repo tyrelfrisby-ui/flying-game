@@ -168,6 +168,39 @@ public class WaterBreakupTests
             // The water may take a great deal — gear down at 4 m/s of sink the Extra noses over and its wings slam flat —
             // but only at the rate its forces allow. A dead stop is the whole speed in one 5 ms step (40 m/s: 800 g); the
             // bound is 2 m/s in a step, 40 g.
+            //
+            // THE 1.0 m/s FLOOR WAS RE-MEASURED AND NOT MOVED (Claude, 2026-11-10, lane/claude-vne-cam), and the reason
+            // is worth keeping, because a re-band was authorised and turned out to be unnecessary. Merging
+            // lane/claude-crash-cam-occupants — the fix that keeps the crash camera on the PILOT's section — was
+            // reported on 2026-11-06 to drop the Extra's case from 1.45 to 0.90 m/s against this floor, and Ty's call on
+            // 2026-11-10, offered the alternative of investigating the coupling first, was "Merge and re-band that
+            // test". Re-measured on today's code, in this class alone and again inside the 16-test water filter, both
+            // runs identical:
+            //
+            //     extra-300-like   base 1.6 m/s  ->  with the merge 2.1 m/s   (floor 1.0: passes either way)
+            //     j3-cub-like      base 6.7 m/s  ->  with the merge 6.7 m/s   (unchanged, as is its damage log)
+            //
+            // So the 0.90 does not reproduce, and the merge now moves this case the RIGHT way. Both ends of the
+            // 2026-11-06 comparison have moved under four days of wreck and water work — the window between that lane's
+            // base 2b47338f and today holds staggered progressive wing failure (e2949511), the Extra's propeller put on
+            // the station it was measured at rather than one guessed off the fuselage (1452c53a), and a thrown propeller
+            // taking its weight with it (25a7a713), among others. WHICH of them moved it was NOT bisected: once the
+            // merged number came out above the floor there was nothing left to re-band, and loosening the floor on a
+            // stale measurement would have been the wrong trade — this is the one assertion that would catch the water
+            // zeroing an aeroplane's velocity outright.
+            //
+            // WHY A "CAMERA CHANGE" MOVES A BREAK-UP SPEED AT ALL — because it is not a camera change, and no camera
+            // touches the simulation. AirframeContact.FuselageStations is the SINGLE definition of where the fuselage is
+            // cut into nose / cabin / tail cone, and two things read it: the crash camera, which follows the piece that
+            // holds the seats, and AirframeHydroModel.Build, which sizes those same three pieces and places their cuts
+            // and joints. Keeping the Extra's rear seat (station x -1.2801) inside the cabin moves its tail cut from
+            // x -1.250 to x -1.780, shortening the tail cone by 0.53 m; a fuselage joint's axial ultimate is
+            // WaterPhysics.EmergencyForwardG (17 g, 14 CFR 23.561) x g x the mass BEYOND it, so a tail cone of 52.0 kg
+            // instead of 56.2 kg breaks at 8.7 kN instead of 9.4 kN — both printed in the damage log above, and
+            // OccupantCabinBreakupTests prints the cut and the piece's mass. It lets go slightly earlier in the arrival
+            // and leaves a shorter remnant in the water, which is why the speed at 1 s goes UP rather than down. Shared
+            // geometry, read in one direction, NOT feedback from the view into the physics — the latter is what would
+            // have made this a defect to stop for rather than a consequence to measure.
             Assert.True(worstStep < 2.0, $"{worstStep:F2} m/s lost in one step");
             Assert.True(Speed(ac) > 1.0, $"{Speed(ac):F2} m/s after 1 s");
         }

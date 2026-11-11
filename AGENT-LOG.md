@@ -1,3 +1,82 @@
+## ASTC 4x4: the textures come out of the GLBs, and the whole fleet with every livery is 0.95 GB — Claude, 2026-11-10, lane/claude-textures
+
+<!-- astc-4x4 glb-sidecar-textures gltfast-external-texture 4gb-limit livery-policy-superseded -->
+
+Ty, offered four ways to get the iOS build under App Store Connect's 4 GB, chose: *"Do it - 4x4, keep all
+liveries."*
+
+**THE MEASUREMENT WAS RE-DERIVED FROM THE FILES BEFORE ANYTHING WAS CHANGED, not inherited.** Parsing all 39
+GLBs independently: **754,922,296 pixels**. 754.92e6 x 4 x 4/3 = **4,026,252,245 B** against build
+2026.1105.1550's recorded `resources.assets.resS` of **4,024,558,864 B** — **0.042 % out**. resS was 93.8 %
+of a 4,291,667,298 B build. A texture embedded in a GLB is imported by glTFast's `ScriptedImporter`, so
+Unity's platform texture pipeline never sees it: no compression field exists in a `.glb.meta` at all, and the
+pixels ship uncompressed at four bytes each with a full mip chain. On-disk size is a **20x misleading proxy**
+(265 MB of Assets, a 4.29 GB build).
+
+**THE MECHANISM IS glTFast'S OWN, NOT A FORK.** glTFast has no compression setting of any kind and its
+`GltfImporter` is `internal`. Writing our own `ScriptedImporter` would have meant copying that importer into
+this repo and maintaining the copy; KTX2/`KHR_texture_basisu` picks its transcode target from `SystemInfo` at
+LOAD time, so an Editor import on this Mac would bake BC7 into an iOS build. Both rejected. What landed
+instead: the embedded images were moved OUT into ordinary texture assets the GLB names by URI, because
+`GltfImport.LoadImageFromBytes` says, in its own comment, *"Use the original texture at Editor (asset
+database) import"* — an external texture comes back from `AssetDatabase.LoadAssetAtPath<Texture2D>`, so it
+arrives with everything its `TextureImporter` says. From there **ASTC is one `AssetPostprocessor`**
+(`ModelTextureFormat`), which is the plainest thing in the editor.
+
+**MEASURED, iOS, full fleet AND every livery: 682 MB of texture, ~949 MB of build, against 4 GB.** Was 4,026
+MB of texture and 4,292 MB of build. Three savings compound and all three were measured, not estimated:
+ASTC 4x4 (32 bpp -> 8), **271 Mpix of byte-identical duplicates** that collapse because glTFast references a
+shared file instead of copying it into each GLB, and **34.5 Mpix referenced by no material** that simply stop
+shipping now that they are outside `Resources/`. Mac: 2,721 MB with pixel-identical paint (RGBA32, written
+out explicitly so "Automatic" cannot turn into DXT). Quest: the same 949 MB — it was carrying the same
+uncompressed 4 GB on 8 GB of shared memory.
+
+**WHAT ASTC 4x4 DID TO HIS PAINT.** All 358 sidecars were encoded and decoded with **Unity's own astcenc**
+(`Unity.app/Contents/Frameworks/astcenc-neon.dylib`, driven through ctypes) at the quality the editor uses:
+pixel-weighted mean **77.9 dB**, 96 % of pixels above 50 dB, **26 % bit-exact**, and **every alpha channel in
+the fleet bit-exact** including the three hard-edged cut-outs. **The Pitts checkers come back with no error at
+all.** The worst thing in any of Ty's liveries is a **21/255 error on the anti-aliased edge of a registration
+letter, at 70.3 dB** (visually lossless is normally taken as 40 dB). The before/after close-ups are in the
+handback.
+
+**WHERE IT DOES SHOW: NORMAL MAPS, so they are not compressed.** 47.1 dB on the P-51D's 4096² map but **25.2
+dB on the pilot's 256² twill**, errors to 51/255. There are five normal maps in the fleet; keeping them
+uncompressed costs **68 MB of a 682 MB budget against a 4 GB limit**, which is an obvious trade and one line
+to undo.
+
+**TWO THINGS THAT WOULD HAVE BROKEN A BUILD AND ARE NOW HELD BY TESTS.** The sidecars live OUTSIDE
+`Resources/` (everything under a Resources folder ships whether referenced or not, so inside it the unused
+textures would ship and holding a livery out would stop removing its paint), reached by
+`../../../ModelTextures/...`. glTFast resolves that against the GLB's own directory, so **any directory a GLB
+is moved to for a build must be the same five segments deep** — both of `BuildScript`'s hold directories
+gained a `/Models` level in this commit, and `GlbTextureTests` fails if either loses it. Dedupe is keyed on
+(bytes, sampler) because glTFast makes a private copy of a texture used with a second sampler, and a private
+copy is embedded again.
+
+**REVERSIBLE, AND PROVEN SO OFFLINE.** `tools/models/glb_textures.py embed` is the exact inverse of
+`extract`, and `verify` holds that every accessor's bytes and every part of the glTF JSON except `images`,
+`bufferViews` and `buffers` survive the round trip — **39 of 39 GLBs identical**. The offline tools that do
+surgery on an embedded image (`floor_windows.py`, `glb_visuals.py`, `instrument_face_style.py`,
+`update_engine_faces.py`, `pitts_cockpit_v2.py`, `vr_phase2e.py`, `pilot_body.py`) still work: `embed`, run
+the tool, `extract`. A Blender re-export re-embeds too, and the suite says so.
+
+**NEEDS YOU — the livery restriction is now a choice, not a necessity, and it is yours to keep or drop.**
+`PhoneLiveryTests` measured it: one livery per type used to save **2,133 MB**; it now saves **241 MB**, because
+the alternates no longer carry a full duplicate texture set. Every livery on the phone is ~949 MB against
+4 GB. The flag was NOT touched — it is still on for iOS. One line in `BuildScript` turns it off.
+
+**NOT BUILT. NOT ONE UNITY IMPORT HAS RUN.** Every structural claim above was proved by parsing the files,
+and the .NET tests that read the models are green apart from failures that are present on the base commit
+unchanged (`PittsRearViewTests` x4, and at the older base also `J3OwnModelTests`, `GlideTableTests` and
+`AerobatGroundHandlingTests` — all verified against a clean checkout, none of them mine). But this is exactly
+the kind of change that breaks a Unity build while the suite stays green. What has not been verified: that Unity imports 358 new textures without complaint, that ASTC
+compression of 460 Mpix finishes in a sane time, that the relative URIs resolve inside the editor, and that
+the aeroplanes look right. `python3 tools/models/glb_textures.py embed` puts everything back in one command.
+
+**NOT DONE ON PURPOSE.** ASTC 6x6 halves it again and measured **29.7 dB** against 4x4's 43.9 on a hard test
+pattern — that one would show, and only 4x4 was authorised. Mip-map removal (-25 %), maximum-size reduction
+and crunch compression are available and none was asked for.
+
 ## Boundary friction was the wrong SHAPE, not the wrong size; and each engine's is now solved from his own anchor — Claude, 2026-11-10, lane/claude-boundary-friction
 
 <!-- dry-boundary-excess stribeck-rolloff prop-stop-speed restart-anchor-at-rest -->
@@ -97,6 +176,77 @@ Local lane commit only; no push, no merge, no Unity build, no deploy. `git ls-fi
 --stdin -v` silent before every commit, every path staged explicitly. Two merges of `lane/claude-quest-islandnav` into
 this lane on the way, which is the parity hook's own remedy: it blocked the shared change twice because that lane moved
 while this one was being measured.
+## A camera change moved a break-up speed, and the reason is that it was never a camera change — Claude, 2026-11-10, lane/claude-vne-cam
+
+<!-- crash-cam-occupants-merged fuselage-stations-are-shared water-breakup-reband-not-needed q151-closed -->
+
+Ty, offered *"merge and re-band that test"* against *"a camera change should not move a breakup speed at all; that
+smells like a real coupling"*, chose: **"Merge and re-band that test"** — the water test's floor was set when the
+camera pointed elsewhere, so re-measure and re-band it honestly. **He was right that it was benign, and the mechanism
+is worth writing down, because the premise in both options was wrong.**
+
+**IT IS NOT A CAMERA CHANGE.** No camera touches the simulation; `AirframeContact` is in `FlyingGame.Core` and knows
+nothing about views. `AirframeContact.FuselageStations` is the **single definition of where the fuselage is cut into
+nose / cabin / tail cone**, and two very different things read it:
+
+- the **crash camera**, indirectly — it follows the sim's `Aircraft`, which after a break-up is the CABIN, so the
+  question "does the camera stay on the pilot?" is the question "is the pilot's seat between the two cuts?";
+- **`AirframeHydroModel.Build`**, which uses the same two numbers to size the three fuselage pieces, place their
+  centres, their openings, the windshield, the separation `Cut`s, and the **joints** — including each joint's strength.
+
+So moving a cut to keep a seat inside the cabin moves a break load. On the Extra, whose rear seat sits at station
+x −1.2801, the tail cut goes from **−1.250 to −1.780** (0.5 m of seat clearance), which shortens the tail cone by
+0.53 m. A fuselage joint's axial ultimate is `WaterPhysics.EmergencyForwardG` (17 g, 14 CFR 23.561) × g × the mass
+beyond it, so a **52.0 kg** tail cone instead of a 56.2 kg one breaks at **8.7 kN instead of 9.4 kN**. Both numbers
+are printed in the test's own damage log. The tail boom lets go slightly earlier in the water arrival, the remnant is
+shorter, and the aeroplane keeps MORE speed at one second, not less.
+
+**Shared geometry read in one direction — not feedback from the view into the physics.** That distinction is the whole
+answer to the question that was asked: had the camera been feeding the simulation, this would have been a defect to
+stop for, and it would have changed Ty's answer. It is not.
+
+**AND THE RE-BAND WAS NOT NEEDED, so nothing was loosened.** The 0.90 m/s that justified it was measured on
+2026-11-06 against base `2b47338f`. Re-measured on today's base, in the test class alone and again inside the 16-test
+water filter, both runs identical:
+
+| | without the merge | with the merge | floor |
+|---|---|---|---|
+| `extra-300-like` | **1.6 m/s** | **2.1 m/s** | 1.0 — passes either way |
+| `j3-cub-like` | 6.7 m/s | 6.7 m/s | unchanged, damage log identical |
+
+Four days of wreck and water work moved both ends of the 11-06 comparison — the window holds staggered progressive
+wing failure (`e2949511`), the Extra's propeller put on the station it was measured at rather than one guessed off the
+fuselage (`1452c53a`), and a thrown propeller taking its weight with it (`25a7a713`), among others. **Which of them
+did it was NOT bisected**, and that is a deliberate stop: once the merged number came out above the floor there was
+nothing left to re-band, and bisecting a stale measurement buys nothing. **Q151 is closed without touching the
+assertion** — it is the one check that would catch the water zeroing an aeroplane's velocity outright, and loosening
+it on a four-day-old number would have been the wrong trade. What landed instead is the measurement, the mechanism and
+the rejected alternative, written into `WaterBreakupTests` where the next person will read it.
+
+**The merge itself was clean** — `AirframeContact.cs` and `Bridge/AirframeVisual.cs` both auto-merged with no
+conflict, four days after the triage called that *"lucky, not safe"*. Only `AGENT-LOG.md` and `CLAUDE.md` conflicted,
+and only because each lane had appended a section at the top of the same file; both sides are kept in full. Nothing
+re-applied by hand, nothing forced.
+
+**ZERO NEW REDS, compared rather than counted.** The same 9-class crash filter (Breakup, TreeStrike, Occupant, Wreck,
+Crash, Flooding, Hydro, PropWaterStrike, AirframeContact) run on base `651e5515` and on the merged tree:
+**233 tests / 14 failures** against **249 / 14** — the 16 extra are the incoming `OccupantCabinBreakupTests`, all
+green — and `comm` on the sorted failing NAMES is **empty in both directions**. One of those 14 is worth adding to
+whatever list of known reds you keep, because it is NOT on the one I was given and it is **pre-existing**:
+`CrashTuningTests.NothingLosesSpeedAtASeparation(pitts-s2b-like, Nose)` fails "linear momentum changed at the
+separation" on the base as well as after the merge. It was the one candidate for a merge regression and it is not one.
+Four `SoftWaterBreakupTests.AJ3WaterSkiNoseOver...`, two `BreakupTests` and two `PropWaterStrikeTests` match the known
+list; `IslandCombatTests`, two `WaterCurrentTests`, `WheelHydroTests` and `WreckWingWaterTests` are this subset's own
+class ordering leaking process-wide state, which is the documented behaviour of this suite.
+
+**NEEDS YOU — the parity lock cost this lane two catch-ups, and that is worth a look.** `lane/claude-tv-companion`
+moved twice while these two jobs were in flight (`bb3ca7bc` → `5fc2bb85` → `651e5515`), and because the lock treats
+every `lane/*` branch as the iOS lane, a feature lane branched from a tip that has since been overtaken reads as
+"already differs from quest in shared code" and is **BLOCKED outright** — not "leads", which is what a fresh lane
+deserves. Catching the lane up to its own base each time cleared it. Nothing was bypassed and no `--no-verify` was
+used, but a lane that takes more than one shared commit now needs a sync per commit, and on a busy day the base can
+move between them. Ty's own rule applies here: a process rule is a hypothesis, and this one is costing real turns.
+
 ## The 2-33's Vne is 98 mph, the number painted on the aeroplane — Claude, 2026-11-10, lane/claude-vne-cam
 
 <!-- vne-2-33 placard-vs-config unsourced-scaffolding-number asi-face-fifth overspeed-events -->
@@ -996,6 +1146,68 @@ Status: lane started from playable 2b47338f. Other obligations (tow/WB/skis/OTA)
 - New render `INDEX.md` links 13 labelled comparisons; added `embedded-face-source-inventory.json` (118 candidate materials / 17 non-Cub GLBs; includes variants/hidden originals) and `untreated-art-source-comparison.json` (28 dial/compass PNGs unchanged). Great Lakes ASI comparison opened. No runtime/art/Cub changes.
 - Additional candidates documented: combined-mesh old faces escape node hides; transparent compass ordering; TEXCOORD0 / transform conventions and differing mip/wrap settings. Per-aircraft face art clones its material, so no obvious cached-material overwrite there. All remain hypotheses pending imported/temporal evidence. Exact capture plan and named untreated faces expanded in pending doc.
 - Fresh foreign-dirt recovery stash `t932 resume2 preserve foreign packaging and Cub backup dirt` created/reapplied and retained. Claude: merge only after this lane's BUILD, matched cockpit/temporal review and same-day Quest parity; no push/upload/install.
+
+## ~~NEEDS YOU~~ — crash camera / occupants' section: SETTLED. Ty chose merge on 2026-11-10; merged on lane/claude-vne-cam (9997b988), Q151 closed without loosening anything (Claude, 2026-11-06 08:45 PST, lane/claude-crash-cam-occupants)
+<!-- crash-cam-occupants needs-you -->
+Ty t915u (06:34 AKST), t919u ("strays sometimes" on 0703), t920u ("might be wrong ... it was good"). Acceptance stays
+**UNCERTAIN**; nothing approved by me. Queue **Q151**.
+- **Phone build:** last confirmed on phone 2026.1105.1816 (a8140de6, no fuselage-follow). 0703 (base 2b47338f) not
+  confirmed installed by me. The defect below IS in 2b47338f, so it is in 0703 too.
+- **Cause (measured, not inferred):** the camera's Target was right (the sim's Aircraft = the cabin; ChaseCamera has no
+  crash view). The CABIN was wrong: `AirframeContact.FuselageStations` set its tail cut off the wing root alone, x -0.70
+  on the Pitts, with the solo pilot's REAR seat at -1.14. A tail-boom break, or a tail BEND (BendPivot cuts at the same
+  station), puts the pilot's cockpit on the tail section. Intermittent by nature: only crashes that bend or break the
+  tail show it, which fits both t919u and t920u.
+- **Repro on base 2b47338f code** (CrashCamOccupantShots, Unity, the game's own DetachStatic on our Pitts GLB): Ty's
+  `-crashtest grass` crash (tail bends), a tail strike and a forced break-up: the tail section takes **93 % of the rear
+  cockpit** and the camera's target keeps **4 %**. Extra rear seat: 24 % taken. 172: unaffected. Natural Pitts sim crashes
+  (9 attitudes) never fully separated the steel tail boom; they bend it. So on 0703 the bent tail carries the rear cockpit
+  away from the airframe the camera follows, and a full break would carry it off.
+- **Fix (0e6e01e4):** every seat's mass station stays 0.5 m inside the cabin (Pitts tail cut -1.635, Extra -1.780, Great
+  Lakes -2.262, Grob nose 1.632; others unchanged). The visual's station cut and bend pivot now subtract the CG, as WingBand
+  does (0.76 m off on the Great Lakes). After: every scenario keeps 100 % of every seat on the target; PASS, 0 error CS.
+- **Evidence:** `~/Developer/agent-lanes/renders/crash-cam-occupants/before-2b47338f/` and `after-0e6e01e4/` (chase,
+  side, pieces per scenario + log.txt). Compare `pitts-s2b-like-breakup-side.png`.
+- **Tests:** OccupantCabinBreakupTests 16/16; FuselageFollowCameraTests 6/6. Crash subset (24 classes): lane 292/295, base
+  277/279. Pre-existing on both: BreakupTests.HardDropOnOneMainTearsThatLegOffOnly, HardImpactIsReportedForTheCrashSound.
+  **NEW RED:** WaterBreakupTests.AHardWheelsFirstArrivalOnWaterIsNotADeadStop(extra): 0.90 m/s after 1 s vs floor 1.0
+  (base 1.45). Identical to 0.335 s, then the left inner wing holds at a borderline load. Smooth decel, worst step 0.97 m/s
+  (bound 2.0). Not loosened: Q151. **CLOSED 2026-11-10 (lane/claude-vne-cam): it does not reproduce.** On base 651e5515
+  the case reads 1.6 m/s without the merge and **2.1 m/s with it** -- the merge moves it the RIGHT way. The floor stayed
+  at 1.0; nothing was loosened. The cause of the 11-06 movement was found and is benign: see the top of this log.
+- **Build:** iOS **2026.1106.0829** ** BUILD SUCCEEDED ** from source **0e6e01e4** (NOINSTALL, not installed, NOUPLOAD).
+  bundleVersion bump not committed.
+- **Merge status:** ~~NOT merged~~ **MERGED into lane/claude-vne-cam 2026-11-10 (9997b988)** on Ty's call; onward to the shipping lanes is his. Was waiting on Q151 (red test) and on Ty, per STEER t920u. Parity
+  OK at build time (island-nav 2b47338f / Quest 9e675fe6).
+- **Not touched:** bailout rules, crash-autoexit/onfoot, smoke/skis/tow/WB/OTA. Seeking: n/a.
+- CRASH-CAM-OCCUPANTS-T915-PROGRESS
+<!-- /crash-cam-occupants needs-you -->
+
+### 2026-11-06 07:30 AKST — Ty fly outcomes on TF 0703 (t920u / t921u) — camera UNCERTAIN; ASI #2 PASSED (scoped)
+
+**t920u** (exact): "That Pitts crash comment might be wrong I crashed a few more times and it was good."
+- Crash-camera acceptance: **UNCERTAIN** (latest repeated tests good on **2026.1106.0703**). **Not** blanket gate approval. Supersedes treating t919u as confirmed FAILED.
+- Occupant-camera lane: verify reproducible defect before merging behavioral changes; preserve WIP/tests; no speculative retuning merge. See STEER-t920-t921u.md.
+
+**t921u** (exact): "Pitts airspeed fine."
+- Pitts ASI test (#2) on 0703: **PASSED** — **indicator only**. Not spin / elevator / shared-instrument library approval.
+- Still open: Q007 spin (t918u), Pitts elevator vis (t917u), smoke replay/exclusion (t912/t914).
+
+NOUPLOAD. No new coder for this log.
+
+### 2026-11-06 08:26 PST — STEER t919u (same lane) — Pitts camera still strays sometimes on 0703
+
+NEEDS YOU / acceptance **FAILED**: Ty t919u on phone TF **2026.1106.0703**: "The pitts camera still strays sometimes on crashes." Confirmed intermittent on current build (not 1816). Fold into this lane — see **STEER-t919u.md**. Require varied crash/fragment tests; continuous occupant-seat-bearing target through detach/tumble/settle; no wreck-center fallback. No duplicate lane. NOUPLOAD.
+
+### 2026-11-06 07:35 PST — Claude · crash camera occupant/fuselage follow (Pitts regression) · lane/claude-crash-cam-occupants
+
+NEEDS YOU: Ty t915u 06:34 AKST — "On the build on my phone now the pitts crash still fails to follow the occupants portion of the wreck."
+
+Phone-build evidence (do not invent): last confirmed on-phone TestFlight is **2026.1105.1816** (tip a8140de6). That tip **lacks** fuselage-follow merge 7d7e9afe/cc689768. **2026.1106.0703** was uploaded and is Apple PROCESSING — **not** confirmed installed on the phone. Do not dismiss the report as "old build only"; reopen acceptance and reproduce on playable including Pitts. Prior intent (7d7e9afe): follow seat-bearing fuselage / cabin, not wreck centroid or first debris, no auto zoom-out, until authorized bailout.
+
+Outcomes: camera stays with the occupant/seat-bearing fuselage fragment through Pitts (and general) breakup; tests + BUILD SUCCEEDED; occupant-fragment-follow evidence; report exact source/build containing the fix — no "fixed" claim from ancestry alone. No crash-autoexit/onfoot resume; no bailout rule changes; NOUPLOAD.
+
+Status: lane started from playable 2b47338f. Smoke/tow/WB/skis obligations untouched.
 
 ## MERGED — J-3 ski Part A model (Ty t876u visual APPROVED Q142) — 2026-11-06 ~04:40 PT
 - Cherry-pick **96e700d9** onto island-nav after shatter tip **90ee4fc7**. Visual approval only (not flight gates).
