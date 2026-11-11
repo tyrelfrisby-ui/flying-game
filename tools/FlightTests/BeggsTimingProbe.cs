@@ -32,7 +32,16 @@ public class BeggsTimingProbe
         if (Environment.GetEnvironmentVariable("BEGGS_T") == null) return;
         var d = new DirectoryInfo(AppContext.BaseDirectory);
         while (!Directory.Exists(Path.Combine(d!.FullName, "configs", "aircraft"))) d = d.Parent;
-        string path = Path.Combine(d.FullName, "configs", "aircraft", "pitts-s2b-like.json");
+        // BEGGS_TYPE names a type other than the Pitts. Added 2026-11-10 (lane/claude-stearman-elev) because Ty,
+        // flying the plate tails, reported the SAME upright flat spin on a SECOND type: "The Great Lakes has
+        // similar overly flat and overly difficult upright flat spin recovery. Inverted is fine". Two types with
+        // the same tail treatment failing the same way is the evidence that moves the question off any one
+        // aeroplane's numbers, so this probe had to be able to fly the second one. Note the entry below is TY'S
+        // OWN PITTS ENTRY and it is not retuned per type - what another type does with that stick sequence is
+        // itself a measurement, and it is reported as flown rather than adjusted until it looks like a spin.
+        string type = Environment.GetEnvironmentVariable("BEGGS_TYPE") ?? "pitts-s2b-like";
+        string path = Path.Combine(d.FullName, "configs", "aircraft", type + ".json");
+        _o.WriteLine($"type {type}");
 
         var finKs = Nums("BEGGS_FINK", new[] { -1.0 });
         var stabKs = Nums("BEGGS_STABK", new[] { -1.0 });
