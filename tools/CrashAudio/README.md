@@ -10,7 +10,7 @@ AUDIO_PYTHON=/tmp/airfoil-plot-venv/bin/python zsh tools/CrashAudio/render.sh
 ```
 
 Optional first argument: output directory. Default is
-`/Users/tyfrisby/Developer/agent-lanes/aero-playground/crash-audio`.
+`~/Developer/agent-lanes/aero-playground/crash-audio`.
 Build intermediates and the old source snapshot are created in a fresh `/tmp` directory and removed on exit.
 The old recipe is frozen to contract commit `564bcad66ad799184db28e000bac7c2fc53e164b`
 (the audio lane's original HEAD). Only its namespace changes. This compiles the real old/new C#

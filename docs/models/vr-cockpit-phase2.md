@@ -29,7 +29,7 @@ From this worktree, exact operator commands:
 export PYTHONDONTWRITEBYTECODE=1
 zsh tools/own_models/rebuild_vr_phase2.sh
 /Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/check_vr_phase2.py --write-report
-/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python tools/own_models/render_vr_phase2.py -- /Users/tyfrisby/Developer/flying-game-worktrees/codex-vr-cockpit/renders/phase2c
+/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python tools/own_models/render_vr_phase2.py -- ~/Developer/flying-game-worktrees/codex-vr-cockpit/renders/phase2c
 ```
 
 The rebuild script runs all four `PITTS_LIVERY` values (N31DG, N1191,

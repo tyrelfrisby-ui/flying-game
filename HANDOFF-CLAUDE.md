@@ -69,9 +69,9 @@ a7e1c96 mountain roughness + lake smoothing · 4434ed9 AGENT-LOG.
 
 ### 1.3 Combined OTA — lane/claude-ota-ea300-atmos (068db23)
 - Local build-only branch: merge of d03cb13 + atmosphere 1a53a90 (AGENT-LOG union). **Does not include roughness (a7e1c96/4434ed9).** Do not merge it; merge the two lanes instead.
-- Built OTA **2026.1027.1418 (202610271418)** at 14:18, development export, hosted at https://mac-studio.tail9aad2a.ts.net/ota/ (tailnet only;
+- Built OTA **2026.1027.1418 (202610271418)** at 14:18, development export, hosted at https://<ota-host>/ota/ (tailnet only;
   python http.server :8792 serving ~/Developer/flying-game/build/ota via `tailscale serve /ota`). IPA verified to contain
-  `models/extra-300-like/extra-300-like-own` and `-own-n300uy` and `atmosphere/regional-atmosphere.json`; profile includes iPhone 17 Pro 00008150-001629A83662401C (expires 2027-04-28).
+  `models/extra-300-like/extra-300-like-own` and `-own-n300uy` and `atmosphere/regional-atmosphere.json`; profile includes iPhone 17 Pro <device-udid> (expires 2027-04-28).
 - Why Ty saw the old red Extra: an 11:01 build (2026.1027.1101) from the main checkout on split-surfaces (no swap) overwrote the OTA IPA. Backup: /tmp/FlyingGame-2026.1027.1101-backup.ipa.
   Anything that runs deploy/testflight from the main checkout will overwrite build/ota again.
 
