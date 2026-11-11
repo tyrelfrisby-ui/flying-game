@@ -35,7 +35,7 @@ public sealed class DamageState
     public int Hits(AirframeComponent c) => _hits.TryGetValue(c, out int n) ? n : 0;
 
     public static bool IsControlSurface(AirframeComponent c) =>
-        c is AirframeComponent.AileronLeft or AirframeComponent.AileronRight or AirframeComponent.ElevatorLeft or AirframeComponent.ElevatorRight or AirframeComponent.Rudder;
+        c is AirframeComponent.AileronLeft or AirframeComponent.AileronRight or AirframeComponent.AileronLowerLeft or AirframeComponent.AileronLowerRight or AirframeComponent.ElevatorLeft or AirframeComponent.ElevatorRight or AirframeComponent.Rudder;
     public static bool IsInnerPanel(AirframeComponent c) => c is AirframeComponent.WingLeftInner or AirframeComponent.WingRightInner;
 
     /// <summary>One bullet hit on a part. Returns what it caused (None = just a hit).</summary>

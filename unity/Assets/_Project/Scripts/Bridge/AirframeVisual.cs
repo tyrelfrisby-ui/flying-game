@@ -1496,7 +1496,11 @@ namespace FlyingGame.Bridge
             // Wing PANELS and control surfaces (combat damage): side (+1 right / -1 left) and a spanwise cut.
             bool panel = comp is FlyingGame.Core.AirframeComponent.WingLeftOuter or FlyingGame.Core.AirframeComponent.WingRightOuter
                       or FlyingGame.Core.AirframeComponent.WingLeftInner or FlyingGame.Core.AirframeComponent.WingRightInner;
-            bool aileron = comp is FlyingGame.Core.AirframeComponent.AileronLeft or FlyingGame.Core.AirframeComponent.AileronRight;
+            // A biplane's LOWER ailerons are their own components since 2026-11-11 (Ty: "And flaps anything in a
+            // pair"); they cut the same way as the upper pair, on the same side, so they join this test rather than
+            // needing one of their own. Which WING the cut lands on is the mesh's business, not this flag's.
+            bool aileron = comp is FlyingGame.Core.AirframeComponent.AileronLeft or FlyingGame.Core.AirframeComponent.AileronRight
+                        or FlyingGame.Core.AirframeComponent.AileronLowerLeft or FlyingGame.Core.AirframeComponent.AileronLowerRight;
             bool elevator = comp is FlyingGame.Core.AirframeComponent.ElevatorLeft or FlyingGame.Core.AirframeComponent.ElevatorRight;
             bool rudder = comp == FlyingGame.Core.AirframeComponent.Rudder;
             bool tailH = comp == FlyingGame.Core.AirframeComponent.TailHorizontal, tailV = comp == FlyingGame.Core.AirframeComponent.TailVertical;
@@ -1506,7 +1510,8 @@ namespace FlyingGame.Bridge
                 foreach (FlyingGame.Core.WingPanel wp in FlyingGame.Core.WingStructure.Build(cfg))
                     if (wp.Component == comp) tipTest = TipPanelTest(wp, cfg);
             float side = tip ? TipSide(comp) : comp is FlyingGame.Core.AirframeComponent.WingLeftOuter or FlyingGame.Core.AirframeComponent.WingLeftInner
-                      or FlyingGame.Core.AirframeComponent.AileronLeft or FlyingGame.Core.AirframeComponent.ElevatorLeft ? -1f : 1f;
+                      or FlyingGame.Core.AirframeComponent.AileronLeft or FlyingGame.Core.AirframeComponent.AileronLowerLeft
+                      or FlyingGame.Core.AirframeComponent.ElevatorLeft ? -1f : 1f;
             if (leftWing) side = -1f;
             float semi = cfg != null ? (float)FlyingGame.Core.WingPanels.Semispan(cfg) : 5f;
             float cutAbs = comp is FlyingGame.Core.AirframeComponent.WingLeftOuter or FlyingGame.Core.AirframeComponent.WingRightOuter
