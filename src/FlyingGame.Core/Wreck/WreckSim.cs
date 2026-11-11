@@ -43,6 +43,41 @@ public sealed class FlatWreckWorld : IWreckWorld
 
 public enum WreckPhase { InAir, Plunging, Floating, Sinking, OnBottom, OnLand }
 
+/// <summary>
+/// The ground under one wreck piece, as a local PLANE rather than a single height.
+///
+/// Ty, 2026-11-09, with IMG_3289: "its parts and pieces need to stay above the surface post crash". They did not,
+/// and the reason was here: <see cref="WreckSim"/> asked for the ground once, under the piece's CG, and then tested
+/// every one of its box corners against that one number — so a piece lying across a slope was settled as if the hill
+/// were level under the whole of it. The error is exactly (half-length × slope) at each end, half of it buried and
+/// half of it in the air. Measured on a 6 m wing panel lying down the fall line (<c>WreckRestTests</c>): its uphill
+/// corner finished 0.151 m under the surface on a 5 % slope, 0.302 m on 10 %, 0.604 m on 20 % and 1.057 m on 35 %,
+/// while the piece's own <see cref="WreckPiece.ClearanceM"/> reported 0.000 m — resting perfectly, by its own
+/// measure. 30 of 144 grid points over the island are steep enough for a dead aeroplane to go on sliding down them,
+/// so this was not a corner case: it is most of where a crash ends up.
+///
+/// So the ground is fitted as a plane through the CG sample with the slope from central differences a piece-radius
+/// either side (four more height queries). A terrain triangle IS a plane, and a piece is smaller than one, so over
+/// a piece this is not an approximation of the hillside — it is the hillside. The fit is kept on the piece and
+/// redone only when it has moved <see cref="WreckSim.GroundFitMoveM"/> horizontally, which matters because an island
+/// height query costs about 99 us (AirframeContact's note): a piece at rest fits once and never asks again, and a
+/// piece well clear of the ground is not fitted at all, so the steady cost of this is zero.
+///
+/// What it does NOT do: the contact normal stays world-up. A piece on a hillside is held up vertically and slides
+/// (or does not) exactly as it did, so every tuned slide distance is untouched; what has changed is only WHERE the
+/// surface is under each corner. Giving the impulse the slope's own normal is the next thing to try if a piece on a
+/// steep face ever looks wrong, and that is a behaviour change, not a position fix.
+/// </summary>
+public readonly struct GroundPlane
+{
+    public readonly double X0, Y0, G0, Gx, Gy;
+    public GroundPlane(double x0, double y0, double g0, double gx, double gy) { X0 = x0; Y0 = y0; G0 = g0; Gx = gx; Gy = gy; }
+    /// <summary>Level ground at height <paramref name="g"/>: what every piece used to get everywhere.</summary>
+    public static GroundPlane Flat(double x0, double y0, double g) => new(x0, y0, g, 0, 0);
+    /// <summary>Ground height (m, up) under (x, y).</summary>
+    public double At(double x, double y) => G0 + Gx * (x - X0) + Gy * (y - Y0);
+}
+
 /// <summary>A broken-off piece of airframe: its elements (with their flood state), mass, inertia and a 6-DOF state.</summary>
 public sealed class WreckPiece
 {
@@ -74,6 +109,10 @@ public sealed class WreckPiece
     public double ReserveKg => HydroBody.ReserveKg(Elements, MassKg);
     internal double EscapedForReport, ReportClock, RestClock;
     internal bool ReportedAsleep;
+    /// <summary>The local ground plane under this piece and whether it has ever been fitted
+    /// (<see cref="GroundPlane"/>: fitted only while the piece could touch, kept while it stays put).</summary>
+    internal GroundPlane Ground;
+    internal bool HasGround;
 
     public WreckPiece(string name, AirframeComponent component, List<HydroElement> elements)
     {
@@ -200,6 +239,13 @@ public sealed class WreckSim
     public const double AttitudeStepRad = 0.05;
     /// <summary>Cap on that sub-division, so a runaway rate cannot eat a frame.</summary>
     public const int MaxSubSteps = 4;
+    /// <summary>How far a piece must move horizontally before its <see cref="GroundPlane"/> is fitted again, m. Half
+    /// a metre: a piece is metres across, so the slope under it cannot have changed meaningfully in less, and a piece
+    /// that has come to rest asks the height field nothing at all from then on.</summary>
+    public const double GroundFitMoveM = 0.5;
+    /// <summary>A piece higher than its own reach plus this above the ground under its CG cannot touch anything this
+    /// step, so the slope under it is not fitted, m. Only the single CG height query it always made is spent.</summary>
+    public const double GroundFitReachMarginM = 1.0;
     public double Time { get; private set; }
     public readonly List<WreckPiece> Pieces = new();
     private double _acc;
@@ -300,11 +346,14 @@ public sealed class WreckSim
             Raise(p, ImpactSurface.Water, new Vec3(low.X, low.Y, -waterUp), s, System.Math.Max(0.0, vLow.Z));
         }
 
-        // Ground / bed.
+        // Ground / bed, as a plane under the whole piece and not one height under its CG (GroundPlane: the half-metre
+        // of a wing panel that used to be buried on every hillside).
+        GroundPlane ground = FitGround(p, s, groundUp);
         double mu = water ? WetBedMu : AirframeContact.SlidingMu(World.SurfaceAt(s.Position.X, s.Position.Y, groundUp));
-        bool onGround = Contact(p, ref s, groundUp, mu, out double closing, out Vec3 contactAt);
+        bool onGround = Contact(p, ref s, ground, mu, out double closing, out Vec3 contactAt);
         // Resting on the ground the contact comes and goes step to step by a hair; within 2 cm counts as on it.
-        bool resting = onGround || (-LowestPointOf(p, s).Z) - groundUp < 0.02;
+        Vec3 lowRest = LowestPointOf(p, s);
+        bool resting = onGround || (-lowRest.Z) - ground.At(lowRest.X, lowRest.Y) < 0.02;
         if (onGround && !p.HitLand && !water)
         {
             p.HitLand = true;
@@ -319,7 +368,7 @@ public sealed class WreckSim
         // Bookkeeping.
         p.DepthM = water ? s.Position.Z + waterUp : double.NaN;
         Vec3 lowNow = LowestPointOf(p, s);
-        p.ClearanceM = (-lowNow.Z) - groundUp;
+        p.ClearanceM = (-lowNow.Z) - ground.At(lowNow.X, lowNow.Y);
         p.BuoyancyN = BuoyancyN(p, s, waterUp);
         p.Sinking = water && p.HitWater && p.ReserveKg < 0;
         double speed = s.Attitude.Rotate(s.Velocity).Length;
@@ -334,6 +383,27 @@ public sealed class WreckSim
         p.RestClock = settled ? p.RestClock + dt : 0;
         if (p.RestClock > 1.0 && (!wet || p.TrappedAirFreeM3 < 1e-6 || p.Elements.All(e => e.LastFlowM3s == 0))) p.Asleep = true;
         Report(p, water, waterUp, dt);
+    }
+
+    /// <summary>
+    /// The piece's local <see cref="GroundPlane"/>: the CG height it was already given, plus the slope from central
+    /// differences one piece-radius either side. Four height queries, and they are spent only when the piece is
+    /// close enough to touch and has moved <see cref="GroundFitMoveM"/> since the last fit — so a resting piece fits
+    /// once, a piece in the air never fits, and the common case costs nothing. A piece too high to touch gets the
+    /// level plane it always had, which cannot change any answer: nothing of it is below the ground to begin with.
+    /// </summary>
+    private GroundPlane FitGround(WreckPiece p, RigidBodyState s, double groundUp)
+    {
+        double x = s.Position.X, y = s.Position.Y;
+        if ((-s.Position.Z) - groundUp > p.ReachM + GroundFitReachMarginM) return GroundPlane.Flat(x, y, groundUp);
+        if (p.HasGround && System.Math.Abs(x - p.Ground.X0) < GroundFitMoveM && System.Math.Abs(y - p.Ground.Y0) < GroundFitMoveM)
+            return new GroundPlane(x, y, groundUp, p.Ground.Gx, p.Ground.Gy);   // same slope, the CG height of this step
+        double r = System.Math.Max(1.0, p.ReachM);
+        double gxp = World.GroundUpAt(x + r, y), gxm = World.GroundUpAt(x - r, y);
+        double gyp = World.GroundUpAt(x, y + r), gym = World.GroundUpAt(x, y - r);
+        p.Ground = new GroundPlane(x, y, groundUp, (gxp - gxm) / (2 * r), (gyp - gym) / (2 * r));
+        p.HasGround = true;
+        return p.Ground;
     }
 
     private void Report(WreckPiece p, bool water, double waterUp, double dt)
@@ -392,7 +462,7 @@ public sealed class WreckSim
     /// is lifted out by the deepest penetration. Four passes settle a resting box. The arrival speeds are taken before any
     /// impulse, so a corner's bounce is its own and not what its neighbours' impulses left it.
     /// </summary>
-    private static bool Contact(WreckPiece p, ref RigidBodyState s, double groundUp, double mu, out double maxClosing, out Vec3 contactAt)
+    private static bool Contact(WreckPiece p, ref RigidBodyState s, GroundPlane ground, double mu, out double maxClosing, out Vec3 contactAt)
     {
         maxClosing = 0; contactAt = s.Position;
         double deepest = 0;
@@ -415,7 +485,9 @@ public sealed class WreckSim
             for (int k = 0; k < corners.Count; k++)
             {
                 Vec3 r = corners[k];
-                double pen = (s.Position.Z + r.Z) + groundUp;   // + = below the ground
+                // The ground UNDER THIS CORNER, not under the CG: on a slope those differ by (lever × slope), which
+                // is the whole of the bug this plane exists for.
+                double pen = (s.Position.Z + r.Z) + ground.At(s.Position.X + r.X, s.Position.Y + r.Y);
                 if (pen <= 0) continue;
                 any = true;
                 if (pass == 0 && pen > deepest) { deepest = pen; contactAt = s.Position + r; }

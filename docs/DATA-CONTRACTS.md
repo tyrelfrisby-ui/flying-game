@@ -46,7 +46,8 @@ One file per aircraft. The physics reads ONLY this — no aircraft-specific code
   "fuselage": { "cd0Area": 0.08, "sideForceArea": 1.5, "damping": {"p":0,"q":0,"r":0} },
   "propulsion": null,                 // arena 2+: prop table, P-factor, torque, slipstream
   "gear": [ { "pos": [0,0,0.9], "springN": 20000, "dampNs": 2000, "brake": false } ],
-  "limits": { "vneMs": 60, "gMax": 4.7, "gMin": -2.3 }   // structural fail → crash
+  "limits": { "vneMs": 43.81, "gMax": 4.67, "gMin": -2.33,     // structural fail → crash
+                "_vneSource": "98 mph, FAA AFM 1040 lb + the type's own placard (Ty 2026-11-10)" }
 }
 ```
 

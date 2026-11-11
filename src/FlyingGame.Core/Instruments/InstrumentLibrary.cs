@@ -208,7 +208,12 @@ public static class InstrumentLibrary
         public InstrumentPart Needle => AsiNeedle(Units, Floor, Top);
     }
 
-    public static readonly AsiScale C172Asi = new("c172-like", "mph", 40, 200);
+    // The 172 read mph here until 2026-11-10, when Ty's fleet rule ("vintage, fabric and experimental read mph;
+    // anything certified modern or turbine reads knots") put it in knots and the face turned out to be two aeroplanes
+    // in two units: its white arc and green floor were a 172M's mph, its green top, yellow arc and red line a 172S's
+    // knots. The config now carries the 172S POH's own KIAS markings (configs/aircraft/c172-like.json
+    // instruments.airspeed._arcsWasWrong); this scale follows it.
+    public static readonly AsiScale C172Asi = new("c172-like", "kt", 40, 200);
     public static readonly AsiScale ExtraAsi = new("extra-300-like", "kt", 40, 260);
     public static readonly AsiScale GreatLakesAsi = new("great-lakes-like", "mph", 40, 200);
     public static readonly AsiScale PittsAsi = new("pitts-s2b-like", "mph", 40, 240);   // TCDS A8SO S-2B: VNE 212 mph must be on the dial (Q099)

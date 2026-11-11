@@ -51,6 +51,17 @@ namespace FlyingGame.Bridge
         /// <summary>Owner 2026-10-07: an optional flight-test data block (α, β, q, TAS/EAS/Mach, pressure and density
         /// altitude, OAT, load factors, rates, path angle, control positions…).</summary>
         public static bool FlightTestData = false;   // draw every force/moment the physics applies, on the airframe
+        /// <summary>
+        /// The one-line model-identity badge: which config the FLIGHT MODEL is flying, and whether it is the aeroplane
+        /// on screen (<see cref="ModelIdentityBadge"/>). ON by default, which is deliberate and temporary.
+        ///
+        /// Ty 2026-11-09, after the Pitts flew like a Cub for a minute and then stopped: "make the build log or display
+        /// which config the flight model is actually using, so the next time it happens we know for certain rather than
+        /// inferring". A diagnostic for a bug that clears itself is no use unless it is already running when the bug
+        /// arrives, so it defaults ON and this switch is for turning it off, not on. Once the mismatch has been caught
+        /// once, the default is worth revisiting.
+        /// </summary>
+        public static bool ShowModelIdentity = true;
         public static bool LiftMarkersVisible(string aircraftId) => LiftMarkers == Tri.On || (LiftMarkers == Tri.Auto && aircraftId != null && aircraftId.StartsWith("glider"));
         public static InstrumentMode Instruments = InstrumentMode.Hud;      // round dials / green HUD / nothing; owner 2026-10-28: the HUD is the default display
         public static Start StartMode = Start.InTheAir;
@@ -544,6 +555,7 @@ namespace FlyingGame.Bridge
             ShowCardinalLetters = GetBool(FlyingGame.Core.CardinalLetters.PrefKey, ShowCardinalLetters);
             ShowForceVectors   = GetBool("set.forceVectors", ShowForceVectors);
             FlightTestData     = GetBool("set.flightTestData", FlightTestData);
+            ShowModelIdentity  = GetBool("set.modelIdentity", ShowModelIdentity);
             ShowAtmosphereMap  = GetBool("set.atmosphereMap", ShowAtmosphereMap);
             Instruments        = (InstrumentMode)PlayerPrefs.GetInt("set.instruments", (int)Instruments);
             UseAirframeModels  = GetBool("set.airframeModels", UseAirframeModels);
@@ -584,6 +596,7 @@ namespace FlyingGame.Bridge
             SetBool(FlyingGame.Core.CardinalLetters.PrefKey, ShowCardinalLetters);
             SetBool("set.forceVectors", ShowForceVectors);
             SetBool("set.flightTestData", FlightTestData);
+            SetBool("set.modelIdentity", ShowModelIdentity);
             SetBool("set.atmosphereMap", ShowAtmosphereMap);
             PlayerPrefs.SetInt("set.instruments", (int)Instruments);
             SetBool("set.airframeModels", UseAirframeModels);
@@ -613,6 +626,7 @@ namespace FlyingGame.Bridge
         {
             LiftMarkers = Tri.Off; BubblesOn = false; BubbleInstancing = true; BubbleStreaks = Streaks.Long;
             ShowFlightPath = false; ShowForceVectors = false; FlightTestData = false; ShowAtmosphereMap = false;
+            ShowModelIdentity = true;   // the one aid that is on by shipped default (see the field): a reset must not hide it
             Instruments = InstrumentMode.Hud; UseAirframeModels = true; UseOwnModels = false; Seat = CockpitSeat.Rear;
             ShowOtherBadges = true; ShowOwnBadge = true; PauseWhenMenuOpen = true; NavRadios.Shown = true;
             SavePrefs();

@@ -518,6 +518,12 @@ namespace FlyingGame.Bridge
             if (BoolRow("Atmosphere map", ref SessionSettings.ShowAtmosphereMap, ref y)) SessionSettings.SavePrefs();
             // Ty 2026-11-03: off by default; when on they sit far off just above the horizon, never in reach.
             if (BoolRow("N / S / E / W letters on the horizon", ref SessionSettings.ShowCardinalLetters, ref y)) SessionSettings.SavePrefs();
+            // Ty 2026-11-09, after the Pitts flew like a Cub for a minute and then stopped: "make the build log or
+            // display which config the flight model is actually using, so the next time it happens we know for certain
+            // rather than inferring". ON by default -- a diagnostic for a bug that clears itself is no use unless it is
+            // already running when the bug arrives -- so this row is here to turn it OFF.
+            if (BoolRow("Flight model identity", ref SessionSettings.ShowModelIdentity, ref y)) SessionSettings.SavePrefs();
+            Note("names the aeroplane the PHYSICS is flying; tap the line for the full record", ref y);
         }
 
         private void ControlsPage(ref float y)

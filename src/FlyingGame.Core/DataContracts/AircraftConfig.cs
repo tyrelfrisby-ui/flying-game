@@ -134,6 +134,13 @@ public sealed class AircraftConfig
     public List<GearConfig> Gear { get; set; } = new();
     public LimitsConfig Limits { get; set; } = new();
 
+    /// <summary>What this aeroplane's own instruments read (see <see cref="InstrumentsConfig"/>). Until 2026-11-10 the
+    /// block existed in the JSON but nothing in C# read it: the modelled cockpit faces are drawn from it by
+    /// tools/own_models/instruments/build.py and its numbers were copied by hand into
+    /// <c>FlyingGame.Core.Instruments.InstrumentLibrary</c>. The fleet-wide ASI UNIT rule (Ty 2026-11-10, "by era and
+    /// category") needs it at run time on every type, so it is a loaded contract now.</summary>
+    public InstrumentsConfig? Instruments { get; set; }
+
     /// <summary>Set on a wing flown by weight shift instead of control surfaces (<see cref="WeightShiftConfig"/>);
     /// null on everything with a stick connected to something.</summary>
     public WeightShiftConfig? WeightShift { get; set; }
@@ -1289,6 +1296,55 @@ public sealed class WeightShiftConfig
         MathTypes.Vec3 pilotForce = -(PilotMassKg / Math.Max(1e-6, totalMassKg)) * aeroForceBody;
         return MathTypes.Vec3.Cross(shift, pilotForce);
     }
+}
+
+/// <summary>
+/// WHAT THIS AEROPLANE'S OWN INSTRUMENTS READ. Only the airspeed indicator and the g-meter are in the contract so far;
+/// the rest of a modelled panel is still its builder's business (tools/own_models). The faces of the four types with
+/// modelled cockpits are drawn from this block by tools/own_models/instruments/build.py, and
+/// <c>InstrumentLibraryTests</c> holds the hand-copied numbers in InstrumentLibrary against it, so there is one place.
+/// </summary>
+public sealed class InstrumentsConfig
+{
+    /// <summary>The airspeed indicator. Every type in the fleet declares at least its <see
+    /// cref="AirspeedInstrumentConfig.Units"/>; only a type with a modelled cockpit declares the whole face.</summary>
+    public AirspeedInstrumentConfig? Airspeed { get; set; }
+}
+
+/// <summary>
+/// THE AIRSPEED INDICATOR'S FACE. <c>units</c> is the fleet-wide decision (Ty 2026-11-10: "vintage, fabric and
+/// experimental types read mph; anything certified modern or turbine reads knots") and every type has it. The rest —
+/// the scale and the certificated arcs — is published data off a TCDS or a POH, and only the types whose cockpit is
+/// modelled have had it authored; <c>FlyingGame.Core.Instruments.AsiDial</c> derives a scale from the spawn speed and
+/// <c>limits.vneMs</c> for the others. EVERY NUMBER HERE IS IN <c>units</c>: a face mixing mph arcs with a knots red
+/// line is worse than either, which is how the 172's face got to be wrong (its white arc and green floor were a 172M's
+/// mph figures, its green top, yellow arc and red line a 172S's knots).
+/// </summary>
+public sealed class AirspeedInstrumentConfig
+{
+    /// <summary>"mph" or "kt". Anything else (or absent) reads as knots — see <c>AsiUnits.Parse</c>.</summary>
+    public string Units { get; set; } = "kt";
+
+    /// <summary>Bottom and top of the printed scale, in <see cref="Units"/>. 0 = not authored, derive it.</summary>
+    public double ScaleMin { get; set; }
+    public double ScaleMax { get; set; }
+
+    /// <summary>The certificated range arcs, in <see cref="Units"/>. Null = not authored.</summary>
+    public AsiArcsConfig? Arcs { get; set; }
+
+    /// <summary>Vne as it is painted on the glass, in <see cref="Units"/>. 0 = not authored, use
+    /// <see cref="LimitsConfig.VneMs"/>. It wins over the converted Vne where both exist, because a TCDS publishes one
+    /// number in CAS and that number is what the pilot reads.</summary>
+    public double Redline { get; set; }
+}
+
+/// <summary>The three range arcs, each <c>[low, high]</c> in the ASI's own units: white = flap operating range,
+/// green = normal operating range, yellow = caution range. A missing or short array means that arc is not drawn.</summary>
+public sealed class AsiArcsConfig
+{
+    public double[]? White { get; set; }
+    public double[]? Green { get; set; }
+    public double[]? Yellow { get; set; }
 }
 
 public sealed class LimitsConfig

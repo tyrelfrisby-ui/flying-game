@@ -120,7 +120,7 @@ public static class LandingGear
     // Third pass (owner: "a tailwheel would never reverse a swerve"): the castor answers within a few hundredths of a
     // second (damping 0.4), so the skidding-tail moment that was cancelling the mains' swerve moment for the first 0.2 s
     // is gone; the small hard tyre's friction is half a main's.
-    public const double TailwheelCorneringPerLoad = 4.0, TailwheelMuScale = 0.5;
+    public const double TailwheelCorneringPerLoad = 4.0, TailwheelMuScale = 0.8;
     // Steering unit (owner 2026-09-13): springs to the rudder (no slack) at half the earlier
     // stiffness; swivelling past 45° UNLOCKS the steering (free castor — 45° is beyond rudder travel, so it takes rudder
     // plus side load or brake stretching the springs); it re-engages only once the wheel is back inside rudder travel

@@ -147,6 +147,75 @@ public static class BladeElement
     private const int Azimuths = 16;
 
     /// <summary>
+    /// HOW FINELY THE DISC IS CUT AZIMUTHALLY, and why it is no longer one number. Measured 2026-11-10 (tools/SimCost):
+    /// the azimuthal loop is the whole cost of this model. One solve of the J-3's blade took 70 us axial and 1,220 us
+    /// the moment there was ANY crossflow — 17x, which is the 16 azimuths — and the sim reaches this solve SIX times a
+    /// step (the four RK4 stages through Aircraft.PropulsionForces, Aircraft.TailSlipstream, and
+    /// AircraftEngine.StepShaft). So the J-3 cost 8,372 us a step at 200 Hz — 1.67 seconds of CPU per second of
+    /// flight — against 120 to 205 us for every other type in the fleet. That is what Ty felt on 2026-11-09: "the j3
+    /// is noticibly slower to run/process so there might be a leak on it?" It was not a leak; it was this.
+    ///
+    /// The old gate was <c>Math.Abs(vCross) &lt; 1e-6</c>, which in flight is never true: a tenth of a degree of alpha
+    /// is 0.06 m/s of crossflow and bought the full sixteen azimuths. But what the azimuthal integral is FOR is the
+    /// first harmonic — the thrust centre's offset toward the down-going blade (P-factor) and the disc's in-plane
+    /// force, both of which are the cos(psi)-weighted part of the load. A midpoint rule with nAz points integrates a
+    /// first harmonic EXACTLY for any nAz >= 3, so four azimuths carry the whole of the linear-in-crossflow answer;
+    /// only the higher harmonics, which grow with the inflow skew, need more.
+    ///
+    /// So the count follows the skew mu = |vCross| / (omega R) — the azimuthal variation of the blade's own tangential
+    /// speed as a fraction of its tip speed. The thresholds are MEASURED against nAz = 16 over the fleet's fitted
+    /// blades, not chosen: tools/SimCost --azimuth prints the sweep banded by skew, which is where these two numbers
+    /// were read off (nAz 4 holds thrust and torque to 4e-4 of themselves below a skew of 0.02; nAz 8 holds them to
+    /// 9e-4 below 0.06), and HotPathCostTests holds the bound.
+    /// </summary>
+    private const double Skew4 = 0.02, Skew8 = 0.06;
+
+    /// <summary>A probe's seam: 0 is the adaptive count above, a positive value forces it. Only
+    /// tools/SimCost and HotPathCostTests set it, and they set it back.</summary>
+    public static int AzimuthOverride;
+
+    /// <summary>
+    /// Every inner momentum-balance iteration THIS THREAD has run. It is the probes' and the guard's measure of what
+    /// this model costs, and it is a count rather than a clock on purpose: the machine this is measured on runs several
+    /// agents at once and one run of the fleet came out four times slower than the one before it on identical code, so
+    /// a microsecond bound would be a coin toss. The iteration count is deterministic. Thread-static because the test
+    /// suite runs collections in parallel and a shared counter would be measuring other people's propellers.
+    /// </summary>
+    [System.ThreadStatic] public static long Iterations;
+
+    /// <summary>Azimuths and solves this thread has run, so the probes can report the MEAN azimuth count a flight
+    /// actually asks for. Which band real flight sits in is the whole question the thresholds answer, and it is not
+    /// something to assume: the J-3 at its spawn condition turns out to ask for eight and sixteen, not four.</summary>
+    [System.ThreadStatic] public static long AzimuthsUsed;
+    [System.ThreadStatic] public static long Solves;
+
+    /// <summary>
+    /// WHERE THE MOMENTUM BALANCE STARTS, AND WHEN IT STOPS. Measured 2026-11-10: with the old cold start it took 26
+    /// iterations per element and azimuth — 2,500 for a four-azimuth solve — and the 60-iteration cap was never
+    /// reached, so the cost was the convergence rate and not the cap.
+    ///
+    /// Both halves of that are free to fix. The START: vi and wi vary smoothly across the disc, and the solve walks
+    /// the elements outward and the azimuths round, so the neighbour it has just converged is a far better guess than
+    /// a formula in the local tangential speed with no vAxial in it at all. The STOP: the test was 1e-6 m/s on an
+    /// induced velocity of tens of m/s, which is 1e-7 of the answer — a tolerance on the twelfth significant figure of
+    /// a model calibrated against figures good to a per cent.
+    ///
+    /// The relaxation factor 0.4 is NOT touched. It is what keeps the fixed point stable at a stalled root and in
+    /// reversed flow, and this is not the change to find that out on.
+    /// </summary>
+    private const double ConvergeTol = 1e-4;
+
+    /// <summary>A probe's seam: true restores the 2026-11-09 inner loop exactly — a cold start at every element and
+    /// azimuth and the 1e-6 tolerance — so what the warm start and the tolerance cost can be MEASURED against it
+    /// (tools/SimCost --blade, --azimuth; HotPathCostTests). False in the sim.</summary>
+    public static bool LegacyInnerLoop;
+
+    /// <summary>The previous element's converged induced velocities, one pair per azimuth, as the warm start for the
+    /// next element out. Thread-static and allocated once: the sim must not allocate to solve a propeller.</summary>
+    [System.ThreadStatic] private static double[]? _viPrev;
+    [System.ThreadStatic] private static double[]? _wiPrev;
+
+    /// <summary>
     /// Solve the disc at this airspeed, angle of attack and rpm. <paramref name="alphaRad"/> is the angle between the
     /// free stream and the shaft; at zero the azimuthal loop collapses to the axial case and the in-plane forces are
     /// zero by symmetry.
@@ -171,25 +240,43 @@ public static class BladeElement
     public static Result Solve(in Geometry g, double vAxialMs, double vCrossMs, double rpm, double rhoKgM3,
                                double[]? wakeRadii, double[]? wakeSwirl)
     {
+        long tBlade = SimProfile.Begin();
         double omega = rpm * 2.0 * Math.PI / 60.0;
         if (omega <= 1e-3 || g.RadiusM <= 0.0) return new Result(0, 0, 0, 0, 0, 0, 0);
         double thrust = 0, torque = 0, normal = 0, angMom = 0, thrustMom = 0;
         double dx = (1.0 - g.HubFraction) / Elements;
         bool axial = Math.Abs(vCrossMs) < 1e-6;
-        int nAz = axial ? 1 : Azimuths;
+        // THE AZIMUTH COUNT, FROM THE SKEW (see Skew4/Skew8 above for what was measured and why four is enough).
+        int nAz;
+        if (AzimuthOverride > 0) nAz = axial ? 1 : AzimuthOverride;
+        else if (axial) nAz = 1;
+        else
+        {
+            double skew = Math.Abs(vCrossMs) / Math.Max(1e-6, omega * g.RadiusM);
+            nAz = skew < Skew4 ? 4 : skew < Skew8 ? 8 : Azimuths;
+        }
+        long iterations = 0;
+        AzimuthsUsed += nAz; Solves++;
+        double[] viPrev = _viPrev ??= new double[Azimuths];
+        double[] wiPrev = _wiPrev ??= new double[Azimuths];
+        bool warm = false;                                 // nothing converged yet: the first element starts cold
 
         for (int i = 0; i < Elements; i++)
         {
             double x = g.HubFraction + (i + 0.5) * dx;
             double r = x * g.RadiusM, chord = g.ChordM(x), theta = g.BladeAngleRad(x);
             double sigma = g.Blades * chord / (2.0 * Math.PI * r);
+            // Prandtl's tip and root loss numerators: constant over the azimuth and over the iteration, and they were
+            // being rebuilt inside both (Blades * 0.5 * (1 - x) and * (x - hub)).
+            double tipNum = g.Blades * 0.5 * (1.0 - x), rootNum = g.Blades * 0.5 * (x - g.HubFraction);
             double wiSum = 0.0, viSum = 0.0;
             for (int k = 0; k < nAz; k++)
             {
                 // Azimuth 0 is the blade going DOWN on the right of a right-hand prop, which is where a positive
                 // angle of attack adds velocity and incidence — the whole of P-factor, from geometry.
                 double psi = 2.0 * Math.PI * (k + 0.5) / nAz;
-                double vTanLocal = omega * r + vCrossMs * Math.Cos(psi);
+                double cosPsi = Math.Cos(psi);                 // wanted three times below; it was taken three times
+                double vTanLocal = omega * r + vCrossMs * cosPsi;
                 // INDUCED VELOCITY, ABSOLUTE — not a fraction of the forward speed. Writing it as V(1+a), which is
                 // the aeroplane-propeller convention, is degenerate at V = 0: the flow through the disc is zero
                 // whatever a does, so the static case collapses (it gave 24 N where this propeller makes over a
@@ -198,23 +285,35 @@ public static class BladeElement
                 //     0.5 W^2 sigma Cn = 2 F (V + vi) vi          ->  vi = ( -V + sqrt(V^2 + W^2 sigma Cn / F) ) / 2
                 //     0.5 W^2 sigma Ct = 2 F (V + vi) wi          ->  wi = W^2 sigma Ct / (4 F (V + vi))
                 // and V = 0 is just another solution.
-                double vi = 0.5 * Math.Sqrt(Math.Max(1.0, vTanLocal * 0.05)), wi = 0.0;
+                // The guess: the same annulus one step inboard, which has just been solved, or the old formula for
+                // the first element (and whenever the probe asks for the old loop back).
+                double vi, wi;
+                if (warm && !LegacyInnerLoop) { vi = viPrev[k]; wi = wiPrev[k]; }
+                else { vi = 0.5 * Math.Sqrt(Math.Max(1.0, vTanLocal * 0.05)); wi = 0.0; }
+                double tol = LegacyInnerLoop ? 1e-6 : ConvergeTol;
                 double w2 = 0, cn = 0, ct = 0, phi = 0;
                 for (int it = 0; it < 60; it++)
                 {
+                    iterations++;
                     double va = vAxialMs + vi, vt = Math.Max(1e-6, vTanLocal - wi);
                     phi = Math.Atan2(va, vt);
                     double alpha = theta - phi;
                     (double cl, double cd) = Section(alpha);
-                    double sp = Math.Sin(phi), cp = Math.Cos(phi);
+                    // sin(phi) AND cos(phi) FOR FREE. phi is Atan2(va, vt) with vt forced positive, so it lies in
+                    // (-pi/2, pi/2) and the triangle it came from is already here: sin = va/W, cos = vt/W with
+                    // W = sqrt(va^2 + vt^2), which the balance needs anyway as w2. Identical to the last bit, and it
+                    // retires a Sin and a Cos from an inner loop that runs about 7,000 times per solve.
+                    w2 = va * va + vt * vt;
+                    double wMag = Math.Sqrt(w2);
+                    double sp = va / wMag, cp = vt / wMag;
                     cn = cl * cp - cd * sp;          // along the shaft
                     ct = cl * sp + cd * cp;          // against the rotation
-                    w2 = va * va + vt * vt;
-                    // Prandtl tip (and root) loss.
-                    double f = g.Blades * 0.5 * (1.0 - x) / Math.Max(1e-3, x * Math.Sin(Math.Abs(phi)));
-                    double ftip = 2.0 / Math.PI * Math.Acos(Math.Clamp(Math.Exp(-f), -1, 1));
-                    double fr = g.Blades * 0.5 * (x - g.HubFraction) / Math.Max(1e-3, x * Math.Sin(Math.Abs(phi)));
-                    double froot = 2.0 / Math.PI * Math.Acos(Math.Clamp(Math.Exp(-fr), -1, 1));
+                    // Prandtl tip (and root) loss. sin|phi| IS |sin phi| over (-pi/2, pi/2), so it is |sp| and not two
+                    // more Sin calls; and exp(-f) with f >= 0 is in (0, 1], so the clamp to [-1, 1] never bit.
+                    double sinAbs = Math.Abs(sp);
+                    double denom = Math.Max(1e-3, x * sinAbs);
+                    double ftip = AcosExpNeg(tipNum / denom);
+                    double froot = AcosExpNeg(rootNum / denom);
                     double F = Math.Max(0.05, ftip * froot);
                     double viNew, wiNew;
                     double load = w2 * sigma * cn / F;
@@ -233,9 +332,10 @@ public static class BladeElement
                     double wiLim = 0.5 * Math.Abs(vTanLocal);
                     wiNew = Math.Clamp(wiNew, -wiLim, wiLim);
                     double nvi = vi + 0.4 * (viNew - vi), nwi = wi + 0.4 * (wiNew - wi);
-                    if (Math.Abs(nvi - vi) < 1e-6 && Math.Abs(nwi - wi) < 1e-6) { vi = nvi; wi = nwi; break; }
+                    if (Math.Abs(nvi - vi) < tol && Math.Abs(nwi - wi) < tol) { vi = nvi; wi = nwi; break; }
                     vi = nvi; wi = nwi;
                 }
+                viPrev[k] = vi; wiPrev[k] = wi;
                 double q = 0.5 * rhoKgM3 * w2 * g.Blades * chord * dx * g.RadiusM / nAz;
                 double dT = q * cn, dQ = q * ct * r;
                 thrust += dT; torque += dQ;
@@ -243,10 +343,11 @@ public static class BladeElement
                 wiSum += wi; viSum += vi;
                 if (!axial)
                 {
-                    normal += ct * q * Math.Cos(psi);          // the in-plane force, from the same elements
-                    thrustMom += dT * r * Math.Cos(psi);       // and WHERE the thrust was made: P-factor's own moment
+                    normal += ct * q * cosPsi;                 // the in-plane force, from the same elements
+                    thrustMom += dT * r * cosPsi;              // and WHERE the thrust was made: P-factor's own moment
                 }
             }
+            warm = true;
             if (wakeRadii is not null && wakeSwirl is not null && i < wakeRadii.Length && i < wakeSwirl.Length)
             {
                 // Where this annulus ENDS UP. Mass through it is conserved as the tube contracts, so the annulus at
@@ -268,6 +369,8 @@ public static class BladeElement
         double disc = Math.PI * g.RadiusM * g.RadiusM;
         double vDisc = Math.Max(1.0, vAxialMs + 0.5 * Math.Max(0.0, Math.Sqrt(Math.Max(0.0, vAxialMs * vAxialMs + 2.0 * thrust / Math.Max(1e-6, rhoKgM3 * disc))) - vAxialMs));
         double swirlC = angMom / Math.Max(1e-6, rhoKgM3 * disc * vDisc);
+        Iterations += iterations;
+        SimProfile.End(SimProfile.Scope.Blade, tBlade);
         return new Result(thrust, torque, power, eta, swirlC, normal, 0.0, thrustMom);
     }
 
@@ -397,6 +500,61 @@ public static class BladeElement
         double fine = PitchForTorqueDeg(blades, radiusM, activityFactor, hubFraction, qRunUp, ratedRpm, 0.0, rhoKgM3);
         double coarse = PitchForTorqueDeg(blades, radiusM, activityFactor, hubFraction, qRated, ratedRpm, 1.1 * vneMs, rhoKgM3);
         return new Stops(fine, Math.Max(coarse, fine + 1.0));
+    }
+
+    /// <summary>
+    /// PRANDTL'S LOSS FACTOR, (2/pi) acos(exp(-f)), tabulated. It is wanted twice per inner iteration — the tip and the
+    /// root — and an Exp plus an Acos each was a quarter of this model's whole cost. The function is smooth, monotone
+    /// and bounded (0 at f = 0, 1 as f grows), so a table with linear interpolation is as exact as the step it is read
+    /// at.
+    ///
+    /// TABULATED IN sqrt(f), NOT IN f, and that is not a detail. Near f = 0 the factor goes as sqrt(2f) — its second
+    /// derivative is infinite there — so a uniform table in f is wrong by order sqrt(h) in its first interval however
+    /// fine it is, and f IS small at the tip element whenever the inflow angle is large (standing still, the whole
+    /// static thrust case). In u = sqrt(f) the same function starts off linear, with a bounded second derivative, and
+    /// linear interpolation is then as exact as the step.
+    ///
+    /// Measured (tools/SimCost --azimuth, the "nAz 16, table loss" row — the azimuth count held at the old 16 so the
+    /// table is the only difference): over the fleet's five fitted blade settings and 540 conditions each, thrust moves
+    /// by at most 5.9e-5 of itself, torque by 2.7e-4, and the thrust centre by 1.5 mm on a 1.0 m propeller radius. Four
+    /// of the five blades are at the 1e-6 level; the Extra's 1.5 mm is not interpolation but conditioning — the thrust
+    /// centre is a moment DIVIDED by a thrust, and its 3-blade disc passes through zero thrust inside this grid. The
+    /// published figures this model is calibrated against are good to a per cent at best.
+    ///
+    /// Above f = <see cref="LossFMax"/> = 16 the factor is 1 to better than 8e-8, so it is returned flat; the old cut
+    /// at 8 would have left a step of 2.1e-4 there, which is the same size as the whole error budget.
+    /// </summary>
+    private const double LossFMax = 16.0;
+    private const int LossN = 2048;
+    private static readonly double LossUMax = Math.Sqrt(LossFMax);
+    private static readonly double LossScale = LossN / Math.Sqrt(LossFMax);
+    private static readonly double[] LossTable = BuildLossTable();
+
+    private static double[] BuildLossTable()
+    {
+        var t = new double[LossN + 2];
+        for (int i = 0; i <= LossN + 1; i++)
+        {
+            double u = LossUMax * i / LossN;
+            t[i] = 2.0 / Math.PI * Math.Acos(Math.Exp(-u * u));
+        }
+        return t;
+    }
+
+    /// <summary>A probe's seam: true takes the exact Exp/Acos instead of the table, so the table's error can be
+    /// MEASURED rather than argued (tools/SimCost --azimuth, HotPathCostTests). False in the sim.</summary>
+    public static bool ExactPrandtlLoss;
+
+    private static double AcosExpNeg(double f)
+    {
+        if (ExactPrandtlLoss) return 2.0 / Math.PI * Math.Acos(Math.Exp(-Math.Max(0.0, f)));
+        if (f >= LossFMax) return 1.0;
+        if (f <= 0.0) return 0.0;
+        double u = Math.Sqrt(f) * LossScale;
+        int i = (int)u;
+        double frac = u - i;
+        double[] t = LossTable;
+        return t[i] + frac * (t[i + 1] - t[i]);
     }
 
     /// <summary>

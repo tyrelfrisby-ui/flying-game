@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+    <AssemblyName>SimCost</AssemblyName><RootNamespace>FlyingGame.SimCost</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/FlyingGame.Core/FlyingGame.Core.csproj" />
+    <ProjectReference Include="../../src/FlyingGame.Sim/FlyingGame.Sim.csproj" />
+    <None Include="../../configs/aircraft/*.json"><Link>TestData/%(Filename)%(Extension)</Link><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></None>
+  </ItemGroup>
+</Project>
