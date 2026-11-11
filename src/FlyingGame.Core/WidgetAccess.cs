@@ -191,6 +191,26 @@ public static class WidgetAccess
         return cmd == "hello" ? null : RefusalNotYet;
     }
 
+    /// <summary>What a LAN client is told over HTTP, where there is no connection to remember a <c>hello</c> on.
+    /// Different words from <see cref="RefusalNoToken"/> on purpose: telling a browser to "send hello first" is
+    /// advice it cannot take.</summary>
+    public const string RefusalHttpNoToken =
+        "this widget is answering on the local network, so a request from another device needs its access token: "
+        + "add \"token\":\"…\" to the POST body, or ?token=… to /state. The token is printed on the widget's own "
+        + "window, and the remote page will ask you for it. Requests from this machine need none.";
+
+    /// <summary>
+    /// May this single HTTP request run? HTTP has no connection to authenticate ONCE on, so every request from
+    /// the LAN carries the token itself and is judged on its own.
+    /// </summary>
+    public static string? RequestRefusal(bool loopback, string? presented, string? expected)
+    {
+        if (loopback) return null;
+        if (string.IsNullOrEmpty(presented)) return RefusalHttpNoToken;
+        if (!IsToken(expected)) return RefusalBadToken;
+        return SameToken(presented, expected) ? null : RefusalBadToken;
+    }
+
     // ---- the snapshot path -------------------------------------------------------------------------------------
 
     /// <summary>

@@ -78,8 +78,8 @@ public sealed class WidgetServerSurfaceTests
         string code = Code(Source("WidgetServer.cs"));
         // The guard is at the one door every command comes through, not sprinkled over ~60 read sites — and it is
         // BEFORE the dispatch, not somewhere further down where only the commands that remembered it are covered.
-        int handle = code.IndexOf("private string Handle(JObject j, string src)", StringComparison.Ordinal);
-        Assert.True(handle > 0, "WidgetServer.cs no longer declares Handle(JObject, string) — this test reads it");
+        int handle = code.IndexOf("private string Handle(JObject j, string src, Auth auth)", StringComparison.Ordinal);
+        Assert.True(handle > 0, "WidgetServer.cs no longer declares Handle(…) — this test reads it");
         int check = code.IndexOf("NonFinite(j, null)", handle, StringComparison.Ordinal);
         int dispatch = code.IndexOf("switch (cmd)", handle, StringComparison.Ordinal);
         Assert.True(check > 0, "Handle no longer checks the command for non-finite numbers");
@@ -114,6 +114,120 @@ public sealed class WidgetServerSurfaceTests
     {
         string path = Path.Combine(Repo, "unity", "Assets", "_Project", "Scripts", "Bridge", file.Replace('/', Path.DirectorySeparatorChar));
         Assert.Contains(needle, File.ReadAllText(path), StringComparison.Ordinal);
+    }
+
+    // ---- the token and the binding --------------------------------------------------------------------------
+
+    [Fact]
+    public void ThePortsAreLoopbackOnlyUnlessTheLanIsAskedFor()
+    {
+        string code = Code(Source("WidgetServer.cs"));
+        // The wildcard bind is now reachable ONLY inside Bind's `if (Lan)` arm. A port that is not listening
+        // cannot be scanned, cannot prompt the firewall, and does not appear on Bonjour.
+        int bind = code.IndexOf("List<TcpListener> Bind(", StringComparison.Ordinal);
+        Assert.True(bind > 0, "WidgetServer.cs no longer declares Bind() — this test reads it");
+        foreach (string wildcard in new[] { "IPAddress.IPv6Any", "IPAddress.Any" })
+        {
+            int at = code.IndexOf(wildcard, StringComparison.Ordinal);
+            Assert.True(at > bind, $"{wildcard} is bound outside Bind() — the loopback default has a hole");
+        }
+        Assert.Contains("IPAddress.Loopback", code, StringComparison.Ordinal);
+        Assert.Contains("IPAddress.IPv6Loopback", code, StringComparison.Ordinal);
+        Assert.Contains("WidgetAccess.LanEnvVar", code, StringComparison.Ordinal);
+        // Bonjour must not advertise a service nothing on the network can reach.
+        Assert.Matches(new Regex(@"if \(!AeroWidget\.Capture && Lan\) Advertise\(\)"), code);
+    }
+
+    [Fact]
+    public void LoopbackIsDecidedFromTheSocketAndNeverFromTheRequest()
+    {
+        // A "loopback" or "local" field in the JSON would be the client marking its own homework.
+        string code = Code(Source("WidgetServer.cs"));
+        Assert.Contains("RemoteEndPoint", code, StringComparison.Ordinal);
+        Assert.Contains("WidgetAccess.IsLoopback", code, StringComparison.Ordinal);
+        int isLocal = code.IndexOf("static bool IsLocal(TcpClient c)", StringComparison.Ordinal);
+        Assert.True(isLocal > 0);
+        Assert.DoesNotMatch(new Regex(@"Loopback\s*=\s*\(?\(bool\)?\s*j\["), code);
+        Assert.DoesNotMatch(new Regex(@"j\[""loopback""\]"), code);
+    }
+
+    [Fact]
+    public void EveryCommandPassesTheGateAndHelloCarriesTheTokenCheck()
+    {
+        string code = Code(Source("WidgetServer.cs"));
+        int handle = code.IndexOf("private string Handle(JObject j, string src, Auth auth)", StringComparison.Ordinal);
+        Assert.True(handle > 0, "Handle no longer takes the request's Auth — this test reads it");
+        int gate = code.IndexOf("WidgetAccess.CommandRefusal(auth.Loopback, auth.Authed, cmd)", handle, StringComparison.Ordinal);
+        int dispatch = code.IndexOf("switch (cmd)", handle, StringComparison.Ordinal);
+        Assert.True(gate > 0 && gate < dispatch, "the gate must run before the command is dispatched");
+        Assert.Contains("WidgetAccess.HelloRefusal(auth.Loopback, (string)j[\"token\"], Token)", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ARefusedClientIsToldWhyAndTheConnectionStaysOpen()
+    {
+        // Ty's rule 5. Glass Overlay connects over the LAN; a silent drop there is invisible, and an invisible
+        // break is the expensive kind. The refusal names the reason, says needsToken, and still identifies the
+        // protocol so a client knows what it reached.
+        string code = Code(Source("WidgetServer.cs"));
+        int refused = code.IndexOf("static string Refused(string cmd, string why)", StringComparison.Ordinal);
+        Assert.True(refused > 0, "WidgetServer.cs no longer declares Refused() — this test reads it");
+        string body = code.Substring(refused, Math.Min(400, code.Length - refused));
+        Assert.Contains("[\"error\"] = why", body, StringComparison.Ordinal);
+        Assert.Contains("[\"needsToken\"] = true", body, StringComparison.Ordinal);
+        Assert.Contains("[\"protocol\"] = Protocol", body, StringComparison.Ordinal);
+        // The TCP arm answers the refusal; it does not close the socket on an unauthenticated client.
+        Assert.DoesNotContain("if (gate != null) { conn.Close()", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SubscribingIsGatedTooAndHappensOnTheMainThread()
+    {
+        // It used to be registered on the READER thread, by looking for the word "subscribe" anywhere in the raw
+        // line — so an unauthenticated LAN connection would have been streamed the whole state at up to 60 Hz
+        // before its hello was ever judged, and a caption containing the word would have subscribed as well.
+        string code = Code(Source("WidgetServer.cs"));
+        Assert.DoesNotContain("l.Contains(\"\\\"subscribe\\\"\")", code, StringComparison.Ordinal);
+        string body = CommandCase(code, "subscribe");
+        Assert.Contains("_subs.Add((auth.Conn", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheTokenIsTheWidgetsOwnFileAndIsNeverInTheRepository()
+    {
+        string code = Code(Source("WidgetServer.cs"));
+        Assert.Contains("WidgetAccess.ReadOrCreateToken(Application.persistentDataPath)", code, StringComparison.Ordinal);
+        // No literal token anywhere: this repository is public.
+        Assert.DoesNotMatch(new Regex(@"Token\s*=\s*""[0-9a-f]{8,}"""), code);
+    }
+
+    [Fact]
+    public void TheTokenIsShownWhereThePersonAtTheMacCanReadIt()
+    {
+        // Ty's rule 2: a secret nobody can see is a secret nobody can use.
+        // Raw source, not Code(): the status line it lives on contains "http://", and the comment stripper eats
+        // from the // to the end of the line. (It did exactly that, and this test caught it.)
+        Assert.Contains("WidgetServer.Token", Source("AeroWidget.cs"), StringComparison.Ordinal);
+        // And on the remote page — but ONLY when that page is being served to a browser on this machine, which
+        // can read the token file anyway and needs no token to drive the widget.
+        string server = Code(Source("WidgetServer.cs"));
+        Assert.Matches(new Regex(@"local \? WidgetRemotePage\.WithToken\(Token\) : WidgetRemotePage\.Html"), server);
+        Assert.Contains("/*TOKEN*/null", Source("WidgetRemotePage.cs"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnHttpRequestFromTheLanCarriesItsOwnToken()
+    {
+        // HTTP has no connection to remember a handshake on, so every request is judged on its own.
+        string code = Code(Source("WidgetServer.cs"));
+        Assert.Contains("WidgetAccess.RequestRefusal(local, presented, Token)", code, StringComparison.Ordinal);
+        Assert.Contains("needsToken: true", code, StringComparison.Ordinal);
+        // The page itself is still served to the LAN: a device has to be able to open it to be ASKED for a token.
+        Assert.Contains("WidgetRemotePage.Html", code, StringComparison.Ordinal);
+        // And the page sends it with every request.
+        string page = Source("WidgetRemotePage.cs");
+        Assert.Contains("if(TOKEN)o.token=TOKEN", page, StringComparison.Ordinal);
+        Assert.Contains("&token='+encodeURIComponent(TOKEN)", page, StringComparison.Ordinal);
     }
 
     // ---- the main thread ------------------------------------------------------------------------------------

@@ -29,6 +29,34 @@ and each wing's α). Labels have a dark drop shadow.
 
 Premultiplied? No: straight alpha. The aircraft and lines are opaque (α = 1); everything else is α = 0.
 
+## Access (2026-11-11)
+
+A pre-ship audit found the control surface open: both ports bound the wildcard address with no authentication, the
+HTTP side sent `Access-Control-Allow-Origin: *` so any web page the presenter had open could drive it, and
+`snapshot` wrote any path it was given. Ty's rules, as built:
+
+- **Loopback only by default.** The ports bind `127.0.0.1` and `::1`, nothing else. Everything that drives the
+  widget from the Mac itself — the MCP layer, a render script, Safari on 127.0.0.1 — is unchanged and needs no
+  token. Bonjour is not advertised.
+- **`AERO_WIDGET_LAN=1`** opens the dual-stack wildcard for another machine (Glass Overlay elsewhere, the phone
+  remote) and advertises on Bonjour. Then, and only then, a client **off this Mac** needs the access token.
+- **The token** is 32 hex digits, made on first run into the widget's own
+  `Application.support/.../widget-token.txt`. It is never in the repository and never in a log. The widget prints
+  it in its own window, and the remote page shows it when that page is opened **on the Mac** — read it off there.
+- **TCP:** send `{"cmd":"hello","token":"…"}` first; the connection is authenticated for its lifetime. Any other
+  command before that is answered (not dropped) with
+  `{"ok":false,"error":"…","needsToken":true,"protocol":8}`.
+- **HTTP:** every request from the network carries the token itself — `"token"` in the POST body for `/cmd`,
+  `?token=` for `/state` — and a request without it gets **403** with the same JSON. `GET /` is always served, so
+  a phone can open the page and be asked for the token; the page remembers it.
+- **A protocol 8 client that sends no token is unaffected on loopback** and is told exactly what to do on the LAN.
+
+Also closed in the same pass: no wildcard CORS on either HTTP path; `snapshot` confined to one directory; request
+line, header and body sizes capped; the `scenario` command checks its aircraft id against the fleet the way
+`start` always did; non-finite numbers (NaN, ±Infinity — Json.NET parses all of them, and no clamp stops them)
+refused at every network boundary; and client writes moved off Unity's main thread so a stalled subscriber cannot
+freeze the frame.
+
 ## Control
 
 ### TCP 47830 (Glass Overlay / its MCP layer)
@@ -57,7 +85,7 @@ Newline-delimited JSON, one command per line, one JSON reply line per command (`
 | `autopilot` | `on`, `mode` (`alt` \| `vs` \| `flc` \| `pit` \| `hdg` \| `rol` \| `bank`), `pitchDeg` (−30…30), `bankDeg` (−45…45, + = right), `altitudeFt`, `vsFpm`, `kias`, `heading` / `headingBump` / `headingSync`, `yawDamper`, `autothrottle` | **Protocol 8:** the autopilot (below). `mode` `lnav` / `loc` / `app` replies `"not available yet"`. |
 | `wind` | `fromDeg`, `kt` | Steady wind (the air mass moves). |
 | `inset` | `name`: `clAlpha` \| `liftDrag` \| `powerRequired` \| `ball` \| `aoa` \| `wb`; `show` | Small plates in the picture's top-right, each a curve from the sim's own aero model with a live dot. |
-| `hello` | | Reply with app, version, `protocol: 8`, `lessons`, `insets`, `autopilotModes`, the fleet's `loading` fits, `display`, `controlsLayout`, `conditions`, `features`, `controlInputs`, `controlsDisplay`, `fleet` (each with its `controls` fit), `commands`, `scenarios`, `views`, `viewFrom`, `presets`, `show` keys, frame size, stream names, ports, and `review: {historySeconds: 60, fps: 30, commands: [step, rewind, seek, play]}`. |
+| `hello` | `token` (LAN only) | Reply with app, version, `protocol: 8`, `access` (`lan`, `loopback`, `tokenRequired`), `lessons`, `insets`, `autopilotModes`, the fleet's `loading` fits, `display`, `controlsLayout`, `conditions`, `features`, `controlInputs`, `controlsDisplay`, `fleet` (each with its `controls` fit), `commands`, `scenarios`, `views`, `viewFrom`, `presets`, `show` keys, frame size, stream names, ports, and `review: {historySeconds: 60, fps: 30, commands: [step, rewind, seek, play]}`. |
 | `show` | any of `vectors lift drag weight thrust wind total axis wheels labels readout strips review controlsDisplay controlTraces horizon wingWind tailWind inertial tail moments`: bool | Toggle vectors and text. `strips` = every strip's lift and drag; `review` = the "REVIEW -2.4 s" tag in the readout; `controlsDisplay` = the NTSB-style control panel; `controlTraces` = its 10 s time-history strips; `horizon` = the horizon line and the ground grid (cruise and spin). |
 | `controlsDisplay` | `place`: `bottom` \| `left` \| `right`; `size`: 0.2…0.5; `show`: bool (optional) | Where the control panel goes and how much of the picture its strip takes. Default: off, bottom, 0.28. |
 | `pilot` | `id` (null clears), `name`, `color` (`#RRGGBB`), `managed`: bool (default true) | Name the pilot flying (below). |
