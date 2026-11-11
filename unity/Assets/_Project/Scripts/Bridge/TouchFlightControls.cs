@@ -257,10 +257,32 @@ namespace FlyingGame.Bridge
             _vrHandle = -1f;
             float t = (float)_driver.TrimStick / Mathf.Max(0.01f, TrimAuthority);
             _pitchTrim = Mathf.Clamp(InvertElevator ? -t : t, -1f, 1f);
-            // Aileron and rudder trim start centred on every new flight, like the pitch trim starts on the spawn's: the
-            // airframe's own rig is what flies it straight (2026-11-02). Left over from the last flight -- or another
-            // aeroplane -- they were a hidden bias, and with a gamepad connected their bars are not even drawn.
-            _aileronTrim = _rudderTrim = 0f;
+            // RUDDER trim starts centred on every new flight: the airframe's own rig is what flies it straight
+            // (2026-11-02). Left over from the last flight -- or another aeroplane -- it was a hidden bias, and with a
+            // gamepad connected its bar is not even drawn.
+            _rudderTrim = 0f;
+            // AILERON trim starts on THE SPAWN'S, exactly as the pitch trim above does, and this is an EXCEPTION TO
+            // "TRIMS CENTRED EVERY FLIGHT" that Ty chose on 2026-11-10 knowing it is one.
+            //
+            // The sentence this replaces said "the airframe's own rig is what flies it straight". That is true at
+            // 4,000 ft and only there: the aileron rig and the fin offset are solved ONCE, at RigSolver.RigAltitudeM,
+            // and written into each config as fixed geometry, so at any other height they leave a rolling moment that
+            // nothing trims out. Measured, 10 s hands off in still air at 10,000 ft AGL over KMYL: the Gee Bee rolls
+            // 15.1 deg, the Glasair 15.3, the Cassutt 12.1. Ty has a start-altitude picker that reaches that height,
+            // so the premise of the old sentence no longer covers every start.
+            //
+            // THE RULE'S PURPOSE IS KEPT. What it exists to prevent is THIS flight inheriting the LAST one's trim, or
+            // another aeroplane's -- a hidden bias nobody set. AileronTrimStick is a pure function of this start:
+            // zero at the rig altitude (so a start there is bit-identical to before this existed), derived at every
+            // other height from the rig solver's own answer there, and the same to the bit for two starts at the same
+            // height in the same air. It is also tiny -- under 0.06 deg of aileron across the whole reachable band,
+            // which is a trim bar about a twentieth off centre. RigSolver.AileronTrimForAltitude and docs/RIGGING.md
+            // carry the full argument, and they are what to read if a non-centred AIL TRIM is ever a surprise.
+            //
+            // WITH A GAMEPAD CONNECTED THE BAR IS NOT DRAWN, so on that path the preset is invisible as well as
+            // small. That is the one place this exception could puzzle somebody, and it is why it is written here.
+            float at = (float)_driver.AileronTrimStick / Mathf.Max(0.01f, TrimAuthority);
+            _aileronTrim = Mathf.Clamp(at, -1f, 1f);
         }
 
         // The last group carries one more bool than the mainline wrote: TvOutput.Active, because the layout differs
