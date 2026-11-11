@@ -77,8 +77,18 @@ namespace FlyingGame.FlightTests;
 ///    model reads 54.4. So the SPEED was right and the MECHANISM was wrong - and correcting the mechanism takes
 ///    it to 49.0 mph, 9.6 % low, on a trimmed CLmax of 1.47 where the book needs 1.20. The forward CG has been
 ///    masking a cellule CLmax 22 % high, which is the missing biplane interference term that
-///    `docs/research/JN4-JENNY-DATA.md` already has as an open item. NOTHING WAS CHANGED: the two errors
-///    compensate, and whether to correct them together is Ty's call.
+///    `docs/research/JN4-JENNY-DATA.md` already has as an open item.
+///
+/// ALL OF IT IS NOW CORRECTED, 2026-11-10, `lane/claude-stearman-cellule`, both halves together: the certificate's
+/// CG, stagger, decalage, elevator stops and load factors, AND the cellule interference derived from
+/// `BiplaneCellule`'s own Biot-Savart lattice (Prandtl NACA Rep. 116, Munk NACA Rep. 151) rather than fitted. The
+/// derived factor is 0.805 where exact agreement with the book would have wanted 0.816 -- 1.3 % apart, with nothing
+/// fitted -- and the aeroplane now stalls at 54.8 mph against a book 54.2, on 62 % of its travel, with its WING
+/// stalling at alpha 12.51 deg where the wing reaches CLmax at 12.50, at a static margin of 13.1 %.
+///
+/// SO THE SECTIONS ABOVE DESCRIBE AN AEROPLANE THAT NO LONGER EXISTS, and are kept because they are the diagnosis.
+/// Section 7 is inverted: it now puts each old wrong value BACK, one at a time, which is the only way left to
+/// measure what each correction was worth. `docs/research/STEARMAN-PT17-DATA.md` § 5 is the record.
 /// </summary>
 [Collection("WorldTerrainActive")]
 public class StearmanElevatorLimitProbe
@@ -200,7 +210,11 @@ public class StearmanElevatorLimitProbe
     {
         if (Environment.GetEnvironmentVariable("STEARMAN_ELEV") == null) return;
         const string Id = "stearman-pt17-like";
-        const double BookVsoMph = 52.0;          // the figure the model is being measured against
+        // THE PRIMARY stall figure, not the 52 mph this probe was first written against -- that is Jane's 1945/6
+        // LANDING speed. Pilot's Handbook for Stearman Airplanes N2S-1/-2/-3 (Report A75NI-9001, 20 Jan 1941),
+        // Table of Characteristics: 53 mph "with 50% Fuel and Oil Consumed" at a 2682.7 lb normal gross, so at about
+        // 2529 lb; this model flies at 2646 lb, so the comparable stall is 53*sqrt(2646/2529) = 54.2 mph.
+        const double BookVsoMph = 54.2;          // the figure the model is being measured against
         double bookVso = BookVsoMph * 0.44704;
 
         // ---- 0. the airframe as configured -------------------------------------------------------------------
@@ -306,10 +320,10 @@ public class StearmanElevatorLimitProbe
                 string note = inAft switch
                 {
                     -1.0 => "A-743 FORWARD limit",
-                    0.24 => "AS CONFIGURED",
+                    0.24 => "the OLD config, before 2026-11-10",
                     1.34 => "W&B: solo rear, full fuel, empty CG -2.0 in",
                     2.54 => "W&B: solo rear, full fuel, empty CG -0.5 in",
-                    3.53 => "W&B: DUAL + full fuel at 2649 lb = the model's own mass",
+                    3.53 => "AS CONFIGURED: W&B DUAL + full fuel at 2649 lb = the model's own mass",
                     4.38 => "W&B: dual, full fuel, empty CG +0.5 in",
                     7.1 => "A-743 AFT limit",
                     9.0 => "beyond the certificate",
@@ -322,7 +336,7 @@ public class StearmanElevatorLimitProbe
             // THE REAL STOPS. A-743's Control Surface Movements table, identical in Section I and Section II:
             // "Elevator - Up 24 deg - Down 22 deg". The config's 29.8 deg symmetric is MORE travel than the real
             // aeroplane has, in both directions, so this is the combination that matters.
-            _o.WriteLine("   AND WITH THE CERTIFICATE'S OWN STOPS (up 24 deg, down 22 deg) instead of the config's 29.8 symmetric:");
+            _o.WriteLine("   WITH THE CERTIFICATE'S OWN STOPS (up 24 deg, down 22 deg), which the config now carries:");
             _o.WriteLine("     CG in |   Vso m/s    mph  | elevator deg  % of 24.0 | alpha deg | note");
             foreach (double inAft in new[] { 0.24, 2.54, 3.53, 5.0, 7.1, 9.0, 11.0 })
             {
@@ -333,7 +347,7 @@ public class StearmanElevatorLimitProbe
                 var lim = Limit(c, fine: true);
                 _o.WriteLine($"   {inAft,8:+0.00;-0.00} | {lim.vso,9:F2} {lim.vso / 0.44704,6:F1}  | {lim.elevDeg,12:F2} " +
                              $"{lim.frac * 100,9:F0} % | {lim.alphaDeg,9:F2} | " +
-                             $"{(inAft == 0.24 ? "AS CONFIGURED" : inAft == 3.53 ? "the model's own mass, loaded per A-743's arms" : inAft == 7.1 ? "A-743 AFT limit" : "")}");
+                             $"{(inAft == 0.24 ? "the OLD config, before 2026-11-10" : inAft == 3.53 ? "AS CONFIGURED: the model's own mass, loaded per A-743's arms" : inAft == 7.1 ? "A-743 AFT limit" : "")}");
             }
             _o.WriteLine("");
         }
@@ -432,47 +446,53 @@ public class StearmanElevatorLimitProbe
         //     Incidence - Upper wing 4 deg, lower wing 3 deg
         //     Stagger   - 26-13/16" plus or minus 1/8" at strut point (spoilers on both wings or on neither wing)
         //
-        // The config has the INCIDENCE THE OTHER WAY ROUND (upper 0.0524 rad = 3.00 deg, lower 0.0698 = 4.00 deg),
-        // so its decalage is reversed: the certificate puts 1 deg MORE on the upper wing and the model puts it on
-        // the lower. On a biplane that decides which wing stalls first and what the cellule's CLmax is.
+        // The config HAD the INCIDENCE THE OTHER WAY ROUND (upper 0.0524 rad = 3.00 deg, lower 0.0698 = 4.00 deg),
+        // so its decalage was reversed: the certificate puts 1 deg MORE on the upper wing and the model put it on
+        // the lower. On a biplane that decides which wing stalls first and what the cellule's CLmax is -- and with
+        // the lift interference now applied per wing it decides it twice over, because the upper wing is also the
+        // one that keeps the more of its isolated lift (BiplaneCellule.LiftInterferenceFor).
         //
-        // And the STAGGER is 17.7 in where the certificate says 26-13/16 = 26.81 in: upper-wing leading edge at
-        // model x +0.406, lower at -0.044. The upper wing is 0.231 m too far AFT, which drags the cellule's lift
-        // 0.117 m aft of where it belongs (area-weighted), and THAT is a candidate for the static margin being
-        // 25.4 % of chord when every other type in this fleet is at 6-18 % and the AeroModel's own note calls
-        // 5-20 % the real-aeroplane band. The 26-13/16 in also squares with the certificate's own loading arms:
+        // And the STAGGER WAS 17.7 in where the certificate says 26-13/16 = 26.81 in: upper-wing leading edge at
+        // model x +0.406, lower at -0.044. The upper wing was 0.231 m too far AFT, which dragged the cellule's lift
+        // 0.117 m aft of where it belongs (area-weighted), and THAT was the static margin being 25.4 % of chord
+        // when every other type in this fleet is at 6-18 % and the AeroModel's own note calls 5-20 % the
+        // real-aeroplane band. Both were corrected on 2026-11-10; it is 13.1 % now. The 26-13/16 in also squares with the certificate's own loading arms:
         // the fuel tank is in the upper-wing centre section at (-5) in, and a tank at ~40 % of a 60 in chord puts
         // the upper leading edge about 29 in forward of the lower one.
         {
-            _o.WriteLine("7. THE TWO SOURCED GEOMETRY ERRORS (TCDS A-743 Rev 16 NOTE 5), measured one at a time. " +
-                         "'CG at A-743 loading' = +3.53 in aft of datum, which is this mass loaded on A-743's own arms.");
-            _o.WriteLine("     variant                                  |   Vso m/s    mph  | elev deg  % travel | alpha  stat.marg");
-            foreach (string which in new[] { "as shipped", "decalage", "stagger", "decalage+stagger", "CG only",
-                                             "decalage+stagger+CG", "decalage+stagger+CG, A-743 stops" })
+            // ALL OF THIS IS NOW IN THE CONFIG (2026-11-10, lane/claude-stearman-cellule), so the section is
+            // inverted: each row PUTS BACK one of the old wrong values, which is the only way left to measure what
+            // the correction was worth. The bottom row is the aeroplane as it now flies.
+            _o.WriteLine("7. THE CORRECTIONS, EACH PUT BACK (TCDS A-743 Rev 16 NOTE 5 and Control Surface Movements). " +
+                         "The config now carries all of them, so a row shows what the aeroplane was like WITHOUT that one.");
+            _o.WriteLine("     variant                                    |   Vso m/s    mph  | elev deg  % travel | alpha  stat.marg");
+            foreach (string which in new[] { "OLD: decalage back (upper 3 / lower 4)", "OLD: stagger back (17.7 in)",
+                                             "OLD: CG back (+0.24 in)", "OLD: stops back (29.8 symmetric)",
+                                             "OLD: cellule interference off", "OLD: all of them (the 2026-11-09 aeroplane)",
+                                             "AS CONFIGURED (all corrections in)" })
             {
                 var c = Load(Id);
                 double le = LowerWingLeX(c);
-                if (which.Contains("decalage"))
-                {
+                bool all = which.Contains("all of them");
+                if (all || which.Contains("decalage"))
                     foreach (SurfaceConfig sf in c.Surfaces)
-                        if (sf.Id == "wing-upper") foreach (StripConfig st in sf.Strips) st.IncidenceRad = 4.0 * Math.PI / 180;
-                        else if (sf.Id.StartsWith("wing-lower")) foreach (StripConfig st in sf.Strips) st.IncidenceRad = 3.0 * Math.PI / 180;
-                }
-                if (which.Contains("stagger"))
+                        if (sf.Id == "wing-upper") foreach (StripConfig st in sf.Strips) st.IncidenceRad = 3.0 * Math.PI / 180;
+                        else if (sf.Id.StartsWith("wing-lower")) foreach (StripConfig st in sf.Strips) st.IncidenceRad = 4.0 * Math.PI / 180;
+                if (all || which.Contains("stagger"))
                 {
-                    // 26-13/16 in = 0.6810 m of leading-edge stagger, taken by moving the UPPER wing forward: the
-                    // datum and therefore the CG station are defined off the LOWER wing, so moving the upper one
-                    // leaves the certificate's CG arithmetic untouched.
-                    double need = 0.6810 - ((c.Surfaces.Find(s => s.Id == "wing-upper")!.Strips[0].Pos[0]
+                    // Back to 17.7 in of leading-edge stagger by moving the UPPER wing aft: the datum, and therefore
+                    // the CG station, is defined off the LOWER wing, so only the upper one ever moves here.
+                    double need = 0.450 - ((c.Surfaces.Find(s => s.Id == "wing-upper")!.Strips[0].Pos[0]
                                              + 0.25 * c.Surfaces.Find(s => s.Id == "wing-upper")!.Strips[0].Chord) - le);
                     foreach (SurfaceConfig sf in c.Surfaces)
                         if (sf.Id == "wing-upper") foreach (StripConfig st in sf.Strips) st.Pos[0] += need;
                 }
-                if (which.Contains("CG")) c.Mass.Cg[0] = le - 3.53 * 0.0254;
-                if (which.Contains("stops")) { c.Controls.Elevator.MaxDeflRad = 22.0 * Math.PI / 180; c.Controls.Elevator.MaxDeflNegRad = 24.0 * Math.PI / 180; }
+                if (all || which.Contains("CG back")) c.Mass.Cg[0] = le + 0.24 * 0.0254;
+                if (all || which.Contains("stops back")) { c.Controls.Elevator.MaxDeflRad = 0.52; c.Controls.Elevator.MaxDeflNegRad = 0.0; }
+                if (all || which.Contains("interference off")) c.Cellule = null;
                 var lim = Limit(c, fine: true);
                 var (_, sm) = NeutralPoint(c, 30.0, 3.0);
-                _o.WriteLine( $"   {which,-42} | {lim.vso,9:F2} {lim.vso / 0.44704,6:F1}  | {lim.elevDeg,8:F2} " +
+                _o.WriteLine( $"   {which,-44} | {lim.vso,9:F2} {lim.vso / 0.44704,6:F1}  | {lim.elevDeg,8:F2} " +
                              $"{lim.frac * 100,9:F0} % | {lim.alphaDeg,6:F2} {sm * 100,9:F1} %");
             }
             // WHAT Vso IS BEING MEASURED AGAINST, because the "book 52" in the brief is Jane's LANDING speed and
