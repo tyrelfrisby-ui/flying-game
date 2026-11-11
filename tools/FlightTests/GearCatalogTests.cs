@@ -370,6 +370,29 @@ public class GearCatalogTests
     }
 
     /// <summary>
+    /// A PAIR OF FLOATS IS TWO BODIES, NOT ONE. Modelling them as a single box on the centreline throws away exactly
+    /// the thing that makes a floatplane roll and yaw like a floatplane: two 34 kg bodies 2.6 m apart contribute
+    /// 2 x 34 x 1.3^2 = 115 kg m^2 of Ixx and the same again of Izz, and a centreline box contributes none of it.
+    /// The first pass of this catalogue did that and a J-3's floats came out with an Izz of 0.2 kg m^2 — a number
+    /// that looks like a unit error and is really a geometry error. This is the test that would have caught it.
+    /// </summary>
+    [Fact]
+    public void ThePairOfFloatsSitsAtItsOwnSpread()
+    {
+        AircraftConfig c = Load("j3-cub-floats-like");
+        IReadOnlyList<GearComponent> set = GearCatalog.ComponentsFor(c, GearCatalog.Get("floats-straight")!);
+        Assert.Equal(2, set.Count);
+        Assert.Equal(-set[0].CmBody.Y, set[1].CmBody.Y, 6);
+        Assert.True(System.Math.Abs(set[0].CmBody.Y) > 0.5, "the floats must be out at their own spread");
+        Assert.Equal(set[0].MassKg, set[1].MassKg, 6);
+        MassProperties I = GearMass.About(set, c.Mass.CgVec());
+        _out.WriteLine($"J-3 floats: {I.MassKg:F1} kg at +-{set[1].CmBody.Y:F2} m; Ixx {I.Ixx:F1}, Iyy {I.Iyy:F1}, Izz {I.Izz:F1} kg m^2");
+        // Izz is dominated by the lateral separation, so it must be the same order as Ixx, not two orders smaller.
+        Assert.InRange(I.Izz / I.Ixx, 0.3, 3.0);
+        Assert.Equal(0, I.Ixy, 6);   // a symmetric pair
+    }
+
+    /// <summary>
     /// The scalar exchange rule and the component one are THE SAME ARITHMETIC and must not drift: FloatExchange's
     /// 125 lb for Ty's J-3 (the 1320's ~175 lb system less ~50 lb of gear) is what the component sets give too, to
     /// within the pound the catalogue's derived float weight sits from the round number.

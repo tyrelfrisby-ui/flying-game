@@ -183,6 +183,17 @@ public static class GearCatalog
     /// <summary>Does this leg take a ski — and is it a MAIN (a straight ski may replace its wheel) or not?</summary>
     public static bool IsMainLeg(GearConfig g) => WheelSpin.IsWheel(g) && !g.IsTailwheel && !g.IsSteerable;
 
+    /// <summary>Distance between the main wheels, m — the widest pair of mains the config has. 0 on an aeroplane
+    /// with one main wheel (a glider), which is a real answer and not a missing one.</summary>
+    public static double MainWheelTrackM(AircraftConfig c)
+    {
+        double maxY = 0;
+        if (c.Gear != null)
+            foreach (GearConfig g in c.Gear)
+                if (IsMainLeg(g)) maxY = System.Math.Max(maxY, System.Math.Abs(g.Pos[1]));
+        return 2 * maxY;
+    }
+
     /// <summary>A readable, stable id for a leg: its role and which side it is on. GearConfig carries no id of its
     /// own, and the index is kept as a suffix so two legs in the same role can never collide.</summary>
     public static string LegId(GearConfig g, int index)
@@ -361,12 +372,35 @@ public static class GearCatalog
         FloatsConfig? f = c.Floats;
         double lengthM = f?.LengthM ?? 0, beamM = f?.BeamM ?? 0, depthM = f?.DepthM ?? 0;
         bool drawn = lengthM > 0.1 && beamM > 0.01;
-        Vec3 at = drawn ? new Vec3(f!.BowX - 0.5 * f.LengthM, 0, f.KeelZ) : new Vec3(0, 0, 1.2);
+        double x = drawn ? f!.BowX - 0.5 * f.LengthM : 0, z = drawn ? f!.KeelZ : 1.2;
 
-        set.Add(new GearComponent
+        // ONE COMPONENT PER FLOAT, AT ITS OWN y. Modelling the pair as a single box on the centreline throws away
+        // the thing that makes a floatplane roll and yaw like a floatplane: two 34 kg bodies 2.6 m apart contribute
+        // 2 x 34 x 1.3^2 = 115 kg m^2 of Ixx and the same of Izz, and a centreline box contributes NONE of it. The
+        // first pass here did exactly that and a J-3's floats came out with an Izz of 0.2 kg m^2, which is the kind
+        // of number that looks like a unit error and is really a geometry error.
+        //
+        // A flying boat (Count 1) is a hull on the centreline and genuinely is one body -- but it has no wheels, so
+        // it is never offered floats and never reaches here.
+        int count = System.Math.Max(1, f?.Count ?? 2);
+        // A LANDPLANE CONFIG HAS NO FLOAT BLOCK AT ALL, and the configurator will ask for floats on one. Falling
+        // back to a spread of zero puts both floats on the centreline and gives the pair an Izz of nearly nothing,
+        // so the fallback is the MAIN WHEEL TRACK instead — the floats go roughly where the wheels were. It is a
+        // LOWER BOUND and knowably so: a J-3's mains are 1.5 m apart and its floats 2.6 m, so this understates the
+        // separation by about 40 % on that type and understates Ixx and Izz with it. A type that is really going on
+        // floats should carry a floats block with its own spread, and then this is not used.
+        double spread = f?.SpreadM ?? 0;
+        if (count > 1 && spread <= 0.01) spread = MainWheelTrackM(c);
+        double halfSpread = count > 1 ? 0.5 * spread : 0;
+        for (int i = 0; i < count; i++)
         {
-            Id = "floats", Name = size.Name + (amphib ? " (amphibian)" : ""), AttachTo = "fuselage",
-            MassKg = size.InstalledKg(amphib),
+            double y = count > 1 ? (i == 0 ? -halfSpread : halfSpread) : 0;
+            Vec3 at = new(x, y, z);
+            set.Add(new GearComponent
+            {
+            Id = count > 1 ? (i == 0 ? "float-l" : "float-r") : "float",
+            Name = size.Name + (amphib ? " (amphibian)" : ""), AttachTo = "fuselage",
+            MassKg = size.InstalledKg(amphib) / count,
             // ESTIMATED EVEN AT THE ANCHORED SIZES. FloatCatalog's weights are all derived from one ratio; at the
             // 1320 and the 2000 there is a published figure to CHECK it against, which is not the same as the
             // catalogue carrying the published figure. The Source names it either way.
@@ -380,7 +414,8 @@ public static class GearCatalog
             // nothing would fail loudly, which is the exact failure AeroOwner exists to prevent.
             AeroOwnedBy = AeroOwner.FloatAero, DragAreaM2 = 0,
             AeroSource = "FloatAero.Compute: Polhamus slender-wing + vortex lift in both planes, at the floats' own centroid",
-        });
+            });
+        }
     }
 
     // ---- the coefficients and the figures this catalogue does own -----------------------------------------------
