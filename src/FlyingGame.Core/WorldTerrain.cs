@@ -74,6 +74,8 @@ public sealed class WorldTerrain
     public readonly struct Airport
     {
         public readonly string Name; public readonly double X, Y, ElevationM;
+        /// <summary>The airport has a published instrument approach (and so a PAPI or VASI): <see cref="AirportLighting"/>.</summary>
+        public bool InstrumentApproach => AirportLighting.HasInstrumentApproach(Name);
         public Airport(string name, double x, double y, double elev) { Name = name; X = x; Y = y; ElevationM = elev; }
     }
 

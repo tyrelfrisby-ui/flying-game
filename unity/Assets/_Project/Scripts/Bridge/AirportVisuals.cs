@@ -85,62 +85,8 @@ namespace FlyingGame.Bridge
                 bool paved=WorldTerrain.IsPaved(s.Kind);
                 if(paved)
                 {
-                    // 60 m runway edge fixture spacing. Each end has inward red/outward green faces.
-                    for(double d=-s.Length/2+30;d<s.Length/2;d+=60)
-                    foreach(int side in new[]{-1,1})
-                    {
-                        // Omit fixtures in the crossing runway's pavement.
-                        Vector3 p=R(d,side*(s.Width/2+1));
-                        bool crossing=false;
-                        foreach(WorldTerrain.Strip other in WorldTerrain.AirportStrips)
-                            if(WorldTerrain.IsPaved(other.Kind)&&other.Kind!=s.Kind&&WorldTerrain.InStrip(a,other,p.z,p.x,1)) crossing=true;
-                        // The crosswind edge rows straddle the main PAPI station.
-                        // Leave a clear optical area around every four-box bank;
-                        // otherwise their omnidirectional white lamps look like extra PAPI units.
-                        bool besidePapi=false;
-                        foreach(WorldTerrain.Strip other in WorldTerrain.AirportStrips)
-                        {
-                            if(!WorldTerrain.IsPaved(other.Kind)) continue;
-                            double oh=other.HeadingDeg*Math.PI/180, oc=Math.Cos(oh), os=Math.Sin(oh);
-                            double dx=p.z-a.X-other.Dx, dy=p.x-a.Y-other.Dy;
-                            double along=dx*oc+dy*os, across=-dx*os+dy*oc;
-                            foreach(int approach in new[]{-1,1})
-                                if(Math.Abs(along-approach*(other.Length/2-300))<22 &&
-                                   across*approach>other.Width/2+2 && across*approach<other.Width/2+57)
-                                    besidePapi=true;
-                        }
-                        if(!crossing&&!besidePapi) Lamp(p,white,R(60,0)-R(0,0));
-                    }
-                    foreach(int end in new[]{-1,1})
-                    {
-                        Vector3 forward=R(end*2,0)-R(0,0);
-                        forward.Normalize();
-                        Vector3 right=R(0,1)-R(0,0); right.Normalize();
-                        int endLamps=Math.Max(8,(int)Math.Ceiling(s.Width/3.0)+1);
-                        for(int j=0;j<endLamps;j++)
-                        {
-                            Vector3 p=R(end*(s.Length/2+1),-s.Width/2+j*s.Width/(endLamps-1),.23);
-                            b.Box(p,new Vector3(.4f,.25f,.4f),steel);
-                            // vertical faces, directed to approach and runway respectively
-                            Vector3 across=right*.52f, up=Vector3.up*.26f;
-                            Vector3 outside=p+forward*.22f, inside=p-forward*.22f;
-                            lamps.Quad(outside-across-up,outside+across-up,outside+across+up,outside-across+up,new Color(.03f,1,.23f));
-                            lamps.Quad(inside-across-up,inside+across-up,inside+across+up,inside-across+up,new Color(1,.035f,.015f));
-                            // View-direction masks in the halo shader keep red/green on their own sides.
-                            Glow(outside,new Color(.03f,1,.23f,.95f),forward);
-                            Glow(inside,new Color(1,.035f,.015f,1),-forward);
-                        }
-                        // Four PAPI boxes left of each approach. Emissive two-white/two-red inspection appearance.
-                        for(int j=0;j<4;j++)
-                        {
-                            Vector3 p=R(end*(s.Length/2-300),end*(s.Width/2+16+j*9),.35);
-                            b.Box(p,new Vector3(1.1f,.65f,1.0f),white);
-                            // On path: red pair nearest runway, white pair outboard.
-                            Color papi=j<2?new Color(1,.025f,.015f):white;
-                            lamps.Box(p+Vector3.up*.15f,new Vector3(.8f,.20f,.75f),papi);
-                            Glow(p+Vector3.up*.50f,new Color(papi.r,papi.g,papi.b,.8f),forward);
-                        }
-                    }
+                    // Runway edge, threshold and glide path lights are the shared parts in AirportLighting / AirportLights
+                    // (island world); this old-world builder no longer carries a copy of its own.
                     // Gravel-to-grass visual shoulder ribbon, sampled on existing terrain.
                     foreach(int side in new[]{-1,1})
                     for(double d=-s.Length/2;d<s.Length/2;d+=20)
@@ -177,7 +123,6 @@ namespace FlyingGame.Bridge
                 Vector3 v=new Vector3(Mathf.Cos(t),0,Mathf.Sin(t));
                 b.Box(circle+v*12,new Vector3(2,.18f,.6f),Quaternion.Euler(0,-t*Mathf.Rad2Deg,0),white);
             }
-            Windsock(parent,a.X-650,a.Y+360,circle.y);
             // Fuel equipment and small service apron, on the existing apron footprint.
             Vector3 fuel=P(ax+125,ay+25);
             b.Box(fuel+new Vector3(1.8f,.07f,-.5f),new Vector3(11,.08f,12),new Color(.57f,.57f,.53f));

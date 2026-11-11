@@ -1,3 +1,128 @@
+## The ten orphaned lanes Ty approved, merged one at a time — Claude, 2026-11-10, lane/claude-backlog-merge
+
+<!-- orphaned-lanes-merge triage-2026-11-10 glb-sidecar-collision parity-lock -->
+
+`docs/pending/ORPHANED-LANES-TRIAGE-2026-11-10.md` classified 75 lanes in neither shipping lane. Ty approved ten of
+them for merging — the READY ones plus the NEEDS YOU ones whose question he answered. They are merged here in the
+order the brief set: trivial first, so an early failure is cheap; the riskiest last. Tests between every merge, so a
+failure is attributable to one lane. **Nothing pushed, nothing merged to `main`, no `--no-verify`.**
+
+Running record, one bullet per lane, newest last:
+
+- **`lane/claude-app-icon`** (`dd679087`) — MERGED. The AP letter icon, 1024 opaque, replacing
+  `unity/Assets/_Project/Art/AppIcon.png` in place under the same GUID `069fd8c6…`, which all 19 iPhone/iPad/App
+  Store slots in `ProjectSettings.asset` already point at — so iOS and iPad get the new icon from the PNG alone.
+  `AGENT-LOG.md` conflicted (both sides kept in full, as always). One piece was held back at first: the
+  `m_BuildTargetIcons` hunk, which sets the *Default* icon so Mac (OSXUniversal) and Quest/Android pick the same
+  texture up, because Ty's standing rule for this run is *never commit
+  `unity/ProjectSettings/ProjectSettings.asset`*. **Asked, he said "Commit just that line."** The rule is there to
+  keep the build's `bundleVersion` bump out of git, not to freeze the whole file, so that hunk alone went in as
+  `bb4904c3`, `bundleVersion` untouched. Mac and Quest get the AP icon too.
+- **`lane/claude-trigger-brakes`** (`b29dd07b`) — MERGED. The triggers become independent LEFT / RIGHT toe brakes on
+  the 8BitDo (iOS/Mac/Quest) and on the Quest Touch, proportional past a 0.05 dead zone and no expo (like a pedal,
+  half pull is half brake); the guns move off the right trigger to the right grip, the VR menu navigates on the
+  sticks with A/X select, and the always-shown MENU tab is hidden behind a `const bool`. Only `AGENT-LOG.md`
+  conflicted; the four Bridge scripts auto-merged.
+  **Two things the lane had gone stale on, both finished here rather than resolved away:**
+  1. `tools/FlightTests/QuestControlsTests.cs` still pinned the OLD mapping and failed —
+     `BrakesFollowTheLeftTrigger` (left trigger = both wheels) and the right-trigger half of
+     `SmokeTogglesOncePerSqueezeAndGunsAreHeld`. The lane updated `QuestStickFeelTests` and missed this file. Both
+     tests are re-pinned to the mapping Ty asked for: the triggers are the two toe brakes, `Fire` follows the right
+     grip.
+  2. `LocalPadControls.cs` — the split-screen second seat — did not exist when this lane was written. Its triggers
+     were a second rudder through `gp.Rudder`, which this lane narrows to the left stick alone, so P2 would have
+     lost the triggers entirely and gained nothing. Three lines put the same `CombineWheelBrakes` on that seat, so
+     both players' triggers are their own toe brakes.
+  Tests: `GamepadShaping|QuestStickFeel|QuestControls|PedalBlend|LocalPad|Brake` — **122 passed, 0 failed.**
+- **`lane/claude-input-expo`** (`bee2ffc7`) — MERGED. One shared `InputExpo` curve, applied ONCE after the dead zone
+  by `Aircraft.ShapeAxis`, on every input path and every platform: 30 % pitch and roll, 20 % yaw (the rudder takes
+  `YawPerPitchRoll` = 0.20/0.30 of the one setting). The pad's own 0.65 goes to zero — it used to stack its curve on
+  the aeroplane's — and the headset's own 0.65 default goes with it. The per-axis expo sliders are replaced by one
+  "Stick expo" row, 0…70 %, in OPTIONS › Controls and in the VR menu, on one pref (`feel.stickExpo`); the per-axis
+  DEAD ZONE stays. Its own log said why it never landed: *"stick expo not merged (no grob103 merge in island-nav
+  after 3 h)"* — the merge it was waiting for never came.
+  **Two conflicts, both real:**
+  1. `OptionsPanel.cs` — the shipping lane has since moved every slider onto a wrapping `SliderRow` helper, and the
+     lane was still drawing raw `UiLayout.Label` + `GUI.HorizontalSlider`. Resolved to the shipping lane's
+     `SliderRow` for both the new Stick-expo row and the surviving dead-zone row. Taking the lane's side would have
+     reverted the wrapping rows Ty asked for on 11-08 (the clipped `":ontrol:"` tab fix's sibling).
+  2. `GamepadShapingTests.TriggersAreTheLeftAndRightToeBrakes`, which the previous merge had just written, asserted
+     `StickRudder(0.51) == 0.25625` — the pad's 0.65 curve. With the pad's expo now zero the left stick is linear,
+     so (0.51 − 0.02)/0.98 = 0.5. Re-pinned, with the reason in the test.
+  **FLYING FEEL, for Ty:** centre stick on the 8BitDo will be LIVELIER than the pad he liked on 11-03 (one 30 %
+  curve, not 0.65 stacked on the aeroplane's 0.1–0.3), and the Quest loses its headset-only 65 %. Both come back by
+  raising "Stick expo" to 65–70 %.
+- **`lane/claude-233-launch`** — **HALF MERGED, deliberately, and the other half is a question for Ty.** The branch
+  carries two unrelated pieces:
+  **TAKEN** (`1d595817`, cherry-picked): a glider runway start is on the rope at once, and
+  `FlyingGame.Core.TowPlanes.TugFor` gives the 2-33 the Great Lakes whatever the TOW PLANE picker says — Ty's own
+  t905u and t906u: *"Use the Great Lakes as a tow plane for the 2-33 until we get the super cub built."* The tug sits
+  at rest 66.2 m ahead and waits at idle until the glider pilot brings its power up; TOW / RELEASE / stick click are
+  unchanged. The reason t905u happened at all is in the lane's own message: the tug appeared only when TOW was
+  tapped, and on the Quest that button is `OnGUI`, which the headset never draws. Self-contained — `TowPlanes.cs`,
+  `TowController.cs`, `StartMenu.cs`, `TowStartCheck.cs` and two test files — and it cherry-picked with no conflict.
+  **NOT TAKEN** (`22289144`, 2026-11-03): a PERMANENT iOS five-aircraft allow-list. It renames
+  `SessionSettings.Fleet` to `MasterFleet`, adds `FleetAllowList.cs`, makes the iPhone's selector offer only the
+  2-33, J-3, Great Lakes, Pitts and Extra with every other type hidden on iOS, and edits `NoRed233Tests` and
+  `ProgressionTests` to follow the rename. **Ty's answer is needed before that ships**: `TestFlightFleet` (11-05) is
+  the later answer to the same problem and says in its own header *"PACKAGING ONLY, OPT-IN. Nothing is deleted from
+  the tree"*, it lists six types rather than five, and tonight's ASTC 4x4 work took the whole fleet to 0.95 GB, so
+  the size pressure is gone. But his 11-03 words were about *"our proven airplanes"*, which is a quality judgement
+  and not a size one, so it may still be what he wants. **Q: does the iPhone still offer only those five in the
+  selector, or the whole fleet now that size is solved?** Nothing was deleted; the branch is intact.
+  **One stale test, fixed:** `TowPlanesTests.TheInterimTugIsAShippedConfig` asserted
+  `unity/Assets/StreamingAssets/aircraft/great-lakes-like.json` exists. That mirror is generated and untracked since
+  2026-11-10, so it is simply absent in a fresh checkout and the test failed there. Re-pinned to the source of
+  truth, `configs/aircraft/great-lakes-like.json`, found by walking up for the `configs/aircraft` directory the way
+  the other tests do.
+- **`lane/claude-233-launch`, the other half — TAKEN AFTER ALL.** Ty, asked whether the iPhone still offers only the
+  five proven types now that the 4 GB problem has been solved another way: **"Keep the five - it was about
+  quality."** So `FleetAllowList` is in: iOS (iPhone and iPad are one build) offers the 2-33, the J-3, the Great
+  Lakes, the Pitts and the Extra, and nothing else; the Mac, the Quest and the editor offer everything; no aircraft,
+  config or model is deleted. `SessionSettings.Fleet` is now `FleetAllowList.Offered(MasterFleet, PlatformAllowList)`
+  and the big list is `MasterFleet`; a saved type this build does not offer falls back to the 2-33, and the dogfight
+  opponent falls from the P-51 to the Extra on iOS. `TouchFlightControls` cycles the same subset.
+  **It was applied by hand, file by file, NOT cherry-picked**, and that was necessary: commit `22289144` also carries
+  the red-and-white 2-33 removal, which shipped on 11-04, and `Livery.cs`, `AirframeVisual.cs` and
+  `AirframeModels.cs` with it. CLAUDE.md's standing warning is *never take the old side of* those exact files, and a
+  cherry-pick conflicted in all three plus five `.meta` deletions. Only `FleetAllowList.cs`,
+  `FleetAllowListTests.cs` and the `SessionSettings` / `TouchFlightControls` / `NoRed233Tests` / `ProgressionTests`
+  hunks were taken.
+  **A real bug in the lane, fixed rather than carried:** it declared `Fleet` (which reads `AllCycleFleet`) ABOVE
+  `AllCycleFleet` in `TouchFlightControls`. C# runs static field initialisers in textual order, so `Fleet` would
+  have been handed a null array and the type initialiser would have thrown the first time the touch controls were
+  used. `AllCycleFleet` is declared first here, with the reason in a comment.
+  **The two fleet lists now coexist and must never be read as each other**, which is written into
+  `SessionSettings.Fleet`'s own doc comment: this allow-list is a permanent QUALITY judgement about what the phone's
+  selector shows (five types), and `FlyingGame.Core.TestFlightFleet` is an opt-in PACKAGING choice about which
+  `Resources/Models` folders go into one TestFlight build (six types, including the J-3 on floats, and its own header
+  says "PACKAGING ONLY, OPT-IN. Nothing is deleted from the tree"). Under `FG_TF_SLIM` on iOS the slim filter now
+  runs on top of the allow-list, so that build offers the intersection.
+- **`lane/claude-windsocks`** (`4021041a`) — MERGED. Two features in one lane, both of them Ty's own words.
+  **Windsocks** (08:43: *"every airport has a wind sock off to the side of the runway at each end and in the middle"*):
+  one shared part, `src/FlyingGame.Core/WindsockPart.cs`, drawn only by `Bridge/Windsock.cs` — three per runway on all
+  43 island runways, 129 of them, abeam each end and midfield, 12 m outside the FAA RSA (30.3 / 34.9 / 88.2 m off the
+  centreline), swinging and filling from `Atmosphere.WindAtPosition` (droop 80° calm → 0 at 15 kt).
+  **Airport lighting** (08:44: *"only airports with instrument approaches have vasi or papi make sure both are
+  represented at one airport or more the rest of the airports have no visual aids and roughly half have runway lights
+  for night flying"*): PAPI at PANC KSNA PHDH KMYL KMEV KPGA, 2-bar VASI at KAVX and PATK, nothing anywhere else;
+  edge lights at 19 of 39 airports, 1,224 lamps on 22 runways. Light **colour is emergent** — each PAPI box and VASI
+  bar is white above its own setting angle and red below it, computed from the angle between that lens and the eye
+  every frame, lit toward its approach only (±10°, gone by 15°).
+  Only `AGENT-LOG.md` conflicted; both sides kept.
+  **Two deletions checked before taking them**, because they look alarming: the lane removes
+  `WorldBuilder.BuildWindsocks` and the whole runway-edge / threshold / static-PAPI block from
+  `Bridge/AirportVisuals.cs`. **Both are dead code.** `AirportVisuals` is referenced nowhere in the tree, and
+  `WorldBuilder.BuildAll` does nothing but `return IslandWorldBuilder.Build()`. So the old world's copies cost
+  nothing live, and the new shared parts are drawn from the island builder, which is the only one that runs.
+  Tests: `Windsock|AirportLighting|IslandSurface|IslandGeometry` — **55 passed, 0 failed.**
+  Carried forward for the wake lane: the windsock lane's own log says `WindsockPart.AirAt` is
+  `Atmosphere.WindAtPosition` alone and that *"lane/claude-wake-vortex has a field, one line in WindsockPart.AirAt
+  when it merges"*. That line goes in with the wake lane, or the socks will not move in a wake.
+  Still Ty's to look at, not an approved gate: `renders/windsocks/` and `renders/airport-lighting/`, Q110–Q113.
+  Two findings from the lane that still stand: **the game has no night**, so the runway lights cannot be flown at
+  night yet, and the VASI angles are not from a document anyone read.
+
 ## ASTC 4x4: the textures come out of the GLBs, and the whole fleet with every livery is 0.95 GB — Claude, 2026-11-10, lane/claude-textures
 
 <!-- astc-4x4 glb-sidecar-textures gltfast-external-texture 4gb-limit livery-policy-superseded -->
@@ -2181,6 +2306,67 @@ Lane lane/claude-floats (from island-nav 6a42a199). Ty 08:58 + 09:00 (agent-lane
   2026.1105.0855 (build only, 0 error CS). **NOT merged and NOT installed** on purpose: your 08:50 crosswind note
   (squeal threshold + fade-in) is queued as the follow-up session in this same lane, and it does the merge into both
   lanes and the iPhone / iPad mini / Quest installs once, with both changes in. Nothing here is an approved gate.
+<!-- airport-lighting needs-you -->
+- **AIRPORT LIGHTING: built and rendered, waiting for Ty's look (Claude, 2026-11-05, lane/claude-windsocks 0c73b1b6+).
+  `** BUILD SUCCEEDED **` (deploy.sh NOINSTALL, 13:42, stamp 2026.1105.1334, not installed); Unity batch 0 error CS.
+  NOT merged, NOT installed.** Ty 08:44: "only airports with instrument approaches have vasi or papi
+  make sure both are represented at one airport or more the rest of the airports have no visual aids and roughly half
+  have runway lights for night flying". Doc: docs/AIRPORT-LIGHTING.md.
+  - **Ty, please look at** `renders/airport-lighting/`: papi-{slightly-high,on-path,slightly-low,low}-{tele,pilot},
+    vasi-{on-path,low,high}-{tele,pilot}, night-{panc,patk,ap10,3u2}-final; `cameras.txt` lists each eye's angle and
+    the colour every box computed for it. Questions Q110-Q113 in the queue.
+  - **Who has what.** Instrument approach yes/no per airport (`AirportLighting.Table`, 39 airports;
+    `WorldTerrain.Airport.InstrumentApproach`), from the island's ifr.approaches: PANC KSNA PHDH KMYL KMEV KPGA KAVX
+    PATK. PAPI at the first six, **2-bar VASI at KAVX and PATK**, on each runway end a procedure leads to (KAVX's VOR-A
+    is circling: both ends). Every other airport: no aid. **Runway lights at 19 of 39**: the 8 + PALH SITX TERN NHVN
+    KITE RIME + AP1 AP3 AP8 AP10 AP12 (1,224 lamps on 22 runways; KMEV's grass 13G/31G unlit).
+  - **Colour is emergent.** Each PAPI box / VASI bar is white above its setting angle, red below (PAPI 3°30' 3°10'
+    2°50' 2°30', 3' pink band; VASI 2.75° near / 3.25° far), from the angle between its lens and the camera, every
+    frame. Lit toward its approach only (±10°, gone by 15°). Edge lights: white MIRL, 200 ft max spacing; yellow over
+    the last 2,000 ft each way on instrument runways; green-out / red-in threshold and end bars.
+  - **One shared part each**: Core `PapiPart`, `VasiPart`, `EdgeLightPart`; `Bridge/AirportLights.cs` is the only
+    drawer (`AirportLightingTests.EachAidIsOneSharedPart`). AirportLightingTests 20/20.
+  - Findings (not changed): **the game has no night** (always day; halos only under the debug sunset), so the runway
+    lights can't be flown at night yet (Q112). The VASI angles are not from a document I read (Q113).
+  - Step 1 grep (what existed): `Bridge/AirportVisuals.cs` (OLD world, not built since the island) had a static
+    2-red/2-white PAPI (not angle-sensitive) and white edge / green-red end lamps on every paved strip, with AirportGlow
+    halos. Both removed now (the old world keeps its taxi lamps). `Editor/WorldRender.cs` has old runway-papi-*
+    capture cameras (left alone). The island drew no runway lamps at all. ILS `HasGlideslope` exists on navaids
+    (Navaid.cs, NavReceiver) but there was no airport flag; no VASI code anywhere.
+  - Status: <!-- airport-lighting status -->Rendered 13:33 and LOOKED AT: every plate matches what Core computed
+    (cameras.txt). PAPI at PHDH 26, 1 NM: 3.35° R W W W, 3.00° R R W W, 2.65° R R R W, 2.20° all red (red always
+    nearest the runway, row left of the runway). VASI at PATK 2: on path far bar red over near bar white, 2.4° all red,
+    3.7° all white. Night: PANC, PATK and AP10 show white edges, green threshold, red far end and the PAPI/VASI glow;
+    3U2 (unlit) is dark. Notes on the plates: in the 40° pilot views at 1 NM the boxes are a few pixels (real size;
+    the 3-4° telephotos show them). The red-white pole in the PAPI telephoto is the end windsock ~80 m beyond the row
+    (depth compressed). **Night plates are a stand-in**: the terrain shaders ignore sun and ambient, so the ground stays
+    day-bright under a black sky, and at 3 km the 200 ft-spaced edge lights merge into solid bars (the shared
+    AirportGlow halo's pixel floor, not changed here). The AP10 camera sits low over a glacier.
+  - Not an approved gate.
+
+## NEEDS YOU
+<!-- windsocks needs-you -->
+- **WINDSOCKS: built and rendered, waiting for Ty's look (Claude, 2026-11-05, lane/claude-windsocks 872fd1a3+).**
+  Update 13:42: WindsockShots ran (0 error CS) -> `renders/windsocks/`, and the lane's deploy.sh NOINSTALL reached
+  `** BUILD SUCCEEDED **` (stamp 2026.1105.1334, same build as the airport lighting). Looked at: the sock hangs at calm,
+  fills throat-first and sags at 7 kt, no winding faults. The "NOT done" lines below are superseded.
+  Ty 08:43: "every airport has a wind sock off to the side of the runway at each end and in the middle".
+  - Done: one shared part (`src/FlyingGame.Core/WindsockPart.cs`, drawn only by `Bridge/Windsock.cs`); 3 per runway
+    on all 43 airport runways (129), abeam each end and midfield, 12 m outside the FAA RSA (sock 30.3 / 34.9 / 88.2 m
+    off the centreline); swings and fills from `Atmosphere.WindAtPosition` (droop 80 deg calm -> 0 at 15 kt).
+    WindsockTests 18/18; targeted island classes: same 6 reds as the branch point. Doc: docs/WINDSOCKS.md.
+  - **NOT done: the Unity batch (compile + renders) and `** BUILD SUCCEEDED **`.** The slot gate (3 idle minutes, no
+    Unity/xcodebuild/deploy) never opened in 2 h; the job hit the background limit before Unity started. Next owner:
+    run `Unity -batchmode -quit -projectPath unity -buildTarget iOS -executeMethod FlyingGame.EditorTools.WindsockShots.Render`
+    (writes renders/windsocks/), LOOK at the renders (winding of the sock mesh is unverified), then
+    `zsh tools/deploy/deploy.sh NOINSTALL`. Do not merge or install before Ty sees the renders.
+  - Findings for Ty (not changed): no night in the game, so no lit sock; wake vortices / prop wash are not in the wind
+    query (lane/claude-wake-vortex has a field, one line in `WindsockPart.AirAt` when it merges); the regional
+    atmosphere config fails to load on the island (`airport:Bench` anchor) so free flight is uniform air; and uniform-air
+    turbulence never drifts (`Turbulence.MeanWind` unset), so gusts stand still over the ground and a sock holds still.
+  - Not an approved gate.
+
+## NEEDS YOU
 <!-- merge-tundra-recorder needs-you -->
 - **Ty to fly-check and confirm defaults: TUNDRA TYRES + FLIGHT RECORDER phase 1 MERGED (Claude, 2026-11-05, Ty approved
   05:36 "take each lane's defaults"). island-nav 04278266 (tundra) + 23922ee1 (recorder); Quest 221db87f. PARITY: OK.
@@ -3003,6 +3189,21 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
      `tools/check-parity.sh --strict` PARITY: OK. Shared GLB/rig change: lane/claude-quest-islandnav must merge it
      with island-nav, the same day, under the lock.
 <!-- /c172-yoke needs-you -->
+<!-- input-expo needs-you -->
+- **STICK EXPO ON EVERY INPUT, ONE CURVE, ONE SLIDER (Claude, 2026-11-04, lane/claude-input-expo; Ty 05:55 "hand flying
+  needs some expo"). iOS `2026.1104.1433` `** BUILD SUCCEEDED **` (lane HEAD b770986f = island-nav 94b70e6b + this); **NOT merged into island-nav**: the brief was to merge only after a grob103 merge landed there; polled 14:38–17:38 PST, none landed (island-nav moved on to 6615db2d, 4b902fca C172 yoke, 73d7702b). **Not installed** (4016 at 14:37; at 17:38 another lane's Unity + xcodebuild were running). To land it: `git merge --no-ff lane/claude-input-expo` in `claude-island-nav-merge` (that worktree holds the branch; `claude-island-nav` is a DETACHED HEAD at aeb9695a), then the Quest lane the same day.**
+  out = (1 − e)·x + e·x³ after the existing dead zone; 30 % pitch/roll, 20 % rudder by default; OPTIONS › Controls
+  "Stick expo" 0–70 % (rudder follows at 2/3), and the VR menu's "Stick expo" row edits the same setting.
+  **Two feel changes you should know about before flying:**
+  1. **Gamepad (8BitDo):** it used to put its own 0.65 curve on the sticks and then the aircraft's 0.1–0.3 on top of that,
+     two curves stacked. Now it gets the one shared curve, 30 % by default, so centre stick will feel LIVELIER than the
+     pad you liked on 11-03. If you want it back, set Stick expo to about 65–70 %.
+  2. **Quest:** the headset had its own 65 % default (your 11-02 "far too sensitive"). Parity puts it on the same 30 %.
+     Same fix: raise the slider in the VR menu.
+  **⚠ PARITY: lane/claude-quest-islandnav must merge this (lane/claude-input-expo, or island-nav after it) the same
+  day.** `src/` and `Bridge/SessionSettings.cs`, `OptionsPanel.cs`, `QuestMenu.cs` are shared paths. Not merged into
+  the Quest lane by this lane (as instructed).
+
 <!-- crash-tuning needs-you -->
 - **CRASH TUNING MERGED INTO BOTH LANES AND INSTALLED — PLEASE FLY IT (Claude, 2026-11-04 ~4:05 PM PT; Ty approved the
   merge 2:29 PM PT). Nothing approved by me; no push, main untouched.**
@@ -3256,6 +3457,18 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
      - `WheelWaterTests.ALightTouchAtSpeedSkims…(glider-swift-s1-like)`: the real 300×100 main tyre (r 0.15, the old auto
        rule gave 0.31) is too small to plane at 25 m/s, digs in, and the nose breaks off. It passes with the auto radius.
      - Also red, and red at the branch point too (not mine): the same water test for the SR22 and the Glasair III.
+- **TRIGGER TOE BRAKES (Claude, 2026-11-04, lane/claude-trigger-brakes off lane/claude-island-nav, local only, not
+  merged into either lane — the parity rule needs it merged into BOTH island-nav and quest-islandnav).** Decide / test:
+  1. 8BitDo (iOS/Mac/Quest): LT = LEFT wheel brake, RT = RIGHT wheel brake, analog. The old "RT − LT = rudder" is gone
+     (left stick X is still full rudder). X button still = both brakes.
+  2. Quest Touch: triggers = left / right wheel brake. DISPLACED: right trigger guns -> RIGHT GRIP (held, where guns are
+     hot; elsewhere the grip is still smoke toggle — modal, check you like it); left trigger collective brake -> split.
+  3. Quest menu: the always-shown MENU tab is hidden by logic (QuestRig MenuTabEnabled=false, art untouched); opens from
+     the left ☰ button (left stick click held 1 s still works too — say if you want it gone). Inside: sticks move,
+     A/X select, B/Y back; trigger-pointing is off for controllers, kept only for tracked hands (no sticks). iOS
+     on-screen menu button is a different component, untouched. Meta's right ☰/Meta button is system-reserved, not used.
+  4. Not built (Unity build not run by me); fly-test on iPhone + Quest.
+
 <!-- parity-merge needs-you -->
 - **PARITY MERGE DONE: BOTH LANES ARE ONE COMMIT AND LOCKED (Claude, 2026-11-04, Ty approved 07:29).**
   lane/claude-island-nav = lane/claude-quest-islandnav = **b7d1a680**; `tools/check-parity.sh --strict` PARITY: OK.
@@ -7129,6 +7342,35 @@ with a green range and two red lines ... Usually the suction gage is a tiny 1 in
   check_c172_cockpit.py PASS; FlightTests C172 filter 49/49. renders/c172/yoke-v1/*suction_closeup.png still show 5.5 (not re-rendered).
 
 C172-YOKE-DONE
+
+### 2026-11-04 06:00– PST — Claude · lane/claude-input-expo · stick expo: one shared curve, applied once
+Ty 05:55: "hand flying needs some expo."
+- **Where it is applied.** Every hand-flying path already met at one point: `Aircraft.ShapeAxis` (src, so iOS, Mac and
+  Quest alike), which zones the stick and then curved it with the axis's `Expo`. Touch pads pass raw positions
+  (TouchFlightControls `Shape` is only a clamp), the keyboard ramp, a calibrated joystick, USB rudder pedals
+  (RudderPedals: linear + dead zone), the gamepad and the Quest controllers (QuestControlMapper: dead zone only) all
+  write `_aileron/_elevator/_rudder` and go through it. The curve is now `FlyingGame.Core.InputExpo.Apply`, called
+  from there, after the dead zone; the dead-zone code is untouched.
+- **Double application removed.** `GamepadShaping.Stick/Rudder` put a 0.65 curve on the pad BEFORE ShapeAxis put the
+  aircraft's on top. `GamepadShaping.DefaultExpo` is 0 now (the pad's dead zones and PreCompensateDeadZone stay).
+- **Which e.** `SessionSettings.StickExpo` (pref `feel.stickExpo`, default `InputExpo.DefaultPitchRoll` 0.30, clamped
+  0…0.70). `ApplyFeel` writes aileron/elevator = it, rudder = `InputExpo.Yaw` (× 0.20/0.30). It replaces each aircraft's
+  own config expo for hand flying; the configs are unchanged (the sim tests still fly them). The three per-axis expo
+  sliders became one; the old `feel.expo.0…2` prefs are left in place and no longer read. Dead-zone sliders unchanged.
+- **Quest.** island-nav had the Quest lane's `QuestStickFeel` (headset-only expo 0.65 when unset). Merging island-nav
+  into this lane conflicted in `ApplyFeel`: kept the headset DEAD-ZONE rule exactly (`QuestStickFeel.Resolve`,
+  `DefaultExtraDeadZone`), and made the expo the shared setting. `QuestStickFeel.DefaultExpo` = 0.30, its `Curve`
+  calls InputExpo; the VR menu row edits `StickExpo`. `QuestStickFeelTests` re-derived by hand for k = 0.30.
+- **Tests.** `InputExpoTests` (new): endpoints ±1 → ±1 and 0 → 0 for e in 0…0.7, past-the-stop clamp, defaults,
+  yaw = 2/3, slider clamp, hand-worked literals, e = 0 identity, strict monotonicity on 0…0.7, odd symmetry, and
+  ShapeAxis order (stick 0.525 with dz 0.05, e 0.3 → 0.3875 of travel, via `StickForDeflection`). Filters
+  InputExpo|GamepadShaping|QuestStickFeel|QuestControls|TouchSticksGamepad|GamepadStickFree|RudderPedal: 155/155;
+  LaunchReplicationTests (Pitts, Cub, PilotControlsLetGo): 9/9. NOT a full-suite run: ShapeAxis' arithmetic is the same
+  expression as before (e is now clamped to 0…1, which no config exceeds), so the sim's numbers cannot move; the
+  Mac had other lanes' full suites running.
+- Build: `deploy.sh 00008150-001629A83662401C` on b770986f → Unity 0 `error CS`, `** BUILD SUCCEEDED **`, `2026.1104.1433`.
+  Install: the iPhone refused (CoreDevice 4016, usage assertion, as for island-nav's 0957; usually locked). Retried after
+  the merge: not retried, merge not done (above). ProjectSettings bump and the StreamingAssets copies not committed.
 
 ### 2026-11-04 09:30– PST — Claude · lane/claude-crash-tuning · crash tuning: steel-tube fuselages crush, wreck friction, branch damage
 Ty, after flying 2026.1104.0427: "momentum is still too weak or the friction is too high. The fuselage is really strong
@@ -13077,3 +13319,21 @@ NEEDS YOU: Ty, approve `renders/grob103/blanc-v1/` and the proposed visual eyes.
 - Copies delivered to `/Users/tyfrisby/Developer/agent-lanes/xfer/grob-blanc-v1/`, including review images, GLBs, attribution, rig and editable Blender scene. Source STL remains in its original transfer folder. Local commit only; no push, merge, deploy or install. No forced add. Required tracked-file ignore audit must be silent immediately before commit; visual approval stays PENDING.
 
 PITTS-V2-MERGED
+
+## 2026-11-04 — lane/claude-app-icon: AP letter app icon (Ty approved)
+- Replaced unity/Assets/_Project/Art/AppIcon.png (same GUID 069fd8c6…, so all 19 iPhone/iPad/App Store icon slots in Player Settings pick it up) with the AP letter icon (aero/vector/png/ap-icon-color-1024.png): 1024×1024, opaque, no alpha (sips hasAlpha: no).
+- ProjectSettings.asset: set the Default icon (m_BuildTargetIcons) to the same texture so Mac (OSXUniversal) and Quest/Android builds get it too (Android adaptive slots stay empty → fall back to default).
+- tools/check-parity.sh: PARITY OK. Branch is off lane/claude-island-nav b7d1a680.
+- BUILD NOT RUN: the parity-merge agent was mid-tests (dotnet test pid 27644) with its iOS/Quest builds queued next; did not start a Unity/xcodebuild alongside it. No install (rides the parity-merge install).
+- NEXT: after the parity merge, merge lane/claude-app-icon into lane/claude-island-nav AND lane/claude-quest-islandnav (ProjectSettings.asset touched — merge carefully with the parity merge's ProjectSettings), then build: need ** BUILD SUCCEEDED **.
+
+## 2026-11-04 trigger toe brakes (Claude, lane/claude-trigger-brakes)
+Found: gamepad mapping in unity/Assets/_Project/Scripts/Bridge/GamepadInput.cs Read() (LT/RT fed GamepadShaping.Rudder as
+a second rudder; X = Brakes held); Quest pad -> QuestGamepadMap.ToFrame (src/FlyingGame.Core/Vr/QuestControls.cs), Touch
+LT = c.Brake, RT = c.Fire; QuestMenu selected with trigger > 0.6 and a pointer laser; QuestMenuTabView = always-shown tab.
+Sim already has differential braking (Aircraft.BrakeInput + BrakeBias, LandingGear.Compute; PedalBlend.ToSim/FromSim).
+Changed: GamepadShaping.StickRudder / TriggerBrakes / CombineWheelBrakes (Core, shared); GamepadInput Frame.BrakeLeft/
+Right; TouchFlightControls folds pad + Quest per-wheel brakes into BrakeInput/BrakeBias (max per wheel, like pedals);
+QuestControlMapper BrakeLeft/Right from triggers, Fire = right grip; Bridge grip = guns if FireAvailable else smoke;
+QuestMenu: no trigger select, pointing only HandsOnly; QuestRig tab disabled. Tests: GamepadShapingTests (+2),
+QuestStickFeelTests updated. GamepadShaping.Rudder(lx,lt,rt) left in place (tests/replication use it).
