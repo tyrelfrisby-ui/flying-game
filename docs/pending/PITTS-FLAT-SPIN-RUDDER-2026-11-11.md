@@ -159,3 +159,31 @@ So any shielding term keyed to a strip's z shields the Great Lakes' ventral rudd
 types are not in fact receiving identical tail treatment at strip level**, which undercuts using the Great Lakes
 as the control experiment. Not fixed here — `configs/` is parity-locked and this is a geometry change that wants
 its own lane and its own re-measurement.
+
+---
+
+## Found on the way: six flat-spin pins are already failing on the integration tip
+
+Not this lane's doing, and **confirmed in isolation** — the run below was filtered to
+`PittsFlatSpinAileronTests` alone, with none of this lane's test classes in it, and the assembly sets
+`CollectionBehavior(DisableTestParallelization = true)` so no other class can reach them anyway.
+
+`UprightSpinsWithAileronsNeutralAreUnchanged` fails on four of its cases:
+
+```
+Assert.InRange() Failure: Value not in range
+Range:  (30 - 33)
+Actual: 28.329465853011339
+```
+
+The upright idle spin now settles at **α 28.3** where the pin wants 30–33. That is the same 28.3 measured
+here before any file on this lane existed, so the aeroplane moved, not the test harness.
+
+**The indicated cause is the tip commit itself** — `89e74242`, "Turn the aft-fuselage broadside camber on, at
+0.80, on the Pitts and the Extra" — whose own message says the term *"steepens an upright spin"*. It steepened
+it by about 3° past the band and the pin was not re-pinned in the same commit. Stated as indicated rather than
+verified: confirming it means re-flying the spin at that commit's parent, and the box was at load average 255
+with other agents' suites when this was written.
+
+This belongs to whoever lands that change, not here — but a pin that is failing is not protecting anything, and
+these are the pins that would otherwise have caught the spin attitude moving under the rudder measurement above.
