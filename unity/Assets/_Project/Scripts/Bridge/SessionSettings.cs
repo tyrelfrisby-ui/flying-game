@@ -780,6 +780,7 @@ namespace FlyingGame.Bridge
         {
             Atmosphere.IsaDeviationK = IsaDeviationC;
             Atmosphere.ThermalStrengthScale = ThermalScale;
+            ApplyIslandWeather();
             if (UsesRegionalAir)
             {
                 FlyingGame.Core.AtmosphereField f = RegionalField;
@@ -804,6 +805,25 @@ namespace FlyingGame.Bridge
             {
                 1 => Turbulence.Light(), 2 => Turbulence.Moderate(), 3 => Turbulence.Severe(), _ => null,
             };
+        }
+
+        /// <summary>
+        /// The session's island weather (docs/weather-system.md): today's island-local date and the default seed, so
+        /// every device that starts today shares one weather, with the landing page's wind and hot/cold day laid over
+        /// its air mass. Its wind comes from the regional field when the aeroplane flies one. Fog, the stations and
+        /// (later) the clouds read it; the flight model's temperature and pressure do NOT yet (weather-system.md W1).
+        /// </summary>
+        private static void ApplyIslandWeather()
+        {
+            var loc = FlyingGame.Core.Weather.IslandLocation.Default;
+            System.DateTime today = System.DateTime.UtcNow.AddHours(loc.UtcOffsetHours).Date;
+            var w = new FlyingGame.Core.Weather.IslandWeather(new FlyingGame.Core.Weather.WeatherSeed(FlyingGame.Core.Weather.WeatherSeed.DefaultSeed, today), loc)
+            {
+                WindOverride = (WindFromDeg, WindSpeedMs),
+                IsaDeviationOverrideK = IsaDeviationC,
+                Field = UsesRegionalAir ? RegionalField : null,
+            };
+            FlyingGame.Core.Weather.IslandWeather.Current = w;
         }
     }
 }

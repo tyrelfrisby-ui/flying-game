@@ -1,5 +1,6 @@
 using FlyingGame.Core;
 using FlyingGame.Core.Aero;
+using FlyingGame.Core.Aero.Wake;
 using FlyingGame.Core.DataContracts;
 using FlyingGame.Core.MathTypes;
 using FlyingGame.Core.Wreck;
@@ -1446,6 +1447,117 @@ public sealed partial class Aircraft
     // CG). Set on first use from the config.
     private double _halfSpanM = -1, _tailArmM;
 
+    // ---- wake (docs/WAKE-VORTEX.md) ----------------------------------------------------------------
+
+    /// <summary>The wake this aeroplane sheds (<see cref="VortexWake.CreateSource"/>), or null: it sheds nothing. Set by
+    /// whoever puts the aeroplane in the world (the player, a tug, a drone, a replayed ship), never by the sim itself, so
+    /// probes and trim runs leave no wakes behind.</summary>
+    public WakeSource? Wake { get; set; }
+    /// <summary>False: other wakes do not reach this aeroplane's strips.</summary>
+    public bool FeelsWake { get; set; } = true;
+    /// <summary>Its own wake is felt only once older than this (s): the near wake is already its induced drag and
+    /// downwash; a tight turn back into its own older wake is felt like anybody else's.</summary>
+    public const double OwnWakeMinAgeSec = 5.0;
+    /// <summary>The wake's air velocity at the CG (body frame, m/s) on the last step: zero out of every wake.</summary>
+    public Vec3 LastWakeAtCgBody { get; private set; }
+    private Vec3[]? _stripRelBody, _stripWakeBody, _stripWakeStep;
+    private double _wakeReachM, _wakeHalfSpanM, _wakeTailArmM;
+    private readonly List<VortexSegment> _wakeNear = new(), _wakeFar = new();
+    private readonly List<JetSegment> _jetNear = new();
+    private Vec3 _lastAeroForceBody;
+
+    /// <summary>The wake's air at every strip, body frame, once a step (held through RK4's stages like the wind), or
+    /// null when no wake is within reach of the airframe. Segments within about a span of the airframe are evaluated at
+    /// every strip (that is where a line's field bends across the wing); those further off only at the CG, the tips and
+    /// the tail, and spread over the strips as a linear field — what the regional air already does.</summary>
+    private Vec3[]? SampleWakeAtStrips()
+    {
+        LastWakeAtCgBody = Vec3.Zero;
+        if (!FeelsWake || !VortexWake.Active) return null;
+        if (_stripRelBody is null)
+        {
+            int n = 0;
+            foreach (SurfaceConfig sf in Config.Surfaces) n += sf.Strips.Count;
+            _stripRelBody = new Vec3[n];
+            _stripWakeBody = new Vec3[n];
+            Vec3 cg = Config.Mass.CgVec();
+            int i = 0;
+            _wakeReachM = 0.5;
+            double tail = 0; int nt = 0;
+            foreach (SurfaceConfig sf in Config.Surfaces)
+                foreach (StripConfig st in sf.Strips)
+                {
+                    _stripRelBody[i] = st.PosVec() - cg;
+                    _wakeReachM = Math.Max(_wakeReachM, _stripRelBody[i].Length);
+                    _wakeHalfSpanM = Math.Max(_wakeHalfSpanM, Math.Abs(_stripRelBody[i].Y));
+                    if (_stripRelBody[i].X < -0.5 && Math.Abs(_stripRelBody[i].Y) < 0.5 * _wakeReachM) { tail += _stripRelBody[i].X; nt++; }
+                    i++;
+                }
+            _wakeTailArmM = nt > 0 ? tail / nt : 0.0;
+        }
+        Quat q = State.Attitude, qc = q.Conjugate();
+        Vec3 c = State.Position;
+        VortexWake.Gather(c, _wakeReachM, Wake, OwnWakeMinAgeSec, _wakeNear, _jetNear);
+        if (_wakeNear.Count == 0 && _jetNear.Count == 0) return null;
+        _wakeFar.Clear();
+        for (int i = _wakeNear.Count - 1; i >= 0; i--)
+        {
+            VortexSegment sg = _wakeNear[i];
+            if (WakeSourceDistance(c, sg) > 2.0 * _wakeReachM + 4.0 * sg.CoreRadius) { _wakeFar.Add(sg); _wakeNear.RemoveAt(i); }
+        }
+        Vec3 farCg = Vec3.Zero, perY = Vec3.Zero, perX = Vec3.Zero;
+        if (_wakeFar.Count > 0)
+        {
+            farCg = qc.Rotate(VortexWake.VelocityFrom(_wakeFar, null, c));
+            if (_wakeHalfSpanM > 0.25)
+            {
+                Vec3 l = qc.Rotate(VortexWake.VelocityFrom(_wakeFar, null, c + q.Rotate(new Vec3(0, -_wakeHalfSpanM, 0))));
+                Vec3 r = qc.Rotate(VortexWake.VelocityFrom(_wakeFar, null, c + q.Rotate(new Vec3(0, _wakeHalfSpanM, 0))));
+                perY = (r - l) / (2.0 * _wakeHalfSpanM);
+            }
+            if (_wakeTailArmM < -0.5)
+                perX = (qc.Rotate(VortexWake.VelocityFrom(_wakeFar, null, c + q.Rotate(new Vec3(_wakeTailArmM, 0, 0)))) - farCg) / _wakeTailArmM;
+        }
+        bool near = _wakeNear.Count > 0 || _jetNear.Count > 0;
+        for (int i = 0; i < _stripRelBody.Length; i++)
+        {
+            Vec3 rel = _stripRelBody[i];
+            Vec3 v = farCg + perX * rel.X + perY * rel.Y;
+            if (near) v += qc.Rotate(VortexWake.VelocityFrom(_wakeNear, _jetNear, c + q.Rotate(rel), cullByInfluence: false));
+            _stripWakeBody![i] = v;
+        }
+        LastWakeAtCgBody = farCg + (near ? qc.Rotate(VortexWake.VelocityFrom(_wakeNear, _jetNear, c, cullByInfluence: false)) : Vec3.Zero);
+        return _stripWakeBody;
+    }
+
+    private static double WakeSourceDistance(Vec3 p, in VortexSegment s)
+    {
+        Vec3 ab = s.B - s.A;
+        double l2 = ab.LengthSquared;
+        double t = l2 > 1e-12 ? Math.Clamp(Vec3.Dot(p - s.A, ab) / l2, 0.0, 1.0) : 0.0;
+        return (p - (s.A + ab * t)).Length;
+    }
+
+    /// <summary>After the step: shed into <see cref="Wake"/> from the aerodynamic force the step actually made.</summary>
+    private void ShedWake(double dt, Vec3 windBody, double airDensity, double slipDu, double slipR, double slipSwirl)
+    {
+        if (Wake is null) return;
+        Quat q = State.Attitude;
+        Wake.Shed(dt, State.Position, q, q.Rotate(State.Velocity - windBody), q.Rotate(_lastAeroForceBody), airDensity,
+            slipDu, slipR, slipSwirl);
+    }
+
+    /// <summary>A pose set from outside (a recorded ship): shed from the load factor the recording carries.</summary>
+    public void ShedPoseWake(double dt)
+    {
+        if (Wake is null || dt <= 0.0) return;
+        Quat q = State.Attitude;
+        Vec3 windWorld = Atmosphere.MeanWindAtPosition(State.Position);
+        Vec3 airWorld = q.Rotate(State.Velocity) - windWorld;
+        Wake.ShedFromLoadFactor(dt, State.Position, q, airWorld, AeroLoadFactorZ, MassProperties.MassKg * Atmosphere.GravityMs2,
+            Atmosphere.DensityAt(State.Position));
+    }
+
     /// <summary>
     /// The air over the whole airframe from the regional field: density and wind at the CG, and the wind's gradient from
     /// samples at the left and right wing tips and the tail. The difference between the tips is what rolls (and,
@@ -1634,6 +1746,7 @@ public sealed partial class Aircraft
         }
         else SampleRegionalAir(out airDensity, out windBody, out meanWindBody, out windGradient);
         SimProfile.End(SimProfile.Scope.Air, tAir);
+        _stripWakeStep = SampleWakeAtStrips();   // a field, not a local: the RK4 closure would carry it (8 B a step)
         double weightN = MassProperties.MassKg * Atmosphere.GravityMs2;
 
         // Stall hysteresis: the separated wake develops quickly (~0.25 s) but washes out slowly
@@ -1690,7 +1803,8 @@ public sealed partial class Aircraft
             SimProfile.End(SimProfile.Scope.GroundEffect, tGe);
             long tAero = SimProfile.Begin();
             (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac, _flowState, slipDu, slipR, _surfaceMask, _stripMask, meanWindBody, wingAgl, slipSwirl, windGradient,
-                Config.Propulsion is not null && PropModel.IsSolved(Config.Propulsion, _drive), _swirl);
+                Config.Propulsion is not null && PropModel.IsSolved(Config.Propulsion, _drive), _swirl, _stripWakeStep);
+            _lastAeroForceBody = aeroForce;
             SimProfile.End(SimProfile.Scope.Aero, tAero);
             Vec3 gravityWorld = new(0, 0, weightN);
             Vec3 gravityBody = s.Attitude.Conjugate().Rotate(gravityWorld);
@@ -1875,6 +1989,7 @@ public sealed partial class Aircraft
         else RecordPanelWaterLoads(preStep, State, dt);   // clears last step's water moments once clear of the water
         long tAfter = SimProfile.Begin();
         Atmosphere.AdvanceTime(this, dt);   // only the clock's owner moves it (Atmosphere.ClockOwner)
+        ShedWake(dt, windBody, airDensity, slipDu, slipR, slipSwirl);
         UpdateStructure(dt);
         UpdateLoad(dt);
         Electrics.Step(dt, EngineRpm);

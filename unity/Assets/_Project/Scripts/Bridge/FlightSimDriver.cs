@@ -479,6 +479,9 @@ namespace FlyingGame.Bridge
             if (Sim.Advance(Time.deltaTime, inputs, ref _accumulator, cap)) CatchUpCappedFrames++;
             SimAdvanceTicks += System.Diagnostics.Stopwatch.GetTimestamp() - t0;
             PostStep?.Invoke(Sim.Aircraft);   // e.g. the wing runner holding the wings level on the ground roll
+            // Wakes (docs/WAKE-VORTEX.md): this aeroplane sheds one from its own lift; every wake ages on the sim clock.
+            global::Aero.Wake.WakeField.Ensure(Sim.Aircraft, AircraftId ?? "aircraft");
+            global::Aero.Wake.WakeField.Tick(Time.deltaTime);
             ApplyStateToTransform();
             UpdateSpinMetrics(Time.deltaTime);
         }
