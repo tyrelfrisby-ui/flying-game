@@ -15202,3 +15202,106 @@ Right; TouchFlightControls folds pad + Quest per-wheel brakes into BrakeInput/Br
 QuestControlMapper BrakeLeft/Right from triggers, Fire = right grip; Bridge grip = guns if FireAvailable else smoke;
 QuestMenu: no trigger select, pointing only HandsOnly; QuestRig tab disabled. Tests: GamepadShapingTests (+2),
 QuestStickFeelTests updated. GamepadShaping.Rudder(lx,lt,rt) left in place (tests/replication use it).
+
+## 2026-11-11 — lane/claude-devpage: the Developer page (every K factor on a slider, per aeroplane, live)
+
+**NEEDS YOU: Ty — this is the page you asked for; fly it and cut the knob list. And it is a RELEASE BLOCKER to close
+before public release (one line, below).**
+
+### ⚠️ THE RELEASE SWITCH, because someone will have to find this months from now
+
+```
+src/FlyingGame.Core/DeveloperAccess.cs       public const bool ShippedOpen = true;
+                                             ^^^ set this to false before public release
+```
+That is the whole job. There is nothing else to flip, no scripting define, no `#if`.
+
+**The gate is NAVIGATION, not compilation** (Ty 2026-11-11: *"It's just another page and the shipped version just
+doesn't have the ui to get to it."*). The page is always compiled and always in the binary; the switch removes the
+**Developer tab in Options** and nothing else. Consequences, all deliberate:
+
+- the page cannot rot behind a flag nobody builds with — it compiles on every platform on every build and its tests
+  run every time;
+- it is **harmless while unreachable**: nothing runs unless the page is drawn, and with the gate closed a pilot's
+  saved knobs are **not applied either**, so a shipped build flies stock. (Without that, a value saved during the
+  beta would have followed a pilot into the release with no page to see it on and no way to reset it.
+  `ClosingTheGateStopsSavedKnobsFromBeingApplied` holds it.);
+- a developer can still get in on a shipping build **without a new binary**: `AERO_DEVELOPER=1` (`DeveloperAccess
+  .EnvVar`). An environment variable rather than a secret tap sequence, so it is documented, auditable before
+  release, and unreachable from a phone.
+
+### What it is
+
+Options → **Developer**. Every tuning constant for the aeroplane being flown, each with a slider, coarse and fine
+step buttons (`◂◂ ◂ ▸ ▸▸`), the shipped value printed beside the current one, and a RESET. Tap a knob's **title** for
+a sentence saying what moving it does to the aeroplane and which way. Built for a thumb in portrait outdoors — no
+numeric fields, because a soft keyboard would make it useless where it is used.
+
+**It is a registry, not a list.** A knob declares itself into `TunableRegistry` (`src/FlyingGame.Core/Tuning/`) and
+the page renders whatever is registered, so **the next knob is one `Register` call beside the field it moves and no
+UI edit at all**. `TunableCatalog.cs` holds the 40 that exist today. The descriptions are written from the doc
+comments in `AircraftConfig.cs`, which in most cases quote Ty's own words for the direction of the effect.
+
+### What is NOT on it, and must not be added
+
+Measured and certificated facts: empty weights, CG limits, envelopes, inertias, strip geometry, tyre sizes, Vne,
+instrument arcs. Making those adjustable invites someone to tune away a correct number and then report handling
+against it. `controls.<axis>.effectiveness` is excluded although it looks exactly like a gain — the contract says in
+bold that it is not one, and 4e5e1a7 already tuned it and double-counted τ with it.
+
+A third group, **DERIVED**, is drawn apart from the K factors for numbers that are neither free gains nor measured
+facts but the cached output of a rule: `propInertia` (Ty's blade rule), `fineStopDeg`/`coarseStopDeg` (the 26 inHg
+run-up, no overspeed until Vd), `limits.gMax`/`gMin`, and `rig.finOffsetRad` (solved by RigTool). Each row names its
+rule and says that **settling on a value means re-running the derivation, not editing the number**.
+
+### Live vs next spawn
+
+Nearly everything is felt on the **next physics step** — the hot paths re-read the config object every step and the
+page mutates the live one. Three say **NEXT FLY** on the row because the airframe is built from them at
+construction: `limits.gMax`, `limits.gMin`, `gear.tirePressurePsi`. One cached number needed a hook,
+`AeroModel.ForgetFuselageMunk` — the only config-keyed cache the page touches; the other ~20 cache geometry the page
+does not offer.
+
+### The part that would have failed silently
+
+`FlightSimDriver.ResetFlight` **re-reads the config from StreamingAssets on every spawn**, so a knob written onto the
+live config is thrown away by the next FLY. `TuningPrefs.ApplyTo(config)` is called beside
+`SessionSettings.ApplyFeel` and puts the pilot's values back (and captures the type's shipped defaults, which is what
+RESET goes back to). Without it the page would have shown the right number while the aeroplane flew the shipped one
+— which would quietly poison every flight report the beta pilots send back. `AValueSurvivesARelaunchAndIsActually
+InEffect` holds it.
+
+### Per type AND configuration, and COPY FROM
+
+Ty: *"each type and config gets a unique developer page"* — the Cub on wheels, on bushwheels and on skis keep
+separate numbers (`TuningSession.ConfigKeyOf`). **COPY FROM** takes another aeroplane's tuning as the **distance from
+its own default**, not the raw value: his example is the J-3 on wheels to the J-3 on floats, where *"two degrees more
+toe-out suits it"* is the thing that should carry. It is undoable, because he will copy onto a tuned aeroplane by
+accident, and the page says in as many words which semantics it is using.
+
+### So a flight report can be trusted
+
+A tunable page makes every beta report suspect unless you can tell whether the aeroplane was stock. The page carries
+a **STOCK / MODIFIED (n knobs)** banner and a **COPY REPORT** button that dumps every non-default knob with its
+shipped value as pasteable text. `TuningSession.DeltaReport` is one function with two callers — it will also head the
+flight-test recording.
+
+### Two latent bugs fixed on the way in
+
+`OptionsPanel._measured` was hand-sized `new float[8]` against eight pages, so a ninth wrote past the end every
+frame; and the tab loop had no bounds guard, which was safe only while the page count divided by the row count
+exactly (8/2). Nine does not. Both fixed.
+
+### State
+
+- 20 new tests in `tools/FlightTests/DeveloperTuningTests.cs`, all passing; `FlightTests` builds clean.
+- Lane merged `lane/claude-quest-islandnav` first (the parity lock's "being BEHIND is enough" case: 27 shared files
+  differed that this lane never touched). The shared work is ONE leading commit, so **merge lane/claude-devpage into
+  lane/claude-quest-islandnav next** or this lane takes no further shared change.
+- **UNITY BUILD NOT RUN** — a green .NET suite is not a build. The new Unity code was checked by hand for `init`,
+  records, `IsExternalInit`, file-scoped namespaces and nullable annotations in Bridge (none present), but it has not
+  been through Unity. Build before merging.
+- Reserved and pre-written, commented, in `TunableCatalog.Fuselage()`: `fuselage.crossflow.aftCamberGain` from the
+  spin lane. It is not live because `CrossflowConfig.AftCamberGain` does not exist in this checkout yet, and adding
+  it here as well would give the merge two declarations of the same member. When that field lands, uncomment the
+  block — that is the entire integration.
