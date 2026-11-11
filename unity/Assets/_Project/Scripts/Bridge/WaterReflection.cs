@@ -71,6 +71,35 @@ namespace FlyingGame.Bridge
         /// whatever was in the target until it is told, so tell it.</summary>
         private void OnDisable() => Shader.SetGlobalFloat(ReflOnId, 0f);
 
+        private static readonly int SceneDepthOffId = Shader.PropertyToID("_WaterSceneDepthOff");
+
+        /// <summary>
+        /// RENDER A CAMERA THIS MIRROR WAS NOT MADE FOR. The planar reflection is ONE texture, rendered for the main
+        /// camera and read by Water.shader in SCREEN SPACE (<c>i.sp</c>, the fragment's position in whichever camera is
+        /// drawing it). A second camera that draws water therefore paints the MAIN camera's mirror image at its own
+        /// screen coordinates: on the landing page that is an aeroplane lying in the lake at an attitude that has
+        /// nothing to do with the one on show — Ty's "weird ghost plane that was rotating of axis to it about 90
+        /// degrees" — and it swings about as the preview's aeroplane flies its circle, because the image belongs to
+        /// another camera's view. <see cref="SuppressedForSplit"/> is this same reasoning for the second player's view.
+        /// The scene depth the water reads for the shallows is screen space too, and a camera with no depth pass of its
+        /// own reads the main camera's (the flickering blue grid QuestRecorder documents), so both are switched off here
+        /// and both are put back exactly as they were.
+        ///
+        /// Every camera other than <c>Camera.main</c> that can have water in frame renders through this. The water is
+        /// still drawn — its own colour, the sky term, the sun's glitter — it simply stops showing another camera's
+        /// picture. A second planar pass for a thumbnail-sized viewport on a menu would be the most expensive thing in
+        /// the phone's frame, for a reflection nobody is looking at.
+        /// </summary>
+        public static void RenderWithoutMirror(Camera cam)
+        {
+            if (cam == null) return;
+            float reflOn = Shader.GetGlobalFloat(ReflOnId), depthOff = Shader.GetGlobalFloat(SceneDepthOffId);
+            Shader.SetGlobalFloat(ReflOnId, 0f);
+            Shader.SetGlobalFloat(SceneDepthOffId, 1f);
+            try { cam.Render(); }
+            finally { Shader.SetGlobalFloat(ReflOnId, reflOn); Shader.SetGlobalFloat(SceneDepthOffId, depthOff); }
+        }
+
         private void OnPreCull()
         {
             if (Driver == null || _refl == null || SuppressedForSplit) { Shader.SetGlobalFloat(ReflOnId, 0f); return; }

@@ -76,7 +76,10 @@ namespace FlyingGame.Bridge.Practice
             draw(painter, aircraft);
             var rt = new RenderTexture(w, h, 24);
             cam.targetTexture = rt;
-            cam.Render();
+            // Another camera, another screen space: the planar reflection and the scene depth the water reads belong
+            // to the MAIN camera, so a lesson picture taken over the island's water would carry the ghost aeroplane
+            // WaterReflection.RenderWithoutMirror explains — the landing page's defect, in another camera.
+            WaterReflection.RenderWithoutMirror(cam);
             RenderTexture.active = rt;
             var tex = new Texture2D(w, h, TextureFormat.RGB24, false);
             tex.ReadPixels(new Rect(0, 0, w, h), 0, 0); tex.Apply();
@@ -250,7 +253,8 @@ namespace FlyingGame.Bridge.Practice
             cam.transform.position = aircraft.position + fwd * 12f + right * 55f;
             cam.transform.rotation = Quaternion.LookRotation(-right, Vector3.up);
             draw(painter, aircraft);
-            var rt = new RenderTexture(1024, 640, 24); cam.targetTexture = rt; cam.Render();
+            var rt = new RenderTexture(1024, 640, 24); cam.targetTexture = rt;
+            WaterReflection.RenderWithoutMirror(cam);   // not the main camera: see Render above for why
             RenderTexture.active = rt; var tex = new Texture2D(1024, 640, TextureFormat.RGB24, false); tex.ReadPixels(new Rect(0, 0, 1024, 640), 0, 0); tex.Apply();
             RenderTexture.active = null; cam.targetTexture = null; Object.Destroy(rt); Object.Destroy(go);
             aircraft.position = pos0; aircraft.rotation = rot0;

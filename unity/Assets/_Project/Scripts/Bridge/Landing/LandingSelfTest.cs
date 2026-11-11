@@ -80,7 +80,12 @@ namespace FlyingGame.Bridge
                 flow.Open(PickerKind.Configuration);
                 yield return Settle();
                 yield return Shot($"{sh.name}-p1-menu-configuration");
+                // A card in a browsable menu PREVIEWS and the list stays up (Ty 2026-11-11): the floats are on the
+                // hero above with the strip still open, and SELECT is what keeps them.
                 flow.Pick(PickerKind.Configuration, "floats");
+                yield return Settle();
+                yield return Shot($"{sh.name}-p1-menu-configuration-previewing");
+                flow.CommitBrowse();
                 yield return Settle();
                 yield return Shot($"{sh.name}-p1-supercub-floats");
                 // A lesson restricts the lists.

@@ -128,7 +128,13 @@ namespace FlyingGame.Bridge
             _cam.transform.SetPositionAndRotation(centre - orbit * Vector3.forward * dist, orbit);
             _cam.targetTexture = _rt;
             _cam.aspect = (float)_rt.width / _rt.height;
-            _cam.Render();
+            // NO GHOST AEROPLANE IN THE WATER (Ty 2026-11-11, with a video; "weird ghost plane that was rotating of
+            // axis to it about 90 degrees" on 11-09). This camera copies Camera.main's culling mask, so it draws the
+            // water, and the water reads the planar reflection in SCREEN SPACE — the main camera's mirror image at
+            // this camera's coordinates. WaterReflection.RenderWithoutMirror is the guard SuppressedForSplit already
+            // gives the split screen, and it covers the shallows' scene depth for the same reason; it is also why this
+            // never calls _cam.Render() directly.
+            WaterReflection.RenderWithoutMirror(_cam);
 
             if (_settleAt > 0f && Time.unscaledTime >= _settleAt) { _settleAt = -1f; _radius = Radius(t); CaptureMissing(flow); }
         }
