@@ -209,25 +209,40 @@ public class EngineStateTests : IDisposable
         // type this does not apply to and for a blade that is stopped, and until 2026-11-10 the tachometer fell through
         // to the flat J = 1 assumption in both cases: a standing propeller read 1,498 rpm. On a type whose stops are
         // fitted, NaN is an answer — it is stopped.
-        var slow = Flying(c, 50.0);
+        //
+        // THE SPEED THIS IS READ AT MOVED 50 -> 25 m/s ON 2026-11-11 (lane/claude-fmep-pmep), because the Extra's
+        // coarse stop IS driveable at 50 m/s now. The FMEP/PMEP engine is LESS resistant at low rpm than the old
+        // friction intercept was — a stopped engine pumps nothing, since its manifold fills to ambient as the rpm
+        // goes to zero, and the re-solved dry boundary excess is smaller — so a coarse dead blade gets the shaft
+        // turning at a lower speed than it used to. The property under test is unchanged and is still a real one:
+        // below some speed the air cannot drive this blade at all, and the answer there is NaN rather than a guess.
+        const double tooSlow = 25.0;
+        var slow = Flying(c, tooSlow);
         slow.MixtureLever = 0.0;
         var slowLoop = new SimLoop(slow);
         for (int i = 0; i < 30; i++)
         {
             slowLoop.RunFor(1.0, new ControlInputs(0, 0, 0, FullThrottle));
-            slow.State = new RigidBodyState(new Vec3(0, 0, -1500), Quat.Identity, new Vec3(50, 0, 0), Vec3.Zero);
+            slow.State = new RigidBodyState(new Vec3(0, 0, -1500), Quat.Identity, new Vec3(tooSlow, 0, 0), Vec3.Zero);
         }
         double rhoSlow = Atmosphere.DensityAtAltitude(-slow.State.Position.Z);
+        _out.WriteLine($"extra dead at {tooSlow:F0} m/s: windmill rpm {PropModel.WindmillRpm(c.Propulsion!, slow.State.Velocity.Length, rhoSlow)}");
         Assert.True(double.IsNaN(PropModel.WindmillRpm(c.Propulsion!, slow.State.Velocity.Length, rhoSlow)),
-                    "the Extra's coarse oil-loss stop is not driveable at 50 m/s up here");
+                    $"the Extra's coarse oil-loss stop is not driveable at {tooSlow:F0} m/s up here");
         // AND HERE THE TWO DISAGREE, WHICH IS WORTH A PIN OF ITS OWN. The closed form says NaN — no root, the air
         // cannot drive this blade at 50 m/s up here — while the integrated shaft, held at 50 m/s for 30 s, settles
         // at about 965 rpm, squarely inside the windmilling range. One of them is wrong and it is probably the
         // closed form: PropModel.Windmilling brackets its search, and a bracket that misses a root returns NaN
         // indistinguishably from there being none, whereas StepShaft simply integrates the torque difference and
         // cannot miss. Reported 2026-11-11, not resolved; pinned so that resolving it shows up here.
-        _out.WriteLine($"held at 50 m/s, 30 s dead, blade the closed form calls undriveable: {slow.EngineRpm:F1} rpm");
-        Assert.InRange(slow.EngineRpm, 850.0, 1100.0);
+        // AND THE INTEGRATED SHAFT AGREES WITH THE CLOSED FORM NOW, which it did not before 2026-11-11. This used to
+        // read ~1,000 rpm here while PropModel.WindmillRpm called the same blade at the same speed undriveable — two
+        // models of one propeller disagreeing, with the test pinning the disagreement at 850-1,100 rpm. Against the
+        // FMEP/PMEP engine both say the same thing: at 25 m/s the air cannot drive this coarse blade, and after
+        // 30 seconds of being held there the shaft has stopped. The hysteresis the old number recorded was the
+        // closed form being wrong, not the shaft having momentum.
+        _out.WriteLine($"held at {tooSlow:F0} m/s, 30 s dead, blade the closed form calls undriveable: {slow.EngineRpm:F1} rpm");
+        Assert.Equal(0.0, slow.EngineRpm);
         (Vec3 f, Vec3 m) = PropModel.Compute(c.Propulsion!, 1.0, new Vec3(50, 0, 0), new Vec3(0, 0.5, 0), Rho0, PropModel.PropDrive.Dead(1500), out PropModel.Parts parts);
         Assert.True(f.X < 0.0, "drag");
         Assert.Equal(0.0, parts.TorqueRoll);
@@ -401,8 +416,13 @@ public class EngineStateTests : IDisposable
         // absorbs less, so the lowest governed rpm this lever can reach rose from 1,272 to 1,314, 9.5 % above the
         // fleet low stop rather than 6. That is a real and visible consequence of the stop change, not a tolerance:
         // the blue lever has slightly less authority at the bottom end on this type.
+        //
+        // AND IT ROSE AGAIN ON 2026-11-11, 1,314 -> 1,615, for the reason given in ExtraPropLeverSetsTheGovernedRpm:
+        // at a fixed throttle a falling rpm raises the manifold pressure, so the engine resists the governor's pull
+        // and the coarse stop is reached earlier. The Great Lakes feels it most of the three because its coarse stop
+        // is the least coarse. The blue lever really does have less authority at the bottom end on this type.
         _out.WriteLine($"great lakes, lever to the low stop: {ac.EngineRpm:F1} rpm, powerScale {ac.PowerScale:F4}");
-        Assert.InRange(ac.EngineRpm, PropModel.FleetLowGovernedRpm, 1.10 * PropModel.FleetLowGovernedRpm);
+        Assert.InRange(ac.EngineRpm, PropModel.FleetLowGovernedRpm, 1.40 * PropModel.FleetLowGovernedRpm);
         Assert.Equal(1200.0 / 2700.0, ac.PowerScale, 6);  // same manifold pressure, so power goes with the rpm
         ac.PropLever = 0.5;
         sim.RunFor(4.0, cruise);
@@ -434,8 +454,15 @@ public class EngineStateTests : IDisposable
         // COARSE STOP is reached before the rpm error is, which is what a real governor does when it is asked for a
         // low setting at a high manifold pressure. A seam this exposes and does not close: PowerScale still follows
         // the COMMANDED rpm (1,200/2,700) while the shaft holds the ACTUAL 1,265. Reported, not fixed here.
+        //
+        // IT REACHES 1.13 x THE LOW STOP NOW, NOT 1.06, AND THAT IS A REAL LOSS OF LEVER AUTHORITY (2026-11-11,
+        // lane/claude-fmep-pmep). With the THROTTLE held still, pulling the rpm down RAISES manifold pressure — the
+        // engine is swallowing less through the same plate — so the engine gets STRONGER as the governor drags the
+        // shaft down, and the coarse stop arrives sooner. That is the thing every pilot is taught to watch when
+        // reducing rpm at a fixed throttle, and the old model could not show it at all because its manifold pressure
+        // had no rpm in it.
         _out.WriteLine($"extra, lever to the low stop: {ac.EngineRpm:F1} rpm");
-        Assert.InRange(ac.EngineRpm, PropModel.FleetLowGovernedRpm, 1.06 * PropModel.FleetLowGovernedRpm);
+        Assert.InRange(ac.EngineRpm, PropModel.FleetLowGovernedRpm, 1.16 * PropModel.FleetLowGovernedRpm);
     }
 
     [Fact]
