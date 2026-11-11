@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "glider-2-33-like",
-  "displayName": "2-33-like Trainer Glider",
+  "displayName": "Glider Trainer",
   "structureType": "steelTube",
   "structureTypeSource": "Schweizer SGS 2-33: welded steel-tube fuselage, fabric covered; aluminium wing (FAA TCDS G16EA; Schweizer 2-33 maintenance manual).",
   "wingSpar": "aluminum",
