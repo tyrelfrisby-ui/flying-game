@@ -59,25 +59,62 @@ public class ReversibleControlTests
     public void HandsOffHoldsTrimAndReturnsAfterAPull(string id)
     {
         // Each type with its own reversible / spring / trim settings, against the same type stick-fixed.
-        (double band, double early, double late) free = Fly(id, true), fixedRun = Fly(id, false);
-        _out.WriteLine($"{id}: hands-off speed band {free.band:F2} m/s; after a pull, free {free.early:F1} -> {free.late:F1} m/s, stick-fixed {fixedRun.early:F1} -> {fixedRun.late:F1}");
+        Run free = Fly(id, true), held = Fly(id, false);
+        _out.WriteLine($"{id}: hands-off speed band {free.Band:F2} m/s; after a pull the longitudinal oscillation grows "
+            + $"{free.PerCycle:F3} per cycle stick-FREE ({free.PeriodS:F1} s) against {held.PerCycle:F3} stick-FIXED "
+            + $"({held.PeriodS:F1} s); peak excursion {free.Peak:F1} m/s free, {held.Peak:F1} fixed");
         AircraftConfig cfg = Load(id);
-        Assert.True(free.band < 0.03 * cfg.SpawnIasMs + 0.5, "hands-off at trim should hold the trimmed speed");
-        // Gliders: the phugoid is nearly undamped (ζ ≈ 1/(√2·L/D) ≈ 0.03 at L/D 23 — the 2-33 stick-FIXED barely damps), so
-        // stick-free it may grow slowly but must not run away. Powered: no worse than stick-fixed beyond a margin.
-        if (cfg.Propulsion == null) Assert.True(free.late < 2.0 * free.early, "glider: stick-free phugoid must not run away");
-        else Assert.True(free.late <= 1.3 * fixedRun.late + 1.0, "stick-free should settle about as well as stick-fixed");
+        _out.WriteLine($"    peak excursion after the pull: free {free.Early:F1} -> {free.Late:F1} m/s, "
+            + $"stick-fixed {held.Early:F1} -> {held.Late:F1}");
+        Assert.True(free.Band < 0.03 * cfg.SpawnIasMs + 0.5, "hands-off at trim should hold the trimmed speed");
+        if (cfg.Propulsion != null)
+        {
+            // POWERED: unchanged, and deliberately so. These types' modes are long and heavily damped — the DC-3, the
+            // P-51, the Pitts and the Seminole give fewer than four extrema in the 58 s after the pull, so a per-cycle
+            // growth fitted to them is a fit to two points and would make the gate vacuous rather than strict. The
+            // P-51 is RED here on a pristine tip (free 1.7 against 1.3 x 0.5 + 1.0 = 1.65) and this measurement does
+            // not touch that.
+            Assert.True(free.Late <= 1.3 * held.Late + 1.0, "stick-free should settle about as well as stick-fixed");
+            return;
+        }
+        // NO GROWTH, hands off. This gate used to permit a glider to grow to 2x per cycle, deriving the licence from
+        // ζ ≈ 1/(√2·L/D) ≈ 0.03 — but that derivation gives a DAMPED phugoid (0.03 of critical is 0.83 per cycle), so
+        // it never licensed divergence at all, and the 2x it was written as hid the Swift growing 1.35 per cycle until
+        // it was flying 54 m/s of amplitude on a 26 m/s trim. Ty flew the 2-33 on 2026-11-10 and reported exactly this
+        // as wrong — "The 2-33 has negative dynamic stability about the lateral axis... Ie in pitch". A 2-33 is a
+        // docile trainer with a large tail on a long arm; hands off it does not wind itself up.
+        Assert.True(free.PerCycle <= 1.0, "hands off, the longitudinal oscillation must not grow");
+        // AND THE INSTRUMENT THAT SAYS WHOSE FAULT IT IS: the same aeroplane with the stick held. A free surface may
+        // make the mode heavier or lighter, but a surface that pumps a mode the held stick damps is the surface's
+        // fault and nothing else's — no coefficient outside the hinge model can tell those two runs apart.
+        // FreeElevatorPhugoidProbe has the numbers: on the Swift and the EB29R the floating elevator is the thing
+        // HOLDING this mode together (ζ +0.028 and +0.051 free, against −0.000 and −0.013 held), so it is only the
+        // 2-33 that fails this way.
+        Assert.True(free.PerCycle <= held.PerCycle + 0.02,
+            "a free surface must not pump a longitudinal mode that the held stick damps");
     }
 
-    private (double band, double early, double late) Fly(string id, bool reversible)
+    /// <summary>What one hands-off flight measured. PerCycle is the growth of the longitudinal oscillation's
+    /// amplitude per cycle: 1.0 is neutral, above 1.0 it is winding up.</summary>
+    private readonly record struct Run(double Band, double PerCycle, double PeriodS, double Peak,
+                                      double Early, double Late);
+
+    private Run Fly(string id, bool reversible)
     {
         AircraftConfig cfg = Load(id);
         if (!reversible) foreach (ControlAxisConfig a in new[] { cfg.Controls.Aileron, cfg.Controls.Elevator, cfg.Controls.Rudder }) a.Reversible = false;
         (Aircraft ac, double trim, double v0) = Spawn(cfg, 3000);
         double lever = cfg.Propulsion == null ? -1.0 : 1.0, h = SimLoop.DefaultFixedDtSec;
         double pull = 0.3 * Math.Min(1.0, Math.Pow(25.0 / v0, 2));   // about the same pitch impulse at any trim speed (∝ 1/q)
-        double vMin = 1e9, vMax = 0, late = 0, early = 0;
+        double vMin = 1e9, vMax = 0, peak = 0, late = 0, early = 0;
         double v0e = v0 * Math.Sqrt(Atmosphere.DensityAtAltitude(3000) / Atmosphere.DensityAtAltitude(0));
+        // The amplitude is HALF THE SWING BETWEEN CONSECUTIVE EXTREMA, never |V − V_trim| at an extremum: a glide
+        // drifts in equivalent airspeed across a 90 s window and that drift lands in the amplitude. Measured the
+        // other way the Cub read 1.24 per cycle on an oscillation of 0.47 m/s whose damping matches the drag theory
+        // to 3 %, and the Swift's genuine 1.35 runaway read 0.94 because its first and last peaks straddled the
+        // saturation. (FreeElevatorPhugoidProbe, 2026-11-11.)
+        var amps = new List<(double t, double amp)>();
+        double sPrev = 0, sPrev2 = 0, tPrev = 0; double? lastExt = null;
         for (double t = 0; t < 90; t += h)
         {
             bool pulling = t >= 30 && t < 31;
@@ -90,12 +127,38 @@ public class ReversibleControlTests
             // descends into denser air and its TAS falls ~4 % over the window at constant trim.
             double vv = ac.State.Velocity.Length * Math.Sqrt(Atmosphere.DensityAtAltitude(-ac.State.Position.Z) / Atmosphere.DensityAtAltitude(0));
             if (t > 5 && t < 30) { vMin = Math.Min(vMin, vv); vMax = Math.Max(vMax, vv); }
-            if (t > 32 && t < 50) early = Math.Max(early, Math.Abs(vv - v0e));
-            if (t > 75) late = Math.Max(late, Math.Abs(vv - v0e));
+            double sig = vv - v0e;
+            if (t > 31.5)
+            {
+                if (sPrev2 != 0 && ((sPrev > sPrev2 && sPrev > sig) || (sPrev < sPrev2 && sPrev < sig)))
+                {
+                    if (lastExt is { } le) amps.Add((tPrev, 0.5 * Math.Abs(sPrev - le)));
+                    lastExt = sPrev;
+                }
+                peak = Math.Max(peak, Math.Abs(sig));
+            }
+            if (t > 32 && t < 50) early = Math.Max(early, Math.Abs(sig));
+            if (t > 75) late = Math.Max(late, Math.Abs(sig));
+            sPrev2 = sPrev; sPrev = sig; tPrev = t;
             if (reversible && (int)(t / h) % 1200 == 0)
                 _out.WriteLine($"  t={t,4:F0}s V {vv,5:F1} m/s  elevator {ac.CurrentDeflections.ElevatorRad * 57.3,6:F2}°  pitch {FormationPilot.Euler(ac.State.Attitude).pitch * 57.3,6:F1}°{(pulling ? "  (pulling)" : "")}");
         }
-        return (vMax - vMin, early, late);
+        // Least squares of ln(amplitude) on time over the half-cycle amplitudes, converted to a per-cycle ratio with
+        // the measured period. Fewer than four extrema means there was no oscillation to grow: call it neutral.
+        double perCycle = 1.0, period = 0.0;
+        if (amps.Count >= 4)
+        {
+            period = 2.0 * (amps[^1].t - amps[0].t) / (amps.Count - 1);
+            double sx = 0, sy = 0, sxx = 0, sxy = 0;
+            for (int i = 0; i < amps.Count; i++)
+            {
+                double x = amps[i].t - amps[0].t, y = Math.Log(Math.Max(1e-9, amps[i].amp));
+                sx += x; sy += y; sxx += x * x; sxy += x * y;
+            }
+            double den = amps.Count * sxx - sx * sx;
+            if (Math.Abs(den) > 1e-12) perCycle = Math.Exp((amps.Count * sxy - sx * sy) / den * period);
+        }
+        return new Run(vMax - vMin, perCycle, period, peak, early, late);
     }
 
     [Fact]
