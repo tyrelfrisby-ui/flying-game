@@ -243,5 +243,7 @@ namespace FlyingGame.Bridge
         public volatile float CockpitAir;                 // extra wind in an open / canopy-less cockpit (Core Vr.CockpitWind), cockpit view only
         public volatile float PropShakeG, PropShakeHz;    // a bent prop's once-a-revolution imbalance (Aircraft.PropVibrationG) and its rate
         public volatile int DeadCylinders;                // cylinders an over-rev has broken a ring in (Aircraft.DeadCylinders): their pulse goes missing
+        public volatile float BearingKnock01;             // a spun bearing's life gone (Aircraft.BearingDamage01): it knocks at crank rate
+        public volatile bool ImpulseEngaged;              // below 400 rpm the magneto's impulse coupling snaps (Aircraft.ImpulseCouplingEngaged)
     }
 }
