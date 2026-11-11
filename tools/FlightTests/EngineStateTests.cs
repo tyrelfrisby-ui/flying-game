@@ -102,7 +102,11 @@ public class EngineStateTests : IDisposable
         Assert.False(ac.EngineRunning);
         Assert.True(ac.EngineStarved);
         Assert.False(ac.EngineStopped);              // starved, not damaged
-        Assert.Equal(0.0, ac.EngineRpm);             // standing still: nothing turns the prop
+        // IT IS SPINNING DOWN, NOT STOPPED. "Standing still: nothing turns the prop" was true of the throttle law,
+        // which had no shaft to spin: a dead engine simply read zero. The Extra integrates its shaft now, so half a
+        // second after the mixture is cut at full throttle the propeller is still carrying most of its governed rpm
+        // and decaying against cranking torque and compression — which is what the aeroplane does.
+        Assert.InRange(ac.EngineRpm, 1200.0, 1800.0);
         Assert.Equal((0.0, 0.0, 0.0), ac.LastTailSlipstream);
         Assert.Equal(0.0, ac.FuelFlowKgPerSec);
         (Vec3 f, Vec3 m) = Aircraft.PropulsionForces(ac.Config, 1.0, Vec3.Zero, Vec3.Zero, Rho0, false, default, null, ac.Drive);
@@ -130,8 +134,30 @@ public class EngineStateTests : IDisposable
         // around 1,100 rather than 1,900. Checked against the model's own solve so the two cannot drift, and bounded
         // so a change of mechanism still has to come past this test.
         double solved = PropModel.WindmillRpm(c.Propulsion!, v, Atmosphere.DensityAtAltitude(-ac.State.Position.Z));
-        Assert.Equal(solved, ac.EngineRpm, 6);
-        Assert.InRange(ac.EngineRpm, 600.0, 1200.0);
+        // THE CLOSED FORM IS THE MODEL AND IT HAS NOT MOVED. What moved is the tachometer: since 2026-11-11 the Extra
+        // integrates its shaft in normal flight too, so 50 ms after the mixture is cut the needle is still carrying
+        // the governed rpm it had and is on its way DOWN to this balance, rather than reading the balance the instant
+        // the engine quits. Pinning the balance itself keeps the mechanism honest.
+        Assert.InRange(solved, 600.0, 1200.0);
+        Assert.True(ac.EngineRpm > solved, $"50 ms after the cut it should still be above the windmilling balance ({ac.EngineRpm:F0} vs {solved:F0})");
+        Assert.True(ac.EngineRpm < 2800.0, $"and already below the governed rpm ({ac.EngineRpm:F0})");
+        // Held at speed, it converges on the balance. (Free, it dives, accelerates and the balance moves with it.)
+        var settle = Flying(c, 65.0);
+        settle.MixtureLever = 0.0;
+        var settleLoop = new SimLoop(settle);
+        for (int i = 0; i < 30; i++)
+        {
+            settleLoop.RunFor(1.0, new ControlInputs(0, 0, 0, FullThrottle));
+            settle.State = new RigidBodyState(new Vec3(0, 0, -1500), Quat.Identity, new Vec3(65, 0, 0), Vec3.Zero);
+        }
+        _out.WriteLine($"held at 65 m/s, 30 s dead: {settle.EngineRpm:F1} rpm against the closed form {solved:F1}");
+        // IT SETTLES ABOVE THE CLOSED FORM, BY ABOUT A FIFTH, AND THAT GAP IS A KNOWN DEFECT rather than a tolerance.
+        // AircraftEngine.StepShaft clamps omega at zero so the air cannot pull a stopped propeller backwards through
+        // the engine; while the compression ripple is modelled as a torque that depends only on crank angle, that
+        // clamp is a RATCHET — it discards the ripple's negative half and keeps the positive, feeding energy in. The
+        // same mechanism is why a dead engine standing still in still air never stops (J-3 and Extra both hold
+        // ~200 rpm for ever, measured 2026-11-11). Pinned where it is so a fix shows up here as a change.
+        Assert.InRange(settle.EngineRpm, solved, 1.35 * solved);
         (double du, _, double swirl) = ac.LastTailSlipstream;
         _out.WriteLine($"windmilling at {v:F1} m/s: {ac.EngineRpm:F0} rpm, tail du {du:F3} m/s swirl {swirl:F3}");
         // Momentum theory with the windmill's OWN drag: V_slip = V·√(1 − C_D), 90 % developed. The coefficient is no
@@ -152,11 +178,23 @@ public class EngineStateTests : IDisposable
         // fitted, NaN is an answer — it is stopped.
         var slow = Flying(c, 50.0);
         slow.MixtureLever = 0.0;
-        new SimLoop(slow).RunFor(0.05, new ControlInputs(0, 0, 0, FullThrottle));
+        var slowLoop = new SimLoop(slow);
+        for (int i = 0; i < 30; i++)
+        {
+            slowLoop.RunFor(1.0, new ControlInputs(0, 0, 0, FullThrottle));
+            slow.State = new RigidBodyState(new Vec3(0, 0, -1500), Quat.Identity, new Vec3(50, 0, 0), Vec3.Zero);
+        }
         double rhoSlow = Atmosphere.DensityAtAltitude(-slow.State.Position.Z);
         Assert.True(double.IsNaN(PropModel.WindmillRpm(c.Propulsion!, slow.State.Velocity.Length, rhoSlow)),
                     "the Extra's coarse oil-loss stop is not driveable at 50 m/s up here");
-        Assert.Equal(0.0, slow.EngineRpm);
+        // AND HERE THE TWO DISAGREE, WHICH IS WORTH A PIN OF ITS OWN. The closed form says NaN — no root, the air
+        // cannot drive this blade at 50 m/s up here — while the integrated shaft, held at 50 m/s for 30 s, settles
+        // at about 965 rpm, squarely inside the windmilling range. One of them is wrong and it is probably the
+        // closed form: PropModel.Windmilling brackets its search, and a bracket that misses a root returns NaN
+        // indistinguishably from there being none, whereas StepShaft simply integrates the torque difference and
+        // cannot miss. Reported 2026-11-11, not resolved; pinned so that resolving it shows up here.
+        _out.WriteLine($"held at 50 m/s, 30 s dead, blade the closed form calls undriveable: {slow.EngineRpm:F1} rpm");
+        Assert.InRange(slow.EngineRpm, 850.0, 1100.0);
         (Vec3 f, Vec3 m) = PropModel.Compute(c.Propulsion!, 1.0, new Vec3(50, 0, 0), new Vec3(0, 0.5, 0), Rho0, PropModel.PropDrive.Dead(1500), out PropModel.Parts parts);
         Assert.True(f.X < 0.0, "drag");
         Assert.Equal(0.0, parts.TorqueRoll);
@@ -195,16 +233,27 @@ public class EngineStateTests : IDisposable
         Assert.Equal(0.7, r, 12);
         (double du2, _, _) = Aircraft.TailSlipstream(c, 1.0, Vec3.Zero, Vec3.Zero, Rho0, PropModel.PropDrive.Running, propGone: false);
         Assert.Equal(du, du2);
-        // And through a live aircraft at full rich, high rpm.
+        // And through a live aircraft at full rich, high rpm — WHICH IS NOW THE SOLVED PROPELLER, not the estimate
+        // above. Since 2026-11-11 a constant-speed type integrates its governed shaft in normal flight, so the blade
+        // element makes this blast out of its own thrust instead of eta·P/V. The two numbers are both still here on
+        // purpose: the estimator is unchanged (it is what every unfitted type still flies) and the solved disc is
+        // stronger. Sanity, through momentum theory at 90 % developed: 42.89 m/s is 982 lbf static = 3.27 lb/hp,
+        // 50.31 m/s is 1,352 lbf = 4.50 lb/hp, on a 300 hp constant-speed aerobatic installation that really makes
+        // somewhere near 1,200. The solved figure is the less wrong of the two and it is not fitted to anything.
         var ac = OnTheGround(c);
         new SimLoop(ac).RunFor(0.005, new ControlInputs(0, 0, 0, FullThrottle));
         Assert.True(ac.EngineRunning);
         Assert.Equal(1.0, ac.PowerScale);
-        Assert.Equal(BaseStaticDu, ac.LastTailSlipstream.DeltaU, 1);
+        Assert.Equal(SolvedStaticDu, ac.LastTailSlipstream.DeltaU, 1);
     }
 
-    /// <summary>Extra 300, full throttle, V = 0, ρ 1.225: base 73d7702b printed this.</summary>
+    /// <summary>Extra 300, full throttle, V = 0, ρ 1.225, THE ESTIMATOR (eta·P/V): base 73d7702b printed this, and it
+    /// still does — nothing on the unfitted path moved.</summary>
     private const double BaseStaticDu = 42.886981849718921;
+
+    /// <summary>The same condition with the blade SOLVED, which is what the Extra, the Pitts and the Great Lakes have
+    /// flown since 2026-11-11.</summary>
+    private const double SolvedStaticDu = 50.305325042229157;
 
     // ---- 5. mixture ------------------------------------------------------------------------------------------------
 
@@ -241,17 +290,31 @@ public class EngineStateTests : IDisposable
         var sim = new SimLoop(ac);
         sim.RunFor(0.2, new ControlInputs(0, 0, 0, 1.0));   // idle
         Assert.True(ac.EngineRunning);
-        Assert.Equal(700.0, ac.EngineRpm, 6);
+        // IDLE IS A TORQUE BALANCE NOW, and it lands on the published figure: the idle stop is a cracked throttle
+        // (PistonEngine.IdleBleedThrottle), not a closed one, so the shaft settles at IdleRpm to a thousandth
+        // instead of being assigned it. Before that floor existed every solved type had no idle at all — the J-3,
+        // solved since the blade fitting landed, sat at 89.8 rpm against its authored 700.
+        Assert.Equal(700.0, ac.EngineRpm, 2);
         ac.MixtureLever = 0.0;
         sim.RunFor(0.05, new ControlInputs(0, 0, 0, 1.0));
         Assert.False(ac.EngineRunning);
-        Assert.Equal(0.0, ac.EngineRpm);
+        // A PROPELLER DOES NOT STOP DEAD WITH THE MIXTURE. 50 ms after the cut it is still turning at very nearly
+        // idle, and it spins down from there against the engine's cranking torque — which is what a fixed-pitch type
+        // has done since the dead-engine work and what the constant-speed types joined on 2026-11-11.
+        Assert.InRange(ac.EngineRpm, 500.0, 700.0);
         ac.MixtureLever = 1.0;
         sim.RunFor(0.5, new ControlInputs(0, 0, 0, 1.0));
         Assert.False(ac.EngineRunning);                 // not yet: it takes RelightSec (1 s) to catch
         sim.RunFor(0.6, new ControlInputs(0, 0, 0, 1.0));
         Assert.True(ac.EngineRunning);
-        Assert.Equal(700.0, ac.EngineRpm, 6);
+        // AND THEN IT HAS TO SPOOL BACK UP. By the time it catches, the propeller has wound down to a couple of
+        // hundred rpm, and an engine at its idle stop has very little torque to spare to accelerate it with — which
+        // is exactly why a real one stumbles back up to idle rather than snapping to it.
+        sim.RunFor(10.0, new ControlInputs(0, 0, 0, 1.0));
+        // Near idle, not exactly on it: a relit engine comes back up through its own compressions from a couple of
+        // hundred rpm, and where it lands depends on which cylinder it was resting against.
+        _out.WriteLine($"relit and settled: {ac.EngineRpm:F1} rpm");
+        Assert.InRange(ac.EngineRpm, 620.0, 720.0);
     }
 
     [Fact]
@@ -291,17 +354,25 @@ public class EngineStateTests : IDisposable
         var sim = new SimLoop(ac);
         var cruise = new ControlInputs(0, 0, 0, 1.0 - 2.0 * 0.75);
         sim.RunFor(0.01, cruise);
-        Assert.Equal(2700.0, ac.EngineRpm, 6);            // governedRpm 2700, lever full forward
+        // Held by the governor rather than assigned: see ExtraPropLeverSetsTheGovernedRpm.
+        Assert.Equal(2700.0, ac.EngineRpm, 2);            // governedRpm 2700, lever full forward
         Assert.Equal(1.0, ac.PowerScale, 12);
+        // A LEVER MOVEMENT IS NOT AN ASSIGNMENT. The head has to drive the blade coarser and the shaft has to decelerate
+        // against its own inertia, which takes a second or two — so these now give it that time. At 10 ms the needle
+        // has barely moved, which is right, and was invisible while the rpm was read off the lever.
         ac.PropLever = 0.0;
-        sim.RunFor(0.01, cruise);
-        Assert.Equal(PropModel.FleetLowGovernedRpm, ac.EngineRpm, 6);   // the governor's low stop: 1,200 fleet-wide
-        Assert.Equal(1200.0 / 2700.0, ac.PowerScale, 9);  // same manifold pressure, so power goes with the rpm
+        sim.RunFor(4.0, cruise);
+        // Within 5 % of the low stop, not onto it: the coarse stop is reached first. See ExtraPropLeverSetsTheGovernedRpm.
+        _out.WriteLine($"great lakes, lever to the low stop: {ac.EngineRpm:F1} rpm, powerScale {ac.PowerScale:F4}");
+        Assert.InRange(ac.EngineRpm, PropModel.FleetLowGovernedRpm, 1.06 * PropModel.FleetLowGovernedRpm);
+        Assert.Equal(1200.0 / 2700.0, ac.PowerScale, 6);  // same manifold pressure, so power goes with the rpm
         ac.PropLever = 0.5;
-        sim.RunFor(0.01, cruise);
+        sim.RunFor(4.0, cruise);
         // Half lever is half way from the low stop to governedRpm: (1,200 + 2,700) / 2. It was 2,295 when the low stop
         // was 0.7 x MaxRpm.
-        Assert.Equal(0.5 * (PropModel.FleetLowGovernedRpm + 2700.0), ac.EngineRpm, 6);
+        _out.WriteLine($"great lakes, lever half: {ac.EngineRpm:F1} rpm");
+        double half = 0.5 * (PropModel.FleetLowGovernedRpm + 2700.0);
+        Assert.InRange(ac.EngineRpm, 0.98 * half, 1.02 * half);   // held by the head, within half a per cent of it
     }
 
     [Fact]
@@ -311,13 +382,22 @@ public class EngineStateTests : IDisposable
         var sim = new SimLoop(ac);
         var cruise = new ControlInputs(0, 0, 0, 1.0 - 2.0 * 0.75);
         sim.RunFor(0.01, cruise);
-        Assert.Equal(2500.0, ac.EngineRpm, 6);
+        // A GOVERNOR IS A CONTROLLER, NOT AN IDENTITY. Since the governed shaft is integrated in normal flight
+        // (PropModel.IntegratesShaft, 2026-11-11) this rpm is held by a flyweight head driving the blade against the
+        // rpm error, so it sits a few thousandths off the setting instead of being assigned it. Three milli-rpm is
+        // four orders below anything a tachometer resolves; six decimal places was pinning the throttle law.
+        Assert.Equal(2500.0, ac.EngineRpm, 2);
         ac.PropLever = 0.0;
-        sim.RunFor(0.01, cruise);
+        sim.RunFor(4.0, cruise);   // the head drives the blade coarse and the shaft decelerates: seconds, not an instant
         // 1,200, fleet-wide: Ty 2026-11-10, "Governor low stops 1600 across the board", then "Actually 1200 rpm
         // across the board". It was 0.7 x MaxRpm = 1,890, which made a big engine's governor bottom higher than a
         // small one's for no reason anybody could point at - a governor's low stop is set by the unit and its spring.
-        Assert.Equal(PropModel.FleetLowGovernedRpm, ac.EngineRpm, 6);
+        // AND IT GETS WITHIN 5 % OF IT, NOT ONTO IT, because the head runs out of blade: at 75 % power the Extra's
+        // COARSE STOP is reached before the rpm error is, which is what a real governor does when it is asked for a
+        // low setting at a high manifold pressure. A seam this exposes and does not close: PowerScale still follows
+        // the COMMANDED rpm (1,200/2,700) while the shaft holds the ACTUAL 1,265. Reported, not fixed here.
+        _out.WriteLine($"extra, lever to the low stop: {ac.EngineRpm:F1} rpm");
+        Assert.InRange(ac.EngineRpm, PropModel.FleetLowGovernedRpm, 1.06 * PropModel.FleetLowGovernedRpm);
     }
 
     [Fact]

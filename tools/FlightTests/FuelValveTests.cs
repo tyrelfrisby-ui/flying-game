@@ -50,7 +50,14 @@ public class FuelValveTests
             Assert.False(ac.EngineStopped);
             Assert.Equal(0.0, ac.FuelFlowKgPerSec, 12);
             Assert.Equal(0.0, ac.ShaftPower01, 12);                 // full throttle, no power
-            Assert.Equal(ac.WindmillRpm, ac.EngineRpm, 6);
+            // ON ITS WAY DOWN TO THE WINDMILLING BALANCE, NOT ON IT. The Extra integrates its governed shaft in normal
+            // flight since 2026-11-11, so when the fuel runs out the propeller carries the rpm it had and decays
+            // against cranking torque — it no longer jumps to the closed-form windmilling figure the instant the
+            // engine quits. Both are still checked: the balance itself (the model) and the needle (above it, and
+            // already below the governed rpm).
+            Assert.InRange(ac.WindmillRpm, 800.0, 1800.0);
+            Assert.True(ac.EngineRpm > ac.WindmillRpm,
+                        $"2.5 s after it quit the needle should still be above the windmilling balance ({ac.EngineRpm:F0} vs {ac.WindmillRpm:F0})");
             Assert.True(ac.EngineRpm < 2600, $"a dead engine at {ac.EngineRpm:F0} rpm");
 
             ac.FuelValveOpen = true;
