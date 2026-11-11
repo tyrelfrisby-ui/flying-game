@@ -63,6 +63,51 @@ public class AerobatGroundHandlingTests : IDisposable
     private static bool TailDown(Aircraft ac) => (ac.Tailwheel?.LastLoadN ?? 0) > 1.0;
     private static bool Struck(Aircraft ac) => ac.LostComponents.Count > 0;
     private static double ThreePointDeg(AircraftConfig c) { var r = LandingGear.RestingState(c, 0, 0, 0).Attitude; return Math.Asin(2 * (r.W * r.Y - r.Z * r.X)) * 180 / Math.PI; }
+
+    /// <summary>How far below the wing's own stall the takeoff rotation aims, deg. The answer is INSENSITIVE to it
+    /// anywhere in 0–3° — measured 2026-11-10, both types fly off before they get there (the Pitts reads 32.96, 32.97,
+    /// 33.04, 33.28 m/s at stall−0, −1, −1.5, −2; the Extra reads 38.32 at all four) — which is the whole point of
+    /// deriving it. 2° rather than 0 because nobody rotates to the stall and the pilot model ramps at 6°/s with a PID
+    /// that can overshoot; past 3° it stops being flat and starts deciding the answer (Pitts stall−4 is 37.94 and out
+    /// of its band).</summary>
+    private const double RotationStallMarginDeg = 2.0;
+
+    /// <summary>
+    /// The attitude a takeoff rotates TOWARD: <see cref="RotationStallMarginDeg"/> below where THIS type's own wing
+    /// stalls in BODY axes — its earliest-stalling section's alpha at CLmax, less the wing's mean rigging incidence.
+    /// <para>IT USED TO BE <c>ThreePointDeg(c) − 0.5</c>, AND THAT WENT STALE THE DAY A WING CHANGED. A constant offset
+    /// from the stance attitude says nothing about the wing, and the fleet's stance attitudes are nearly the same while
+    /// its stalls are not: the Pitts sits at 10.09° and stalls at 12.00°, the Extra sits at 9.25° and stalls at 18.17°.
+    /// So the one constant put the Pitts at stall−2.41, in the flat region where the aeroplane flies off before it ever
+    /// reaches the target, and the Extra at stall−9.42, deep in the steep region where every tenth of a degree moves
+    /// the lift-off speed. When the Extra got its own measured section its stall moved 14°→18.17° and the gap widened
+    /// to 9.4°, which is why it needed 42.0 m/s (82 kt) to fly: not a flight-model defect, a test holding an attitude
+    /// derived from the undercarriage and asking the wing about it.</para>
+    /// <para>Derived from the EARLIEST-stalling strip, not the root's. The Extra carries one derived section per station
+    /// and its root stalls at 20.00° against 18.17° mid-span, so reading Strips[0] would aim 1.8° past the angle at
+    /// which the aeroplane has already stalled. Same trap PracticeScenario.AlphaCapRad was fixed for the same day.</para>
+    /// </summary>
+    private static double RotateDeg(AircraftConfig c)
+    {
+        SurfaceConfig? main = null; double best = 0;
+        foreach (SurfaceConfig sf in c.Surfaces)
+        {
+            if (!sf.Id.StartsWith("wing", StringComparison.OrdinalIgnoreCase)
+                || sf.Id.EndsWith("aileron", StringComparison.OrdinalIgnoreCase) || sf.Strips.Count == 0) continue;
+            double area = 0; foreach (StripConfig st in sf.Strips) area += st.Area;
+            if (area > best) { best = area; main = sf; }
+        }
+        // No wing to ask (or no table for it): fall back to the stance attitude the test used before, so a type this
+        // cannot read is no worse off than it was.
+        if (main is null) return ThreePointDeg(c) - 0.5;
+        var tables = Aircraft.BuildAirfoilTables(c);
+        double first = double.MaxValue;
+        foreach (StripConfig st in main.Strips)
+            if (tables.TryGetValue(st.Airfoil, out AirfoilTable? t)) first = Math.Min(first, t.AlphaClMaxRad);
+        if (first == double.MaxValue) return ThreePointDeg(c) - 0.5;
+        double inc = 0; foreach (StripConfig st in main.Strips) inc += st.IncidenceRad;
+        return (first - inc / main.Strips.Count) * 180 / Math.PI - RotationStallMarginDeg;
+    }
     /// <summary>Throttle lever for a throttle fraction (lever −1 = full, +1 = idle).</summary>
     private static double Lever(double throttle01) => 1.0 - 2.0 * Math.Clamp(throttle01, 0, 1);
 
@@ -396,7 +441,7 @@ public class AerobatGroundHandlingTests : IDisposable
     public void TakeoffRollIsTheBooks(string file, double vLoMin, double vLoMax, double rollMin, double rollMax)
     {
         var c = Load(file); var t = TypeOf(file);
-        var r = Takeoff(c, t.tailUp, t.vr, ThreePointDeg(c) - 0.5, _out);
+        var r = Takeoff(c, t.tailUp, t.vr, RotateDeg(c), _out);
         Assert.InRange(r.TailUpV, 10, 20);
         Assert.InRange(r.LiftoffV, vLoMin, vLoMax);
         Assert.InRange(r.RollM, rollMin, rollMax);
@@ -462,7 +507,7 @@ public class AerobatGroundHandlingTests : IDisposable
         {
             var c = Load(f);
             Taxi(c, _out);
-            Takeoff(c, tail, vr, ThreePointDeg(c) - 0.5, _out);
+            Takeoff(c, tail, vr, RotateDeg(c), _out);
             foreach (bool wheel in new[] { false, true })
                 foreach (double brakeV in new[] { 0.0, 20.0 })
                 {
