@@ -1,3 +1,63 @@
+## A camera change moved a break-up speed, and the reason is that it was never a camera change — Claude, 2026-11-10, lane/claude-vne-cam
+
+<!-- crash-cam-occupants-merged fuselage-stations-are-shared water-breakup-reband-not-needed q151-closed -->
+
+Ty, offered *"merge and re-band that test"* against *"a camera change should not move a breakup speed at all; that
+smells like a real coupling"*, chose: **"Merge and re-band that test"** — the water test's floor was set when the
+camera pointed elsewhere, so re-measure and re-band it honestly. **He was right that it was benign, and the mechanism
+is worth writing down, because the premise in both options was wrong.**
+
+**IT IS NOT A CAMERA CHANGE.** No camera touches the simulation; `AirframeContact` is in `FlyingGame.Core` and knows
+nothing about views. `AirframeContact.FuselageStations` is the **single definition of where the fuselage is cut into
+nose / cabin / tail cone**, and two very different things read it:
+
+- the **crash camera**, indirectly — it follows the sim's `Aircraft`, which after a break-up is the CABIN, so the
+  question "does the camera stay on the pilot?" is the question "is the pilot's seat between the two cuts?";
+- **`AirframeHydroModel.Build`**, which uses the same two numbers to size the three fuselage pieces, place their
+  centres, their openings, the windshield, the separation `Cut`s, and the **joints** — including each joint's strength.
+
+So moving a cut to keep a seat inside the cabin moves a break load. On the Extra, whose rear seat sits at station
+x −1.2801, the tail cut goes from **−1.250 to −1.780** (0.5 m of seat clearance), which shortens the tail cone by
+0.53 m. A fuselage joint's axial ultimate is `WaterPhysics.EmergencyForwardG` (17 g, 14 CFR 23.561) × g × the mass
+beyond it, so a **52.0 kg** tail cone instead of a 56.2 kg one breaks at **8.7 kN instead of 9.4 kN**. Both numbers
+are printed in the test's own damage log. The tail boom lets go slightly earlier in the water arrival, the remnant is
+shorter, and the aeroplane keeps MORE speed at one second, not less.
+
+**Shared geometry read in one direction — not feedback from the view into the physics.** That distinction is the whole
+answer to the question that was asked: had the camera been feeding the simulation, this would have been a defect to
+stop for, and it would have changed Ty's answer. It is not.
+
+**AND THE RE-BAND WAS NOT NEEDED, so nothing was loosened.** The 0.90 m/s that justified it was measured on
+2026-11-06 against base `2b47338f`. Re-measured on today's base, in the test class alone and again inside the 16-test
+water filter, both runs identical:
+
+| | without the merge | with the merge | floor |
+|---|---|---|---|
+| `extra-300-like` | **1.6 m/s** | **2.1 m/s** | 1.0 — passes either way |
+| `j3-cub-like` | 6.7 m/s | 6.7 m/s | unchanged, damage log identical |
+
+Four days of wreck and water work moved both ends of the 11-06 comparison — the window holds staggered progressive
+wing failure (`e2949511`), the Extra's propeller put on the station it was measured at rather than one guessed off the
+fuselage (`1452c53a`), and a thrown propeller taking its weight with it (`25a7a713`), among others. **Which of them
+did it was NOT bisected**, and that is a deliberate stop: once the merged number came out above the floor there was
+nothing left to re-band, and bisecting a stale measurement buys nothing. **Q151 is closed without touching the
+assertion** — it is the one check that would catch the water zeroing an aeroplane's velocity outright, and loosening
+it on a four-day-old number would have been the wrong trade. What landed instead is the measurement, the mechanism and
+the rejected alternative, written into `WaterBreakupTests` where the next person will read it.
+
+**The merge itself was clean** — `AirframeContact.cs` and `Bridge/AirframeVisual.cs` both auto-merged with no
+conflict, four days after the triage called that *"lucky, not safe"*. Only `AGENT-LOG.md` and `CLAUDE.md` conflicted,
+and only because each lane had appended a section at the top of the same file; both sides are kept in full. Nothing
+re-applied by hand, nothing forced.
+
+**NEEDS YOU — the parity lock cost this lane two catch-ups, and that is worth a look.** `lane/claude-tv-companion`
+moved twice while these two jobs were in flight (`bb3ca7bc` → `5fc2bb85` → `651e5515`), and because the lock treats
+every `lane/*` branch as the iOS lane, a feature lane branched from a tip that has since been overtaken reads as
+"already differs from quest in shared code" and is **BLOCKED outright** — not "leads", which is what a fresh lane
+deserves. Catching the lane up to its own base each time cleared it. Nothing was bypassed and no `--no-verify` was
+used, but a lane that takes more than one shared commit now needs a sync per commit, and on a busy day the base can
+move between them. Ty's own rule applies here: a process rule is a hypothesis, and this one is costing real turns.
+
 ## The 2-33's Vne is 98 mph, the number painted on the aeroplane — Claude, 2026-11-10, lane/claude-vne-cam
 
 <!-- vne-2-33 placard-vs-config unsourced-scaffolding-number asi-face-fifth overspeed-events -->
@@ -898,7 +958,7 @@ Status: lane started from playable 2b47338f. Other obligations (tow/WB/skis/OTA)
 - Additional candidates documented: combined-mesh old faces escape node hides; transparent compass ordering; TEXCOORD0 / transform conventions and differing mip/wrap settings. Per-aircraft face art clones its material, so no obvious cached-material overwrite there. All remain hypotheses pending imported/temporal evidence. Exact capture plan and named untreated faces expanded in pending doc.
 - Fresh foreign-dirt recovery stash `t932 resume2 preserve foreign packaging and Cub backup dirt` created/reapplied and retained. Claude: merge only after this lane's BUILD, matched cockpit/temporal review and same-day Quest parity; no push/upload/install.
 
-## NEEDS YOU — crash camera / occupants' section: defect PROVEN on 0703 code, fixed on lane, NOT merged (Claude, 2026-11-06 08:45 PST, lane/claude-crash-cam-occupants)
+## ~~NEEDS YOU~~ — crash camera / occupants' section: SETTLED. Ty chose merge on 2026-11-10; merged on lane/claude-vne-cam (9997b988), Q151 closed without loosening anything (Claude, 2026-11-06 08:45 PST, lane/claude-crash-cam-occupants)
 <!-- crash-cam-occupants needs-you -->
 Ty t915u (06:34 AKST), t919u ("strays sometimes" on 0703), t920u ("might be wrong ... it was good"). Acceptance stays
 **UNCERTAIN**; nothing approved by me. Queue **Q151**.
@@ -923,10 +983,12 @@ Ty t915u (06:34 AKST), t919u ("strays sometimes" on 0703), t920u ("might be wron
   277/279. Pre-existing on both: BreakupTests.HardDropOnOneMainTearsThatLegOffOnly, HardImpactIsReportedForTheCrashSound.
   **NEW RED:** WaterBreakupTests.AHardWheelsFirstArrivalOnWaterIsNotADeadStop(extra): 0.90 m/s after 1 s vs floor 1.0
   (base 1.45). Identical to 0.335 s, then the left inner wing holds at a borderline load. Smooth decel, worst step 0.97 m/s
-  (bound 2.0). Not loosened: Q151.
+  (bound 2.0). Not loosened: Q151. **CLOSED 2026-11-10 (lane/claude-vne-cam): it does not reproduce.** On base 651e5515
+  the case reads 1.6 m/s without the merge and **2.1 m/s with it** -- the merge moves it the RIGHT way. The floor stayed
+  at 1.0; nothing was loosened. The cause of the 11-06 movement was found and is benign: see the top of this log.
 - **Build:** iOS **2026.1106.0829** ** BUILD SUCCEEDED ** from source **0e6e01e4** (NOINSTALL, not installed, NOUPLOAD).
   bundleVersion bump not committed.
-- **Merge status:** NOT merged into island-nav / Quest. It waits on Q151 (red test) and on Ty, per STEER t920u. Parity
+- **Merge status:** ~~NOT merged~~ **MERGED into lane/claude-vne-cam 2026-11-10 (9997b988)** on Ty's call; onward to the shipping lanes is his. Was waiting on Q151 (red test) and on Ty, per STEER t920u. Parity
   OK at build time (island-nav 2b47338f / Quest 9e675fe6).
 - **Not touched:** bailout rules, crash-autoexit/onfoot, smoke/skis/tow/WB/OTA. Seeking: n/a.
 - CRASH-CAM-OCCUPANTS-T915-PROGRESS
