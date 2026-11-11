@@ -450,24 +450,34 @@ public static class PropModel
     }
 
     /// <summary>
-    /// DOES THE SIM INTEGRATE THIS PROPELLER'S SHAFT, rather than read its rpm off the throttle law? A type with a
-    /// fitted blade always does. A CONSTANT-SPEED type with fitted stops does so the moment its governor stops
-    /// governing — with no oil the blade sits on a stop, which makes it a fixed-pitch propeller, and a fixed-pitch
-    /// propeller's rpm is a torque balance and nothing else. While the governor has oil these types keep the law they
-    /// have always flown, so a normal flight is untouched and only the failure is solved.
+    /// DOES THE SIM INTEGRATE THIS PROPELLER'S SHAFT, rather than read its rpm off the throttle law? Any type whose
+    /// blade geometry is known does: a fitted <see cref="PropulsionConfig.BladePitch75Deg"/>, or a constant-speed
+    /// installation whose stops are fitted (the governed angle is then a STATE between those stops, which
+    /// <c>AircraftEngine.StepShaft</c> drives with the governor's own rpm-error law). A propeller's rpm is where the
+    /// engine's torque and the blade's balance, and nothing else; the throttle law below is what is left for a type
+    /// whose blade nobody has measured.
+    ///
+    /// IT USED TO BE GATED ON THE GOVERNOR HAVING LOST ITS OIL, which solved the three constant-speed types only in
+    /// the failure case and left normal flight on the law. That gate is what made the Pitts' P-FACTOR a coefficient
+    /// instead of a propeller. <see cref="PropulsionConfig.PFactorK"/> — 0.35 for every type in the fleet, an offset
+    /// of the thrust centre proportional to sin α — never reaches the solved disc, where the offset and the in-plane
+    /// force come out of the azimuthal integral instead (<see cref="BladeElement"/>). So the one aeroplane in this
+    /// fleet whose whole character is flown at α the lump sum was never meant for was estimating its own asymmetry,
+    /// and the FIN was taking the bulk <see cref="Parts.SlipYaw"/> moment rather than standing in the slipstream's
+    /// geometric swirl (<see cref="IsSolved"/> decides that too). Ty 2026-11-11: "Fix the pitts p factor".
     ///
     /// ONE PREDICATE, HERE, because two copies of it is exactly how the rig and the sim came apart. The sim asks it
     /// through <c>AircraftEngine.SolvesShaft</c> and the rig asks it through <see cref="SteadyFlownDrive"/>; when only
     /// the sim had it, <see cref="IsSolved"/> came out FALSE in flight and TRUE in the solve for every governing
-    /// constant-speed type, which is not two estimates of one propeller but two different propellers — and that
-    /// predicate also decides whether the FIN stands in the slipstream's swirl or takes the bulk
-    /// <see cref="Parts.SlipYaw"/> moment instead. Measured at the Pitts' own rig point, every residual at 1e-6: a
-    /// rolling moment of −577 N·m and a yawing moment of +512 that the rig had never seen, which rolled it into a
-    /// spiral dive hands off inside ten seconds.
+    /// constant-speed type, which is not two estimates of one propeller but two different propellers. Measured at the
+    /// Pitts' own rig point, every residual at 1e-6: a rolling moment of −577 N·m and a yawing moment of +512 that the
+    /// rig had never seen, which rolled it into a spiral dive hands off inside ten seconds. Closing that by making
+    /// the RIG estimate (2026-11-10) agreed the two at the price of the physics; this closes it the other way, so the
+    /// rig and the sim now agree on the SOLVED propeller for all five fitted-blade types.
     /// </summary>
-    public static bool IntegratesShaft(PropulsionConfig? prop, bool governorHasOil)
+    public static bool IntegratesShaft(PropulsionConfig? prop)
         => prop is { PropDiameterM: > 0, BladePitch75Deg: > 0 }
-           || (prop is { ConstantSpeed: true, PropDiameterM: > 0, FineStopDeg: > 0 } && !governorHasOil);
+           || prop is { ConstantSpeed: true, PropDiameterM: > 0, FineStopDeg: > 0 };
 
     /// <summary>
     /// THE DRIVE THE SIM FLIES at a steady condition, which is what a RIG must be solved against — <see
@@ -478,7 +488,7 @@ public static class PropModel
     /// A steady condition has oil pressure, so the governor is governing.
     /// </summary>
     public static PropDrive SteadyFlownDrive(PropulsionConfig? prop, double throttle01, double vAxialMs, double rho)
-        => IntegratesShaft(prop, governorHasOil: true) ? SteadyDrive(prop, throttle01, vAxialMs, rho) : PropDrive.Running;
+        => IntegratesShaft(prop) ? SteadyDrive(prop, throttle01, vAxialMs, rho) : PropDrive.Running;
 
     /// <summary>
     /// THE AMBIENT STATIC-PRESSURE RATIO δ that goes with this air density, standard day. A naturally aspirated

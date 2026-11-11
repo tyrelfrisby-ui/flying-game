@@ -245,7 +245,7 @@ public sealed partial class Aircraft
     /// <summary>Whether the sim integrates this aeroplane's shaft — <see cref="PropModel.IntegratesShaft"/>, which is
     /// the ONE copy of that predicate, because the rig has to ask the same question and a second copy is how the two
     /// came apart (see <see cref="PropModel.SteadyFlownDrive"/>).</summary>
-    private bool SolvesShaft => PropModel.IntegratesShaft(Config.Propulsion, GovernorHasOil);
+    private bool SolvesShaft => PropModel.IntegratesShaft(Config.Propulsion);
 
     /// <summary>Advance the shaft one step against the torque the engine makes and the torque the blade takes.</summary>
     private void StepShaft(double dt, double airDensity)
@@ -329,7 +329,13 @@ public sealed partial class Aircraft
         // engine". It takes real torque to turn a piston engine over, the power curve's own friction intercept already
         // says how much, and without it a windmilling propeller accelerated until only the blade's own drag stopped it.
         double qEngine;
-        if (EngineRunning) qEngine = PistonEngine.TorqueNm(p.MaxPowerW, p.MaxRpm, _shaftRpm, _throttle01 * PowerScale, pressureRatio);
+        // THE IDLE STOP IS NOT A CLOSED THROTTLE (PistonEngine.IdleBleedThrottle): a solved propeller asks the engine
+        // for torque, and a lever making literally zero power let the shaft decay to friction — the J-3 idled at 89.8
+        // rpm against its published 700. The floor is the throttle that holds IdleRpm on THIS blade, so it costs
+        // nothing above idle and makes IdleRpm mean something again.
+        if (EngineRunning) qEngine = PistonEngine.TorqueNm(p.MaxPowerW, p.MaxRpm, _shaftRpm,
+                                                          System.Math.Max(_throttle01 * PowerScale, IdleBleed(p, g, pressureRatio, airDensity)),
+                                                          pressureRatio);
         else
         {
             // A DEAD ENGINE IS NOT A FREE SHAFT, and it is not a smooth one either. Ty 2026-11-10: "You are not
@@ -347,6 +353,20 @@ public sealed partial class Aircraft
         _shaftRpm = System.Math.Min(omega * 60.0 / (2.0 * System.Math.PI), p.MaxRpm * 1.6);
         // The crank only moves if the shaft does, and it is what the next step's lump is measured from.
         _crankRad = (_crankRad + omega * dt) % (4.0 * System.Math.PI);
+    }
+
+    /// <summary>The idle-stop throttle for the blade as it currently stands, re-solved only when the blade angle or
+    /// the ambient pressure has moved enough to matter (the bisection costs ~28 blade solves, and this is a hot
+    /// path). See <see cref="PistonEngine.IdleBleedThrottle"/>.</summary>
+    private double _idleBleed = -1.0, _idleBleedPitch = double.NaN, _idleBleedDelta = double.NaN;
+    private double IdleBleed(PropulsionConfig p, in BladeElement.Geometry g, double pressureRatio, double airDensity)
+    {
+        if (_idleBleed >= 0.0
+            && System.Math.Abs(g.PitchAt75Deg - _idleBleedPitch) < 0.25
+            && System.Math.Abs(pressureRatio - _idleBleedDelta) < 0.01) return _idleBleed;
+        _idleBleed = PistonEngine.IdleBleedThrottle(g, p.MaxPowerW, p.MaxRpm, p.IdleRpm, pressureRatio, airDensity);
+        _idleBleedPitch = g.PitchAt75Deg; _idleBleedDelta = pressureRatio;
+        return _idleBleed;
     }
 
     /// <summary>Governor response: degrees of blade per second per unit of fractional rpm error, and the rate the
