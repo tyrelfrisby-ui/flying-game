@@ -186,26 +186,32 @@ public sealed partial class Aircraft
     public System.Collections.Generic.IReadOnlyList<double> CylinderSeal => _leak ?? System.Array.Empty<double>();
 
     /// <summary>
-    /// HOW HARD A CYLINDER ON COMPRESSION PUSHES BACK, N·m, out of Ty's restart anchor and nothing else — see
-    /// <see cref="PistonCompression.PeakNmFor"/>, which holds the equation and why its mean is taken at rest.
+    /// HOW HARD A CYLINDER ON COMPRESSION PUSHES BACK, N·m at sea level — the engine's OWN gas load, out of its
+    /// displacement and compression ratio and nothing else. See <see cref="PistonCompression.PeakNmFor"/>, which holds
+    /// the expression and why Ty gave up the restart anchor this used to be solved from: the Pitts and the Extra carry
+    /// the same AEIO-540 and were coming out at 99 and 683 N·m because their airframes have different Vne.
     ///
-    /// His OTHER anchor, that the propeller stops at level-flight stall speed, was a PREDICTION of this model when
-    /// there was only one unknown, and it came out 15 to 20 mph low on every type. It is now the second equation, and
-    /// what it solves is the engine's dry boundary friction (<see cref="PistonEngine.BoundaryExcessFor"/>). The two
-    /// share a budget — see PeakNmFor — so they are solved together, in that order, and neither is free.
-    /// Cached because the solve is a blade-element sweep and the shaft integration asks every step.
+    /// The only thing still solved from an anchor is the engine's dry boundary friction
+    /// (<see cref="PistonEngine.BoundaryExcessFor"/>), from his stall-speed anchor. The restart speed is now a
+    /// measurement of the model (<see cref="PistonCompression.RestartSpeedMs"/>) rather than an input to it.
+    /// Cached because the shaft integration asks every step.
     /// </summary>
     public double CompressionPeakNm
         => double.IsNaN(_compPeakNm) ? _compPeakNm = PistonCompression.PeakNmFor(Config) : _compPeakNm;
 
     /// <summary>The engine's resisting torque at the crank angle it is actually at, N·m (negative): the mean it takes
-    /// to turn it over plus the compression ripple. This is what makes it lump.</summary>
+    /// to turn it over plus the compression ripple. This is what makes it lump.
+    ///
+    /// THE RIPPLE SCALES WITH AMBIENT PRESSURE, because a cylinder compresses the charge it DREW: at 10,000 ft it draws
+    /// 69 % of the sea-level mass and its gas spring is 69 % as stiff. <see cref="CompressionPeakNm"/> is the sea-level
+    /// figure — it is a cached per-type number and cannot know the altitude — so the lapse belongs here. The mean
+    /// carries its own altitude term already, through PistonEngine's power curve.</summary>
     private double CrankingTorqueNm(double rpm, double pressureRatio)
     {
         PropulsionConfig p = Config.Propulsion!;
         double mean = PistonEngine.MotoringTorqueNm(p, rpm, _throttle01, pressureRatio);
         double ripple = PistonCompression.RippleFactor(_crankRad, Config.EngineCylinders, Config.EngineCompressionRatio, _leak);
-        return mean + CompressionPeakNm * ripple;
+        return mean + CompressionPeakNm * System.Math.Clamp(pressureRatio, 0.0, 1.3) * ripple;
     }
 
     /// <summary>A cylinder stopped on compression bleeds past its rings, each at its own rate, which is what lets a

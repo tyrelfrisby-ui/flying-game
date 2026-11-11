@@ -13,10 +13,14 @@ namespace FlyingGame.FlightTests;
 /// "Cranking resistance should be calibrated such that at fine pitch the prop stops right at level flight stall speed
 /// ... To get prop windmilling again should take 10% under vne".
 ///
-/// Both are now CALIBRATIONS, one anchor each: the restart speed solves <see cref="PistonCompression.PeakNmFor"/> and
-/// the stopping speed solves <see cref="PistonEngine.BoundaryExcessFor"/>. So this is where both get measured back out
-/// of the model — the stop against the type's own stall speed (<see cref="PracticeScenario.EstimateVso"/>, which is
-/// the number the rest of the suite is tuned against, not a book figure) and the restart against its own Vne.
+/// ONE OF THOSE IS STILL AN ANCHOR AND THE OTHER IS NOW A RESULT. The STOPPING speed solves each engine's dry boundary
+/// friction (<see cref="PistonEngine.BoundaryExcessFor"/>) against the type's own stall speed —
+/// <see cref="PracticeScenario.EstimateVso"/>, the number the rest of the suite is tuned against rather than a book
+/// figure. The RESTART speed is a measurement: Ty gave that anchor up on 2026-11-10, shown that the same AEIO-540 came
+/// out at 99 N·m in the Pitts and 683 in the Extra purely because their airframes have different Vne — "that settles
+/// it - compute from displacement" — so <see cref="PistonCompression.PeakNmFor"/> is the engine's own gas load now and
+/// whatever speed the propeller breaks away at is a finding. This prints it, with 0.9 Vne beside it as the figure he
+/// expected and NOT as a target.
 ///
 /// SOLVE=1 as well and it bisects each type's dry boundary excess instead of reading it: that is how the authored
 /// propulsion.dryBoundaryExcess values were derived, and how to re-derive one when a type's aerodynamics move.
@@ -58,25 +62,30 @@ public class CompressionStopProbe
             double qRated = -PistonEngine.MotoringTorqueNm(p, p.MaxRpm, 0.0, 1.0, 1.0);
             double peak = PistonCompression.PeakNmFor(c);
 
+            double displacement = PistonCompression.DisplacementM3(c, out bool authored);
             _o.WriteLine($"--- {id}  {c.EngineCylinders} cyl  CR {c.EngineCompressionRatio:0.0}  fine {fine:0.0} deg  " +
-                         $"Vne {vne:0.0} m/s  Vso {vso:0.0} m/s = {vso * 2.23694:0} mph");
+                         $"Vne {vne:0.0} m/s  Vso {vso:0.0} m/s = {vso * 2.23694:0} mph  " +
+                         $"displacement {displacement / PistonCompression.CubicInchM3:0} cu in ({(authored ? "authored" : "ESTIMATED from rated torque at the fleet BMEP")})");
             _o.WriteLine($"    dry excess {excess:0.00} ({1.0 + excess:0.00}x the running friction at rest)  " +
                          $"mean at rest {qRest:0.0} N·m, at rated {qRated:0.0}  worstRipple {worst:0.00}  peak {peak:0.0} N·m" +
-                         $"  (total at rest {qRest + peak * worst:0.0} N·m)");
+                         $"  (ripple {peak * worst / qRest * 100:0}% of the mean at rest; total {qRest + peak * worst:0.0} N·m)");
 
             double start = SweepStartVsoMultiple * vso;
             double stopped = PistonCompression.PropStopSpeedMs(c, start);
             _o.WriteLine($"    STOPS at {(double.IsNaN(stopped) ? "never (still turning at 2 m/s)" : $"{stopped:0.0} m/s = {stopped * 2.23694:0} mph")}" +
-                         $"   against Vso {vso:0.0} m/s = {vso * 2.23694:0} mph   err {(stopped - vso) / vso * 100:+0.0;-0.0}%");
+                         $"   against Vso {vso:0.0} m/s = {vso * 2.23694:0} mph   err {(stopped - vso) / vso * 100:+0.0;-0.0}%   (ANCHOR)");
 
-            // THE RESTART, measured rather than assumed: the slowest speed at which the air on a stopped blade beats the
-            // mean at rest plus the worst of the ripple. PeakNmFor is solved so this lands on 0.9 Vne.
-            var g = new BladeElement.Geometry(p.PropBladeCount, 0.5 * p.PropDiameterM, fine, p.ActivityFactor);
-            double QAir(double v) => -BladeElement.Solve(g, v, 0.0, PistonCompression.AtRestRpm, Atmosphere.SeaLevelDensityKgM3).TorqueNm;
-            double need = qRest + peak * worst, lo = 1.0, hi = 400.0;
-            for (int i = 0; i < 40; i++) { double m = 0.5 * (lo + hi); if (QAir(m) >= need) hi = m; else lo = m; }
-            double restart = 0.5 * (lo + hi);
-            _o.WriteLine($"    RESTARTS at {restart:0.0} m/s = {restart / vne:0.000} Vne   (his anchor: 0.900)");
+            // THE RESTART IS A RESULT NOW, not a target: whatever speed the air can shove this engine's own compression
+            // over from rest. 0.9 Vne is printed because it is what Ty expected, and a type that lands nowhere near it
+            // is a finding for him rather than something to tune back.
+            double restart = PistonCompression.RestartSpeedMs(c);
+            string Say(double v) => double.IsNaN(v) ? "NEVER within 400 m/s"
+                                  : $"{v:0.0} m/s = {v * 2.23694:0} mph = {v / vne:0.00} Vne";
+            _o.WriteLine($"    RESTARTS at {Say(restart)}   (he expected 0.90 Vne; this is a measurement, not an anchor)");
+            // And again on cylinders that have been standing a few seconds: his "occasional flips through a compression
+            // stroke can occur at speeds below" is the leak-down, and this is how far below.
+            _o.WriteLine($"      sealed {Say(restart)};  bled to 1/2 {Say(PistonCompression.RestartSpeedMs(c, 0.5))};" +
+                         $"  bled to 1/5 {Say(PistonCompression.RestartSpeedMs(c, 0.2))}");
 
             if (!solve) continue;
             // THE SOLVE: the one excess that puts the stopping speed on Vso. More friction stops it sooner and sooner

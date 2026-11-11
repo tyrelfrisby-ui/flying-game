@@ -112,7 +112,7 @@ public class OilLossPitchTests
         // solved to meet him, the blade element at 30 m/s now correctly reports no windmilling solution at all. The
         // drag of a windmilling propeller peaks just before it gives up, so one fixed speed that happens to sit on one
         // type's stall and well above another's was never comparing the same condition. Read at each type's own
-        // approach speed all five are inside the band, the Pitts at 0.196 — which is the number the old single point
+        // approach speed all five are inside the band (0.153 to 0.223), the Pitts at 0.198 — the number the old single point
         // gave, now at the speed the band was written for.
         AircraftConfig c = Load(id);
         PropulsionConfig p = c.Propulsion!;
@@ -168,7 +168,7 @@ public class OilLossPitchTests
         // or the mechanism is a fudge wearing a physics coat. A dry contact's friction coefficient is one to two orders
         // of magnitude above a hydrodynamic one, but only the film-dependent part of an engine's loss changes, so the
         // whole-engine motoring torque of a cold unlubricated engine lands a few times the hot running figure. Solved
-        // against Ty's anchor the five come out 2.10 to 4.63 - 3.1x to 5.6x the running friction at rest - and that is
+        // against Ty's anchor the five come out 2.19 to 4.71 - 3.2x to 5.7x the running friction at rest - and that is
         // the check that matters: the number the flying wants and the number the tribology allows are the same number.
         Assert.InRange(PistonEngine.DryBoundaryExcess, 1.0, 5.0);
         foreach (string id in CompressionStopProbe.LiveTypes)
@@ -182,6 +182,69 @@ public class OilLossPitchTests
         Assert.Equal(1.0 + 0.5 * PistonEngine.DryBoundaryExcess,
                      PistonEngine.BoundaryFrictionFactor(PistonEngine.BoundaryRpmScale), 6);
         Assert.InRange(PistonEngine.BoundaryFrictionFactor(4300.0), 1.0, 1.15);
+    }
+
+    [Fact]
+    public void TwoAeroplanesWithTheSameEngineGetTheSameCompressionPeak()
+    {
+        // Ty 2026-11-10, shown that the Pitts and the Extra carry the SAME Lycoming AEIO-540 and were coming out at 99
+        // and 683 N·m purely because their airframes have different Vne — the peak used to be solved from a restart at
+        // 0.9 Vne, and air torque at rest goes as V²: "that settles it - compute from displacement". Two identical
+        // engines cannot resist differently because they are bolted to different aeroplanes, so this is the test that
+        // says they do not.
+        double pitts = PistonCompression.PeakNmFor(Load("pitts-s2b-like"));
+        double extra = PistonCompression.PeakNmFor(Load("extra-300-like"));
+        _o.WriteLine($"AEIO-540: Pitts {pitts:0.0} N·m, Extra {extra:0.0} N·m");
+        // 541.5 against 540 cubic inches authored, which is 0.3 % of displacement and all the difference there is.
+        Assert.Equal(pitts, extra, 1.5);
+        // 326 N·m is about 20 kN on the piston through the 540's 55 mm crank throw: p_amb · V_c · PeakFor(8.7).
+        Assert.InRange(pitts, 300.0, 350.0);
+
+        // An O-360 is an O-540 with two cylinders missing — same 5.125 in bore, same 4.375 in stroke — so one cylinder
+        // on compression pushes back exactly as hard, and all the cylinder count changes is how OFTEN.
+        Assert.Equal(pitts, PistonCompression.PeakNmFor(Load("great-lakes-like")), 1.5);
+        // And a C-85's 47 cubic inch cylinder at 6.3:1 is a far smaller spring.
+        double cub = PistonCompression.PeakNmFor(Load("j3-cub-like"));
+        _o.WriteLine($"C-85: {cub:0.0} N·m");
+        Assert.InRange(cub, 110.0, 140.0);
+        Assert.Equal(cub, PistonCompression.PeakNmFor(Load("j3-cub-floats-like")), 9);   // same engine, other propeller
+
+        // THE LUMPS CAME BACK, which is the point of the change: the worst of the ripple against the mean it takes to
+        // turn the engine over at rest. It was 25 % on the Pitts under the restart solve, which is a sag and not a thud.
+        foreach (string id in CompressionStopProbe.LiveTypes)
+        {
+            AircraftConfig c = Load(id);
+            double mean = -PistonEngine.MotoringTorqueNm(c.Propulsion!, PistonCompression.AtRestRpm, 0.0, 1.0, 1.0);
+            double ripple = PistonCompression.PeakNmFor(c)
+                            * PistonCompression.WorstRipple(c.EngineCylinders, c.EngineCompressionRatio);
+            _o.WriteLine($"{id}: ripple {ripple:0} N·m against a mean of {mean:0} = {ripple / mean * 100:0} %");
+            Assert.True(ripple > 0.6 * mean, $"{id}: {ripple / mean * 100:0} % is a sag, not a lump");
+        }
+    }
+
+    [Fact]
+    public void TheRestartSpeedIsNowAMeasurementAndTheLeakDownIsWhatMakesItReachable()
+    {
+        // Ty gave up his "to get prop windmilling again should take 10% under vne" so that the compression peak could
+        // be the engine's own gas load. So this does not assert 0.9 Vne — it measures and prints.
+        //
+        // AND WHAT IT MEASURES IS THAT HE WAS RIGHT ABOUT THE SPEED AND WRONG ABOUT WHICH PROPELLER. Freshly stopped,
+        // every cylinder sealed, only the Extra breaks away below Vne (0.74) — the Pitts wants 1.09, the Cubs 1.18 and
+        // 1.22, the Great Lakes 1.43, which is to say a sealed engine does not windmill-start, you use the starter, and
+        // that is what a 326 N·m gas spring costs. But cylinders bleed, and bled to a fifth the same four land at
+        // 0.87, 0.81, 0.86 and 0.93 Vne — HIS NUMBER, out of the engine's displacement instead of imposed on it. His
+        // "occasional flips through a compression stroke can occur at speeds below" is the whole mechanism.
+        foreach (string id in CompressionStopProbe.LiveTypes)
+        {
+            AircraftConfig c = Load(id);
+            double vne = c.Limits!.VneMs;
+            double sealedUp = PistonCompression.RestartSpeedMs(c), bled = PistonCompression.RestartSpeedMs(c, 0.2);
+            _o.WriteLine($"{id}: sealed {sealedUp:0.0} m/s = {sealedUp / vne:0.00} Vne;  bled to a fifth {bled:0.0} m/s " +
+                         $"= {bled / vne:0.00} Vne");
+            Assert.True(bled < sealedUp, "a bled cylinder is easier to shove over — that is what leak-down is for");
+            Assert.InRange(sealedUp / vne, 0.6, 1.6);    // a finding, not a target: 0.74 on the Extra to 1.43 on the GL
+            Assert.True(bled / vne < 1.0, $"{id}: a bled engine has to come back in a dive ({bled / vne:0.00} Vne)");
+        }
     }
 
     [Fact]
