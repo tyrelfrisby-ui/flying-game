@@ -44,6 +44,12 @@ namespace FlyingGame.Bridge.Net
         public bool HasPose => _hasPose;
         /// <summary>How long ago this pilot's flight began, s, as of now; null from a build that does not say.</summary>
         public float? FlightAgeS => _ageS.HasValue ? _ageS.Value + (Time.realtimeSinceStartup - _ageT) : (float?)null;
+
+        // The wake a remote pilot sheds, from his poses alone (docs/WAKE-VORTEX.md): no sim runs for him here.
+        private FlyingGame.Core.Aero.Wake.WakeSource _wake;
+        private double _massKg = 500.0;
+        private Vector3 _lastWakePos;
+        private bool _hadWakePos;
         private string _builtAc;
 
         private static readonly Dictionary<string, AircraftConfig> Configs = new();
@@ -112,6 +118,10 @@ namespace FlyingGame.Bridge.Net
             AircraftConfig cfg = LoadConfig(AircraftId) ?? LoadConfig("glider-2-33-like");
             _wingParts.Clear();
             if (cfg == null) return;
+            // A peer is only a pose: its wake comes from the lift its motion implies (docs/WAKE-VORTEX.md).
+            _wake?.Detach();
+            _massKg = cfg.Mass.MassKg;
+            _wake = global::Aero.Wake.WakeField.CreatePoseSource($"peer-{Id}", FlyingGame.Core.Aero.AeroModel.WingSpan(cfg));
             try
             {
                 _halfSpan = Mathf.Max(2f, _builder.Build(transform, cfg));
@@ -233,6 +243,20 @@ namespace FlyingGame.Bridge.Net
 
             transform.SetPositionAndRotation(pos, rot);
             _builder.SetDeflections(surf.Ail, surf.Ele, surf.Rud, surf.Spoil);
+            if (Time.deltaTime > 0f && _wake != null)
+            {
+                Vector3 vel = (pos - _lastWakePos) / Time.deltaTime;
+                // A jump (respawn, a reset, the first pose) is not flight: start a fresh wake rather than read a
+                // thousand-g "lift" off it.
+                bool jump = !_hadWakePos || vel.magnitude > 150f;
+                if ((jump || !_wake.Attached) && global::Aero.Wake.WakeField.Enabled)
+                {
+                    if (_wake.Attached) _wake.Detach();
+                    _wake = global::Aero.Wake.WakeField.CreatePoseSource($"peer-{Id}", _wake.SpanM) ?? _wake;
+                }
+                if (!jump) global::Aero.Wake.WakeField.ShedPose(_wake, Time.deltaTime, pos, rot, vel, _massKg);
+            }
+            _lastWakePos = pos; _hadWakePos = true;
 
             // Name tag: upright, facing the camera, roughly constant on-screen size.
             Camera cam = Camera.main;
@@ -247,6 +271,7 @@ namespace FlyingGame.Bridge.Net
 
         private void OnDestroy()
         {
+            _wake?.Detach();
             _builder.Clear();
         }
     }

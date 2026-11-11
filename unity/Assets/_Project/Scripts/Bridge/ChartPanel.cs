@@ -491,7 +491,10 @@ namespace FlyingGame.Bridge
                 }
                 Circle(c, Mathf.Max(6f, 900f / _mPerPx), col, 2f);
                 int elevFt = Mathf.RoundToInt((float)(a.ElevationM * Terps.FtPerM));
-                Tag(c, $"{a.Name.ToUpper()}  {elevFt}", Color.black, new Color(1f, 1f, 1f, 0.82f),
+                // The field's automated weather station and its frequency (docs/weather-system.md "Airport weather stations").
+                FlyingGame.Core.Weather.WeatherStation wx = FlyingGame.Core.Weather.WeatherStations.ById(a.Name);
+                string awos = wx != null ? $"\n{(wx.Kind == FlyingGame.Core.Weather.StationKind.Asos ? "ASOS" : "AWOS")} {wx.FreqMhz:0.000}" : "";
+                Tag(c, $"{a.Name.ToUpper()}  {elevFt}{awos}", Color.black, new Color(1f, 1f, 1f, 0.82f),
                     Mathf.Max(8f, 900f / _mPerPx) + 4f, -_fs * 0.6f);
             }
         }

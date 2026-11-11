@@ -531,6 +531,41 @@ that is the right place to spend it, and the **oldest** marks go first.
     because the automatic exit has no `ClimbOut`. Kept the shipping body and the lane's signature, and fixed the
     caller. Taking the lane's side would have deleted the folded-wing door check — the exact thing Ty reported.
   Tests: `VrEgress|UnderwaterView|CockpitGrab|ModelRig|Egress|Jumper` — **60 passed, 0 failed.**
+- **`lane/claude-wake-vortex`** (`070d2405`) — MERGED, the largest of them, and it brings `lane/codex-clouds` with it
+  (merged into it at `3fd7e81e`, its `WakeField` stub replaced by the real one). A physical trailing-vortex model with
+  a `WakeField` API fed by the player, the tug, the drones, the replay and LAN peers; cumulus banks, wake-reactive
+  wispy sheets, low cloud patches, wake-stirred ground fog; and island weather with condition-driven valley fog and
+  16 airport ASOS/AWOS stations issuing real METARs on unique 25 kHz channels.
+  **The note the windsock lane left for this merge is cashed in:** `WindsockPart.AirAt` is now
+  `Atmosphere.WindAtPosition(p) + VortexWake.SampleVelocity(p)`, so a sock moves when an aeroplane goes past.
+  `SampleVelocity` returns zero immediately when nothing is shedding, so a quiet airfield costs nothing.
+  **Four source conflicts, all collisions with THIS WEEK's work, every one combined rather than chosen:**
+  1. `AeroModel.Compute`'s parameter list — the prop work added `propellerIsSolved` and `swirlProfile` in exactly the
+     slot the lane added `stripAirBody` (the per-strip wake). All three kept, and the `Aircraft.cs` call site passes
+     all three. Choosing either side drops a whole feature's input.
+  2. `Atmosphere.AdvanceTime` — the shipping lane changed it to `AdvanceTime(this, dt)` (*"only the clock's owner
+     moves it"*) while the lane still calls `AdvanceTime(dt)` and adds `ShedWake(...)` beside it. Kept the shipping
+     call, added the shed.
+  3. `RemoteAircraft.cs` — both sides added private fields at the same spot (ours the flight-age pair, theirs the
+     `WakeSource`). Both kept.
+  4. `BuildScript`'s always-included shader list — **unioned by script, not by eye**: ours 30 names, theirs 33, and
+     the four theirs adds are `Hidden/FlyingGame/WakeFieldBake`, `FlyingGame/CloudWispFar`, `FlyingGame/GroundFog`
+     and `Hidden/FlyingGame/GroundFogAdvect`. Taking theirs whole would have dropped
+     `Hidden/FlyingGame/PilotUnderwater` out of the build — a shader that would then go pink on device, in the very
+     feature the merge before this one was about.
+  **KNOWN OPEN ITEM, carried forward untouched as briefed: a mid-band sky seam** (`490c3190`, *"CloudWakeRender: hide
+  glass too and log what is hidden (none found); mid-band seam still open"*). Not investigated here.
+  Still Ty's, from the lane's own NEEDS YOU: which real-weather source should bias the island (Q106), where the
+  island notionally is — lat/lon and time zone, placeholder 45 N 116 W UTC-8 (Q107), and whether the island weather
+  should choose the default wind and temperature, since the landing page's 5 m/s mixes radiation fog out everywhere
+  (Q108). W1 is unwired: the flight model still reads the menu's fixed ISA deviation and the field's configured QNH,
+  so a station's temperature and altimeter can differ from the aeroplane's air.
+  Tests: `WakeField|Vortex|Windsock|AirportLighting|Wake` — **70 passed, 6 failed, and the six are the known
+  `PittsSpinWakeTests`**, measured identical on the pristine base: `UprightFullPowerOutSpinFlatStaysWithinTheCap
+  AndRecovers`, `UprightFullPowerWithoutAileronIsJustShyOfFlat`, `BiplaneWingsAreClearOfEachOthersWakeOutsideTheFlat`,
+  `FlatTheWindwardWingShadesTheOther`, `IdleSpinsAreUnchanged`, `UprightPartPowerWithoutAileronIsANormalSpinAnd
+  Recovers`. **That is SIX, not the five on the session's baseline list** — base 6 failed / 4 passed of 10, branch
+  the same six. None is this lane's.
 
 ## ASTC 4x4: the textures come out of the GLBs, and the whole fleet with every livery is 0.95 GB — Claude, 2026-11-10, lane/claude-textures
 
@@ -3084,6 +3119,125 @@ Lane lane/claude-crash-camera. Ty (2026-11-05 06:01 PST, iPhone 17 Pro, build 20
     failures are not this lane's), check-parity --strict PARITY OK. Suite subset: 5 failures that read no GL file
     (StreamingAssets x2, NoRed233 Resources regex vs the Grob 103 files, RigTests.EveryConfigIsInTheTable, glider
     air-brake NaN).
+- **ISLAND WEATHER: FOG SITS IN VALLEYS BY CONDITION, ONE SEEDED STATE, AIRPORT ASOS/AWOS STATIONS WITH METARs
+  (Claude, lane A, 2026-11-05; Ty 08:41 + 08:42; lane/claude-wake-vortex, NOT merged, NOT installed. Nothing approved
+  by me.)** Doc: `docs/weather-system.md`. Code: `src/FlyingGame.Core/Weather/`. Questions Q106-Q108 in the queue.
+  - **TWO QUESTIONS FOR YOU (Q106, Q107):** (1) **Which real-weather source** should bias the island: Open-Meteo (free,
+    no key, hourly T/Td/wind/pressure/cloud), NOAA aviationweather.gov METARs (no key, US stations only), or another?
+    Only an offline stub exists (`OfflineWeatherProvider`); no network code was written. (2) **Where is the island
+    notionally?** Give a lat/lon and time zone: they set the sun, the season, the METAR Z time and the default
+    real-weather place. The placeholder is 45 N 116 W, UTC-8 (Idaho-ish, to match Payette and Frank Church). Or should
+    the host's own location be used for the whole session?
+  - **Q108: the default session has almost no fog now.** Fog is decided by the conditions. The landing page's default
+    wind of 5 m/s mixes out radiation fog everywhere, so a default session shows fog only where advection fog forms. A
+    calm, humid morning shows valley fog. Should the island weather choose the default wind and temperature (and the
+    flight model read its temperature/QNH, doc W1), or should the fixed menu wind stay the default?
+  - **Fog (task a).** Fog can lie at 30 sites: every grass strip, every lake, and 7 valley floors found from the
+    terrain. The weather decides which carry fog, re-read every 5 s by GroundFog. Radiation fog needs a spread under
+    2.5 K, wind under ~4.5 m/s, a clear sky and the night's cooling. A calm, clear night pools up to 6 K of cold air in
+    a valley 220 m deep, and ridges drain it (up to +3 K). Lakes moisten the air over them. The sun burns the fog off
+    over 2.5 h at a 60° noon sun, 4.5 h in November at 45 N. Advection fog forms where the dewpoint is at or above the
+    water's temperature, with a breeze. Measured on seed 1103 at 07:00 (calm, clear, humid): fog 1.0 in the Frank
+    Church canyon strips and all 7 valley pools, 0.0 on the 1500 m plateau strips and the high cirque lakes. The valleys
+    are at 0.85 by 09:00 and clear by 10:00. A 6 m/s wind gives none. CloudWakeRender forces full fog, so its renders
+    still show the wake.
+  - **One island-wide state (task b).** Built from a seed and a date only. Six-hourly hashed air-mass draws, smoothly
+    blended and quantised; a diurnal temperature curve; dewpoint; an LCL cloud base; rain; visibility. When a regional
+    field exists, the wind comes from the air the aeroplane flies, so a station reports the wind the aeroplane will
+    meet. The real-weather bias moves each quantity only 60 % of the way to the observation, clamped (±12 hPa, ±8 K,
+    ±6 m/s, ±4 K spread), rate-limited hour to hour, and always coherent (Td ≤ T). Multiplayer: the host sends the seed,
+    including any bias, and clients never fetch, so one player's local weather cannot override the island's. No secrets
+    are logged.
+  - **NOT YET WIRED (W1):** the flight model still reads the menu's fixed ISA deviation and the field's configured QNH,
+    so a station's temperature and altimeter can differ from the aeroplane's air (by the diurnal swing, up to ±5 K, and
+    by the QNH draw). The wind already matches. Closing that changes density altitude in lessons and challenges, so it
+    waits for you (Q108).
+  - **Stations (08:42 addendum).** One per airport, 16: ASOS at the 8 airports the chart draws, AWOS-3 at the other 8.
+    Each has a unique 25 kHz channel in 118.000-135.975 MHz, clear of guard, ground, FSS, CTAF/UNICOM and 123.45
+    (KMYL 123.125, PHDH 120.900). The chart's airport tag now shows "ASOS 123.125". A report is sampled from the
+    island weather at the station's point and formatted to FMH-1 rules: wind with gusts, the ASOS visibility steps,
+    -RA/RA/+RA/SN/BR/FG, FEW/SCT/BKN/OVC/VV/CLR, T/Td, the altimeter in inHg (rounded down), the Z time. It comes as a raw
+    METAR, e.g. `METAR KMYL 051500Z AUTO 18007KT 10SM FEW021 00/M05 A2999 RMK AO2`, and as AWOS voice text. Tuning a
+    COM to the frequency and playing the voice is NOT built (doc S2). Convective weather (storms, rain shafts, virga,
+    microbursts in the shared flow field, gust fronts) is designed as phases C0-C7 and not implemented.
+  - **Tests:** EditMode `IslandWeatherTests` (14 tests: valley/ridge, spread threshold, wind/sun burn-off, advection,
+    determinism, bias clamps/offline, frequency uniqueness, report consistency for 4 seeds × 16 stations × 3 times,
+    determinism, METAR/voice formatting): 14/14 PASSED in a Unity EditMode batch (11:40). The same run had 29/30
+    overall: **WakeFieldTests.LevelPairPushesTheAirDownBetweenItsLinesInUnity FAILED** (vorticity 4.32 m off the line 0.42,
+    test wants > 1). That is the earlier wake commit's own EditMode test, apparently never run in EditMode before; it
+    reads nothing this lane changed. It is open, not fixed. xUnit CloudSitesTests 5/5 (updated literals: 30 sites,
+    7 valleys). Unrelated and failing before this lane: NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs (Q104),
+    StreamingAssetsTests.EveryGeneratedPathIsIgnored / NothingGeneratedIsCommitted (stray StreamingAssets files on the
+    base).
+  - **Build:** iOS 2026.1105.1234 `** BUILD SUCCEEDED **` (deploy.sh NOINSTALL, 0 error CS; bundleVersion bump not
+    committed). Quest not built (no Quest-only code; check-parity: PARITY OK). Not installed, not merged.
+
+- **LOW CLOUD PATCHES + GROUND FOG THAT THE WAKE STIRS + MID-BAND SEAM FIXED: LOOK AT THE RENDERS (Claude, lane A,
+  2026-11-05 10:40; Ty 08:39 addendum; lane/claude-wake-vortex, NOT merged, NOT installed. Nothing approved by me.)**
+  Renders: `~/Developer/agent-lanes/renders/clouds-wake/`. Ty's three: (a) `low_patch_puffy.png` (+ `low_patch_wisp.png`),
+  (b) `fog_strip_wake_swirl_along_track.png` / `_during.png` / `_top.png`, (c) `fog_lake_after_pass_along_track.png` /
+  `_top.png`. Control: `fog_strip_zero_lift_zero_thrust_*.png` (same pass, no lift and no thrust: fog untouched).
+  Docs: docs/CLOUDS-WAKE-VISUALS.md "Low patches and ground fog". Question Q103 in the queue.
+  - **Fog (GroundFog).** Thin see-through fog over 4 of 13 grass/turf strips (AP4, AP5, AP14, Thomas Creek) and 5 of 10
+    lakes (Payette, Powell, Bighorn Larch/Cirque/Crown), seeded, the same on every device. The fog is a tracer in the real
+    air: 8 slices, 384 m patch at 1.5 m that follows the eye, MacCormack-advected in 3-D through WakeField (vortex lines
+    from the actual lift, slipstream from the actual thrust via Aircraft.TailSlipstream), re-forming over 150 s. No
+    vortex is drawn: a C172 pass at 5 m cuts a trench under its track and lifts the fog beside it, which is what the
+    vortex pair (sinking to ~3.5 m, spreading to ±13.6 m in 15 s, measured) does to the air. **Honest note:** at C172 size
+    it reads as a clean trench with raised, sunlit rims, not as visible corkscrew curls; the curls are under 2 slices
+    (2 m) and get smoothed. CPU and GPU wake agree on a cross-section (report).
+  - **Low patches (CloudSites.Low).** 13 small puffy heaps and 13 wake-reactive wisp patches, 150-600 m above the highest
+    ground under each, additive to the 36 banks and three layers. A wisp patch takes the reactive sheet when the eye is at it.
+  - **Mid-band seam: FIXED.** It was the SKY, not the playground: SunsetSky.cginc's painted cumulus used atan2, whose
+    branch cut runs down the world -x axis and cut every painted cloud along one line. Cross-faded across the cut now
+    (shared by the water's reflection too). clouds_mid_band_1250m.png is clean; diagnostics in seam-debug/.
+  - **Codex 08:39 (lane/codex-clouds, uncommitted there) ported and committed here** with attribution: less spherical
+    lobes (flattened ragged base, shoulders, per-lobe erosion; I softened the base cut, which drew a line under every
+    lobe), wisp near/far alpha compensation (made aware of the low patches' mask), wisp height fade/tint/opacity params,
+    weaker vorticity clearing. Not ported: its four fog/low-wisp material profiles (they drive a 3-sheet fog with no
+    vertical transport; the volume replaces it). Codex's worktree is left as it was.
+  - **Builds:** iOS 2026.1105.1020 `** BUILD SUCCEEDED **` (NOINSTALL); Quest 2026.1105.1028 build SUCCEEDED
+    (--build-only, 0 error CS). check-parity: PARITY OK. CloudSitesTests 4/4 + WakeVortexTests 11/11.
+  - **FPS NOT MEASURED ON A DEVICE.** Measuring needs an install, and installs wait for your render approval. Mac editor
+    proxy only (1600x1000, fog filling the lower half): 2.97 ms without fog/low patches, 5.28 with fog, 5.12 with both;
+    fog step 0.07 ms CPU. So the fog costs ~2 ms on an M-series GPU at that size, the main risk on the Quest (12 march
+    steps per covered pixel, both eyes). If you approve, I will install and record Quest 90 Hz / iPhone 60 Hz numbers;
+    the step count is the knob if it misses.
+
+- **CLOUD PLAYGROUND + WAKE VORTICES: LOOK AT THE RENDERS (Claude, lane A, 2026-11-05; lane/claude-wake-vortex, NOT merged,
+  NOT built for a device, NOT installed. Nothing approved by me.)** Spec: prompts/ty-clouds-wake-spec-1105.md. Docs:
+  `docs/WAKE-VORTEX.md` (physics), `docs/CLOUDS-WAKE-VISUALS.md` (Codex's visuals + my integration section).
+  Renders and plots: `~/Developer/agent-lanes/renders/clouds-wake/` (clouds_*.png, wisps_*.png, wake_wisps_*.png, wake_*.png).
+  - **Wake physics (emergent).** Every aeroplane (player, tug, combat drones, recorded ships, network peers) sheds two
+    trailing lines with Γ = L/(ρVb₀) from its ACTUAL lift: no lift, no vortex; 2 g, twice the vortex. The lines sink on
+    each other's induction, drift with the wind, spread over the ground, and die sooner in turbulence. Nothing applies a
+    "wake force": a follower's own strips meet the moved air. WakeVortexTests 11/11 (hand literals): follower on a
+    line rolls in the vortex's sense at 0.094 rad/s vs strip theory 0.091; descent 0.387 vs Γ₀/(2πb₀) 0.392; 2-33
+    61 m behind a Pawnee gets ±80 °/s² of roll on either line (full aileron 106) and quiet air a few metres above:
+    boxing the wake emerges. Plots: wake_tow_box.png, wake_follower_roll.png, wake_decay_descent.png.
+  - **Wisps react to it.** wake_wisps_hard_turn_60deg_n2.png: a 2 g turn cuts a ring through the 650 m layer;
+    wake_wisps_turn_30deg_n1.15.png: a fainter arc; wake_wisps_zero_lift_pass_n0.png: the same pass with no lift
+    leaves nothing. *_wake_sheet.png is the field the wisps read (R horizontal, G vertical, B vorticity).
+  - **Codex's clouds, integrated.** Committed from lane/codex-clouds (ca9c48f7), merged here. Banks re-placed round this
+    island (it is ~30 km, 2.4 km high: the original rings sat inside the mountains): 2050 m at 6 km, 1100 m at 11 km,
+    450 m at 16.5 km, lifted clear of the ground; layers made patchy and visible from afar; drawn after the water (the
+    sea was painting over them). Unity batch: 0 error CS. check-parity --strict at 07:55: FAIL on the playable lanes (island-nav not yet merged into quest-islandnav by another lane; not this lane's change, which touches neither).
+  - **Known faults in the renders:** (1) a rectangular seam in clouds_mid_band_1250m.png cuts a bank and the layer
+    (cause not found: not the training boxes, not glass (none in the scene), not the wisp patch; it cuts the far sheet, a bank and the sea along one screen rectangle); (2) the lobes still read somewhat as soft spheres
+    close up; (3) wisp layers are a flat sheet: seen edge-on they vanish.
+  - **Not measured:** Quest 90 Hz / iPhone 60 Hz with clouds (fill rate is the risk), the wake's CPU on device (bench
+    worst case +50 ms per sim-second for a follower in four wakes). Questions Q073-Q075 in the queue.
+- **CLOUD PLAYGROUND — lane/codex-clouds, 2026-11-05, UNCOMMITTED; no gate approved.** Lane A review/integration needed:
+  `Assets/Scripts/Clouds/CloudPlayground.cs` + three serialized materials, guarded zero-wake stub, three shared shaders.
+  27 billowing horseshoe banks at three altitude bands, real gaps/canyons, distance detail fade/culling; local thin
+  density sheets backtrace wake velocity at 15 Hz (one 256² tile per update), curl/clear with the real field when wired.
+  Handoff, texture packing proposal, geometry/memory budgets and limitations: `docs/CLOUDS-WAKE-VISUALS.md`.
+  Strict parity: OK (playable tips); diff whitespace: clean. No Unity/xcodebuild: process listing denied, idle slot
+  cannot be established. Compilation/render/device GPU checks remain OPEN; 90 Hz Quest / 60 Hz iPhone NOT measured.
+  No renders, builds, installs, commits or merges; Glass Overlay untouched. Lane A must wire the materials/camera,
+  replace the stub, agree RGBA field packing, render to the requested external render folder and obtain Ty's render
+  approval before playable merge/install. All visual code is shared across iOS/Mac/Quest.
+
 - **WATER RUDDER, RETRACTED AND DEPLOYED, IN THE FLOAT'S WAKE AND IN A CURRENT (Claude, 2026-11-05 03:50; Ty 2026-11-04
   20:28, merge pre-approved). lane/claude-wheel-hydroplane 53935b58 → island-nav 6124b5a3 → Quest 17126885. iOS
   2026.1105.0335 ** BUILD SUCCEEDED **, 0 error CS, installed on the EFB iPad and the iPad mini (the iPhone was not

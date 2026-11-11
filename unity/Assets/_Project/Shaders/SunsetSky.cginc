@@ -21,17 +21,9 @@ float3 SunsetEnvironment(float3 ray) {
  return fill+float3(.27,.16,.06)*sun;
 }
 // Analytic built-in atmosphere; shared sky and water directions keep the horizon coherent.
-float3 DaySkyRough(float3 ray, float roughness) {
- ray=normalize(ray);
- float y=saturate(ray.y);
- float3 sky=lerp(float3(.48,.65,.80),float3(.075,.26,.52),pow(y,.42));
- // Elevated downward views see below the true horizon beyond the finite world.
- // Continue into a softly graded haze hemisphere rather than clamping to blue.
- sky=lerp(sky,float3(.34,.46,.58),smoothstep(0,.70,-ray.y)*.75);
- float3 sunDir=normalize(float3(.4,.8,-.4));
- float sun=saturate(dot(ray,sunDir));
- sky+=float3(.14,.12,.075)*pow(sun,32);
- sky=lerp(sky,float3(1,.98,.88),smoothstep(.99994,.99998,sun));
+// The painted cumulus deck along one azimuth parameterisation (lane A, 2026-11-05: split out so the sky can be
+// evaluated on both sides of atan2's branch cut, see DaySkyRough).
+float4 DaySkyClouds(float3 ray, float y, float azimuth, float footprint, float roughness) {
  // Separate rounded cumulus lobes. Value-noise thresholding alone made
  // enormous connected, melted patches; cellular envelopes keep clear gaps.
  // Project onto a horizontal deck: distant banks shrink toward the horizon.
@@ -40,9 +32,10 @@ float3 DaySkyRough(float3 ray, float roughness) {
  // Spherical elevation contributes most of the envelope: a horizontal
  // deck alone foreshortened every turret into thin horizon streaks.
  float2 deck=ray.xz/max(.012,y)*.45;
- float2 volume=float2(atan2(ray.z,ray.x)*2.6,y*4.4);
+ float2 volume=float2(azimuth*2.6,y*4.4);
  float2 p=lerp(deck,volume,.60);
- float pixelWidth=max(.06,length(fwidth(p))*.8) + roughness*.42;
+ // footprint = length(fwidth(p)), taken by the caller outside any branch and without the cut's jump.
+ float pixelWidth=max(.06,footprint*.8) + roughness*.42;
  // Four nearest cell centres suffice: maximum lobe reach plus jitter < 1 cell.
  float2 cell=floor(p-.5);
  float field=-2;
@@ -76,12 +69,41 @@ float3 DaySkyRough(float3 ray, float roughness) {
  if (_DayAtmosphere.z > .5) erosion+=(skyNoise(p*23.1+7.1)-.5)*.35;
  field+=erosion*.85;
  // Dissolve unresolved horizon cells rather than showing rows of tiny stamps.
- float resolved=1-smoothstep(.12,.25,length(fwidth(p)));
+ float resolved=1-smoothstep(.12,.25,footprint);
  float cloud=smoothstep(-.18-pixelWidth,.22+pixelWidth,field)
      *smoothstep(.035,.18,y)*resolved;
  float light=saturate(crownLight+erosion*.30);
  float3 cloudColor=lerp(float3(.38,.48,.62),float3(1,.99,.95),light);
+ return float4(cloudColor,cloud);
 
+}
+float3 DaySkyRough(float3 ray, float roughness) {
+ ray=normalize(ray);
+ float y=saturate(ray.y);
+ float3 sky=lerp(float3(.48,.65,.80),float3(.075,.26,.52),pow(y,.42));
+ // Elevated downward views see below the true horizon beyond the finite world.
+ // Continue into a softly graded haze hemisphere rather than clamping to blue.
+ sky=lerp(sky,float3(.34,.46,.58),smoothstep(0,.70,-ray.y)*.75);
+ float3 sunDir=normalize(float3(.4,.8,-.4));
+ float sun=saturate(dot(ray,sunDir));
+ sky+=float3(.14,.12,.075)*pow(sun,32);
+ sky=lerp(sky,float3(1,.98,.88),smoothstep(.99994,.99998,sun));
+ // atan2's branch cut (straight down the -x axis) cut every painted cloud, and the whole deck, along one vertical line
+ // in the sky: the "rectangular seam" in clouds_mid_band_1250m (lane A, 2026-11-05). Away from -x one parameterisation;
+ // within 17 degrees of it, cross-fade to the same deck parameterised with its cut along +x instead.
+ float az=atan2(ray.z,ray.x), az2=atan2(-ray.z,-ray.x);
+ // The pixel footprint in the deck's coordinates: whichever azimuth is continuous here gives its derivative.
+ float2 deckFw=fwidth(ray.xz/max(.012,y)*.45);
+ float2 volFw=float2(min(fwidth(az),fwidth(az2))*2.6,fwidth(y)*4.4);
+ float footprint=length(deckFw*.4+volFw*.6);
+ float4 cl=DaySkyClouds(ray,y,az,footprint,roughness);
+ float nearCut=smoothstep(2.85,3.08,abs(az));
+ if (nearCut>0)
+ {
+     float4 c2=DaySkyClouds(ray,y,az2,footprint,roughness);
+     cl=lerp(cl,c2,nearCut);
+ }
+ float3 cloudColor=cl.rgb; float cloud=cl.a;
  // Unresolved capillary slopes spread cloud radiance and lower its contrast.
  return lerp(sky,cloudColor,cloud*.94*(1-roughness*.88));
 }
