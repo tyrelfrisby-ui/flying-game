@@ -1678,9 +1678,10 @@
     }
   ],
   "limits": {
-    "vneMs": 60,
+    "vneMs": 43.81,
     "gMax": 4.67,
-    "gMin": -2.33
+    "gMin": -2.33,
+    "_vneSource": "98 mph IAS = 43.81 m/s (98 x 0.44704). FAA AFM for the SGS 2-33A at 1040 lb gross, which is also what this aeroplane's own painted FLIGHT LIMITS placard and its panel ASI red line read: NEVER EXCEED 98 MPH (tools/own_models/make_sgs_dials.py draws both -- the red tick at asi(98) and the placard text). TY'S DECISION 2026-11-10, asked which of the two numbers was wrong: \"98 mph - the placard is right\", on the reasoning he accepted -- the AFM figure and the painted placard agree with each other, and the config number had no source at all. SUPERSEDES vneMs 60 (134 mph), which entered in a September 2026 scaffolding commit with no citation and was never a 2-33 figure; it put the exterior flat dial's red line 36 mph above the red line painted on the same aeroplane's panel. WHAT MOVED WITH IT: the red line and scale that AsiDial derives (now the painted face declared below, so the two dials are one instrument), and the OverspeedBegan/Ended events in Sim/Replay/FlightEventLog, which read Limits.VneAt. WHAT DID NOT MOVE: LimitsConfig.LimitAt's VA-to-VNE load-factor ramp is inert on this type because it declares no vaMs (gMax/gMin hold to VNE), and the 1.1 x Vne dive speed that BladeElement.GovernorStops derives propeller pitch stops from cannot reach a glider -- propulsion is null, so there is no pitch stop, no windmill-restart speed (AircraftEngine's 0.9 x Vne) and no cached derived number that was calibrated against the old 134 mph. STILL OPEN, DELIBERATELY NOT CHANGED HERE: the same placard reads MANEUVERING 65 MPH, MAX AERO TOW 98 MPH and MAX WINCH TOW 69 MPH. vaMs is left unset -- setting it without the AFM's load factors AT Vne would only make LimitAt interpolate between a number and itself, and what Va costs the pilot is Ty's call, not ours."
   },
   "stallDynamics": {
     "stripSepTau": 0.15,
@@ -1740,7 +1741,15 @@
     "airspeed": {
       "units": "mph",
       "_unitsSource": "TY'S EXPLICIT CALL. The 2-33's own panel ASI and its FLIGHT LIMITS placards are in mph (tools/own_models/make_sgs_dials.py, FAA AFM at 1040 lb: NEVER EXCEED 98 MPH).",
-      "_unitsRule": "Ty 2026-11-10, asked what rule the other 27 types follow after settling five by hand, chose \"by era and category\": \"Vintage, fabric and experimental types read mph; anything certified modern or turbine reads knots.\" FlyingGame.Core.Instruments.AsiUnits carries the rule and the exceptions."
+      "_unitsRule": "Ty 2026-11-10, asked what rule the other 27 types follow after settling five by hand, chose \"by era and category\": \"Vintage, fabric and experimental types read mph; anything certified modern or turbine reads knots.\" FlyingGame.Core.Instruments.AsiUnits carries the rule and the exceptions.",
+      "scaleMin": 20,
+      "scaleMax": 160,
+      "redline": 98,
+      "arcs": {
+        "green": [38, 65],
+        "yellow": [65, 98]
+      },
+      "_faceSource": "THE FACE THIS AEROPLANE ALREADY WEARS, transcribed off the artwork rather than invented: tools/own_models/make_sgs_dials.py draws the 2-33's panel ASI as 20..160 mph over 15..345 deg (the photographed 2-33 dial), a green arc 38-65, a yellow arc 65-98 and the red tick at 98 -- all four 'FAA AFM 1040 lb markings' in that file. Declared here 2026-11-10 with the Vne correction above, because until now the config published only a unit and AsiDial DERIVED the exterior/flat dial off the spawn speed and limits.vneMs. That derivation was the vehicle for the bug: with vneMs 60 the flat dial read a red line at 134 mph while the panel dial 60 cm away read 98. Declaring the face does two things -- the exterior dial and the modelled panel become the same instrument (and the low-speed red arc now ends at the published 38 mph stall instead of at 0.62 x spawn = 30 mph), and the type comes under AsiUnitsTests.ADeclaredRedLineIsVneInTheDialsOwnUnit, which fails if the red line and limits.vneMs ever drift more than 3 % apart again. REJECTED: leaving the face derived. It would have worked (43.81 m/s x 2.2369 = 98.0 mph, so the red line lands right) but the scale top would have fallen to 140 while the painted face still says 160, re-opening the same disagreement one rung lower. NOTE FOR WHOEVER REDRAWS THE ART: make_sgs_dials.py still carries these numbers as its own literals -- unlike the four build.py faces it does not read this block. The two must be changed together until it does."
     }
   }
 }

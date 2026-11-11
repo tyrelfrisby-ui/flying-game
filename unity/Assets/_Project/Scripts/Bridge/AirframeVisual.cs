@@ -170,6 +170,11 @@ namespace FlyingGame.Bridge
                 return (propR0, acp.PropBladeMaterial, _bladeLook);
             });
             if (_driver.Sim.Aircraft.Config.RetractableGear) _builder.SetGearExtension((float)_driver.Sim.Aircraft.GearExtension);
+            // The DRAWN wheels follow the suspension on the models that are rigged for it (GearFlexVisual: our J-3 and
+            // our Great Lakes, which carry Gear_Pivot_L/R hinged on Gear_HingeAxis_L/R). Nothing else in the fleet
+            // moves, and a leg in the air reads a stroke of 0, so an aeroplane off the ground hangs its gear exactly
+            // where its draughtsman drew it.
+            _builder.SetLegStrokes(acp.Config, acp.Wheels);
             // A model that brought its own rig moves ITS parts — the same control positions the aero model is
             // using, so the drawn surfaces and the cockpit always agree with the aeroplane being flown. A model whose
             // cockpit was drawn as pictures (the Pitts, the Extra's rear panel) has them made live by CockpitLiveParts
@@ -2129,6 +2134,29 @@ namespace FlyingGame.Bridge
         private readonly List<GameObject> _parts = new();
         private Material _glass, _propDisc;
 
+        /// <summary>The drawn gear's own suspension travel (<see cref="GearFlexVisual"/>) — the J-3's and the Great
+        /// Lakes' rigged hinges only; every other model is left exactly as its draughtsman drew it.</summary>
+        private readonly GearFlexVisual _gearFlex = new();
+
+        /// <summary>Put the drawn wheels where the aeroplane is actually standing on them: each rigged leg turns on its
+        /// own fuselage hinge by the stroke the sim has it at (<c>Aircraft.Wheels[i].LegStrokeM</c>, in Config.Gear
+        /// order). Binds itself to the placed model the first time it is called for it, and does nothing at all for a
+        /// model with no gear hinge rigged — which is the whole fleet bar two.</summary>
+        public void SetLegStrokes(FlyingGame.Core.DataContracts.AircraftConfig cfg,
+                                  System.Collections.Generic.IReadOnlyList<FlyingGame.Core.WheelState> wheels)
+        {
+            if (_root == null || _modelRoot == null || cfg == null) return;
+            // cfg.Id, not AirframeModels.PlacedOwnName: this runs every frame, and PlacedOwnName goes through
+            // Resources.Load to decide whether our model is the one on screen. It is only a name in a log line.
+            _gearFlex.Bind(_root, _modelRoot, cfg, cfg.Id);
+            // A REPLAY hangs the gear free instead of reading the live wheels: the recording carries no per-leg
+            // compression and the sim is not stepped during a playback, so a live read is the stroke of whatever moment
+            // the replay was ENTERED at, frozen — see GearFlexVisual.Rest. A replay then looks exactly as it did
+            // before this existed, which is the honest answer until the stroke is recorded.
+            if (SessionSettings.ReplayActive) _gearFlex.Rest();
+            else _gearFlex.Apply(wheels);
+        }
+
         /// <summary>A hinged part: rotates about its hinge line by the live sim deflection × gain.</summary>
         private sealed class ControlPart
         {
@@ -3334,6 +3362,7 @@ namespace FlyingGame.Bridge
             _legParts.Clear();
             _modelParts.Clear();
             _rig = null;
+            _gearFlex.Clear();          // the drawn gear's hinges go with the model they were measured on
             _modelRoot = null;
             UsedModel = false;
             // A rebuild (new type, new livery, a fresh flight) starts with nothing hidden and no debris set looked up.

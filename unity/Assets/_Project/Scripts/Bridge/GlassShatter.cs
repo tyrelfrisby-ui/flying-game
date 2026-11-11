@@ -486,14 +486,17 @@ namespace FlyingGame.Bridge
                 Vector3 pos = p.T.position + p.V * dt;
                 p.T.rotation = Quaternion.Euler(p.Spin * dt) * p.T.rotation;
                 Vec3 sim = CoordinateMap.ToSim(pos);
-                double floor = WorldTerrain.GroundHeightAt(sim.X, sim.Y);
+                // The deck-aware floor (EgressAir.FloorUnder): a flake on a raised apron or a bridge used to drop
+                // through it to the terrain below. No RestLift here — the line that beds it turns it nearly flat, so
+                // its own half-height is the 5 mm already allowed for.
+                float floor = EgressAir.FloorUnder(pos);
                 double? water = FloatHydro.WaterSurfaceAt(sim.X, sim.Y, pos.y);
                 if (water.HasValue && pos.y < water.Value)
                 {
                     // Acrylic is a little denser than water: it goes under where it lands.
                     Destroy(p.T.gameObject); _shards.RemoveAt(i); continue;
                 }
-                if (pos.y < floor) { pos.y = (float)floor + 0.005f; p.Resting = true; p.T.rotation = Quaternion.Euler(Random.Range(-8f, 8f), Random.Range(0f, 360f), Random.Range(-8f, 8f)); }
+                if (pos.y < floor) { pos.y = floor + 0.005f; p.Resting = true; p.T.rotation = Quaternion.Euler(Random.Range(-8f, 8f), Random.Range(0f, 360f), Random.Range(-8f, 8f)); }
                 p.T.position = pos;
             }
         }
