@@ -126,15 +126,27 @@ def loft_secs(name, secs, cap_end=True):
 CAN = [(279, 225.8), (285, 219.7), (293, 213.3), (301, 208.5), (309, 204.8), (317, 202.1), (325, 199.5),
        (333, 197.9), (341, 196.3), (349, 195.7), (357, 195.2), (362, 194.5)]
 P['Canopy_Glass'] = loft_secs('Canopy_Glass', [sec(px, tp) for px, tp in CAN], cap_end=False)
-bm = bmesh.new()   # frame: bows at the mid (door/canopy split) and the aft edge, plus sill rails aft of the split
+bm = bmesh.new()   # frame: ONE bow, abeam the wing root's leading edge, plus sill rails aft of it
 # v11 (Ty t295u, 2026-11-02): NO windscreen-arch bow and NO sill rails ahead of the split. The real front canopy is
 # clear all the way down to the fuselage, with no painted band or frame strip (check_sgs233_canopy.py).
-CLEAR_FROM = 6   # CAN[:CLEAR_FROM+1] is the clear front bubble (CAN[6] carries the split bow)
+# v12 (Ty, 2026-11-10): "move the yellow band around the canopy to abeam the wing leading edge". That band was the
+# canopy/door split bow at px 325, builder x 1.085. Abeam the wing ROOT's leading edge is x 0.55, and by mx()'s own
+# definition that is px 360 -- WING_LE_PX, the station the whole drawing is registered on. The canopy also ENDS
+# there (px 362, x 0.520), so the split bow and the old aft-edge bow are one frame now: a single hoop abeam the
+# wing leading edge, with clear glass all the way forward of it. The sill rails ran from the split aft, and that run
+# is 30 mm long now, so they go with it -- which continues t295u rather than contradicting it.
+#
+# WHAT THE PHOTOGRAPHS SHOW, recorded because this is his scheme rather than any one airframe's: neither N17879 nor
+# the Royal Canadian Air Cadets machine carries a band AROUND the fuselage at all. Both wear a LENGTHWISE stripe
+# along the side, and the only thing that wraps is the dark band round the cadets' fin. What N17879 does have is its
+# canopy framing in a single arch at the aft end, under the wing's leading edge -- which is where this now is.
+SPLIT_PX = WING_LE_PX   # px 360: mx(WING_LE_PX) is 0.55, which is ROOT_LE, the wing root's leading edge
+CLEAR_FROM = len(CAN) - 1   # everything ahead of the band is clear glass
 def bow(bm, px, tp, wdt=1.3, grow=0.008):
     pa = sec(px + wdt, tp, grow=grow); pb = sec(px - wdt, tp, grow=grow)
     va = [bm.verts.new(p) for p in pa]; vb = [bm.verts.new(p) for p in pb]
     for i in range(len(va) - 1): bm.faces.new((va[i], va[i + 1], vb[i + 1], vb[i]))
-for px, tp in (CAN[CLEAR_FROM], CAN[-1]): bow(bm, px, tp)
+bow(bm, SPLIT_PX, float(np.interp(SPLIT_PX, [p for p, _ in CAN], [q for _, q in CAN])))
 for k in (0, -1):   # sill rails along both canopy edges
     pts = [sec(px, tp, grow=0.008)[k] for px, tp in CAN[CLEAR_FROM:]]
     for p0, p1 in zip(pts, pts[1:]):
