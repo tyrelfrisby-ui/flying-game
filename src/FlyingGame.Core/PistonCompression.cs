@@ -255,7 +255,8 @@ public static class PistonCompression
     /// level flight stall speed". Seeded from a windmill at <paramref name="startMs"/> and slowed in 0.25 m/s steps,
     /// each held 0.8 s, this integrates the same shaft equation <c>AircraftEngine</c> runs — blade torque against the
     /// motoring mean plus the compression ripple, with the crank angle and every cylinder's seal as states — and
-    /// returns the speed at which the rpm finally falls below 20. NaN if it never stops.
+    /// returns the speed at which the rpm finally falls below Ty's 300 rpm static-friction floor
+    /// (Engine.ImpulseCoupling.StaticFrictionStopRpm). NaN if it never stops.
     ///
     /// SEEDED FROM A WINDMILL, because that is the scenario: it was turning and you slowed down. Started from rest it
     /// could never break away at a speed <see cref="PeakNmFor"/> made exactly marginal, which would measure the RESTART
@@ -296,9 +297,14 @@ public static class PistonCompression
                 double qEng = Mean(rpm) + peak * RippleFactor(crank, cyl, cr, leak);
                 double omega = Math.Max(0.0, rpm * 2.0 * Math.PI / 60.0 + (qEng - qProp) / inertia * dt);
                 rpm = Math.Min(omega * 60.0 / (2.0 * Math.PI), p.MaxRpm * 1.6);
+                // AND STATIC FRICTION TAKES IT AT 300, exactly as AircraftEngine.StepShaft does (Ty 2026-11-11: "if
+                // rpm drops below 300 the friction should be too high for the engine to overcome static and the
+                // engine simply winds down and stops"). It has to be the same law in both places or the constant
+                // solved against this sweep is solved against an engine the sim does not fly.
+                if (rpm < Engine.ImpulseCoupling.StaticFrictionStopRpm && qEng - qProp < 0.0) { rpm = 0.0; omega = 0.0; }
                 crank = (crank + omega * dt) % (4.0 * Math.PI);
             }
-            if (rpm < 20.0) return v;
+            if (rpm < Engine.ImpulseCoupling.StaticFrictionStopRpm) return v;
         }
         return double.NaN;
     }

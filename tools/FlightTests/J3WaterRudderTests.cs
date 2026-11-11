@@ -205,10 +205,35 @@ public class J3WaterRudderTests
         finally { FloatHydro.FlatWaterOverride = null; }
     }
 
-    /// <summary>An idle taxi turn on full right pedal, water rudder down and up. At ~1.5 m/s the blade's ½ρV² is small,
-    /// so the turn is mostly the air rudder in the slipstream and the floats' own yaw: down turns a little tighter, never
-    /// less. Ty 2026-11-04 20:27 (Q024): 254° in 20 s with the rudder UP is acceptable; he will fly it. The 254 is that
-    /// figure, copied here by hand.</summary>
+    /// <summary>
+    /// An idle taxi turn on full right pedal, water rudder down and up. At ~2 m/s the blade's ½ρV² is small, so the
+    /// turn is mostly the air rudder in the slipstream and the floats' own yaw: down turns a little tighter, never
+    /// less. THAT is what this test is for, and it has never stopped being true (218° down against 157° up today).
+    ///
+    /// THE NUMBER BESIDE IT MOVED, AND IT WAS THE SLIPSTREAM THAT MOVED IT. Ty 2026-11-04 20:27 (Q024) accepted 254°
+    /// in 20 s with the rudder UP and said he would fly it, and 254 was copied here by hand. It now reads 157, and the
+    /// cause is not the water: git bisect over the 1,009 commits since that measurement lands on dc3355f8
+    /// (2026-11-08, "Trace the thrust jet through the air"), which replaced the propeller's wash — until then a
+    /// cylinder bolted to the body x axis, tested as |y| &lt; r with no height test at all — with a tube marched through
+    /// the air itself. Either side of that one commit: 254 before, 128 after. Ty asked for exactly that change, in
+    /// those words: "our model probably has it locked to the body ignoring alpha/beta ... which would provide
+    /// artificial stability". The 254 was a figure produced by the artificial model, and it was accepted before the
+    /// model it came from was replaced.
+    ///
+    /// WHY A SLOW TURN LOSES ITS WASH, measured by forcing each limit of PropJet's blend on its own at this very
+    /// condition: the free column alone turns 112°, the fully-attached limit 202°, the shipped 50/50 blend 157. The
+    /// free column leaves because the tail SWINGS OUT FROM UNDER IT. The wash takes about 0.7 s to cover the 4.5 m
+    /// from hub to fin at this speed, and in 0.7 s of an 11 deg/s turn the fin has moved about 0.65 m sideways — most
+    /// of a tube radius — while the wash, whose momentum is fixed in the air, has not. That is real, and it is one of
+    /// the reasons a displacement turn does not go on tightening the way a step turn does.
+    ///
+    /// IS 157 FLYABLE? 157° in 20 s at 2.18 m/s is a 13.4 m turning circle — about a span and a quarter, inside the
+    /// 1-2 spans the books give for a Cub on Edos at idle. The old 254 was a 9.8 m circle. TY: THIS ONE IS YOURS.
+    /// You accepted 254 on an aeroplane whose propwash could not miss its own tail; this is the same taxi with the
+    /// wash you asked us to trace. If it is too lazy, the lever is PropJet.AttachedBias — which its own summary calls
+    /// an empirical bias "meant to be tuned" and which is at 0.5 because that is where you said to start it — and NOT
+    /// the water rudder, whose blade is the drawn one and whose force is checked against ½ρV²Sa elsewhere in this file.
+    /// </summary>
     [Fact]
     public void AnIdleTaxiTurnIsAirRudderLedAndTheBladeOnlyAdds()
     {
@@ -227,12 +252,15 @@ public class J3WaterRudderTests
                     sim.RunFor(0.1, new ControlInputs(0, -0.6, 1.0, Lever(0.04)));
                     double now = Yaw(ac.State); turned += (now - last + 540) % 360 - 180; last = now;
                 }
-                _out.WriteLine($"idle, full right pedal 20 s, water rudder {(up ? "UP" : "DOWN")}: turned {turned:F0} deg, {ac.State.Velocity.Length:F2} m/s");
+                _out.WriteLine($"idle, full right pedal 20 s, water rudder {(up ? "UP" : "DOWN")}: turned {turned:F0} deg, {ac.State.Velocity.Length:F2} m/s, "
+                               + $"circle {ac.State.Velocity.Length / System.Math.Max(1e-3, System.Math.Abs(ac.State.Rates.Z)):F1} m, slipstream share on the tail {ac.SlipOverTail:F2}");
                 return turned;
             }
             double down = Turn(false), up = Turn(true);
+            // The physics claim, and the one that has never moved: the blade only ever ADDS.
             Assert.True(down > up, $"down turned {down:F0} deg, up {up:F0} deg");
-            Assert.InRange(up, 254.0 - 15.0, 254.0 + 15.0);
+            // The figure, re-pinned to the traced slipstream (see the summary). 254 was the body-locked wash's.
+            Assert.InRange(up, 157.0 - 15.0, 157.0 + 15.0);
         }
         finally { FloatHydro.FlatWaterOverride = null; }
     }

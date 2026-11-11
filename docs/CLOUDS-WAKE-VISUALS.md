@@ -145,3 +145,248 @@ The water reflects through the same function, so its reflection is fixed too. Di
 centreline, upwash 2.1 / 1.2 m/s at 12 m out where the 3 m atlas texel straddles the line). A .NET probe of the same
 pass over flat ground: the pair sinks to 3.4-3.9 m and spreads to ±6.1 m at 4.5 s, ±13.6 m at 14.8 s. The
 zero-lift, zero-thrust pass leaves 0 segments, 0 jets and fog identical to undisturbed.
+
+## The cull and the depth pre-pass: built, measured, and one of them shipped off — Claude, 2026-11-11
+
+Ty, on the cost table below: **"build it and measure it"**. Both were built. Neither turned out to be what it
+looked like from the outside, and the measurements are why.
+
+### The 19 km cull: free, correct, and it saves nothing TODAY
+
+`Cumulus.CullRangeM` = 19 km, the same range the playground's banks have always used, so a cumulus and a bank
+disappear at the same distance now that they are the same cloud. It is not a visibility choice and there is no
+pop to check for: the impostor shader already fades every lobe to zero between 15 and 18 km, so nothing is on
+the screen out there — the cull only stops the GPU rasterising quads that are guaranteed to clip away.
+
+**Measured: it disables no cloud at either camera.** The lobe count is identical with and without it (1,247 worst
+case, 651 cruise), because `SoaringScenery` puts all 34 thermals near the airports and every one of them is
+inside 19 km of both viewpoints. The frame-time differences between the cull rows and the baseline rows are
+smaller than the run-to-run noise and point in both directions across two runs. It is kept because it is one
+constant, it is correct, and it will matter the day a thermal is placed out on the coast — not because it bought
+anything.
+
+### Where the fill actually is, which says what a tighter fade could ever reach
+
+| | under 3 km | 3–6 km | 6–10 km | beyond 10 km |
+|---|---|---|---|---|
+| worst case | **9.70x** | 1.55x | 0.55x | 0.17x |
+| 3 km cruise | **6.28x** | 4.22x | 1.00x | 0.11x |
+
+Eighty per cent of the bill is inside 6 km in both views. Nothing that fades distant clouds can touch it; the
+only levers that reach it are fewer or smaller lobes near the eye, or occlusion.
+
+### The depth pre-pass: it works, it is worth ~40 %, and it costs the look
+
+`CloudPlayground.shader` has two passes now. The first writes DEPTH ONLY, and only where a lobe's alpha has
+already reached `_CoreAlpha` — the part of the lobe that is opaque enough to hide what is behind it. The second
+blends as before and ZTests against it, so lobes buried behind a core die before they are shaded. Both passes
+share `lobeAlpha()` in a `CGINCLUDE`: a divergence of one noise term between them would seam every overlap.
+
+**A trap worth recording: the colour pass multiplies alpha by .96, so a lobe can never be more than 0.96 opaque
+and a threshold of 0.97 writes nothing, ever.** It was set to 0.97 first and measured as "the pre-pass does
+nothing", which was exactly true and entirely my own bug.
+
+Measured on this Mac, best of four passes of sixty frames, clouds-off measured once per camera (measuring it per
+configuration put 0.6 ms of GPU clock drift into every delta — which is the size of the effects being compared,
+and is why the cull rows are not trustworthy on their own):
+
+| configuration | worst case | 3 km cruise |
+|---|---|---|
+| no thermal clouds at all | 3.85 ms | 3.30 ms |
+| baseline: no cull, no pre-pass | +3.51 ms | +2.19 ms |
+| + 19 km cull only | +3.23 ms | +1.74 ms |
+| + pre-pass, core 0.94 | **+2.19 ms** | +1.62 ms |
+| + pre-pass, core 0.90 | +1.99 ms | +1.72 ms |
+| + pre-pass, core 0.80 | +1.98 ms | +1.50 ms |
+| + both, core 0.94 | +2.00 ms | +1.52 ms |
+
+So the pre-pass is worth **about 40 % of the thermal clouds' GPU cost in the worst case** and perhaps a quarter
+at cruise, and the threshold barely matters between 0.94 and 0.80.
+
+**It ships OFF (`Cumulus.CoreAlpha = 2`), and that is a decision, not an omission.** Two reasons, both in the
+renders:
+
+1. **It hardens the silhouette.** Killing the lobe behind a core truncates the soft falloff that makes the cloud
+   read as billowing, and the cut shows as a scalloped cut-out edge. Compare `core_off_backlit` with
+   `core_094_backlit`. There is no threshold that is both effective and invisible: the ceiling is 0.96, and 0.94
+   already shows. This is the look Ty approved an hour earlier, so it is not mine to trade for a millisecond.
+2. **It does not make a cloud opaque against the TERRAIN**, which is what the view from above wanted. Terrain is
+   drawn in the opaque queue long before the cloud blends over it; no depth written afterwards can undo that.
+   `core_094_above` still shows the ground through the cloud, with harder edges than `core_off_above`.
+
+### The banks keep it off too, and that is measured as well
+
+Armed for the banks it costs **+0.10 ms and saves nothing** (3.51 → 3.61 ms for the playground alone), and
+`bank_prepass_armed` has a visible hard cut through the upper-right cloud where one lobe's core clipped its
+neighbour, against `bank_prepass_inert` which does not. The shipped default `_CoreAlpha = 2` on the material
+keeps every bank and low patch exactly as it was.
+
+### Still no device number
+
+Everything above is an M-series Mac GPU and can only RANK these options. All of Ty's physical devices report
+`unavailable` to `devicectl`, so no on-device frame timing was possible. What it would take: one device awake
+and attached, then `tools/deploy/deploy.sh` to install and `AERO_SELFTEST=perf` (`ClipSelfTest.PerfTest`, which
+already logs per-second fps with the CPU and GPU frame times from `FrameTimingManager`) flown at a thermal
+cumulus — the Options switch for thermals gives the clouds-off half of the comparison for free.
+
+## Ty overturned it the same day: ONE cloud renderer, and the painted sky deck deleted — Claude, 2026-11-11
+
+Ty, after seeing the renders above: *"Delete painted sky deck I don't like that one and make the playground clouds
+double as the thermal clouds but make their shape look cumulus enough to be accurate."*
+
+Two of the four implementations are gone. What draws cloud now:
+
+| | where | what it is |
+|---|---|---|
+| cloud playground banks + low patches | 36 banks on three rings, 13 low patches | billowing lobe impostors |
+| **thermal cumulus** | one over every one of the 34 thermals | **the same impostors**, with a flat base |
+| wisp sheets | three layers, wake-reactive | advected noise |
+| ~~painted sky deck~~ | ~~the skybox, at infinity~~ | **deleted** |
+| ~~FlyingGame/Cumulus~~ | ~~opaque sphere meshes~~ | **deleted** |
+
+### The sky deck
+
+`DaySkyClouds` is gone from `SunsetSky.cginc`, with the atan2 branch-cut cross-fade that existed only to hide the
+seam it put down the -x axis, the pixel-footprint dissolve, and the cloud use of `_DayAtmosphere.z`. The sunset's
+own cloudlet deck went with it. **The sky itself stays, because it is load-bearing**: `Water.shader` reflects
+through `DaySkyRough` and `SunsetSky`, and `Airframe`/`Lit`/`AirportSurface` light through `SunsetEnvironment`.
+The water now reflects a clear sky, which is correct — the clouds it should reflect are geometry and it does not
+see them. `_DayAtmosphere` is still declared and still set: Terrain, PowellSandstone and UrbanFacade read `.z` for
+their own detail switches. The Aero Widget builds its own 16-px sky cube and never had the deck; the Talk Flying
+path is livery work and does not touch it. `skyHash`/`skyNoise` are deleted — nothing else used them.
+
+### The thermal cumulus on the playground's renderer
+
+`Cumulus.cs` keeps the meteorology and the gameplay and loses its renderer. The puff field — a ring of
+flat-bottomed lobes, a body over them, a cauliflower crown of turrets climbing to the top, granulation on the
+sunlit crown — is what makes it a cumulus rather than a bank, and every lobe is now one of the playground's
+impostor quads (`Resources/Clouds/CloudBillow`). `FlyingGame/Cumulus` is deleted.
+
+Three things the mesh had and the impostors did not, which had to be built:
+
+- **A flat base at the condensation level.** `CloudPlayground.shader` gains `_Cumulus`, `_BaseY`, `_TopY`; with
+  `_Cumulus` on, the lobe's level underside is replaced by a cut in WORLD metres at `_BaseY`, over a 26 m band
+  with ±9 m of the lobe's own noise in it. Every lobe of every cloud of the day is cut at the same height, which
+  is why a field of cumulus has its bases in a plane. The banks and low patches leave `_Cumulus` at 0 and are
+  pixel-identical to before.
+- **Whole-cloud shading.** Grey base to sunlit crown over `_BaseY.._TopY`, not over each lobe's own uv — or a
+  turret 900 m up is shaded like the lobe sitting on the base beside it and the vertical development stops
+  reading. The cumulus shade is darker than a bank's (a kilometre of cloud stands between a base and the sun).
+- **Lobes that OVERLAP.** The puff field was retuned: with opaque spheres a gap between lobes read as a crevice,
+  because the body behind it was still drawn; with blended impostors a gap is a hole with sky through it and an
+  isolated lobe is a disc — the original complaint. Twelve to fifteen ring lobes overlapping by about a third of
+  a radius, four body lobes over the middle so looking straight up finds no hole, and granules at seven tenths of
+  their parent's radius rather than eight so they bulge the outline instead of sitting on it as warts.
+
+`Whiteout` (the IFR white-out) and `Blocks` (line-of-sight cover) are unchanged and still read the analytic
+spheres. **The drawn lobe now agrees with them far better than the mesh did**: an impostor's alpha reaches zero
+within about 8 % of the lobe's radius (the shader's noise erosion is ±0.16 on r², so r = 1 ± 0.08), against ±35 %
+for the noise-displaced sphere it replaces.
+
+### What the switch costs — measured, and it is NOT free
+
+| | opaque mesh (this morning) | playground impostors |
+|---|---|---|
+| geometry, all 34 clouds | 207,795 v / 337,451 t | **5,444 v / 2,722 t** |
+| vertex buffer | 4.8 MiB | **0.1 MiB** |
+| CPU mesh build, all 34 | 406 ms | **99 ms** |
+| GPU delta, one cloud filling the frame | **−0.38 ms** (faster WITH them) | **+1.68 ms** |
+| GPU delta, 3 km cruise view | not measured | **+1.11 ms** |
+| overdraw, blended fill over the frame | none: opaque, writes depth | **11.98x** worst case, **11.61x** cruise |
+
+The overdraw is the thermal clouds ALONE, on top of whatever the banks, the low patches and the wisp sheets
+already cost. 11.6x in the ordinary cruise view is not a worst case that goes away when you look elsewhere: 651
+of the 1,361 lobes are drawn in a 34-degree view from 3 km, because 34 clouds are spread across a 30 km island
+and a dozen of them are in frame at once.
+
+Tried and measured as a mitigation: flagging the granulation as secondary lobes so it fades at 7.5 km. It moves
+the fill from 11.98x to 11.98x — the granules are small and the fill is all in the shape lobes. Kept anyway (it
+costs nothing and saves the vertex work) but it is not the lever. The levers that would work, in order of how
+much they give up: fewer and bigger shape lobes; a cull radius on the thermal clouds, which they do not have
+(the banks cull at 19 km); or a depth-writing pre-pass for the near-opaque lobe cores, which would claw back most
+of the occlusion the mesh had but changes the banks too and risks hard edges where lobes meet.
+
+The geometry and the startup build all but vanish — 124× fewer triangles and 307 ms off the startup frame, which
+on a Quest whose first frame is 3.5–7.4 s is a real win. What is paid instead is **overdraw**: an impostor is a
+blended quad that does not write depth, so every lobe costs its whole disc in fill whether or not something
+nearer already covered it, and the opaque mesh was *saving* time by occluding the terrain behind it. On a
+desktop GPU the swing is small in absolute terms; fill rate is the binding constraint on a phone and a headset,
+not triangles, so the device number is the one that matters and it has not been taken.
+
+**Not verified on a device.** Mac batch renders only; no iOS or Quest build, no frame timing on either.
+
+## The thermal cumulus stopped being spheres — Claude, 2026-11-11, lane/claude-clouds
+
+Ty, 2026-11-11: *"There are clouds that look good realistic and there are clouds that look fake like a bunch of
+circles glued together. Make all clouds look good/realistic."*
+
+### Which clouds are which
+
+Four things draw cloud in this game, and only one of them was the complaint:
+
+| | where | what it is | verdict |
+|---|---|---|---|
+| `Bridge/Cumulus.cs` + `Shaders/Cumulus.shader` | one over every thermal (34 of them, `SoaringScenery`) | a union of **analytic spheres**, drawn opaque with a dithered fresnel rim | **the circles glued together** |
+| `Clouds/CloudPlayground.cs` + `Shaders/CloudPlayground.shader` | 36 banks on three rings + 13 low patches | camera-facing lobe impostors with a noise-eroded alpha | good |
+| `Shaders/CloudWisp*.shader` | three thin sheets, wake-reactive | advected noise | good |
+| `Shaders/SunsetSky.cginc` (`DaySkyClouds`, `SunsetSky`) | the skybox's painted deck, at infinity | cellular lobes + multiscale erosion | good |
+
+The diagnosis is in the pictures, not in an opinion: `cumulus_1500m_backlit` on the before set has a **complete,
+geometrically exact circle** drawn across the middle of the cloud where one puff's silhouette crosses another's.
+A sphere's outline is a circle from every direction and its shading is a billiard ball's, so a union of spheres is
+read as a heap of balls however many of them there are. The other three implementations all break their outline
+with noise, which is exactly why they pass.
+
+Looking UP at the old one was worse: the shader clips every puff at the condensation level, but a cut sphere is a
+bowl, so the "flat base" was the inside of a ring of bowls, showing the lat-long tessellation as facets.
+
+### What was done
+
+The thermal cumulus keeps its geometry pipeline — it has to: it is the only cloud tied to a thermal (the base IS
+the thermal's top), the only one you can fly into (`Cumulus.Whiteout`, the IFR white-out) and the only one that
+blocks a line of sight (`Cumulus.Blocks`, the combat cover). `CloudPlayground`'s banks are transparent impostors
+with no depth write and, by their own design note, "do not implement cloud IFR". So the renderer was fixed rather
+than replaced, and what it borrowed from the good implementation is its PRINCIPLE: break every outline with noise.
+
+Everything new is paid for at **build time**, so the per-pixel cost on the phone is unchanged:
+
+- **The spheres are displaced** along their own radius by a three-octave value-noise field evaluated in cloud
+  space — one field for the whole cloud, at ±35 %, so neighbouring puffs' lumps line up into a single turbulent
+  body. A small granule gets a proportionally smaller lump or it would come out a perfect little ball.
+- **The normals are rebuilt** from the displaced triangles, welded through the sphere template's structural weld
+  map, so the shading follows the lumps and the seam column does not crease.
+- **Each vertex carries how deeply it lies inside its neighbours.** That shades the valleys where puffs meet (in a
+  real cumulus the light reaching the bottom of one has been through cloud twice) and it lets the triangles buried
+  inside another puff be dropped before they are ever submitted.
+- **A real flat base**: each puff that crosses the condensation level is capped with a disc lying on it, the rim
+  following the displaced surface. The caps take one colour for the whole cloud, because a cumulus base is an even
+  grey sheet and a per-vertex value across a disc's fan drew the fan.
+- More and far more varied lobes, crown lobes that overlap their turret instead of stacking into a snowman, and a
+  granulation pass of small puffs on the sunlit crown.
+- In the shader, the vertex mottle widens and narrows the fresnel band, so the rim dissolves in clumps rather than
+  as even sand. It scales the BAND, not the opacity — scaling the opacity put stipple over the whole cloud.
+
+### Cost (`Editor/CumulusRender.cs`, which renders all four implementations in one frame)
+
+| | before | after |
+|---|---|---|
+| geometry, all 34 clouds | 131,010 v / 222,320 t | 207,795 v / 337,451 t (+52 % triangles) |
+| per cloud | 3,853 v / 6,538 t | 6,111 v / 9,925 t |
+| vertex buffer | 3.0 MiB | 4.8 MiB (runtime, not package) |
+| CPU build of all 34 meshes | not measured; a straight copy | 406 ms on this Mac, 11.9 ms a cloud |
+
+The GPU delta is **negative in both** — the frame is *faster* with the clouds drawn than without, because they are
+opaque and occlude the terrain behind them. That is the argument for not moving the thermal cumulus onto
+`CloudPlayground`'s transparent impostors: overdraw is the one thing a phone cannot afford, and this renderer has
+none. The counts are static meshes, frustum-culled per cloud, and the clouds are spread over a 30 km island, so
+only a handful are ever in frame.
+
+The **CPU build is the number to watch**, not the triangles: the meshes are made in the startup frame, and the
+Quest's first frame is already 3.5-7.4 s. The first working version of this cost **1,501 ms**; it is 406 ms now,
+and the three things that bought that back are worth keeping if anyone tunes it further — the lattice noise hashes
+bits instead of taking a sine (the shader idiom is wrong on the CPU), the neighbour test runs against a per-puff
+candidate list instead of every puff, and the normals weld through the sphere template's structural weld map
+instead of a position-hashed dictionary. The displacement noise doubles as the shader's mottle rather than being
+sampled twice.
+
+**Not verified on a device.** Mac batch renders only; no iOS or Quest build, no frame timing on either.

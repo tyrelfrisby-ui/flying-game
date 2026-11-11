@@ -15202,3 +15202,202 @@ Right; TouchFlightControls folds pad + Quest per-wheel brakes into BrakeInput/Br
 QuestControlMapper BrakeLeft/Right from triggers, Fire = right grip; Bridge grip = guns if FireAvailable else smoke;
 QuestMenu: no trigger select, pointing only HandsOnly; QuestRig tab disabled. Tests: GamepadShapingTests (+2),
 QuestStickFeelTests updated. GamepadShaping.Rudder(lx,lt,rt) left in place (tests/replication use it).
+
+## 2026-11-11 — lane/claude-devpage: the Developer page (every K factor on a slider, per aeroplane, live)
+
+**NEEDS YOU: Ty — this is the page you asked for; fly it and cut the knob list. And it is a RELEASE BLOCKER to close
+before public release (one line, below).**
+
+### ⚠️ THE RELEASE SWITCH, because someone will have to find this months from now
+
+```
+src/FlyingGame.Core/DeveloperAccess.cs       public const bool ShippedOpen = true;
+                                             ^^^ set this to false before public release
+```
+That is the whole job. There is nothing else to flip, no scripting define, no `#if`.
+
+**The gate is NAVIGATION, not compilation** (Ty 2026-11-11: *"It's just another page and the shipped version just
+doesn't have the ui to get to it."*). The page is always compiled and always in the binary; the switch removes the
+**Developer tab in Options** and nothing else. Consequences, all deliberate:
+
+- the page cannot rot behind a flag nobody builds with — it compiles on every platform on every build and its tests
+  run every time;
+- it is **harmless while unreachable**: nothing runs unless the page is drawn, and with the gate closed a pilot's
+  saved knobs are **not applied either**, so a shipped build flies stock. (Without that, a value saved during the
+  beta would have followed a pilot into the release with no page to see it on and no way to reset it.
+  `ClosingTheGateStopsSavedKnobsFromBeingApplied` holds it.);
+- a developer can still get in on a shipping build **without a new binary**: `AERO_DEVELOPER=1` (`DeveloperAccess
+  .EnvVar`). An environment variable rather than a secret tap sequence, so it is documented, auditable before
+  release, and unreachable from a phone.
+
+### What it is
+
+Options → **Developer**. Every tuning constant for the aeroplane being flown, each with a slider, coarse and fine
+step buttons (`◂◂ ◂ ▸ ▸▸`), the shipped value printed beside the current one, and a RESET. Tap a knob's **title** for
+a sentence saying what moving it does to the aeroplane and which way. Built for a thumb in portrait outdoors — no
+numeric fields, because a soft keyboard would make it useless where it is used.
+
+**It is a registry, not a list.** A knob declares itself into `TunableRegistry` (`src/FlyingGame.Core/Tuning/`) and
+the page renders whatever is registered, so **the next knob is one `Register` call beside the field it moves and no
+UI edit at all**. `TunableCatalog.cs` holds the 40 that exist today. The descriptions are written from the doc
+comments in `AircraftConfig.cs`, which in most cases quote Ty's own words for the direction of the effect.
+
+### What is NOT on it, and must not be added
+
+Measured and certificated facts: empty weights, CG limits, envelopes, inertias, strip geometry, tyre sizes, Vne,
+instrument arcs. Making those adjustable invites someone to tune away a correct number and then report handling
+against it. `controls.<axis>.effectiveness` is excluded although it looks exactly like a gain — the contract says in
+bold that it is not one, and 4e5e1a7 already tuned it and double-counted τ with it.
+
+A third group, **DERIVED**, is drawn apart from the K factors for numbers that are neither free gains nor measured
+facts but the cached output of a rule: `propInertia` (Ty's blade rule), `fineStopDeg`/`coarseStopDeg` (the 26 inHg
+run-up, no overspeed until Vd), `limits.gMax`/`gMin`, and `rig.finOffsetRad` (solved by RigTool). Each row names its
+rule and says that **settling on a value means re-running the derivation, not editing the number**.
+
+### Live vs next spawn
+
+Nearly everything is felt on the **next physics step** — the hot paths re-read the config object every step and the
+page mutates the live one. Three say **NEXT FLY** on the row because the airframe is built from them at
+construction: `limits.gMax`, `limits.gMin`, `gear.tirePressurePsi`. One cached number needed a hook,
+`AeroModel.ForgetFuselageMunk` — the only config-keyed cache the page touches; the other ~20 cache geometry the page
+does not offer.
+
+### The part that would have failed silently
+
+`FlightSimDriver.ResetFlight` **re-reads the config from StreamingAssets on every spawn**, so a knob written onto the
+live config is thrown away by the next FLY. `TuningPrefs.ApplyTo(config)` is called beside
+`SessionSettings.ApplyFeel` and puts the pilot's values back (and captures the type's shipped defaults, which is what
+RESET goes back to). Without it the page would have shown the right number while the aeroplane flew the shipped one
+— which would quietly poison every flight report the beta pilots send back. `AValueSurvivesARelaunchAndIsActually
+InEffect` holds it.
+
+### Per type AND configuration, and COPY FROM
+
+Ty: *"each type and config gets a unique developer page"* — the Cub on wheels, on bushwheels and on skis keep
+separate numbers (`TuningSession.ConfigKeyOf`). **COPY FROM** takes another aeroplane's tuning as the **distance from
+its own default**, not the raw value: his example is the J-3 on wheels to the J-3 on floats, where *"two degrees more
+toe-out suits it"* is the thing that should carry. It is undoable, because he will copy onto a tuned aeroplane by
+accident, and the page says in as many words which semantics it is using.
+
+### So a flight report can be trusted
+
+A tunable page makes every beta report suspect unless you can tell whether the aeroplane was stock. The page carries
+a **STOCK / MODIFIED (n knobs)** banner and a **COPY REPORT** button that dumps every non-default knob with its
+shipped value as pasteable text. `TuningSession.DeltaReport` is one function with two callers — it will also head the
+flight-test recording.
+
+### Two latent bugs fixed on the way in
+
+`OptionsPanel._measured` was hand-sized `new float[8]` against eight pages, so a ninth wrote past the end every
+frame; and the tab loop had no bounds guard, which was safe only while the page count divided by the row count
+exactly (8/2). Nine does not. Both fixed.
+
+### State
+
+- 20 new tests in `tools/FlightTests/DeveloperTuningTests.cs`, all passing; `FlightTests` builds clean.
+- Lane merged `lane/claude-quest-islandnav` first (the parity lock's "being BEHIND is enough" case: 27 shared files
+  differed that this lane never touched). The shared work is ONE leading commit, so **merge lane/claude-devpage into
+  lane/claude-quest-islandnav next** or this lane takes no further shared change.
+- **UNITY BUILD NOT RUN** — a green .NET suite is not a build. The new Unity code was checked by hand for `init`,
+  records, `IsExternalInit`, file-scoped namespaces and nullable annotations in Bridge (none present), but it has not
+  been through Unity. Build before merging.
+- Reserved and pre-written, commented, in `TunableCatalog.Fuselage()`: `fuselage.crossflow.aftCamberGain` from the
+  spin lane. It is not live because `CrossflowConfig.AftCamberGain` does not exist in this checkout yet, and adding
+  it here as well would give the merge two declarations of the same member. When that field lands, uncomment the
+  block — that is the entire integration.
+
+## 2026-11-11 — lane/claude-devpage: the flight test data recorder
+
+**NEEDS YOU: Ty — fly it, then pull a file off the phone through Files and tell me whether the channel list is
+right. It is easier to cut channels than to add them after you have flown with them.**
+
+### What it is, and what it is NOT
+
+Ty: *"Add a flight test data recorder too with all of the data tracked for review and analysis."*
+
+**134 channels, 50 Hz, full float precision**, bursting to the sim's own 200 Hz around events. This is
+INSTRUMENTATION. It is not the two recorders that already exist — the in-game replay
+(`Replay/FlightRecorder`) and the named multitrack recordings (`FlightTrack`/`RecordingLibrary`) are POSE
+recorders, ~20 quantised channels at 30 Hz, so an aeroplane can be flown again on screen. They answer a different
+question and neither replaces the other. The names collide; the jobs do not.
+
+### Always armed — the page is gated, the data is not
+
+It runs from the moment an aeroplane spawns, whether or not the Developer page is reachable, and keeps the last
+**~110 minutes in a 200 MB ring that wraps**. Gating the recording would make the data unavailable exactly when a
+beta tester hits something worth reporting. A pilot's only job is **KEEP FLIGHT** (Options → Developer), which
+writes the buffer to a file. **MARK** drops a flag so he can find a moment again.
+
+### The rate, and why the burst is not optional
+
+50 Hz resolves every rigid-body mode on this fleet. The EVENTS are exactly what it cannot see: a water-landing
+peak, a gear strike, a blade leaving at 25 % overspeed are sub-100 ms transients that 50 Hz samples three or four
+times with no reason to believe the peak is one of them — and Ty will read a number off this file and believe it.
+So an event bursts to 200 Hz for two seconds and **reaches BACKWARDS** over records already in the ring. Those
+retro-marked records keep their own 50 Hz label rather than claiming a resolution they do not have, and **every
+record carries its rate** so nothing is inferred from timestamp spacing.
+
+### Cost: measured, not asserted
+
+**5.5 µs a sample against a 5000 µs step** (~0.1 %), and **0 bytes allocated** over 400 recorder steps — both
+pinned by tests. The recorder times itself, records that as a channel, and stands down with a message if it ever
+exceeds budget. The measurement earned its keep twice:
+- channels were re-deriving shared quantities — seven re-derived air-relative velocity, two sampled the
+  atmosphere — at **2903 µs a sample**. Fixed by deriving once per sample (`RecorderContext.Derive`);
+- the cost statistic was then poisoned by the first sample's JIT and read **2084 µs against a true 5.5**, which
+  would have auto-stopped the recorder on every flight for a cost it was not paying. First 32 samples excluded.
+
+### What is NOT recorded — the one place the brief and the constraints conflicted
+
+**Per-surface-group forces and moments.** The only breakdown in the sim is `ForceDebug`, which allocates a fresh
+`List<ForceSample>(160)` per captured step, buckets by a `string Kind` with no surface id, and is a process-wide
+static the force-vector overlay also uses. At 50 Hz that is fifty list allocations a second in the physics step.
+`SimLoop` already works around the same cost by capturing on the frame's last step only. The no-allocation
+constraint outranks the feature, so the cheap aggregates the sim already keeps are recorded instead (specific
+force, both load factors, aero rolling moment, stalled fraction, slip over tail, tail slipstream). **A per-group
+breakdown wants a separate, explicitly opt-in, much lower-rate mode** — not built, and it should not be bolted on
+quietly.
+
+Also absent because the sim does not have them: **shaft torque** (locals in `StepShaft`), **thrust as a scalar**
+(only via `ForceDebug`), **CAS** (IAS here is the pure density ratio with no position error, so CAS ≡ IAS).
+**Manifold pressure** is recorded from `PistonEngine.ManifoldInHg` — the law the engine actually flies on — not
+the cockpit presentation value in `CockpitRigState`, which disagrees with it.
+
+### The header is what makes a file analysable
+
+`aircraftFlown` and `modelDrawn` are **separate fields**. They can disagree in the running game — the
+`MODEL MISMATCH` banner fired on Ty's 2-33 this morning — and a recording carrying one "aircraft" field could not
+be trusted to say what was flown. The header also carries `TuningSession.DeltaReport`, the same function behind
+the Developer page's COPY REPORT, so a recording and a bug report can never disagree about the knob state.
+
+### Getting it off the phone — this needed a build change
+
+`BuildScript.OnPostProcessBuild` now sets **`UIFileSharingEnabled`** and **`LSSupportsOpeningDocumentsInPlace`**.
+Without them the app's Documents directory is invisible to the Files app and a recording is written perfectly and
+never reaches anyone. Files land in **Documents/FlightTest/flight-YYYYMMDD-HHMMSS.aerorec**, visible in Files
+under *On My iPhone → Aero Playground*. The folder is RESOLVED at runtime and logged, not assumed: Unity's iOS
+`persistentDataPath` has been `Documents` in some versions and `Library/Application Support` in others.
+**No POST to the OTA server** — that script is GET-only, untracked and outside the repo.
+
+### Converting it
+
+`tools/RecDump` → `dotnet run --project tools/RecDump -- flight.aerorec`. Prints the header, writes a CSV with
+every column named and united. It reads the channel table **out of the file**, so an old recording still converts
+after a channel is added. Verified end-to-end on a real 12-second Pitts flight: 1004 records, 134 channels, 539
+burst samples, stall fired at α 24.1° on the game's own 0.35 threshold and the spin at 0.95 rad/s of yaw.
+
+### Where it hooks
+
+`SimLoop.Stepped` — new, once per fixed step, after `Step` has fully returned, carrying the inputs the sim was
+given (it does not keep them). `Aircraft.SurfaceContactsStepped` fires mid-step and leaves damage a step stale;
+the Bridge's `PostStep` fires once a FRAME and cannot give a fixed rate at all. Attached from `FlightSimDriver`'s
+`Sim` setter, player 0 only.
+
+### State
+
+- 31 new tests (format/ring/clock, recorder against a real aeroplane, converter round trip), all passing.
+- **UNITY BUILD NOT RUN.** New Unity code hand-checked for `init`, records, `IsExternalInit` and nullable
+  annotations in Bridge — none — but a green .NET suite is not a build. Build before this reaches a device.
+- Pre-existing failure on the integration tip, NOT from this work and confirmed at the branch point 7e2fdfc0:
+  `CrashTuningTests.ABellySlamCrushesTheFuselageAndOnlyAluminiumPartsAtTheHardOne(j3-cub-like, sink 15)` — a J-3
+  belly slam at 15 m/s is not shedding the parts it should.

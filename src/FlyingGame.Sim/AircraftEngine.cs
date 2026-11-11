@@ -68,7 +68,13 @@ public sealed partial class Aircraft
             PropulsionConfig p = Config.Propulsion!;
             double max = p.MaxRpm > 100.0 ? p.MaxRpm : 2700.0;
             double rpm = _shaftRpm > 0.0 ? _shaftRpm : PropModel.RunningRpm(p, _throttle01, _propLever);
-            return System.Math.Clamp(20.0 + 65.0 * System.Math.Min(1.0, rpm / (0.85 * max)), 0.0, 115.0);
+            double psi = System.Math.Clamp(20.0 + 65.0 * System.Math.Min(1.0, rpm / (0.85 * max)), 0.0, 115.0);
+            // AND A SPUN BEARING IS A HOLE IN THE GALLERY (Ty 2026-11-11, on what a 15 % over-rev leaves you with:
+            // "decreasing oil pressure"). The clearance it has opened up leaks, so the pressure falls as it goes —
+            // and because the GOVERNOR reads this same number, an aerobatic single's blades drift to the coarse stop
+            // on their own before the engine finally stops. That consequence is not written anywhere; it falls out of
+            // the gauge and the aeroplane being one number, which is why this is here and not in the cockpit bridge.
+            return psi * FlyingGame.Core.Engine.EngineOverspeed.OilPressureFactor(_bearingDamage01);
         }
     }
 
@@ -100,9 +106,12 @@ public sealed partial class Aircraft
     /// Whether it is making power comes from the RECORDING during a replay (<see cref="Aircraft.ReplayEngineRunning"/>):
     /// the physics does not run, so the live magnetos and fuel state belong to some other moment — after a crash, to a
     /// stopped engine, which silenced the whole playback. Having an engine at all is still the airframe's own question.
+    /// A SEIZED ENGINE IS NOT RUNNING AND NEVER WILL BE AGAIN — the end of the spun bearing's road (Ty 2026-11-11:
+    /// "which ends in sudden stoppage/siezed"). It sits beside _noseLost rather than beside the starved cases because
+    /// it is DAMAGE: <see cref="Aircraft.EngineStopped"/> is true, and no lever brings it back.
     public bool EngineRunning => Config.Propulsion is not null && Config.Propulsion.MaxPowerW > 0
                                  && (ReplayEngineRunning
-                                     ?? (!_noseLost && !_mixtureDead && !_fuelStarved && Magnetos.Fires(MagLeft, MagRight)));
+                                     ?? (!_noseLost && !_engineSeized && !_mixtureDead && !_fuelStarved && Magnetos.Fires(MagLeft, MagRight)));
 
     /// <summary>The engine has quit for want of fuel (idle cut-off, a mixture too lean to fire, or the fuel valve shut:
     /// <see cref="FuelStarved"/>). Not damage.</summary>
@@ -130,6 +139,10 @@ public sealed partial class Aircraft
             double s = HasMixture ? MixtureModel.PowerFactor(_mixtureLever, _sigma) : 1.0;
             if (HasPropLever) s *= GovernorPowerFactor();
             s *= Magnetos.PowerFactor(MagLeft, MagRight);
+            // What the over-rev broke: the cylinder with a ring in it, and the friction of a bearing destroying
+            // itself (FlyingGame.Core.Engine.EngineOverspeed). It multiplies here with everything else the engine's
+            // state does, so a lost cylinder reads on the tachometer, in the thrust and in the sound together.
+            s *= DamagePowerFactor;
             double rough = EngineRoughness;
             if (rough > 0.0) s *= 1.0 - 0.15 * rough * (0.5 + 0.5 * System.Math.Sin(_roughPhase));
             return s;
@@ -141,9 +154,17 @@ public sealed partial class Aircraft
     {
         get
         {
+            // A DEAD ENGINE'S RPM IS THE SHAFT WE ARE INTEGRATING, where we are integrating one. It used to be
+            // WindmillRpm — PropModel.Windmilling's closed form, a SECOND solve of the same propeller that re-derives
+            // the rpm from the oil-loss stop and cannot see the blade angle the governor really left or the
+            // compression the shaft is lumping over. The two disagree: the base commit measured the closed form
+            // returning "the air cannot drive this" where the integrated shaft, held 30 s at the same condition, was
+            // turning 965 rpm. The closed form stays as the answer for a type whose shaft is NOT integrated, which is
+            // all it was ever needed for.
+            double deadRpm = _noseLost ? 0.0 : SolvesShaft ? _shaftRpm : WindmillRpm;
             PropModel.PropDrive d = EngineRunning
                 ? (PowerScale == 1.0 && _propLever == 1.0 ? PropModel.PropDrive.Running : PropModel.PropDrive.RunningAt(PowerScale, _propLever))
-                : PropModel.PropDrive.Dead(_noseLost ? 0.0 : WindmillRpm);
+                : PropModel.PropDrive.Dead(deadRpm);
             return _shaftRpm > 0.0 ? d.WithShaft(_shaftRpm, _bladePitchDeg) : d;
         }
     }
@@ -177,6 +198,9 @@ public sealed partial class Aircraft
     // is, how well each cylinder is still holding its charge, and how hard a cylinder squarely on compression pushes
     // back. The crank angle has to be a state — a lump you cannot see coming is a lump that cannot stop anything.
     private double _crankRad;
+    /// <summary>Held by STATIC friction below <see cref="ImpulseCoupling.StaticFrictionStopRpm"/>: it latches,
+    /// because static friction is higher than the sliding friction the shaft was overcoming on the way down.</summary>
+    private bool _shaftStatic;
     private double[]? _leak;              // 1 sealed .. 0 bled down, per cylinder
     private double[]? _leakTau;           // each cylinder's own bleed time, deliberately all different
     private double _compPeakNm = double.NaN;
@@ -239,6 +263,32 @@ public sealed partial class Aircraft
     /// <summary>The shaft rpm being integrated, or 0 when this type is still on the old throttle law.</summary>
     public double ShaftRpm => _shaftRpm;
 
+    /// <summary>
+    /// THE IMPULSE COUPLING IS ENGAGED: below 400 rpm the magneto drive's flyweights hang in, the coupling winds its
+    /// spring and lets go with a snap, the spark is retarded to about TDC and it is hot enough to fire at cranking
+    /// speed (<see cref="ImpulseCoupling"/>, Ty 2026-11-11). It is a MECHANICAL device in the magneto drive, so it
+    /// engages whenever the engine is turning slowly enough — firing or not, which is exactly the state a hand-prop
+    /// or a restart is in.
+    /// </summary>
+    public bool ImpulseCouplingEngaged => ImpulseCoupling.Engaged(EngineRpm);
+
+    /// <summary>Impulse releases a second — the snap rate, which is the firing rate because it is the same event.
+    /// 0 when the coupling is not engaged. The engine audio's pulse train runs at this rate already.</summary>
+    public double ImpulseSnapsPerSecond => ImpulseCoupling.SnapsPerSecond(EngineRpm, Config.EngineCylinders);
+
+    /// <summary>Spark advance, degrees before top dead centre: the installation's normal advance, or about TDC while
+    /// the impulse coupling is engaged.</summary>
+    public double IgnitionAdvanceDeg => ImpulseCoupling.AdvanceDeg(EngineRpm);
+
+    /// <summary>True while the shaft is held by STATIC friction rather than merely stopped — below 300 rpm and
+    /// decelerating, it latches (<see cref="ImpulseCoupling.StaticFrictionStopRpm"/>).</summary>
+    public bool ShaftHeldByStaticFriction => _shaftStatic;
+
+    /// <summary>The blade angle at 0.75 R a governed propeller is actually set to, degrees, or 0 for a fixed blade.
+    /// It is a STATE between the stops, and whether the governor has run out of it is the whole of an overspeed, so
+    /// it has to be readable from outside the engine (PropPhysicsProbe, PropPhysicsTests).</summary>
+    public double BladePitchDeg => _bladePitchDeg;
+
     /// <summary>True when this aeroplane's propeller is solved rather than estimated.</summary>
     public bool HasFittedBlade => Config.Propulsion is { PropDiameterM: > 0, BladePitch75Deg: > 0 };
 
@@ -253,6 +303,11 @@ public sealed partial class Aircraft
         PropulsionConfig? p = Config.Propulsion;
         if (p is null || !SolvesShaft || dt <= 0.0) { _shaftRpm = 0.0; return; }
         if (_noseLost) { _shaftRpm = 0.0; return; }               // the propeller has gone: nothing to turn
+        // SUDDEN STOPPAGE. A seized engine does not spin down and it does not windmill: the propeller stops with it,
+        // in the length of one step, which is what Ty meant by "ends in sudden stoppage/siezed" and is the violent
+        // end of the spun bearing. The stopped-propeller drag then comes from the blade standing on its stop
+        // (PropModel.StoppedBladePitchDeg), as it does for any other stopped propeller.
+        if (_engineSeized) { _shaftRpm = 0.0; return; }
 
         double radius = 0.5 * p.PropDiameterM;
         double pressureRatio = Atmosphere.PressureAtAltitude(-State.Position.Z) / Atmosphere.SeaLevelPressurePa;
@@ -306,7 +361,7 @@ public sealed partial class Aircraft
             if (_bladePitchDeg <= 0.0) _bladePitchDeg = System.Math.Clamp(0.5 * (fine + coarse), fine, coarse);
             if (GovernorHasOil)
             {
-                double commanded = GovernedRpmAt(_propLever);
+                double commanded = GovernorCommandAt(_propLever);
                 double error = (_shaftRpm - commanded) / System.Math.Max(1.0, commanded);
                 _bladePitchDeg += System.Math.Clamp(error * GovernorGainDegPerSec, -GovernorRateDegPerSec, GovernorRateDegPerSec) * dt;
             }
@@ -350,7 +405,33 @@ public sealed partial class Aircraft
         // IT CAN STOP, and when it is stopped the air cannot pull it BACKWARDS through the engine: clamped at zero, so
         // a propeller held against a compression simply sits there until that cylinder bleeds down enough to let it by.
         omega = System.Math.Max(0.0, omega);
-        _shaftRpm = System.Math.Min(omega * 60.0 / (2.0 * System.Math.PI), p.MaxRpm * 1.6);
+        // AND BELOW 300 RPM STATIC FRICTION WINS. Ty 2026-11-11: "if rpm drops below 300 the friction should be too
+        // high for the engine to overcome static and the engine simply winds down and stops". It applies to a shaft
+        // that is still SLOWING — a start, a relight or a propeller the air is spinning up all pass through 300 with
+        // the torque the other way, and must not be caught by it.
+        //
+        // THIS IS ALSO THE END OF THE COMPRESSION RATCHET, and the ratchet is worth describing because it is smaller
+        // than it was reported to be. The clamp above discards the ripple's negative half and keeps its positive one,
+        // so a stopped propeller does not sit still: MEASURED on the merge before this, mixture cut at 25 m/s and
+        // held, the Pitts reaches 0.00 rpm at 2.0 s and then TWITCHES for ever — 1.55, 0.00, 1.24, 0.32, 1.22 rpm,
+        // on and on, each twitch a cylinder bleeding down far enough to let the crank past. Not the ~200 rpm it was
+        // first recorded as; crumbs. But crumbs that never stop, and a propeller that will not stand still cannot
+        // have its stopped drag measured honestly. Static friction LATCHES it: once stopped it stays stopped until
+        // something can break it away again, which is what a static friction coefficient means and is why
+        // PistonEngine.BoundaryFrictionFactor's dry excess plateaus at rest rather than vanishing there.
+        double rpmNow = omega * 60.0 / (2.0 * System.Math.PI);
+        if (_shaftStatic)
+        {
+            // Held by static friction. Only a torque that beats the breakaway — the dry boundary friction at rest
+            // plus the worst compression the crank is sitting against — gets it turning again.
+            if (qEngine - qProp > BreakawayTorqueNm(p, pressureRatio)) _shaftStatic = false;
+            else { omega = 0.0; rpmNow = 0.0; }
+        }
+        else if (rpmNow < ImpulseCoupling.StaticFrictionStopRpm && qEngine - qProp < 0.0)
+        {
+            _shaftStatic = true; omega = 0.0; rpmNow = 0.0;
+        }
+        _shaftRpm = System.Math.Min(rpmNow, p.MaxRpm * 1.6);
         // The crank only moves if the shaft does, and it is what the next step's lump is measured from.
         _crankRad = (_crankRad + omega * dt) % (4.0 * System.Math.PI);
     }
@@ -367,6 +448,21 @@ public sealed partial class Aircraft
         _idleBleed = PistonEngine.IdleBleedThrottle(g, p.MaxPowerW, p.MaxRpm, p.IdleRpm, pressureRatio, airDensity);
         _idleBleedPitch = g.PitchAt75Deg; _idleBleedDelta = pressureRatio;
         return _idleBleed;
+    }
+
+    /// <summary>
+    /// WHAT IT TAKES TO BREAK A STOPPED SHAFT AWAY, N·m. Not a new number: it is the engine's own dry boundary
+    /// friction at rest (<see cref="PistonEngine.MotoringTorqueNm"/>, whose Stribeck plateau is exactly the static
+    /// end of the curve) plus the worst compression the crank can be sitting against
+    /// (<see cref="PistonCompression.PeakNmFor"/> at its deepest ripple). Both already exist and both are already
+    /// what <see cref="PistonCompression.RestartSpeedMs"/> uses to answer the same question from the other side, so
+    /// this cannot drift away from the restart speed the model publishes.
+    /// </summary>
+    private double BreakawayTorqueNm(PropulsionConfig p, double pressureRatio)
+    {
+        double friction = -PistonEngine.MotoringTorqueNm(p, PistonCompression.AtRestRpm, _throttle01, pressureRatio);
+        return friction + CompressionPeakNm * System.Math.Clamp(pressureRatio, 0.0, 1.3)
+                        * PistonCompression.WorstRipple(System.Math.Max(1, Config.EngineCylinders), Config.EngineCompressionRatio);
     }
 
     /// <summary>Governor response: degrees of blade per second per unit of fractional rpm error, and the rate the
@@ -394,7 +490,11 @@ public sealed partial class Aircraft
     {
         get
         {
-            if (Config.Propulsion is not { PropDiameterM: > 0 } p || _noseLost) return 0.0;
+            // A SEIZED ENGINE HOLDS ITS PROPELLER. Nothing windmills through a spun bearing that has finally picked
+            // up — that is what "sudden stoppage" means — and without this the tachometer read 717 rpm on an engine
+            // the same step had just declared stopped, because the dead-engine branch below falls through to the
+            // windmilling balance for any engine that is not running. Measured in OverspeedDamageTests.
+            if (Config.Propulsion is not { PropDiameterM: > 0 } p || _noseLost || _engineSeized) return 0.0;
             double v = State.Velocity.Length;
             double rho = Atmosphere.DensityAtAltitude(-State.Position.Z);
             double solved = PropModel.WindmillRpm(p, v, rho);
@@ -405,6 +505,11 @@ public sealed partial class Aircraft
 
     /// <summary>Constant-speed rpm for a governor lever position at the current throttle (the old law at lever 1).</summary>
     private double GovernedRpmAt(double lever) => PropModel.RunningRpm(Config.Propulsion!, _throttle01, lever);   // one law: the gyro uses it too
+
+    /// <summary>What the governor's speeder spring is ASKING for at this lever position, which is not what the
+    /// tachometer reads — see <see cref="PropModel.GovernorCommandRpm"/>, where the throttle used to drag the
+    /// COMMAND down to idle and drive the blade to the coarse stop on a closed throttle.</summary>
+    private double GovernorCommandAt(double lever) => PropModel.GovernorCommandRpm(Config.Propulsion!, _throttle01, lever);
 
     /// <summary>At the same manifold pressure a piston's power goes with its rpm: the governor lever's share.</summary>
     private double GovernorPowerFactor()
@@ -430,6 +535,9 @@ public sealed partial class Aircraft
         long tShaft = SimProfile.Begin();
         StepShaft(dt, airDensity);          // the propeller's rpm is a state, not a throttle position
         SimProfile.End(SimProfile.Scope.Shaft, tShaft);
+        // AFTER the shaft, because it watches the rpm the shaft has just arrived at: the over-rev ladder and the
+        // spun bearing's own clock (AircraftOverspeedDamage).
+        StepOverspeedDamage(dt);
         if (!HasMixture || _noseLost) return;
         _roughPhase += dt * 2.0 * System.Math.PI * 3.1;   // a lean misfire's beat, a few times a second
         if (_roughPhase > 1e4) _roughPhase -= 2.0 * System.Math.PI * 1000.0;
