@@ -250,20 +250,46 @@ record says 3.3 mm and the drawing makes that flattened, bruised turf — that i
   ground a skid marks it less than a rolling tyre does**, which is right: the famous black streak is on PAVEMENT,
   where nothing marks at all and the streak is `GroundMaterialRow.SkidMark`, not geometry.
 - **On the surface, on a slope too.** Every vertex is sampled against `WorldTerrain.GroundHeightAt` — the analytic
-  ground the wheels run on — so a mark follows the ground across its width as well as along its length, lifted 2 cm
-  along the normal with a depth bias in the shader behind that. The drawn island mesh is that same height function on
-  a 25 m lattice, so the two differ by the lattice's own curvature: MEASURED over the island's land, on ground flat
-  enough to roll on, the median gap is 0 mm and the 95th percentile 38 mm — and where it is larger the AEROPLANE
-  stands off the drawn mesh by the same amount, so a mark is always under the wheel that made it, which is the only
-  consistent choice there is. Every ground that marks at all is open terrain (`Marks()` is false for asphalt, a deck,
-  ice and water), so there is no runway, carrier deck or cave floor to special-case.
+  ground the wheels run on — so a mark follows the ground across its width as well as along its length. The drawn
+  island mesh is that same height function on a 25 m lattice, so the two differ by the lattice's own curvature:
+  MEASURED over the island's land, on ground flat enough to roll on, the median gap is 0 mm and the 95th percentile
+  38 mm — and where it is larger the AEROPLANE stands off the drawn mesh by the same amount, so a mark is always
+  under the wheel that made it, which is the only consistent choice there is. Every ground that marks at all is open
+  terrain (`Marks()` is false for asphalt, a deck, ice and water), so there is no runway, carrier deck or cave floor
+  to special-case.
+- **The lift is 5 cm, and the shader's depth bias is CONSTANT, and both of those are the first real render's doing.**
+  At 2 cm with a purely slope-scaled `Offset`, the marks were plainly visible from half a metre up and **absent from
+  every plan view** — the signature of losing the depth test face-on, where the slope term contributes nothing. Over
+  the AP1 strip against its own 25 m lattice the drawn mesh stands up to **120 mm** above the analytic surface, the
+  95th percentile is **47 mm**, and a 2 cm lift buried the mark over **14.8 %** of the strip. (On the 5 m sub-lattice
+  a shaped field gets at LOD0 it is ±9 mm and nothing is buried — but which LOD is drawn is the renderer's business,
+  so the lift has to survive the coarse case.) 5 cm clears the 95th percentile of both, and `Offset -2, -200` puts
+  the bias in the constant term where a face-on view can use it.
 - **Incremental, and not every frame.** `GroundImprintMesh.Refresh` rewrites only the marks that changed — at most a
   dozen a step, one per contact in contact — and `GroundImprintVisual` calls it at 20 Hz, which leaves the growing end
   of a rut up to 0.7 m behind a 14 m/s wheel (under the aeroplane, where it cannot be seen) and spends a twentieth of
   the vertex traffic. Without both, a landing roll re-uploads 16,384 vertices on every step of the step loop.
 
-`unity/Assets/_Project/Scripts/Editor/GroundImprintShots.cs` shoots the review plates (plan, eye height beside the
-tracks, and a close low look along one rut) on the real island, from marks an aeroplane lays by rolling.
+### The plates, and the four ways the harness refuses to lie
+
+`unity/Assets/_Project/Scripts/Editor/GroundImprintShots.cs` shoots the review plates (plan from 30 m, eye height
+beside the tracks, a close low look along one rut) on the real island, from marks an aeroplane lays by rolling.
+
+It needs a GPU — **not** `-nographics`, which is what the build scripts use — and it refuses in four places rather
+than produce a picture that is not what it says it is. All four are things that actually happened on 2026-11-10:
+
+1. **no graphics device.** With `-nographics` it wrote one blank grey PNG and then segfaulted, exit 139. The crash is
+   a nuisance; the blank PNG was nearly relayed on as "the real island render".
+2. **no material** — the shader is missing, the ground keeps its marks and nothing draws them, which on screen is
+   indistinguishable from a flight that left none.
+3. **stretches in the record, no triangles in the mesh.**
+4. **ground that is not the surface the scene claims** — the one that got through. The first version set
+   `WorldTerrain.SurfaceOverride`, which steers the physics and not the island's shader, and rolled every scene down
+   the AP1 grass strip: three plates labelled "snow" were snow-coloured marks lying on green turf, and the
+   ski-against-tyre comparison — the most persuasive thing in this lane — could not be seen in any of them, because
+   both aeroplanes were on the same grass. Each scene now rolls on ground that really is its surface (a measured
+   snowfield at sim −4600, −4600 on 225°: **295 m of snow at a worst slope of 0.3°**, the flattest long run on the
+   island), nothing is overridden, and the surface is checked along the whole length of the intended roll.
 
 ### What a landing roll looks like, and what is still somebody else's
 
@@ -274,6 +300,28 @@ Cub is chattering on its own gear — and the record never joins a stretch acros
 The **airframe** scars are still enormous — a wingtip's gouge draws as a black blot — because `AirframeContact`'s
 penalty spring is mass-independent and a J-3 wingtip reads 1.04 m into the ground. That is `lane/claude-contact-depth`,
 and when it lands the scars become a few centimetres with **no change to any of this**.
+
+### Open: the contrast, measured against the real frames and NOT yet changed
+
+Measured off the first real renders (`low-cub-grass.png`, the band where the tracks are resolved): the marks darken
+the ground by **7.7 % of mean luminance** where the terrain's own banding is **4.4 %** — a ratio of **1.75×**. The
+model predicts about **16 %** at full width (alpha 0.40 at a 5.8 mm rut × the 0.41 the darkening takes out), and the
+gap between 16 and 7.7 is pixel coverage: at that range the rut is a few pixels and is averaged down. So the drawing
+is doing what it was built to do; the question is whether what it was built to do is enough.
+
+**The flaw in the 0.59 is now visible, and it is a conflation.** 0.59 is the sky-only illumination of a hollow whose
+own walls take the sun off it — the FULLY self-shading case. A 5.8 mm rut 216 mm across does not shade itself at all:
+geometrically its walls subtend sin(atan(2d/w)) = **0.054**, five per cent, not forty-one. What actually makes a tyre
+track on turf visible is not shadow but **disturbance** — flattened, bruised, compacted surface — which does not
+depend on the trough's depth-to-width ratio at all. The honest model is those two terms separately:
+
+> darkening = self-shadow, sin(atan(2d/w)), geometric and derivable · disturbance, which is a property of the
+> surface being broken rather than of its shape
+
+**Not done tonight, deliberately.** The disturbance term is a number nobody has measured, and the three frames it
+would be judged against were broken in two other ways at the time (three of four scenarios never showed their real
+surface, and no plan view showed a mark at all). Measuring a contrast on frames like that is premature; the decision
+belongs to the next render, with the surface and the depth bias fixed.
 
 ### Still not done
 

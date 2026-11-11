@@ -26,10 +26,21 @@ Shader "FlyingGame/GroundImprint"
         // so there is no inside to see.
         Cull Off
         // Sit proud of the ground it is painted on instead of z-fighting it (the same trick FlyingGame/Decal uses on
-        // an airframe's skin). GroundImprintDrawing.SurfaceLiftM lifts it 2 cm as well: the lift covers the gap
-        // between the analytic ground the marks are recorded on and the 25 m mesh that is drawn, and this covers the
-        // depth precision.
-        Offset -2, -2
+        // an airframe's skin). This is a DEPTH bias only: the mark's geometry does not move, so it cannot float.
+        //
+        // The first number is slope-scaled and the second is constant, and that distinction is what the first real
+        // renders taught. At -2, -2 the marks were plainly visible from half a metre up — where a sheet lying on the
+        // ground is nearly edge-on, so the slope term is large — and ABSENT FROM EVERY PLAN VIEW, where the slope is
+        // zero and the constant term was all there was. The constant term is now the one carrying the bias, because
+        // the view a mark has to survive is the one looking straight down at it.
+        //
+        // -200 against a 60 km far plane: units are multiplied by the smallest resolvable depth step, which at that
+        // far plane is of the order of a millimetre near the camera and a few millimetres far away, so this is
+        // centimetres to tens of centimetres of bias — the right order against the 120 mm the drawn 25 m mesh can
+        // stand above the ground the marks sit on (GroundImprintDrawing.SurfaceLiftM has that measurement). The only
+        // thing a constant depth bias can cost is a mark showing through the very edge of a ridge seen almost
+        // edge-on from a long way off, at which range a mark is well under a pixel.
+        Offset -2, -200
         Pass
         {
             CGPROGRAM
