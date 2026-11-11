@@ -69,7 +69,7 @@ public class J3FloatsWaterTests
                            + $"settling {sinkMs:+0.000;-0.000} m/s, idling ahead at {s.Velocity.Length:F3} m/s ({s.Velocity.Length / 0.44704:F1} mph) against {hullDragN:F0} N of hull resistance at {ac.EngineRpm:F0} rpm");
             // THE DRAWN EDO 60-1320 AT THE WEIGHT IT IS FLOWN AT. The range used to be 0.26-0.32 around a level
             // waterline of 0.285 m above the keel at the step, which was the bisection of the drawn sections for
-            // 589.7 kg / 2 of fresh water each -- and 589.7 kg was the PLACARD, A-691's 1,300 lb seaplane gross. On
+            // 589.7 kg / 2 of fresh water each — and 589.7 kg was the PLACARD, A-691's 1,300 lb seaplane gross. On
             // 2026-11-11 mass.massKg became the aeroplane as flown, 451.142 kg (805 lb empty, Piper Service Memo 41
             // plus the 125 lb float exchange, one pilot in the rear seat, tanks dry), and a float that displaces
             // 23.5 % less water floats higher. The same bisection, re-run on the same drawn sections:
@@ -82,12 +82,12 @@ public class J3FloatsWaterTests
             Assert.InRange(Pitch(s), -6, 6);
             Assert.InRange(Math.Abs(Roll(s)), 0, 2);
             Assert.InRange(FloatHydro.LastReport.BuoyancyN, cfg.Mass.MassKg * 9.81 * 0.9, cfg.Mass.MassKg * 9.81 * 1.1);
-            // AT REST IS VERTICAL. A seaplane with its engine running is never at rest over the ground -- "you cannot
-            // stop" is the first thing about float flying -- so the old `Velocity.Length < 0.3` was asking the model to
+            // AT REST IS VERTICAL. A seaplane with its engine running is never at rest over the ground — "you cannot
+            // stop" is the first thing about float flying — so the old `Velocity.Length < 0.3` was asking the model to
             // be wrong, and it has never passed: on the pristine base it read 2.33 m/s, and at the OLD 589.7 kg mass
             // (measured, same binaries, the pre-2026-11-11 config) it read 2.01, so the weight is not what put it
             // there. What is there is an ordinary equilibrium, and it is measured, not assumed: 192 N of hull
-            // resistance at 2.33 m/s balanced by the propeller's thrust at a 691 rpm idle -- about 2 hp at the shaft
+            // resistance at 2.33 m/s balanced by the propeller's thrust at a 691 rpm idle — about 2 hp at the shaft
             // through a 1.83 m disc by momentum theory, which is what a C-65 idles at. 2.33 m/s is 5.2 mph.
             //
             // TY: 5.2 mph of idle taxi is the one number in this test nobody has checked against your aeroplane. It is
@@ -95,7 +95,7 @@ public class J3FloatsWaterTests
             // resistance and the idle thrust rather than a tuned figure, but you are the one who idles one around a
             // lake. If it should be slower, the idle rpm or the idle thrust is where to put it, not the hull.
             Assert.True(Math.Abs(sinkMs) < 0.02, $"still settling at {sinkMs:F3} m/s after 15 s: it has not found its waterline");
-            // It idles ahead very slightly crabbed -- 0.066 m/s of drift on 2.33 ahead, 1.6 deg -- which is the
+            // It idles ahead very slightly crabbed — 0.066 m/s of drift on 2.33 ahead, 1.6 deg — which is the
             // slipstream and the P-factor on the fin, and a real one does it too. What would be wrong is a float
             // sliding bodily sideways, so the assertion is on the drift ANGLE and not on a raw velocity.
             double driftDeg = Math.Atan2(Math.Abs(s.Velocity.Y), Math.Max(0.1, s.Velocity.X)) * 57.3;
@@ -267,7 +267,7 @@ public class J3FloatsWaterTests
             // It used to be an open-loop ramp: at 12 m, start pulling 0.11 of stick a second up to 0.4, and hope. That
             // is a scripted pull with no idea what the aeroplane is doing, and the aeroplane it was scripted for
             // weighed 589.7 kg. MEASURED at the 451.142 kg this type is now authored at: the same ramp arrives at the
-            // water at 17.5 m/s -- 1.02 Vso, the stall -- still sinking 3.13 m/s (616 fpm), drops the right wing into
+            // water at 17.5 m/s — 1.02 Vso, the stall — still sinking 3.13 m/s (616 fpm), drops the right wing into
             // the lake at 3.9 g, and 30 s later the aeroplane is floating at 130 deg of roll with the wing, the nose
             // and the tailboom off it. None of that is the float: its peak water load was 13.4 kN of a 17.8 kN
             // ultimate, and it never split. It was a stall-in, scripted.

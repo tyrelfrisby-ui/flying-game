@@ -1087,11 +1087,18 @@ public sealed partial class Aircraft
     private void InitFloatWaterLoads()
     {
         if (Config.Floats is null || FloatFlood is null) return;
-        double vso = VsoCache.GetOrAdd(Config.Id ?? "", _ => DesignGrossVsoMs(Config));
-        int floats = Config.Floats.Count == 1 ? 1 : 2;
         // THE DESIGN GROSS, not the weight it is flying at: 14 CFR 23.527's water load is certificated once, and a
         // float does not get weaker because the aeroplane is light today (StructuralGrossKg, in AircraftOverstress.cs).
         double designKg = StructuralGrossKg(Config);
+        // THE CACHE KEY CARRIES THE TWO WEIGHTS, not the type id alone. A production config's masses are read from
+        // its file and never move, so this still solves one trim per type; but a TEST that loads the same id twice
+        // and authors a different mass on each copy — StructuralGrossTests does exactly that, and so does
+        // FloatLandingTests.AFloatsUltimateLoadIsItsCertificatesAndDoesNotFollowTodaysWeight — was being handed back
+        // whichever copy happened to reach the cache first. xUnit runs those two classes in parallel in one process
+        // over one static dictionary, so which answer they got depended on the scheduler. A float's strength is not
+        // allowed to depend on that.
+        double vso = VsoCache.GetOrAdd($"{Config.Id}|{designKg:R}|{Config.Mass.MassKg:R}", _ => DesignGrossVsoMs(Config));
+        int floats = Config.Floats.Count == 1 ? 1 : 2;
         double wLb = designKg * 2.20462 / floats;
         double vKt = vso * 1.943844;
         double beta = Config.Floats.DeadriseDeg * System.Math.PI / 180;
