@@ -44,6 +44,26 @@ public static class EngineOverspeed
     /// <summary>A spun bearing: progressive, terminal, and the aeroplane is still saveable by flying it gently.</summary>
     public const double SpunBearingExcess = 0.15;
 
+    /// <summary>A thrown blade — the whole of one on a constant-speed propeller, half of one on a fixed-pitch
+    /// propeller. Ty 2026-11-11.</summary>
+    public const double ThrownBladeExcess = 0.25;
+
+    /// <summary>
+    /// AND THE THREE MECHANICAL RUNGS ARE TIME-GATED, cumulatively. Ty 2026-11-11, revising his own ladder: "The
+    /// overspeed damage of a broken ring and spin bearing should gate on a time so overspeed greater than 12% for
+    /// over a cumulative 10 seconds and overspeed greater than 15% for a cumulative of 5 seconds and add a f[urther]
+    /// overspeed of 25% for more than 3 seconds throws a single prop blade on a cs prop and 50% of a single prop
+    /// blade on a fixed pitch prop".
+    ///
+    /// CUMULATIVE, NOT CONTINUOUS: four separate two-second excursions past 12 % add up to eight and the fifth one
+    /// breaks the ring. Each rung counts its own time and only while the rpm is above ITS OWN threshold, so the
+    /// counters nest — every second over 15 % is also a second over 12 %.
+    ///
+    /// The 50x hazard does NOT gate. Ty put no time on it, and it is the one rung that is not a mechanical failure:
+    /// the engine has simply been hurt and is more likely to break from here on.
+    /// </summary>
+    public const double BrokenRingSeconds = 10.0, SpunBearingSeconds = 5.0, ThrownBladeSeconds = 3.0;
+
     /// <summary>How far over the red line this rpm is, as a fraction (0 at or below it).</summary>
     public static double Excess(double rpm, double redlineRpm)
         => redlineRpm <= 0.0 ? 0.0 : Math.Max(0.0, rpm / redlineRpm - 1.0);
@@ -53,12 +73,98 @@ public static class EngineOverspeed
     public static double UnreliabilityMultiplier(double peakExcess)
         => peakExcess > NoDamageExcess ? HazardMultiplier : 1.0;
 
-    /// <summary>How many cylinders have lost a ring. One, past 12 %: Ty names a single cylinder, and a second one
-    /// would need a second number from him rather than an extrapolation of mine.</summary>
-    public static int BrokenRings(double peakExcess) => peakExcess >= BrokenRingExcess ? 1 : 0;
+    /// <summary>How many cylinders have lost a ring, from the CUMULATIVE seconds spent over 12 %. One, past ten
+    /// seconds of it: Ty names a single cylinder, and a second one would need a second number from him rather than
+    /// an extrapolation of mine.</summary>
+    public static int BrokenRings(double secondsOver12) => secondsOver12 > BrokenRingSeconds ? 1 : 0;
 
-    /// <summary>Has a bearing been spun? Past 15 %, and then it is only a matter of how hard you fly it.</summary>
-    public static bool BearingSpun(double peakExcess) => peakExcess >= SpunBearingExcess;
+    /// <summary>Has a bearing been spun? Five cumulative seconds over 15 %, and then it is only a matter of how hard
+    /// you fly it.</summary>
+    public static bool BearingSpun(double secondsOver15) => secondsOver15 > SpunBearingSeconds;
+
+    /// <summary>Has it thrown a blade? Three cumulative seconds over 25 %.</summary>
+    public static bool BladeThrown(double secondsOver25) => secondsOver25 > ThrownBladeSeconds;
+
+    /// <summary>
+    /// HOW MUCH OF A BLADE GOES. Ty 2026-11-11: "throws a single prop blade on a cs prop and 50% of a single prop
+    /// blade on a fixed pitch prop". A constant-speed hub holds its blades in a socket and lets a whole one go; a
+    /// fixed-pitch blade is part of one continuous spar, so it fails somewhere out along the span and takes the
+    /// OUTER piece with it.
+    /// </summary>
+    public static double LostBladeFraction(bool constantSpeed) => constantSpeed ? 1.0 : 0.5;
+
+    /// <summary>
+    /// THE ROTATING UNBALANCE A THROWN BLADE LEAVES, newtons: F = m·r·omega^2, where m is the mass that went and r
+    /// is where its centre of mass was.
+    ///
+    /// BOTH COME FROM TY'S OWN BLADE RULE (2026-11-09, tools/aircraft_builder/prop_inertia.py, and the note on every
+    /// propInertia in the fleet): each blade is 15 % of the net propeller weight with its centre of mass at 25 % of
+    /// the DIAMETER from the axis. The propeller's mass is not a new number either - it is backed out of the
+    /// authored polar inertia the same way AirframeHydroModel does it, m = 3·I/R² for a slender blade.
+    ///
+    /// HALF A BLADE IS NOT HALF THE FORCE, and that is the part worth getting right. The piece that leaves a
+    /// fixed-pitch blade is the OUTER half, so although it is half the mass its centre of mass sits further out: for
+    /// a uniform slender blade the outer half's centroid is at 0.75 of the span against 0.50 for the whole blade,
+    /// so the unbalance is 0.5 × 1.5 = 0.75 of a whole blade's, not 0.5. Applied to Ty's rule, whose whole-blade CoM
+    /// is 0.25 D = 0.5 R, the outer half's is 0.75 R.
+    /// </summary>
+    public static double ThrownBladeUnbalanceN(double propInertiaKgM2, double propDiameterM, int blades,
+                                               double rpm, bool constantSpeed)
+    {
+        if (propDiameterM <= 0.0 || propInertiaKgM2 <= 0.0 || rpm <= 0.0) return 0.0;
+        double bladeKg = BladeMassKg(propInertiaKgM2, propDiameterM, blades);
+        double rCom = BladeComRadiusM(propDiameterM);
+        double omega = rpm * 2.0 * Math.PI / 60.0;
+        // A whole blade: its own mass at its own centre of mass. The OUTER HALF of one: half the mass, but a
+        // uniform slender blade's outer half has its centroid at 0.75 of the span where the whole blade's is at
+        // 0.50, so the arm is 1.5x and the unbalance is 0.5 x 1.5 = 0.75 of a whole blade's rather than half.
+        double m = constantSpeed ? bladeKg : 0.5 * bladeKg;
+        double r = constantSpeed ? rCom : 1.5 * rCom;
+        return m * r * omega * omega;
+    }
+
+    /// <summary>
+    /// ONE BLADE'S MASS, kg, by INVERTING TY'S OWN BLADE RULE rather than guessing at a propeller's weight. The rule
+    /// (2026-11-09, tools/aircraft_builder/prop_inertia.py, and the note on every propInertia in the fleet): each
+    /// blade is 15 % of the net propeller weight with its centre of mass at 25 % of the DIAMETER, and the rest is
+    /// hub near the axis at a radius of gyration of about 0.10 m. Written out, that is
+    ///
+    ///     I = M · [ (blades · 0.15) · (0.25 D)²  +  (1 − blades · 0.15) · k² ]
+    ///
+    /// and the authored propInertia is the left-hand side, so the mass falls straight out. CHECKED against the one
+    /// type whose build-up is written down: the Pitts' note gives blades 2.668 + hub 0.254 + crank 0.14 = 3.06 kg·m²
+    /// for a 36.3 kg propeller on 1.98 m, and this returns 36.3 kg to the digit from 2.92 (the propeller's own share).
+    /// Handed the whole 3.06 it returns 38.0, 4.7 % high, because the crankshaft's share is inside the authored
+    /// number and is not separable — which is the right error to have and is stated rather than hidden.
+    ///
+    /// AND IT IS NOT 3·I/R². <see cref="FlyingGame.Core.Wreck.AirframeHydroModel"/> backs the propeller's mass out
+    /// with the slender-blade I = m R²/3, which assumes the mass is spread evenly along the blade. These propellers
+    /// are not built that way in this model — Ty's rule deliberately concentrates most of the weight in a hub that
+    /// contributes almost nothing to the polar moment — so that inversion comes out about FOUR TIMES light: 9.4 kg
+    /// for the Pitts' 36.3 kg propeller and 1.7 kg for a wooden Cub blade pair that ought to be near 7. That is a
+    /// real defect in the wreck model's mass build-up and it is flagged, not fixed here.
+    /// </summary>
+    public static double BladeMassKg(double propInertiaKgM2, double propDiameterM, int blades)
+    {
+        double rCom = BladeComRadiusM(propDiameterM);
+        double bladeShare = Math.Clamp(Math.Max(1, blades) * BladeMassFraction, 0.0, 0.95);
+        double denom = bladeShare * rCom * rCom + (1.0 - bladeShare) * HubRadiusOfGyrationM * HubRadiusOfGyrationM;
+        return denom > 0.0 ? BladeMassFraction * propInertiaKgM2 / denom : 0.0;
+    }
+
+    /// <summary>Where a blade's centre of mass is: 25 % of the DIAMETER from the axis, which is half the radius.
+    /// Ty's rule, and the "of DIAMETER" is the part that is easy to misread and worth writing out.</summary>
+    public static double BladeComRadiusM(double propDiameterM) => 0.25 * propDiameterM;
+
+    /// <summary>Ty's blade rule: each blade is 15 % of the net propeller weight, the rest being hub near the axis.
+    /// Two-blade propellers only; the rule runs 60 % high on a three-blade one, which is recorded on every
+    /// propInertia note in the fleet.</summary>
+    public const double BladeMassFraction = 0.15;
+
+    /// <summary>The hub's radius of gyration, m, from the same build-up (the Pitts' propInertia note: "hub 0.254
+    /// (k 0.10 m)"). It barely matters — the hub is 0.9 % of the Pitts' polar moment — but leaving it out would
+    /// make the inversion disagree with the rule it is inverting.</summary>
+    public const double HubRadiusOfGyrationM = 0.10;
 
     /// <summary>
     /// What a broken ring costs, as a multiplier on shaft power: one cylinder of <paramref name="cylinders"/> stops

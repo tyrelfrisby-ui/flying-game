@@ -198,6 +198,9 @@ public sealed partial class Aircraft
     // is, how well each cylinder is still holding its charge, and how hard a cylinder squarely on compression pushes
     // back. The crank angle has to be a state — a lump you cannot see coming is a lump that cannot stop anything.
     private double _crankRad;
+    /// <summary>Held by STATIC friction below <see cref="ImpulseCoupling.StaticFrictionStopRpm"/>: it latches,
+    /// because static friction is higher than the sliding friction the shaft was overcoming on the way down.</summary>
+    private bool _shaftStatic;
     private double[]? _leak;              // 1 sealed .. 0 bled down, per cylinder
     private double[]? _leakTau;           // each cylinder's own bleed time, deliberately all different
     private double _compPeakNm = double.NaN;
@@ -259,6 +262,27 @@ public sealed partial class Aircraft
 
     /// <summary>The shaft rpm being integrated, or 0 when this type is still on the old throttle law.</summary>
     public double ShaftRpm => _shaftRpm;
+
+    /// <summary>
+    /// THE IMPULSE COUPLING IS ENGAGED: below 400 rpm the magneto drive's flyweights hang in, the coupling winds its
+    /// spring and lets go with a snap, the spark is retarded to about TDC and it is hot enough to fire at cranking
+    /// speed (<see cref="ImpulseCoupling"/>, Ty 2026-11-11). It is a MECHANICAL device in the magneto drive, so it
+    /// engages whenever the engine is turning slowly enough — firing or not, which is exactly the state a hand-prop
+    /// or a restart is in.
+    /// </summary>
+    public bool ImpulseCouplingEngaged => ImpulseCoupling.Engaged(EngineRpm);
+
+    /// <summary>Impulse releases a second — the snap rate, which is the firing rate because it is the same event.
+    /// 0 when the coupling is not engaged. The engine audio's pulse train runs at this rate already.</summary>
+    public double ImpulseSnapsPerSecond => ImpulseCoupling.SnapsPerSecond(EngineRpm, Config.EngineCylinders);
+
+    /// <summary>Spark advance, degrees before top dead centre: the installation's normal advance, or about TDC while
+    /// the impulse coupling is engaged.</summary>
+    public double IgnitionAdvanceDeg => ImpulseCoupling.AdvanceDeg(EngineRpm);
+
+    /// <summary>True while the shaft is held by STATIC friction rather than merely stopped — below 300 rpm and
+    /// decelerating, it latches (<see cref="ImpulseCoupling.StaticFrictionStopRpm"/>).</summary>
+    public bool ShaftHeldByStaticFriction => _shaftStatic;
 
     /// <summary>The blade angle at 0.75 R a governed propeller is actually set to, degrees, or 0 for a fixed blade.
     /// It is a STATE between the stops, and whether the governor has run out of it is the whole of an overspeed, so
@@ -381,7 +405,33 @@ public sealed partial class Aircraft
         // IT CAN STOP, and when it is stopped the air cannot pull it BACKWARDS through the engine: clamped at zero, so
         // a propeller held against a compression simply sits there until that cylinder bleeds down enough to let it by.
         omega = System.Math.Max(0.0, omega);
-        _shaftRpm = System.Math.Min(omega * 60.0 / (2.0 * System.Math.PI), p.MaxRpm * 1.6);
+        // AND BELOW 300 RPM STATIC FRICTION WINS. Ty 2026-11-11: "if rpm drops below 300 the friction should be too
+        // high for the engine to overcome static and the engine simply winds down and stops". It applies to a shaft
+        // that is still SLOWING — a start, a relight or a propeller the air is spinning up all pass through 300 with
+        // the torque the other way, and must not be caught by it.
+        //
+        // THIS IS ALSO THE END OF THE COMPRESSION RATCHET, and the ratchet is worth describing because it is smaller
+        // than it was reported to be. The clamp above discards the ripple's negative half and keeps its positive one,
+        // so a stopped propeller does not sit still: MEASURED on the merge before this, mixture cut at 25 m/s and
+        // held, the Pitts reaches 0.00 rpm at 2.0 s and then TWITCHES for ever — 1.55, 0.00, 1.24, 0.32, 1.22 rpm,
+        // on and on, each twitch a cylinder bleeding down far enough to let the crank past. Not the ~200 rpm it was
+        // first recorded as; crumbs. But crumbs that never stop, and a propeller that will not stand still cannot
+        // have its stopped drag measured honestly. Static friction LATCHES it: once stopped it stays stopped until
+        // something can break it away again, which is what a static friction coefficient means and is why
+        // PistonEngine.BoundaryFrictionFactor's dry excess plateaus at rest rather than vanishing there.
+        double rpmNow = omega * 60.0 / (2.0 * System.Math.PI);
+        if (_shaftStatic)
+        {
+            // Held by static friction. Only a torque that beats the breakaway — the dry boundary friction at rest
+            // plus the worst compression the crank is sitting against — gets it turning again.
+            if (qEngine - qProp > BreakawayTorqueNm(p, pressureRatio)) _shaftStatic = false;
+            else { omega = 0.0; rpmNow = 0.0; }
+        }
+        else if (rpmNow < ImpulseCoupling.StaticFrictionStopRpm && qEngine - qProp < 0.0)
+        {
+            _shaftStatic = true; omega = 0.0; rpmNow = 0.0;
+        }
+        _shaftRpm = System.Math.Min(rpmNow, p.MaxRpm * 1.6);
         // The crank only moves if the shaft does, and it is what the next step's lump is measured from.
         _crankRad = (_crankRad + omega * dt) % (4.0 * System.Math.PI);
     }
@@ -398,6 +448,21 @@ public sealed partial class Aircraft
         _idleBleed = PistonEngine.IdleBleedThrottle(g, p.MaxPowerW, p.MaxRpm, p.IdleRpm, pressureRatio, airDensity);
         _idleBleedPitch = g.PitchAt75Deg; _idleBleedDelta = pressureRatio;
         return _idleBleed;
+    }
+
+    /// <summary>
+    /// WHAT IT TAKES TO BREAK A STOPPED SHAFT AWAY, N·m. Not a new number: it is the engine's own dry boundary
+    /// friction at rest (<see cref="PistonEngine.MotoringTorqueNm"/>, whose Stribeck plateau is exactly the static
+    /// end of the curve) plus the worst compression the crank can be sitting against
+    /// (<see cref="PistonCompression.PeakNmFor"/> at its deepest ripple). Both already exist and both are already
+    /// what <see cref="PistonCompression.RestartSpeedMs"/> uses to answer the same question from the other side, so
+    /// this cannot drift away from the restart speed the model publishes.
+    /// </summary>
+    private double BreakawayTorqueNm(PropulsionConfig p, double pressureRatio)
+    {
+        double friction = -PistonEngine.MotoringTorqueNm(p, PistonCompression.AtRestRpm, _throttle01, pressureRatio);
+        return friction + CompressionPeakNm * System.Math.Clamp(pressureRatio, 0.0, 1.3)
+                        * PistonCompression.WorstRipple(System.Math.Max(1, Config.EngineCylinders), Config.EngineCompressionRatio);
     }
 
     /// <summary>Governor response: degrees of blade per second per unit of fractional rpm error, and the rate the

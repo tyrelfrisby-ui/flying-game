@@ -47,21 +47,46 @@ public class OverspeedDamageTests : IDisposable
     /// <summary>Each rung fires where Ty put it and nowhere else. 10 % is "or less causes no damage", so the rung
     /// above it is strictly greater; 12 and 15 are "an overspeed of", so those fire AT the figure.</summary>
     [Theory]
-    [InlineData(0.00, 1.0, 0, false)]
-    [InlineData(0.05, 1.0, 0, false)]
-    [InlineData(0.10, 1.0, 0, false)]     // "10% or less causes no damage"
-    [InlineData(0.1001, 50.0, 0, false)]  // "Over 10% increases likelyhood ... by 50 x"
-    [InlineData(0.1199, 50.0, 0, false)]
-    [InlineData(0.12, 50.0, 1, false)]    // "An overspeed of 12% causes a broken ring on one cylinder"
-    [InlineData(0.1499, 50.0, 1, false)]
-    [InlineData(0.15, 50.0, 1, true)]     // "An overspeed of 15 percent causes a catatonic failure from a spun bearing"
-    [InlineData(0.30, 50.0, 1, true)]
-    public void TheLadderFiresWhereTySaid(double excess, double hazard, int rings, bool bearing)
+    [InlineData(0.00, 1.0)]
+    [InlineData(0.05, 1.0)]
+    [InlineData(0.10, 1.0)]       // "an over speed of 10% or less causes no damage"
+    [InlineData(0.1001, 50.0)]    // "Over 10% increases likelyhood ... by 50 x"
+    [InlineData(0.30, 50.0)]
+    public void TheHazardRungFiresOnTheOverspeedAloneAndDoesNotGateOnTime(double excess, double hazard)
     {
+        // The only rung with no time on it: Ty put none there, and it is the one that is not a mechanical failure.
         Assert.Equal(hazard, EngineOverspeed.UnreliabilityMultiplier(excess));
-        Assert.Equal(rings, EngineOverspeed.BrokenRings(excess));
-        Assert.Equal(bearing, EngineOverspeed.BearingSpun(excess));
     }
+
+    /// <summary>The three MECHANICAL rungs gate on cumulative time, and each one on its own threshold. Ty
+    /// 2026-11-11: "overspeed greater than 12% for over a cumulative 10 seconds and overspeed greater than 15% for a
+    /// cumulative of 5 seconds and ... an overspeed of 25% for more than 3 seconds throws a single prop blade".</summary>
+    [Theory]
+    [InlineData(0.0, 0, false, false)]
+    [InlineData(9.9, 0, false, false)]
+    [InlineData(10.0, 0, false, false)]     // "for OVER a cumulative 10 seconds"
+    [InlineData(10.1, 1, false, false)]
+    [InlineData(4.9, 0, false, false)]
+    public void TheRingBreaksOnlyAfterTenCumulativeSeconds(double seconds, int rings, bool _, bool __)
+    {
+        Assert.Equal(rings, EngineOverspeed.BrokenRings(seconds));
+    }
+
+    [Theory]
+    [InlineData(0.0, false)]
+    [InlineData(4.9, false)]
+    [InlineData(5.0, false)]
+    [InlineData(5.1, true)]
+    public void TheBearingSpinsOnlyAfterFiveCumulativeSeconds(double seconds, bool spun)
+        => Assert.Equal(spun, EngineOverspeed.BearingSpun(seconds));
+
+    [Theory]
+    [InlineData(0.0, false)]
+    [InlineData(2.9, false)]
+    [InlineData(3.0, false)]
+    [InlineData(3.1, true)]
+    public void TheBladeGoesOnlyAfterThreeCumulativeSeconds(double seconds, bool thrown)
+        => Assert.Equal(thrown, EngineOverspeed.BladeThrown(seconds));
 
     /// <summary>A broken ring is one cylinder of however many the engine has, and nothing else.</summary>
     [Fact]
@@ -138,14 +163,18 @@ public class OverspeedDamageTests : IDisposable
         double rho = Atmosphere.DensityAtAltitude(BladeElement.CoarseStopDensityAltitudeM);
         double tas = 1.25 * vd * Math.Sqrt(Atmosphere.SeaLevelDensityKgM3 / rho);
         var ac = Flying(c, tas, BladeElement.CoarseStopDensityAltitudeM);
-        for (int i = 0; i < 1600; i++)
+        for (int i = 0; i < 3200; i++)      // 16 s held: past the ring's cumulative 10 and the bearing's 5
         {
             ac.Step(new ControlInputs(0, 0, 0, -1.0), SimLoop.DefaultFixedDtSec);
             ac.State = new RigidBodyState(new Vec3(0, 0, -BladeElement.CoarseStopDensityAltitudeM), Quat.Identity, new Vec3(tas, 0, 0), Vec3.Zero);
         }
+        (double o12, double o15, double o25) = ac.OverspeedSeconds;
         _o.WriteLine($"Pitts held at 1.25 Vd, 10,000 ft DA: {ac.EngineRpm:F0} rpm against a {p.MaxRpm:F0} red line " +
-                     $"= {ac.OverspeedPeakExcess * 100:F1} % over; rings {ac.DeadCylinders}, bearing {ac.BearingSpun}, " +
-                     $"powerScale {ac.PowerScale:F4}");
+                     $"= {ac.OverspeedPeakExcess * 100:F1} % over; seconds over 12/15/25 % {o12:F1}/{o15:F1}/{o25:F1}; " +
+                     $"rings {ac.DeadCylinders}, bearing {ac.BearingSpun}, blade {ac.BladeThrown}, powerScale {ac.PowerScale:F4}");
+        Assert.True(o12 > EngineOverspeed.BrokenRingSeconds, $"sixteen seconds held has to bank the ring's ten ({o12:F1} s)");
+        Assert.True(o15 > EngineOverspeed.SpunBearingSeconds, $"and the bearing's five ({o15:F1} s)");
+        Assert.Equal(0.0, o25);                     // 18.5 % never reaches the blade's 25
         Assert.True(ac.EngineRpm > p.MaxRpm * 1.12, $"the dive must over-rev it past 12 % ({ac.EngineRpm:F0} rpm)");
         Assert.True(ac.OverspeedPeakExcess >= EngineOverspeed.BrokenRingExcess);
         Assert.Equal(1, ac.DeadCylinders);
@@ -156,7 +185,79 @@ public class OverspeedDamageTests : IDisposable
         // 5/6 alone would be 0.833, the difference being the eight seconds of full power the bearing has had.
         Assert.Equal(EngineOverspeed.PowerFactorForBrokenRings(1, 6) * EngineOverspeed.PowerFactorForBearing(ac.BearingDamage01),
                      ac.PowerScale, 6);
-        Assert.InRange(ac.PowerScale, 0.78, 5.0 / 6.0);
+        Assert.True(ac.PowerScale < 5.0 / 6.0);
+        Assert.False(ac.BladeThrown, "18.5 % over is well short of the blade's 25");
+    }
+
+    /// <summary>
+    /// CUMULATIVE MEANS CUMULATIVE. Ty's gates are not "ten seconds in a row": four separate excursions past 12 %
+    /// add up, and the fifth one breaks the ring. Flown here as six two-second bursts with the aeroplane brought
+    /// back under the red line in between, so nothing is ever over for more than two seconds at a time.
+    /// </summary>
+    [Fact]
+    public void SeparateExcursionsAddUpToTheGate()
+    {
+        AircraftConfig c = Load("pitts-s2b-like");
+        PropulsionConfig p = c.Propulsion!;
+        double vd = 1.1 * (c.Limits?.VneMs ?? 100.0);
+        double rho = Atmosphere.DensityAtAltitude(BladeElement.CoarseStopDensityAltitudeM);
+        double fast = 1.25 * vd * Math.Sqrt(Atmosphere.SeaLevelDensityKgM3 / rho);
+        double slow = 0.70 * vd * Math.Sqrt(Atmosphere.SeaLevelDensityKgM3 / rho);
+        var ac = Flying(c, fast, BladeElement.CoarseStopDensityAltitudeM);
+
+        void Hold(double tas, double seconds)
+        {
+            int steps = (int)Math.Round(seconds / SimLoop.DefaultFixedDtSec);
+            for (int i = 0; i < steps; i++)
+            {
+                ac.Step(new ControlInputs(0, 0, 0, -1.0), SimLoop.DefaultFixedDtSec);
+                ac.State = new RigidBodyState(new Vec3(0, 0, -BladeElement.CoarseStopDensityAltitudeM), Quat.Identity, new Vec3(tas, 0, 0), Vec3.Zero);
+            }
+        }
+
+        for (int burst = 0; burst < 6; burst++)
+        {
+            Hold(fast, 2.0);
+            double over12 = ac.OverspeedSeconds.Over12;
+            Hold(slow, 3.0);                                   // back under the red line: nothing accumulates
+            _o.WriteLine($"  after burst {burst + 1}: {over12:F1} s over 12 %, rings {ac.DeadCylinders}, rpm now {ac.EngineRpm:F0}");
+            // The slow leg adds only the shaft's own spool-down — measured, 0.05 s — and then nothing.
+            Assert.InRange(ac.OverspeedSeconds.Over12 - over12, 0.0, 0.2);
+            if (burst < 4) Assert.Equal(0, ac.DeadCylinders);      // under ten seconds banked: still whole
+        }
+        _o.WriteLine($"six bursts: {ac.OverspeedSeconds.Over12:F1} s over 12 %, rings {ac.DeadCylinders}");
+        Assert.True(ac.OverspeedSeconds.Over12 > EngineOverspeed.BrokenRingSeconds);
+        Assert.Equal(1, ac.DeadCylinders);
+    }
+
+    /// <summary>
+    /// THE THROWN BLADE'S LOAD, from Ty's own blade rule and nothing else. A whole blade on a constant-speed
+    /// propeller; the OUTER HALF on a fixed-pitch one, which is 0.75 of a whole blade's unbalance rather than 0.5 —
+    /// half the mass, but its centre of mass is at 0.75 R instead of 0.5 R.
+    /// </summary>
+    [Fact]
+    public void AThrownBladeLeavesAnEnormousUnbalance()
+    {
+        foreach (string id in new[] { "pitts-s2b-like", "j3-cub-like" })
+        {
+            AircraftConfig c = Load(id);
+            PropulsionConfig p = c.Propulsion!;
+            double bladeKg = EngineOverspeed.BladeMassKg(p.PropInertia, p.PropDiameterM, p.PropBladeCount);
+            double n = EngineOverspeed.ThrownBladeUnbalanceN(p.PropInertia, p.PropDiameterM, p.PropBladeCount, p.MaxRpm, p.ConstantSpeed);
+            double slender = 3.0 * p.PropInertia / (0.25 * p.PropDiameterM * p.PropDiameterM);
+            _o.WriteLine($"{id}: blade {bladeKg:F2} kg at {EngineOverspeed.BladeComRadiusM(p.PropDiameterM):F3} m " +
+                         $"(propeller {bladeKg / EngineOverspeed.BladeMassFraction:F1} kg, against {slender:F1} kg from the slender-blade inversion), " +
+                         $"{(p.ConstantSpeed ? "whole blade" : "outer half")} at {p.MaxRpm:F0} rpm = {n / 1000.0:F1} kN");
+            Assert.True(n > 20000.0, $"{id}: a thrown blade at the red line is tens of kN ({n / 1000.0:F1} kN)");
+            // The Pitts is the one type whose propeller build-up is written down: 36.3 kg, blades 2.668 kg.m2 of a
+            // 3.06 total. Handed the whole authored figure the inversion comes back 4.7 % high, the crankshaft's
+            // share being inside it and not separable.
+            if (id == "pitts-s2b-like") Assert.InRange(bladeKg / EngineOverspeed.BladeMassFraction, 36.3, 38.5);
+            // Half a blade is 0.75 of a whole one's unbalance, not half: the piece that goes is the outer half.
+            double whole = EngineOverspeed.ThrownBladeUnbalanceN(p.PropInertia, p.PropDiameterM, p.PropBladeCount, p.MaxRpm, true);
+            double half = EngineOverspeed.ThrownBladeUnbalanceN(p.PropInertia, p.PropDiameterM, p.PropBladeCount, p.MaxRpm, false);
+            Assert.Equal(0.75, half / whole, 9);
+        }
     }
 
     /// <summary>The hazard multiplier is "for the remainder of the flight": pull the power back and it stays 50.</summary>
@@ -165,7 +266,7 @@ public class OverspeedDamageTests : IDisposable
     {
         AircraftConfig c = Load("pitts-s2b-like");
         var ac = Flying(c, 60.0, 1500.0);
-        ac.SetOverspeedPeakExcessForTesting(0.11);
+        ac.SetOverspeedForTesting(0.11);
         Assert.Equal(50.0, ac.EngineUnreliabilityMultiplier);
         var sim = new SimLoop(ac);
         sim.RunFor(10.0, new ControlInputs(0, 0, 0, 1.0));     // throttle shut, nursed, well under the red line
@@ -182,7 +283,7 @@ public class OverspeedDamageTests : IDisposable
     {
         AircraftConfig c = Load("pitts-s2b-like");
         var ac = Flying(c, 60.0, 1500.0);
-        ac.SetOverspeedPeakExcessForTesting(0.10);
+        ac.SetOverspeedForTesting(0.10);
         new SimLoop(ac).RunFor(5.0, new ControlInputs(0, 0, 0, -1.0));
         Assert.Equal(1.0, ac.EngineUnreliabilityMultiplier);
         Assert.Equal(0, ac.DeadCylinders);
@@ -202,7 +303,7 @@ public class OverspeedDamageTests : IDisposable
     {
         AircraftConfig c = Load("pitts-s2b-like");
         var ac = Flying(c, 60.0, 1500.0);
-        ac.SetOverspeedPeakExcessForTesting(0.16);
+        ac.SetOverspeedForTesting(0.16, 60.0);
         var sim = new SimLoop(ac);
         double psi0 = double.NaN, power0 = double.NaN;
         double t = 0.0;
@@ -239,7 +340,7 @@ public class OverspeedDamageTests : IDisposable
     {
         AircraftConfig c = Load("pitts-s2b-like");
         var ac = Flying(c, 45.0, 1500.0);
-        ac.SetOverspeedPeakExcessForTesting(0.16);
+        ac.SetOverspeedForTesting(0.16, 60.0);
         ac.PropLever = 0.0;                              // rpm back as far as the governor goes
         var sim = new SimLoop(ac);
         for (int i = 0; i < 240; i++)
