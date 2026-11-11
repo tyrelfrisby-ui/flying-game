@@ -157,6 +157,37 @@ depth-to-width ratio. The honest model is those two terms separately rather than
 judged against were broken in two other ways at the time. A derived number measured against the wrong background is
 still the wrong number — and so is a picked one measured against a broken frame. It belongs to the next render.
 
+### The ski that measured four times DEEPER than the tyre: it is the peak, and the peak is a spring
+
+The second real render showed the plan views (the depth bias was it) and raised one number that contradicts the
+picture: `cub-snow` deepest **36.3 mm**, `cub-skis-snow` deepest **152.2 mm**. A ski exists to float. Measured
+rather than argued, and it is two of the three candidates at once — not the third:
+
+**Not the aeroplanes.** Rolling the PA-18 on tyres and on skis over the same real snow, same site, same speed:
+
+| PA-18, same snow | median track | p90 | peak |
+|---|---|---|---|
+| on tyres | 39.3 mm | 46.5 mm | 84.5 mm |
+| on skis | **18.2 mm** | 66.8 mm | **152.2 mm** |
+
+The ski's MEDIAN is less than half the tyre's. **The flotation is real and the drawing is right**; the comparison
+that looked backwards was a J-3's peak against a PA-18's peak.
+
+**It is the peak, and the peak is a spring.** Over 2,386 ski contacts, **a ski's sinkage is zero on every single
+one** — every ski depth comes from the retained part of an ELASTIC leg compression, because nothing in the physics
+computes how far a ski compacts snow (flagged in the doc from the start; it now has a price tag). A spring
+compresses MORE under a harder arrival, which is backwards from flotation, and the deepest ski contact is at
+**t = 0.735 s under 9,696 N** — one step of the settling in a five-second roll.
+
+A second, independent signal confirms the flotation and answers the five `Scar`s too: the PA-18 on tyres lays **8**
+airframe scars, 1.4–4.9 mm deep, because sinking 39 mm into snow brings its belly down to it — and **on skis it lays
+none at all**. The J-3's five scars on snow are the same thing and they are 1.6–3.3 mm: an aeroplane sitting low in
+soft snow, just brushing it. That is the model being right, not the scene misbehaving.
+
+**Nothing was tuned.** The fix is the REPORT: `marks.txt` now gives the median and the 90th percentile per kind
+before the peak, because the peak is the one number that misleads here. The missing ski pressure-sinkage model is
+written up in the doc as the next piece of ski work, with the measurement attached.
+
 ### `Shader.Find` does not find this project's shaders in a batchmode editor
 
 The guard above fired on the very next run, and it was right to: **no plates were written**, and the reason was not

@@ -172,17 +172,32 @@ namespace FlyingGame.EditorTools
 
                 GroundImprintField ring = GroundImprints.World;
                 GroundMaterial want = GroundMaterials.Of(scene.surface);
-                double deepest = 0, widest = 0;
-                var kinds = new System.Collections.Generic.Dictionary<GroundImprintKind, int>();
+                var kinds = new System.Collections.Generic.Dictionary<GroundImprintKind, System.Collections.Generic.List<double>>();
+                var wide = new System.Collections.Generic.Dictionary<GroundImprintKind, System.Collections.Generic.List<double>>();
                 var materials = new System.Collections.Generic.Dictionary<GroundMaterial, int>();
                 for (int i = 0; i < ring.Count; i++)
                 {
                     GroundImprint k = ring[i];
-                    kinds.TryGetValue(k.Kind, out int n); kinds[k.Kind] = n + 1;
+                    if (!kinds.TryGetValue(k.Kind, out var d)) kinds[k.Kind] = d = new System.Collections.Generic.List<double>();
+                    if (!wide.TryGetValue(k.Kind, out var w)) wide[k.Kind] = w = new System.Collections.Generic.List<double>();
+                    d.Add(k.DepthM); w.Add(k.WidthM);
                     materials.TryGetValue(k.Material, out int m); materials[k.Material] = m + 1;
-                    deepest = System.Math.Max(deepest, k.DepthM); widest = System.Math.Max(widest, k.WidthM);
                 }
-                log.AppendLine($"{scene.name}: on {scene.surface} at ({scene.x:F0}, {scene.y:F0}) hdg {scene.headingDeg:F0}; {ring.Count} stretches, {marks.DrawnTriangles} triangles, deepest {1000 * deepest:F1} mm, widest {1000 * widest:F0} mm, kinds [{string.Join(", ", kinds.Select(p => p.Key + " x" + p.Value))}], materials [{string.Join(", ", materials.Select(p => p.Key + " x" + p.Value))}]");
+                log.AppendLine($"{scene.name}: on {scene.surface} at ({scene.x:F0}, {scene.y:F0}) hdg {scene.headingDeg:F0}; {ring.Count} stretches, {marks.DrawnTriangles} triangles, materials [{string.Join(", ", materials.Select(p => p.Key + " x" + p.Value))}]");
+                // PER KIND, and the MEDIAN before the peak. The peak alone is the one number that misleads here: a
+                // ski has no pressure-sinkage model of its own, so its track's depth is the plastic part of an
+                // ELASTIC leg compression, which peaks under the hardest part of the arrival — a PA-18 on skis was
+                // measured at a 152 mm peak against the same aeroplane's 85 mm on tyres, while its MEDIAN was 18 mm
+                // against the tyre's 39 mm. The median is the track a pilot walks back along; the peak is one step
+                // of settling. See docs/GROUND-IMPRINTS.md, "A ski's SINKAGE".
+                foreach (var kv in kinds.OrderBy(q => q.Key.ToString()))
+                {
+                    var d = kv.Value.OrderBy(v => v).ToList();
+                    var w = wide[kv.Key].OrderBy(v => v).ToList();
+                    double Pct(System.Collections.Generic.List<double> a, double q) =>
+                        a[(int)System.Math.Clamp(q * (a.Count - 1), 0, a.Count - 1)];
+                    log.AppendLine($"    {kv.Key,-6} x{d.Count,3}  depth mm: p50 {1000 * Pct(d, .5),7:F1}  p90 {1000 * Pct(d, .9),7:F1}  peak {1000 * d[d.Count - 1],7:F1}   width mm: p50 {1000 * Pct(w, .5),6:F0}  peak {1000 * w[w.Count - 1],6:F0}");
+                }
                 // The marks' own MATERIAL is what the drawing takes its colour from, so it is the last place the
                 // picture and the physics could still disagree about what the aeroplane is rolling on.
                 foreach (GroundMaterial got in materials.Keys)
