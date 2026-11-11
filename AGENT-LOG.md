@@ -33,6 +33,24 @@ Running record, one bullet per lane, newest last:
      lost the triggers entirely and gained nothing. Three lines put the same `CombineWheelBrakes` on that seat, so
      both players' triggers are their own toe brakes.
   Tests: `GamepadShaping|QuestStickFeel|QuestControls|PedalBlend|LocalPad|Brake` — **122 passed, 0 failed.**
+- **`lane/claude-input-expo`** (`bee2ffc7`) — MERGED. One shared `InputExpo` curve, applied ONCE after the dead zone
+  by `Aircraft.ShapeAxis`, on every input path and every platform: 30 % pitch and roll, 20 % yaw (the rudder takes
+  `YawPerPitchRoll` = 0.20/0.30 of the one setting). The pad's own 0.65 goes to zero — it used to stack its curve on
+  the aeroplane's — and the headset's own 0.65 default goes with it. The per-axis expo sliders are replaced by one
+  "Stick expo" row, 0…70 %, in OPTIONS › Controls and in the VR menu, on one pref (`feel.stickExpo`); the per-axis
+  DEAD ZONE stays. Its own log said why it never landed: *"stick expo not merged (no grob103 merge in island-nav
+  after 3 h)"* — the merge it was waiting for never came.
+  **Two conflicts, both real:**
+  1. `OptionsPanel.cs` — the shipping lane has since moved every slider onto a wrapping `SliderRow` helper, and the
+     lane was still drawing raw `UiLayout.Label` + `GUI.HorizontalSlider`. Resolved to the shipping lane's
+     `SliderRow` for both the new Stick-expo row and the surviving dead-zone row. Taking the lane's side would have
+     reverted the wrapping rows Ty asked for on 11-08 (the clipped `":ontrol:"` tab fix's sibling).
+  2. `GamepadShapingTests.TriggersAreTheLeftAndRightToeBrakes`, which the previous merge had just written, asserted
+     `StickRudder(0.51) == 0.25625` — the pad's 0.65 curve. With the pad's expo now zero the left stick is linear,
+     so (0.51 − 0.02)/0.98 = 0.5. Re-pinned, with the reason in the test.
+  **FLYING FEEL, for Ty:** centre stick on the 8BitDo will be LIVELIER than the pad he liked on 11-03 (one 30 %
+  curve, not 0.65 stacked on the aeroplane's 0.1–0.3), and the Quest loses its headset-only 65 %. Both come back by
+  raising "Stick expo" to 65–70 %.
 
 ## ASTC 4x4: the textures come out of the GLBs, and the whole fleet with every livery is 0.95 GB — Claude, 2026-11-10, lane/claude-textures
 
@@ -3039,6 +3057,21 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
      `tools/check-parity.sh --strict` PARITY: OK. Shared GLB/rig change: lane/claude-quest-islandnav must merge it
      with island-nav, the same day, under the lock.
 <!-- /c172-yoke needs-you -->
+<!-- input-expo needs-you -->
+- **STICK EXPO ON EVERY INPUT, ONE CURVE, ONE SLIDER (Claude, 2026-11-04, lane/claude-input-expo; Ty 05:55 "hand flying
+  needs some expo"). iOS `2026.1104.1433` `** BUILD SUCCEEDED **` (lane HEAD b770986f = island-nav 94b70e6b + this); **NOT merged into island-nav**: the brief was to merge only after a grob103 merge landed there; polled 14:38–17:38 PST, none landed (island-nav moved on to 6615db2d, 4b902fca C172 yoke, 73d7702b). **Not installed** (4016 at 14:37; at 17:38 another lane's Unity + xcodebuild were running). To land it: `git merge --no-ff lane/claude-input-expo` in `claude-island-nav-merge` (that worktree holds the branch; `claude-island-nav` is a DETACHED HEAD at aeb9695a), then the Quest lane the same day.**
+  out = (1 − e)·x + e·x³ after the existing dead zone; 30 % pitch/roll, 20 % rudder by default; OPTIONS › Controls
+  "Stick expo" 0–70 % (rudder follows at 2/3), and the VR menu's "Stick expo" row edits the same setting.
+  **Two feel changes you should know about before flying:**
+  1. **Gamepad (8BitDo):** it used to put its own 0.65 curve on the sticks and then the aircraft's 0.1–0.3 on top of that,
+     two curves stacked. Now it gets the one shared curve, 30 % by default, so centre stick will feel LIVELIER than the
+     pad you liked on 11-03. If you want it back, set Stick expo to about 65–70 %.
+  2. **Quest:** the headset had its own 65 % default (your 11-02 "far too sensitive"). Parity puts it on the same 30 %.
+     Same fix: raise the slider in the VR menu.
+  **⚠ PARITY: lane/claude-quest-islandnav must merge this (lane/claude-input-expo, or island-nav after it) the same
+  day.** `src/` and `Bridge/SessionSettings.cs`, `OptionsPanel.cs`, `QuestMenu.cs` are shared paths. Not merged into
+  the Quest lane by this lane (as instructed).
+
 <!-- crash-tuning needs-you -->
 - **CRASH TUNING MERGED INTO BOTH LANES AND INSTALLED — PLEASE FLY IT (Claude, 2026-11-04 ~4:05 PM PT; Ty approved the
   merge 2:29 PM PT). Nothing approved by me; no push, main untouched.**
@@ -7177,6 +7210,35 @@ with a green range and two red lines ... Usually the suction gage is a tiny 1 in
   check_c172_cockpit.py PASS; FlightTests C172 filter 49/49. renders/c172/yoke-v1/*suction_closeup.png still show 5.5 (not re-rendered).
 
 C172-YOKE-DONE
+
+### 2026-11-04 06:00– PST — Claude · lane/claude-input-expo · stick expo: one shared curve, applied once
+Ty 05:55: "hand flying needs some expo."
+- **Where it is applied.** Every hand-flying path already met at one point: `Aircraft.ShapeAxis` (src, so iOS, Mac and
+  Quest alike), which zones the stick and then curved it with the axis's `Expo`. Touch pads pass raw positions
+  (TouchFlightControls `Shape` is only a clamp), the keyboard ramp, a calibrated joystick, USB rudder pedals
+  (RudderPedals: linear + dead zone), the gamepad and the Quest controllers (QuestControlMapper: dead zone only) all
+  write `_aileron/_elevator/_rudder` and go through it. The curve is now `FlyingGame.Core.InputExpo.Apply`, called
+  from there, after the dead zone; the dead-zone code is untouched.
+- **Double application removed.** `GamepadShaping.Stick/Rudder` put a 0.65 curve on the pad BEFORE ShapeAxis put the
+  aircraft's on top. `GamepadShaping.DefaultExpo` is 0 now (the pad's dead zones and PreCompensateDeadZone stay).
+- **Which e.** `SessionSettings.StickExpo` (pref `feel.stickExpo`, default `InputExpo.DefaultPitchRoll` 0.30, clamped
+  0…0.70). `ApplyFeel` writes aileron/elevator = it, rudder = `InputExpo.Yaw` (× 0.20/0.30). It replaces each aircraft's
+  own config expo for hand flying; the configs are unchanged (the sim tests still fly them). The three per-axis expo
+  sliders became one; the old `feel.expo.0…2` prefs are left in place and no longer read. Dead-zone sliders unchanged.
+- **Quest.** island-nav had the Quest lane's `QuestStickFeel` (headset-only expo 0.65 when unset). Merging island-nav
+  into this lane conflicted in `ApplyFeel`: kept the headset DEAD-ZONE rule exactly (`QuestStickFeel.Resolve`,
+  `DefaultExtraDeadZone`), and made the expo the shared setting. `QuestStickFeel.DefaultExpo` = 0.30, its `Curve`
+  calls InputExpo; the VR menu row edits `StickExpo`. `QuestStickFeelTests` re-derived by hand for k = 0.30.
+- **Tests.** `InputExpoTests` (new): endpoints ±1 → ±1 and 0 → 0 for e in 0…0.7, past-the-stop clamp, defaults,
+  yaw = 2/3, slider clamp, hand-worked literals, e = 0 identity, strict monotonicity on 0…0.7, odd symmetry, and
+  ShapeAxis order (stick 0.525 with dz 0.05, e 0.3 → 0.3875 of travel, via `StickForDeflection`). Filters
+  InputExpo|GamepadShaping|QuestStickFeel|QuestControls|TouchSticksGamepad|GamepadStickFree|RudderPedal: 155/155;
+  LaunchReplicationTests (Pitts, Cub, PilotControlsLetGo): 9/9. NOT a full-suite run: ShapeAxis' arithmetic is the same
+  expression as before (e is now clamped to 0…1, which no config exceeds), so the sim's numbers cannot move; the
+  Mac had other lanes' full suites running.
+- Build: `deploy.sh 00008150-001629A83662401C` on b770986f → Unity 0 `error CS`, `** BUILD SUCCEEDED **`, `2026.1104.1433`.
+  Install: the iPhone refused (CoreDevice 4016, usage assertion, as for island-nav's 0957; usually locked). Retried after
+  the merge: not retried, merge not done (above). ProjectSettings bump and the StreamingAssets copies not committed.
 
 ### 2026-11-04 09:30– PST — Claude · lane/claude-crash-tuning · crash tuning: steel-tube fuselages crush, wreck friction, branch damage
 Ty, after flying 2026.1104.0427: "momentum is still too weak or the friction is too high. The fuselage is really strong

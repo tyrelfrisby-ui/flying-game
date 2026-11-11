@@ -258,21 +258,23 @@ namespace FlyingGame.Core.Vr
     /// <summary>
     /// THE STICK FEEL IN A HEADSET (Ty on the Quest, 2026-11-02: "far too sensitive, especially around neutral").
     ///
-    /// The curve is the one the game already has, applied once by Aircraft.ShapeAxis to whatever the stick says:
+    /// The curve is the game's one stick expo (<see cref="InputExpo"/>, Ty 2026-11-04), applied once by
+    /// Aircraft.ShapeAxis to whatever the stick says, on the Quest exactly as on the phone and the Mac:
     ///   out = sign(x) · ((1 − k)·u + k·u³),  u = (|x| − dz) / (1 − dz) past the dead zone dz, 0 inside it
-    /// so 0 → 0, it rises monotonically, and full stick is still full deflection (|x| = 1 → 1). With k = 0.65 a
-    /// small movement does a third of what it did linearly (the slope at neutral is 1 − k = 0.35) and half stick is
-    /// a quarter of the travel. The dead zone is taken by the stick reader (QuestControlMapper.StickDeadZone, 0.05,
-    /// rescaled so there is no step at its edge); on top of it a headset adds none of its own.
+    /// so 0 → 0, it rises monotonically, and full stick is still full deflection (|x| = 1 → 1). The dead zone is taken
+    /// by the stick reader (QuestControlMapper.StickDeadZone, 0.05, rescaled so there is no step at its edge); on top
+    /// of it a headset adds none of its own.
     ///
-    /// The setting is the one Options → Controls already has (SessionSettings.FeelExpo / FeelDeadZone, per axis,
-    /// "unset" meaning the aircraft's own value). In a headset "unset" means THESE values instead, for aileron,
-    /// elevator and rudder alike; phones and the Mac keep each aircraft's own (0.1–0.3). A value the pilot has set
-    /// wins everywhere. The VR menu's "Stick expo" row sets it in the headset.
+    /// k is SessionSettings.StickExpo ("Stick expo", Options → Controls and the VR menu alike), default
+    /// <see cref="InputExpo.DefaultPitchRoll"/> on every platform. It was a headset-only 0.65 from 2026-11-02 to
+    /// 2026-11-04; parity put the headset on the shared default, and the slider still reaches 0.70 for a pilot who
+    /// wants that feel back. What stays headset-only is the DEAD ZONE: unset in a headset means
+    /// <see cref="DefaultExtraDeadZone"/> (none) rather than the aircraft's own (<see cref="Resolve"/>).
     /// </summary>
     public static class QuestStickFeel
     {
-        public const double DefaultExpo = 0.65;
+        /// <summary>The headset flies the shared default (was 0.65 here, headset-only, until 2026-11-04).</summary>
+        public const double DefaultExpo = InputExpo.DefaultPitchRoll;
         /// <summary>On top of the stick reader's own 0.05: none.</summary>
         public const double DefaultExtraDeadZone = 0.0;
 
@@ -282,10 +284,10 @@ namespace FlyingGame.Core.Vr
             double a = Math.Min(1.0, Math.Abs(x));
             if (a <= deadZone) return 0.0;
             double u = Math.Min(1.0, (a - deadZone) / (1.0 - deadZone));
-            return Math.Sign(x) * (expo * u * u * u + (1.0 - expo) * u);
+            return Math.Sign(x) * InputExpo.Apply(u, expo);
         }
 
-        /// <summary>What a control-feel setting resolves to: the pilot's own value if set (&gt;= 0), otherwise the
+        /// <summary>What a dead-zone setting resolves to: the pilot's own value if set (&gt;= 0), otherwise the
         /// headset default in a headset, otherwise the aircraft's own.</summary>
         public static double Resolve(double pilotSetting, double aircraftValue, bool headset, double headsetDefault) =>
             pilotSetting >= 0 ? pilotSetting : headset ? headsetDefault : aircraftValue;
