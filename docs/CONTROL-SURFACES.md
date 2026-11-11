@@ -327,37 +327,83 @@ per type, so a biplane added tomorrow is covered the moment its config exists.
 
 ### The fleet's cellules
 
-| type | gap | gap/chord | stagger | Su/Sl | decalage | σ (Prandtl) | CLmax × | Vso would |
-|---|---|---|---|---|---|---|---|---|
-| great-lakes-like | 1.36 m | 1.24 | +0.40 c | 1.09 | 0.0° | 0.528 | 0.915 | +4.5 % |
-| jn4-jenny-like | 1.52 m | 1.10 | +0.29 c | 1.36 | 0.0° | 0.623 | 0.893 | +5.8 % |
-| pitts-s2b-like | 1.10 m | 1.23 | +0.61 c | 1.10 | 0.0° | 0.507 | 0.922 | +4.1 % |
-| stearman-pt17-like | 1.08 m | 0.75 | +0.31 c | 1.02 | −1.0° | 0.630 | 0.833 | +9.6 % |
+| type | gap | gap/chord | stagger | Su/Sl | decalage | σ (Prandtl) | **k upper** | **k lower** | **k cellule** | fitted CLmax × |
+|---|---|---|---|---|---|---|---|---|---|---|
+| great-lakes-like | 1.36 m | 1.24 | +0.40 c | 1.09 | 0.0° | 0.528 | 0.940 | 0.765 | **0.866** | 0.915 |
+| jn4-jenny-like | 1.52 m | 1.10 | +0.29 c | 1.36 | 0.0° | 0.623 | 0.917 | 0.779 | **0.859** | 0.893 |
+| pitts-s2b-like | 1.10 m | 1.23 | +0.61 c | 1.10 | 0.0° | 0.507 | 0.925 | 0.713 | **0.826** | 0.922 |
+| stearman-pt17-like | 1.08 m | 0.75 | +0.47 c | 1.02 | +1.0° | 0.630 | 0.947 | 0.661 | **0.805** | 0.839 |
+
+**`k` is the number that is applied, and it is DERIVED** — `BiplaneCellule.LiftInterferenceFor`, the lift-slope
+interference the class's own Biot–Savart horseshoe lattice computes from each config's gap, stagger, span and
+planform. It is Prandtl's and Munk's biplane theory (NACA Rep. 116; Rep. 151, *General Biplane Theory*, 1923)
+solved on the real wings instead of read off a curve, and nothing in it is fitted to a stall speed. It is **per
+wing** because that is Munk's result: in a positively staggered cellule the forward wing keeps much the more of
+its isolated lift (the Stearman, 0.947 against 0.661). That split is also why A-743 rigs 1° MORE incidence on the
+upper wing — it is the wing that must stall first, so the ailerons on the lower one keep biting.
+
+The Stearman's stagger and decalage in this table are its **certificated** ones as of 2026-11-10 (A-743 NOTE 5:
+26-13/16 in, upper 4° / lower 3°). It used to read +0.31 c and −1.0°, both wrong; see
+`docs/research/STEARMAN-PT17-DATA.md`.
 
 `BiplaneCelluleTests` prints this and guards it: all four are detected, five monoplanes are confirmed NOT cellules
-and return exactly 1.0, the table stays monotonic and bounded, and turning the switch on demonstrably raises the
-stall speed (which keeps the AeroModel wiring from going unreachable).
+and return exactly 1.0, the fitted table stays monotonic and bounded, and turning the switch on demonstrably raises
+the stall speed (which keeps the AeroModel wiring from going unreachable). `TheDerivedInterferenceMovesEveryBiplane
+TowardsItsBook` prints the fleet table above against each type's primary stall figure and asserts the two things
+that are sourced hard enough to assert: that the derived factor is a bounded LOSS on every cellule, and that
+positive stagger favours the UPPER wing on all of them — Munk's result, which would quietly invert if the lattice's
+sign or the stagger measurement ever broke.
 
-**The interference curve is a TABLE, `ClMaxByGapOverChord`, deliberately in the open.** It carries the shape the
-classical data has — about three quarters of a monoplane at half a chord of gap, nine tenths at a chord and a
-quarter, asymptotic to one — but it is a standard-form fit, **not a transcribed source**. Anyone with Diehl's
-*Engineering Aerodynamics* or NACA TR 256 / TR 269 should overwrite those nine pairs; nothing else has to change.
+**The antisymmetric loads are divided by it, and this is not optional — it was measured.** `AeroModel` applies
+three cellule factors, one per loading: `LiftInterferenceFor` for the symmetric lift, `RollDampingInduction` for
+the roll rate's linear-in-span load, `AileronInduction` for the ailerons'. The last two are applied as reductions
+in the alpha each contributes; the first is applied by scaling the strip's **Cl**, which scales *every*
+contribution to that alpha indiscriminately — so without care the symmetric factor lands on top of the other two.
+The ratios are genuinely different (the Stearman: 0.81 damping, 0.92 aileron, 0.66 on its lower wing's lift), so
+that is a real error, and it has a direction: the aeroplane keeps its aileron moment, loses a fifth of its roll
+damping, and **rolls faster**. Measured, before it was fixed: the **Great Lakes' steady roll rate rose 66.4 → 78.0
+deg/s**, outside its own ±12 % band, with nothing about its ailerons changed.
 
-### It is wired, and it is OFF
+So `rollRates` and `controlDeltaAlpha` are each divided by the symmetric factor where they are applied, and the Cl
+scaling then restores each to its own ratio and lands in full only on the symmetric loading. The division uses the
+**same separation-faded** value the Cl scaling uses, which makes it exact at every separation level rather than
+only at the ends — and the symmetric factor now fades with separation like the other two, because it is the same
+lattice's induction and `AeroModel`'s own note at that site says the induction is a property of attached
+circulation. With that in place the Great Lakes reads **66.1 deg/s** against its recorded 66.4, and the Stearman's
+Vso is unmoved.
 
-`cellule.liftInterference`, per type, absent by default. The evidence did not support switching it on fleet-wide:
+**`ClMaxFactor` and its table `ClMaxByGapOverChord` are now REPORTED AND APPLIED NOWHERE.** They carry the shape
+the classical data has — about three quarters of a monoplane at half a chord of gap, nine tenths at a chord and a
+quarter, asymptotic to one — but they are a standard-form fit, **not a transcribed source**, and until 2026-11-10
+that fit was being multiplied into Cl although it is a CLmax curve and the multiplication site is a lift slope.
+The derived lattice factor replaced it there. The fit stays as an independent cross-check, and the two agree about
+as well as a classical curve and a lattice can be expected to: 0.839 against 0.805 on the Stearman, 0.915 against
+0.866 on the Great Lakes. Anyone with Diehl's *Engineering Aerodynamics* or NACA TR 256 / TR 269 can still
+overwrite those nine pairs to sharpen the cross-check.
 
-- The **Stearman** has the tightest cellule we own (gap/chord 0.75, against the Great Lakes' 1.24 and the Pitts'
-  1.23), so it should suffer the most interference of any of them. It already matches its book stall to **+1.3 %**
-  with no interference term at all. Switching it on takes it to about **+11 %**.
-- The **Pitts** needs 44 % MORE lift than it makes, not less: it realises CLmax 1.13 where its book stall wants
-  1.63, because its section tables are 1.22 (upper) and 1.05 (lower, symmetric). Switching it on takes it from
-  +20 % to about +25 %.
+### It is wired, and it is ON for three of the four
 
-The reading is that the fleet's section tables are already doing this work implicitly — an *effective cellule*
-value rather than a true 2-D section — so a type may only switch this on once its tables are the real section, or
-the effect is counted twice. On the Great Lakes it would move Vso 51.2 → 53.5 mph, i.e. −10.2 % → −6.1 % against
-book.
+`cellule.liftInterference`, per type, absent by default. **The gate is the type's own airfoil table**, because a
+table that is already an "effective cellule" value rather than a true 2-D section would count the interference
+twice:
+
+| type | wing table | its CLmax | 2-D? | switch | Vso off → on | against book |
+|---|---|---|---|---|---|---|
+| stearman-pt17-like | `clarkY-like` | 1.480 | yes, a real Clark Y value | **ON** | 49.2 → **54.8** mph | −9.2 % → **+1.1 %** |
+| great-lakes-like | `naca2312` | 1.450 | yes | **ON** | 51.2 → **54.6** mph | −10.1 % → **−4.2 %** |
+| jn4-jenny-like | `clarkY-like` | 1.480 | yes | **ON** | 37.8 → **41.1** mph | −16.1 % → **−8.6 %** |
+| pitts-s2b-like | `pitts-wing-upper` / `pitts-wing` | 1.220 / 1.050 | **no** — below any measured 2-D section | off | 66.0 → 72.7 mph | +17.8 % → +29.8 % |
+
+All three types whose tables are true 2-D sections move TOWARDS their books on a derived term. **That is the
+evidence that was missing on 2026-10-28**, and it was missing for two measurable reasons, both since sourced out in
+`docs/research/STEARMAN-PT17-DATA.md`: the Stearman's "book stall 52 mph" was Jane's *landing* speed (the primary
+figure is 54.2 mph, weight-corrected from the 1941 Navy handbook), and the Stearman was running out of **elevator**
+before its wing stalled, so it was not measuring its wing at all.
+
+The **Pitts stays off and is bit-for-bit unchanged** — its rig re-solves to the same numbers it already held. It is
+the type the owner has validated by flying, its tables are already deflated, and it needs more lift than it makes,
+not less. Switching it on would be counting twice on the type least able to afford it. Its real defect is its
+section tables, not a missing interference term.
 
 ### What a stall speed was actually measuring
 

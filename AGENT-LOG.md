@@ -1,3 +1,129 @@
+## The Stearman's certificate, and the biplane cellule's lift derived at last — Claude, 2026-11-10, lane/claude-stearman-cellule
+
+<!-- stearman-tcds-a743 biplane-interference-derived munk-rep-151 cellule-per-wing pitts-untouched -->
+
+Overnight call, Ty asleep, told to decide: **do both** — correct the Stearman's geometry from TCDS A-743, AND derive
+the biplane cellule's lift properly. The reasoning given and accepted: the geometry is read from a primary
+certificate, so it is not a judgement call at all; and leaving it would keep a correct stall speed **for a wrong
+reason** (the elevator running out instead of the wing stalling). The cellule lift had to be *derived*, with the
+explicit instruction **not** to fit a number to make the stall come out at 54.2 mph, because that is the one thing
+Ty cannot audit from a summary.
+
+Diagnosis not re-done: it was complete on `lane/claude-stearman-elev`, `docs/research/STEARMAN-PT17-DATA.md`.
+
+### The interference factor is DERIVED, and it was already in the repo, switched off
+
+`BiplaneCellule` has held a **Biot–Savart horseshoe lattice** on each config's own wing strips since 2026-10-28 —
+Prandtl (NACA Rep. 116, the biplane section) and **Munk, NACA Rep. 151, *General Biplane Theory*, 1923**, solved on
+the real planform instead of read off a curve. It computed `LiftSlopeInduction` and *deliberately did not apply it*.
+What WAS applied was `ClMaxFactor`, whose own summary says it is "a standard-form fit, NOT a transcribed table" —
+and it was being multiplied into Cl although it is a **CLmax curve** and that site is a **lift slope**. So the
+derived number now goes where the fitted one was, **per wing**, which is Munk's actual result: a staggered cellule's
+two wings are not affected alike.
+
+**NOTHING WAS FITTED, AND THE CHECK IS A PREDICTION.** The corrected airframe with no interference term stalls at
+**49.0 mph** on a trimmed cellule CLmax of 1.47; the book-corrected 54.2 mph needs CLmax 1.20, a ratio of **0.816**.
+The lattice, knowing only the gap, the certificated stagger, the span and the planform, says **0.805** (upper 0.947,
+lower 0.661). **1.3 % apart.** That is agreement, and it is the only number in the work that was predicted rather
+than measured.
+
+### As it now flies
+
+Vso **54.8 mph** on the game's scan against a book **54.2** (**+1.1 %**), **53.9** on a 0.1 m/s scan (−0.6 %);
+**62 %** of A-743's own 24° up stop; body alpha **12.51°** where the wing reaches CLmax at **12.50°** — the **wing**
+stalls, to a hundredth of a degree; static margin **13.1 %**, inside `AeroModel`'s own 5–20 % band, from 25.4 %,
+which was the highest in the fleet.
+
+Each correction put back one at a time (`STEARMAN_ELEV=1` § 7, now inverted because the config carries them all):
+
+| variant | Vso | elevator | alpha | static margin |
+|---|---|---|---|---|
+| OLD: stagger back (17.7 in) | 55.7 mph | **99 %** | 12.50° | **22.1 %** |
+| OLD: CG back (+0.24 in) | 54.6 mph | 86 % | 12.46° | 19.4 % |
+| OLD: decalage back | 54.4 mph | 67 % | 12.43° | 12.7 % |
+| OLD: cellule interference off | **49.0 mph** | 74 % | 12.32° | 13.4 % |
+| OLD: all of them — the 2026-11-09 aeroplane | **55.0 mph** | **98 %** | **8.64°** | **26.2 %** |
+| **AS CONFIGURED** | **53.9 mph** | **62 %** | **12.51°** | **13.1 %** |
+
+Read the last two rows together: **the old aeroplane was within a mile an hour of the book and wrong about
+everything.** The stagger is the dominant geometry term; the interference is what keeps the stall honest once the
+wing is the thing stalling.
+
+### Changed, each with its clause
+
+CG x −0.050 → **−0.134 m** (+0.24 → **+3.53 in** aft of A-743's datum, this mass on the certificate's own arms).
+Stagger 17.7 → **26-13/16 in**, by moving the **upper** wing forward 0.231 m — the lower one would carry the datum
+with it and land the CG 8.9 in *forward* of it, outside the limit. Decalage **upper 4° / lower 3°** (it was
+reversed). Elevator stops 29.8° symmetric → **22 down / 24 up**. Load factors +5.5/−2.5 → **+6.67/−2.67** (NOTE 7).
+Rig re-solved, `RIG_WRITE=1 RIG_ONLY=stearman-pt17-like`, residual 1.5e-13, `RigTable` row re-copied in the same
+commit. **Pitch trim needed nothing** — `trimType` was already `"tab"`, so the model never had the adjustable
+stabiliser two research files asserted; only the files were wrong, and `lane/claude-stearman-elev` had already
+fixed them.
+
+### And it moved the other biplanes — towards their books
+
+`BiplaneCelluleTests.TheDerivedInterferenceMovesEveryBiplaneTowardsItsBook`, the permanent record. **The gate is the
+type's own airfoil table**, which is the rule `BiplaneCellule` already stated: a type may only take this term once
+its tables are a true 2-D section, or it is counted twice.
+
+| type | wing table CLmax | k cellule | Vso off → on | against book | switch |
+|---|---|---|---|---|---|
+| stearman-pt17-like | 1.480 `clarkY-like` | 0.805 | 49.2 → **54.8** | −9.2 % → **+1.1 %** | ON |
+| great-lakes-like | 1.450 `naca2312` | 0.866 | 51.2 → **54.6** | −10.1 % → **−4.2 %** | ON |
+| jn4-jenny-like | 1.480 `clarkY-like` | 0.859 | 37.8 → **41.1** | −16.1 % → **−8.6 %** | ON |
+| pitts-s2b-like | **1.220 / 1.050** | 0.826 | 66.0 → 72.7 | +17.8 % → +29.8 % | **off** |
+
+All three types with true 2-D tables move TOWARDS their books on a derived term. **That is the evidence that was
+missing on 2026-10-28**, and it was missing for two measurable reasons: the Stearman's "book 52 mph" was Jane's
+*landing* speed, and the Stearman was running out of elevator before its wing stalled, so it was not measuring its
+wing at all.
+
+**THE PITTS IS OFF AND BIT-FOR-BIT UNCHANGED** — its rig re-solves to the numbers it already held, which is the
+check that it really is untouched. Its tables peak below any measured 2-D section, so they are already deflated
+cellule values; it needs more lift than it makes, not less; and it is the type Ty has validated by flying.
+Switching it on would be counting twice on the type least able to afford it. **Its real defect is its section
+tables, not a missing interference term** — that is the open item it leaves behind.
+
+**The Jenny and the Great Lakes are still 8.6 % and 4.2 % low and were NOT tuned.** The Jenny's own suspect —
+`clarkY-like` standing in for **Eiffel 36** — is now the only one left, the interference no longer being available
+to blame; the Great Lakes has no substitution to blame and is simply not investigated.
+
+### THE TRAP IN IT, WHICH THE TESTS CAUGHT AND I HAD ONLY HALF-FIXED
+
+`AeroModel` applies **three** cellule factors, one per loading: the new symmetric one, `RollDampingInduction` for
+the roll rate's linear-in-span load, and `AileronInduction` for the ailerons'. The last two are applied as
+reductions in the alpha each contributes; the symmetric one is applied by scaling the strip's **Cl**, which scales
+*every* contribution to that alpha indiscriminately. The three ratios are genuinely different — on the Stearman
+0.81, 0.92 and 0.66 — so the symmetric factor landing on top of the other two is a real error.
+
+I saw half of it and fixed the aileron side by hand. **The targeted suite caught the other half**: the Great
+Lakes' steady roll rate came out at **78.0 deg/s against its recorded 66.4**, outside its own ±12 % band, with
+nothing about its ailerons changed. The roll rate's alpha goes in through `rollRates` and so was being eaten by the
+Cl scaling, and the direction is the nasty one — **the aeroplane keeps its aileron moment and loses a fifth of its
+roll damping, so it rolls FASTER.** A stall-speed table would never have shown it.
+
+The fix is structural rather than a patch: `rollRates` and `controlDeltaAlpha` are each **divided** by the
+symmetric factor where they are applied, and the Cl scaling then restores each to its own ratio and lands in full
+only on the symmetric loading. The division uses the same separation-faded value the scaling uses, so it is exact
+at every separation level and not just at the ends — and the symmetric factor now fades with separation like the
+other two, because it is the same lattice's induction and `AeroModel`'s own note at that very site says the
+induction is a property of attached circulation. The Great Lakes now reads **66.1** against 66.4, the Pitts 216.6
+against 218.2, and the Stearman's Vso is unmoved. I threw away the hand-rolled add-back, and the section-slope
+cache it needed, when the structural form turned out to be both exact and cheaper.
+
+`RollPhysicsTests.CelluleInductionFactors` pinned the Stearman's lattice factors at 0.796 / 0.868 / 0.782 —
+measured on the **wrong** cellule, before the stagger was corrected. Re-recorded at 0.812 / 0.922 / 0.805: more
+stagger puts more of each wing in cleaner air, so every factor rose.
+
+### Found against A-743 and deliberately NOT acted on
+
+**Aileron travel 20.0° symmetric against the certificate's up 23° / down 18°**, and **rudder 25.2° against
+30°/30°** — both certificate facts, both newly noticed, neither in the brief. The aileron one interacts directly
+with the cellule aileron induction above and the rudder one with the open "spin control authority is absent" item,
+so each wants its own lane rather than being folded in here. Also **wing area 27.30 m² against the handbook's
+27.65** (−1.3 %, primary): real, but it means rebuilding the whole strip table, which would have confounded the one
+measurement this lane exists to make.
+
 ## The marks draw — and the "impulsive load" that was really a grazing touch — Claude, 2026-11-10, lane/claude-imprint-render
 
 <!-- ground-imprints renderer engine-free grazing-touch carcass-pressure clear-call-site -->

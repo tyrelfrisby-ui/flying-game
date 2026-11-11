@@ -88,11 +88,15 @@ public sealed class RollPhysicsTests
 
     // ---- biplane mutual induction ----
 
-    /// <summary>The lattice's factors, as recorded on 2026-11-02 (commit 0a290907). Monoplanes are exactly 1.</summary>
+    /// <summary>The lattice's factors, as recorded on 2026-11-02 (commit 0a290907). Monoplanes are exactly 1.
+    /// The STEARMAN's were re-recorded on 2026-11-10: its stagger was 17.7 in against A-743 NOTE 5's certificated
+    /// 26-13/16 and its decalage was reversed, so the lattice had been solved on the wrong cellule. Correcting the
+    /// geometry moved it from 0.796 / 0.868 / 0.782 to the row below — more stagger means more of each wing in
+    /// cleaner air, so every factor rose. `docs/research/STEARMAN-PT17-DATA.md` § 5.</summary>
     [Theory]
     [InlineData("pitts-s2b-like", 0.848, 0.842, 0.826)]
     [InlineData("great-lakes-like", 0.849, 0.880, 0.866)]
-    [InlineData("stearman-pt17-like", 0.796, 0.868, 0.782)]
+    [InlineData("stearman-pt17-like", 0.812, 0.922, 0.805)]
     [InlineData("jn4-jenny-like", 0.883, 0.901, 0.859)]
     [InlineData("c172-like", 1.0, 1.0, 1.0)]
     [InlineData("extra-300-like", 1.0, 1.0, 1.0)]

@@ -700,6 +700,15 @@ public static class AeroModel
             // aileron puts on them. 1 on every monoplane and every surface outside the cellule.
             BiplaneCellule? cellule = isWing ? BiplaneCellule.For(config) : null;
             bool inCellule = cellule is not null && cellule.Covers(surface.Id);
+            // THE SYMMETRIC lift interference this wing's Cl is scaled by further down (1 unless the type asks for it).
+            // It is needed HERE, before the rolling loads, because scaling Cl scales every contribution to the strip's
+            // alpha indiscriminately -- including the roll rate's and the aileron's, which carry their OWN ratios from
+            // their own antisymmetric loadings (0.81 and 0.92 on the Stearman against 0.66 for its lower wing's lift).
+            // So those two are DIVIDED by it below, and the Cl scaling then leaves each of them at its own ratio
+            // instead of multiplying this one on top. Measured, when it was not: the Great Lakes' steady roll rate rose
+            // 66.4 -> 78.0 deg/s, because the aeroplane kept its aileron moment and lost a fifth of its roll damping.
+            double kCelluleWing = inCellule && config.Cellule?.LiftInterference == true
+                ? cellule!.LiftInterferenceFor(surface.Id) : 1.0;
 
             foreach (StripConfig strip in surface.Strips)
             {
@@ -718,8 +727,14 @@ public static class AeroModel
                 // The induction is a property of ATTACHED circulation (it is the lattice's), so it fades with this strip's
                 // own separation: a stalled, spinning cellule is left exactly as it was.
                 double stripAttached = flowState is not null && idx < flowState.Separation.Length ? 1.0 - flowState.Separation[idx] : 1.0;
+                // The Cl scaling fades with this strip's separation for the same reason the two antisymmetric factors do
+                // -- it is the same lattice's induction -- so all three go to 1 together on a fully stalled strip, and
+                // dividing by it here is exact at every separation level and not just at the ends.
+                double kCellStrip = 1.0 - (1.0 - kCelluleWing) * stripAttached;
                 Vec3 rollRates = bodyRates;
-                if (inCellule) rollRates = new Vec3(bodyRates.X * (1.0 - (1.0 - cellule!.RollDampingInduction) * stripAttached), bodyRates.Y, bodyRates.Z);
+                if (inCellule)
+                    rollRates = new Vec3(bodyRates.X * (1.0 - (1.0 - cellule!.RollDampingInduction) * stripAttached) / kCellStrip,
+                                         bodyRates.Y, bodyRates.Z);
                 Vec3 vLocal = bodyVelocity - windBody + Vec3.Cross(rollRates, r);
                 // The air is not the same across the airframe (regional atmosphere): the strip sees the wind where IT is.
                 if (windGradient.Active) vLocal -= windGradient.PerX * r.X + windGradient.PerY * r.Y;
@@ -1009,7 +1024,7 @@ public static class AeroModel
                                         * chordwiseFactor * controlEff * ControlSpanCoverage(config, idx);
                 }
                 if (inCellule && strip.Control is not null && strip.Control.Surface == "aileron")
-                    controlDeltaAlpha *= 1.0 - (1.0 - cellule!.AileronInduction) * stripAttached;
+                    controlDeltaAlpha *= (1.0 - (1.0 - cellule!.AileronInduction) * stripAttached) / kCellStrip;
 
                 // AILERONS in separated flow (owner directive): a deflected aileron on a stalled wing
                 // section stops commanding lift but KEEPS its pressure load — so roll authority fades
@@ -1114,17 +1129,23 @@ public static class AeroModel
                 if (!double.IsNaN(hingedCd)) coeffs = new AeroCoefficients(coeffs.Cl, hingedCd, coeffs.Cm);
 
                 // BIPLANE CELLULE (owner 2026-10-28). Two wings one above the other never make what two isolated
-                // wings of the same area would: each flies in the other's field. BiplaneCellule measures the gap,
-                // stagger and span off these very strips and returns the cellule's CLmax as a fraction of the
-                // section's. Scaling Cl here rather than capping it takes the lift slope down with the peak, which
-                // is what the interference actually does, and the induced-drag term below then follows from the
-                // reduced Cl on its own. OFF unless the type asks for it -- see CelluleConfig and BiplaneCellule.
-                if (isWing && config.Cellule?.LiftInterference == true)
-                {
-                    BiplaneCellule cell = BiplaneCellule.For(config);
-                    if (cell.Covers(config.Surfaces[surfaceIndex].Id))
-                        coeffs = new AeroCoefficients(coeffs.Cl * cell.ClMaxFactor, coeffs.Cd, coeffs.Cm);
-                }
+                // wings of the same area would: each flies in the other's field. Scaling Cl here rather than capping
+                // it takes the lift slope down with the peak, which is what the interference actually does, and the
+                // induced-drag term below then follows from the reduced Cl on its own. OFF unless the type asks for
+                // it -- see CelluleConfig and BiplaneCellule.
+                //
+                // THE FACTOR IS DERIVED, NOT FITTED (2026-11-10). It is BiplaneCellule.LiftInterferenceFor: the
+                // lift-slope interference the class's own Biot-Savart lattice computes from this aeroplane's gap,
+                // stagger, span and planform -- Prandtl's and Munk's biplane theory (NACA Rep. 116 / Rep. 151) solved
+                // on the real wings -- and it is PER WING, because Munk's result is that a staggered cellule's two
+                // wings are not affected alike. It replaces ClMaxFactor here, which was a standard-form fit to a
+                // CLmax curve being multiplied in as though it were a lift slope; that one is now reported as an
+                // independent cross-check and applied nowhere.
+                // The roll rate's and the ailerons' contributions to this strip's alpha were divided by kCellStrip where
+                // they were applied, so this scaling restores each of them to its own antisymmetric ratio and lands in
+                // full only on the SYMMETRIC loading, which is the one it is the factor for.
+                if (isWing && inCellule && kCellStrip < 1.0 - 1e-9)
+                    coeffs = new AeroCoefficients(coeffs.Cl * kCellStrip, coeffs.Cd, coeffs.Cm);
 
                 // PHYSICAL AIRBRAKES (SpoilerConfig.Physical): the strips under the brake plates lose the lift aft of the
                 // plate and carry the plate's drag. Applied before the induced drag so a strip that has lost lift also

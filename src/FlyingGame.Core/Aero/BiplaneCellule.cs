@@ -19,23 +19,37 @@ namespace FlyingGame.Core.Aero;
 ///                                 sigma = (1 - 0.66 g/b) / (1.055 + 3.7 g/b). Reported for reference: induced drag
 ///                                 is currently carried by each surface's own oswaldE, which is hand-set to 0.75 on
 ///                                 the fleet's biplanes against a monoplane's 0.80-0.82.
-///   <see cref="ClMaxFactor"/>    the cellule's CLmax as a fraction of the isolated section's, from
-///                                 <see cref="ClMaxByGapOverChord"/> below.
+///   <see cref="ClMaxFactor"/>    the cellule's CLmax as a fraction of the isolated section's, from the FITTED
+///                                 <see cref="ClMaxByGapOverChord"/> below. REPORTED, NOT APPLIED — see the next
+///                                 paragraph.
+///   <see cref="LiftInterferenceFor"/>  the factor <see cref="AeroModel"/> actually applies, per wing, DERIVED by
+///                                 <see cref="Induction"/>'s horseshoe lattice from this config's own geometry.
 ///
-/// APPLYING IT IS OPT-IN, PER TYPE (<c>cellule.liftInterference</c>), and defaults OFF. That is deliberate. On
-/// 2026-10-28 the fleet's four biplanes were measured against their book stalls and the evidence did not support
-/// switching it on everywhere:
+/// WHICH OF THE TWO IS APPLIED, and why it changed (2026-11-10). <see cref="ClMaxFactor"/> is a standard-form fit
+/// — its own summary says so — and it was being multiplied into Cl, i.e. applied as a LIFT-SLOPE factor although it
+/// is a CLmax curve. <see cref="LiftSlopeInduction"/> is the lift-slope interference proper and it is derived: a
+/// Biot–Savart lattice on this aeroplane's own wing strips (Prandtl, NACA Rep. 116, the biplane section; Munk,
+/// NACA Rep. 151 "General Biplane Theory", 1923), which is classical biplane theory solved on the real planform
+/// instead of read off a curve. So the APPLIED number is now the derived one, per wing, and the fitted table stays
+/// as an independent cross-check — on the Stearman at its certificated geometry the two read 0.839 and 0.805, which
+/// is the agreement you would want between a classical fit and a lattice and is the reason to trust either.
 ///
-///   - The STEARMAN has the tightest cellule we have (gap/chord 0.75, against the Great Lakes' 1.24 and the Pitts'
-///     1.23) and so should suffer the MOST interference of any of them. It already matches its book stall to +1.3 %
-///     with no interference term at all.
-///   - The PITTS needs 44 % MORE lift than it makes, not less (it realises CLmax 1.13 where its book stall wants
-///     1.63; its section tables are 1.22 upper and 1.05 lower).
+/// APPLYING IT IS OPT-IN, PER TYPE (<c>cellule.liftInterference</c>), and defaults OFF — because the fleet's
+/// section tables are not all true 2-D sections, and a table that already carries an "effective cellule" value
+/// would count the interference twice. The gate is the type's own airfoil table:
 ///
-/// The reading is that the fleet's section tables are already doing this work implicitly — an "effective cellule"
-/// value rather than a true 2-D section. So a type may only switch this on once its tables are the real section,
-/// or it would be counted twice. The measurements and the factor are available to every type regardless, which is
-/// the point of having them here rather than in one aeroplane's numbers.
+///   - ON: STEARMAN (clarkY-like, CLmax 1.480 — a true 2-D Clark Y value), GREAT LAKES (naca2312, 1.450),
+///     JENNY (clarkY-like, 1.480). All three move TOWARDS their books with the derived term, which is the
+///     evidence that was missing on 2026-10-28.
+///   - OFF: the PITTS. Its tables peak at 1.22 (upper) and 1.05 (lower, symmetric), well below any measured 2-D
+///     section, so they are already deflated cellule values; and it needs MORE lift than it makes, not less. It is
+///     also the type the owner has validated by flying. Switching it on would be counting twice on the type least
+///     able to afford it.
+///
+/// The 2026-10-28 reading that "the Stearman already matches its book stall to +1.3 % with no interference term"
+/// was measuring the wrong things twice over: that book figure was Jane's LANDING speed, and the Stearman was
+/// running out of ELEVATOR before its wing stalled, so it was not measuring its wing at all. Both are sourced out
+/// in <c>docs/research/STEARMAN-PT17-DATA.md</c>.
 /// </summary>
 public sealed class BiplaneCellule
 {
@@ -390,6 +404,26 @@ public sealed class BiplaneCellule
         }
         for (int r = n - 1; r >= 0; r--) { double sum = x[r]; for (int k = r + 1; k < n; k++) sum -= m[r, k] * x[k]; x[r] = sum / m[r, r]; }
         return x;
+    }
+
+    /// <summary>
+    /// THE LIFT INTERFERENCE THIS SURFACE'S STRIPS FLY, and the one number <see cref="AeroModel"/> applies when a type
+    /// asks for it: <see cref="LiftSlopeInductionUpper"/> on the upper wing, <see cref="LiftSlopeInductionLower"/> on the
+    /// lower, 1 on everything else. DERIVED by <see cref="Induction"/>'s lattice from this config's own gap, stagger,
+    /// span and planform — nothing in it is fitted to a stall speed.
+    ///
+    /// It is per WING and not one cellule number because that is Munk's result (NACA Rep. 151): a staggered cellule's
+    /// two wings are not affected alike, the forward one keeping much the more of its isolated lift. On the Stearman at
+    /// its certificated 26-13/16 in of stagger the upper wing keeps 0.947 and the lower 0.661, which average over the
+    /// two areas to the cellule's own 0.805 — and that split is the reason the certificate rigs 1° MORE incidence on
+    /// the upper wing: it is the wing that must stall first, so the ailerons, which are on the lower one, keep biting.
+    /// </summary>
+    public double LiftInterferenceFor(string surfaceId)
+    {
+        if (!IsCellule || surfaceId is null) return 1.0;
+        if (surfaceId.StartsWith(WingIds[0], StringComparison.OrdinalIgnoreCase)) return LiftSlopeInductionUpper;
+        if (surfaceId.StartsWith(WingIds[1], StringComparison.OrdinalIgnoreCase)) return LiftSlopeInductionLower;
+        return 1.0;
     }
 
     /// <summary>Is this surface one of the cellule's wings (so the factor applies to its strips)?</summary>

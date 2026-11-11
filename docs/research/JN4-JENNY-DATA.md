@@ -325,6 +325,27 @@ Pinned by `JennyPerformanceTests.StallsBelowItsPublishedMinimumLevelSpeed`, whic
 Prandtl) in the strip model. The second is a real aero-model change that would touch the Stearman and the Pitts as
 well as the Jenny, so it is not something to fold into adding an aeroplane.
 
+**THE SECOND IS DONE, 2026-11-10 (`lane/claude-stearman-cellule`), and it is DERIVED, not fitted.** The term is
+`BiplaneCellule.LiftInterferenceFor`: the lift-slope interference a Biot–Savart horseshoe lattice on each config's
+own wing strips computes from its gap, stagger, span and planform — Prandtl, NACA Rep. 116, and **Munk, NACA Rep.
+151, *General Biplane Theory*, 1923** — solved on the real wings rather than read off a curve. It is per wing,
+because that is Munk's result. The Jenny's factors are **0.917 upper, 0.779 lower, 0.859 for the cellule**, and
+switching it on moves the Jenny's stall from **37.8 to 41.1 mph** against the 45 mph minimum level speed: from
+**−16.1 % to −8.6 %**. `cellule.liftInterference` is now ON in this config.
+
+So **a little over half the Jenny's lift surplus was the missing interference term, and a little under half is
+still unexplained** — and `clarkY-like` standing in for Eiffel 36 (§5) is the remaining suspect, now with the
+interference no longer able to be blamed for it. A thin, strongly cambered 1917 section on a wire-braced fabric
+wing peaking at 1.480, a real Clark Y value, is the thing left to doubt. `JennyPerformanceTests.
+StallsBelowItsPublishedMinimumLevelSpeed` still holds: 41.1 mph is inside its 34–45 band and below 45.
+
+The Stearman, the type whose reading opened this question, lands at **+1.1 %** of its primary book stall with the
+derived term and its certificated geometry, on a factor of 0.805 where exact agreement would have wanted 0.816 —
+1.3 % apart, with nothing fitted. See `docs/research/STEARMAN-PT17-DATA.md` § 5. The **Pitts stays OFF**: its
+tables peak at 1.22 and 1.05, below any measured 2-D section, so they are already deflated cellule values and the
+term would be counted twice. The reason given above for doubting the interference — that "neither the Stearman nor
+the Pitts is actually measuring its wing" — was exactly right, and the Stearman now does.
+
 - **Vne 44.7 m/s (100 mph) [E]** and **+3.5/−1.5 g [E]**. No placard was found. The aeroplane's maximum level speed
   is 75 mph; it was not stressed for aerobatics, and barnstormers who looped them lost wings. The limits are set to
   make that true in the game rather than to be generous.
