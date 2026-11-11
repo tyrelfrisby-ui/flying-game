@@ -1,0 +1,11 @@
+Source: built here, not downloaded. tools/own_models/build_j3_skis.py, dispatched from build_j3_cub.py
+with J3_VARIANT=skis. Provenance: docs/models/j3-skis-PROVENANCE.md.
+Model: Piper J-3 Cub on straight skis, j3-cub-skis-like-own.glb.
+Author: this project
+License: same as the rest of this repository
+Commercial use: ours to allow
+CREDIT LINE: "J-3 Cub on skis" modelled for this project with tools/own_models/build_j3_skis.py
+Note: derived entirely from this project's OWN j3-cub-like-own.glb — the builder reads that file and no
+other, keeping its cockpit, paint, airframe, control origins and rig extras, then removes the wheels and
+fits the skis. The ski shape follows Ty's own description and photographs. No third-party mesh is involved
+at any step; the Cub it derives from carries its own notice in Models/j3-cub-like/LICENSE.txt.
