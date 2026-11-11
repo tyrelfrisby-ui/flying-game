@@ -334,7 +334,15 @@ public class ContactPatchTests : IDisposable
             if (p.State == PanelState.Broken) nAtBreak = ac.AeroLoadFactorZ;
             else nMaxBent = Math.Max(nMaxBent, ac.AeroLoadFactorZ);
         }
-        _out.WriteLine($"bent panel held to {nMaxBent:F3} g, went at {nAtBreak:F3} g");
+        // nAtBreak is a SENTINEL, not a measurement: it stays NaN when the panel never broke, so printing it raw read
+        // "went at NaN g" and sent an agent hunting a divide-by-zero in the load path that was never there (2026-11-10).
+        // When it did not go, say so, and print the two numbers that decide it — the bending hinge's remaining backbone
+        // and the most the air ever asked of it (AeroLoadFactorZ x M1) — because the margin between them is tenths of a
+        // percent and a reader needs to see which side of it the pull landed on.
+        _out.WriteLine(double.IsNaN(nAtBreak)
+            ? $"bent panel held to {nMaxBent:F3} g and NEVER WENT: the air asked {nMaxBent * p.M1Nm:F1} N·m at the peak "
+              + $"against a {p.Bending!.Capacity:F1} N·m backbone (it needs n > {p.Bending!.Capacity / p.M1Nm:F4})"
+            : $"bent panel held to {nMaxBent:F3} g, went at {nAtBreak:F3} g");
         Assert.Equal(PanelState.Broken, p.State);
         Assert.InRange(nMaxBent, 3.2, 3.6);
         Assert.InRange(nAtBreak, 3.4, 3.8);
