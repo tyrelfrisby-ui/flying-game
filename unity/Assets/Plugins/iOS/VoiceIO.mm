@@ -100,7 +100,42 @@ std::atomic<bool> gKeepOffTv{false}, gForceSpeaker{false}, gRxOnTv{false};
 /// A TV is connected and NOBODY IS TALKING, so the TV should have the game's sound. See ApplySession: this is the
 /// one condition under which the microphone has to be let go of entirely.
 std::atomic<bool> gTvWantsAudio{false};
+/// Something needs the microphone HELD OPEN while nobody is talking: clip narration, whose buffer is always rolling
+/// (VoiceComms.NarrateClips). Bit 1 of VO_SetIntercom. Without it the mic is let go between transmissions.
+std::atomic<bool> gHoldMic{false};
+/// Record permission has been granted, so the engine can be rebuilt without going round the permission prompt again.
+std::atomic<bool> gMicGranted{false}, gAskedMic{false}, gReleasing{false};
+/// CFAbsoluteTime of the last unkey, for the linger below (0 = never keyed).
+std::atomic<double> gUnkeyAt{0};
+/// How long the mic is kept after an unkey: long enough for VoiceComms to collect the tail of the transmission and
+/// its end marker (VO_ReadTx, the frame after PTT drops), and for a quick re-key to cost no restart.
+const double UnkeyLingerSec = 1.5;
 NSString *gRouteOutputs = @"";   // comma-separated port types, for C# (guarded by @synchronized)
+
+/// IS THE MICROPHONE WANTED RIGHT NOW?
+///
+/// Ty 2026-11-10: "The app is listening to my mic even when I do[n't] have PTT pressed unchecked intercom just now".
+/// It was, and for the rest of the session: the engine was built the first time the intercom was ticked and then ran
+/// for ever, because nothing outside ProcessMic ever looked at gPtt. ApplyMicLifecycle now makes the engine follow
+/// this answer, so the mic is HELD only in the cases below and genuinely released in every other.
+///
+///   PTT held, or just unkeyed  : yes. This is a transmission. The linger covers the tail VoiceComms has still to
+///                                collect with VO_ReadTx (the frame AFTER ptt drops) and makes a quick re-key free.
+///   narration ticked           : yes. The clip buffer is always rolling, so a voice that only arrived after REC
+///                                would be too late — VoiceComms.NarrateClips says so, and Ty asked for exactly that.
+///   intercom ticked, HEADSET   : yes. The intercom is voice-activated: it cannot open unless it can hear him.
+///   intercom ticked, no headset: NO. The intercom's only audible product is the sidetone, and ProcessMic pushes that
+///                                only `if (hp)`; the transmitter needs PTT and the clip voice needs narration. With
+///                                nothing plugged in to listen on, an open mic produces nothing anyone can hear. This
+///                                is the case Ty hit, flying with the phone in his hand.
+///   nothing ticked             : no.
+bool MicWanted() {
+    if (gPtt.load()) return true;
+    if (gHoldMic.load()) return true;
+    if (gIntercom.load() && gHeadphones.load()) return true;
+    double unkey = gUnkeyAt.load();
+    return unkey > 0 && CFAbsoluteTimeGetCurrent() - unkey < UnkeyLingerSec;
+}
 
 void ProcessMic(const float *x, uint32_t n) {
     bool ptt = gPtt.load(), ic = gIntercom.load(), hp = gHeadphones.load();
@@ -162,6 +197,30 @@ void UpdateRoute() {
     if (!hp) gSideRing.clear();
 }
 
+/// LET THE MICROPHONE GO: stop the engine and throw the node graph away, so nothing is pulling on the input node.
+/// gState goes back to 0 and VO_EnsureMic / ApplyMicLifecycle will build it again when the mic is next wanted.
+///
+/// This does NOT touch the audio session, because the two callers want different things done about it: ApplySession
+/// is mid-decision and goes on to set the category itself, and ApplyMicLifecycle calls ApplySession afterwards —
+/// which, with no engine left, puts the session back to plain Playback. That last step is the one that makes the mic
+/// CLOSED rather than merely idle: play-and-record is the recording-capable category, and leaving it is what drops
+/// the orange recording indicator.
+///
+/// The transmitter ring is deliberately NOT cleared. VoiceComms reads the tail of a transmission on the frame after
+/// PTT drops (VO_ReadTx with its `ended` flag, which is how the far end gets its squelch tail), and MicWanted's
+/// linger keeps us out of here until it has.
+void ReleaseEngine() {
+    if (gEngine == nil) return;
+    [gEngine stop];
+    if (gSink != nil) { [gEngine detachNode:gSink]; gSink = nil; }
+    if (gSide != nil) { [gEngine detachNode:gSide]; gSide = nil; }
+    gEngine = nil;
+    if (gState.load() == 2) gState = 0;   // -1 denied and -2 failed are latches: they must survive a release
+    gSideRing.clear();
+    gGate = 0; gEnv = 0; gVoxHold = 0; gWasPtt = false;
+    gMicLevel.store(0);
+}
+
 #if TARGET_OS_IPHONE
 // Use the MICROPHONE IN THE HEADSET when there is one, rather than the one in the phone.
 //
@@ -207,24 +266,38 @@ void ApplySession() {
     // So when a TV is connected and no one is talking, the microphone is let go: the engine stops, the session
     // goes back to plain Playback, and the TV gets the sound. VO_EnsureMic starts it again the moment the mic is
     // actually wanted, which is what the PTT already calls. Nothing is lost but the idle mic.
-    if (gTvWantsAudio.load() && !keepOff && gEngine != nil) {
-        [gEngine stop];
-        gEngine = nil;
-        gState = 0;          // VO_EnsureMic will build it again on the next PTT
+    // ...and MicWanted has the final say: with clip narration ticked the mic has to stay (its buffer is always
+    // rolling), and releasing it here would only have ApplyMicLifecycle build it straight back — a loop. VoiceComms
+    // counts narration as voice in use for exactly that reason, so this should not come up; the guard is cheap.
+    if (gTvWantsAudio.load() && !keepOff && gEngine != nil && !MicWanted()) {
+        ReleaseEngine();     // VO_EnsureMic / ApplyMicLifecycle will build it again when the mic is next wanted
         engine = false;
         NSLog(@"[VoiceIO] TV connected and nobody talking: released the mic so the TV can have the audio");
     }
     if (engine || keepOff) {
-        // DefaultToSpeaker ONLY WHEN WE ARE KEEPING THE SOUND OFF THE TV. Ty 2026-11-10, with the game finally on
-        // the TV: "Still no sound on the tv that has not been fixed". The policy was right — TvAudioPolicy only
-        // holds audio back while VOICE is in use — but this did not implement it: the moment the voice engine
-        // existed at all, play-and-record was set with DefaultToSpeaker, and that option pins the route to the
-        // phone's own speaker whatever is plugged in. So an idle PTT was enough to keep HDMI silent for ever.
-        // Now the speaker is forced only when keepOff says to; otherwise iOS picks the route, which is the TV.
+        // DEFAULTTOSPEAKER, ALWAYS, IN THIS CATEGORY — and read the two paragraphs above before touching it, because
+        // this line has now been wrong twice in both directions.
+        //
+        // It was first set unconditionally, and Ty 2026-11-10: "Still no sound on the tv that has not been fixed".
+        // The diagnosis was that DefaultToSpeaker pins the route to the phone's speaker, so an idle PTT kept HDMI
+        // silent for ever. The pinning is real, but it was not the cause and removing the option could not have been
+        // the cure: play-and-record HAS NO HDMI OUTPUT AT ALL. The cure was the release above — no engine, no
+        // play-and-record, and the TV gets the game. That left this line making the option conditional for no
+        // reason, and it cost the opposite bug the same evening: Ty, intercom ticked and no TV anywhere near him,
+        // "I just realized there is no audio". Without DefaultToSpeaker, play-and-record's default output is the
+        // RECEIVER — the earpiece — so the game was playing into the top of the phone, inaudible in the hand.
+        //
+        // So: whenever this category is set at all, there is no TV to route to, and the only two candidates are the
+        // loudspeaker and the earpiece. The earpiece is never the answer. DefaultToSpeaker is only a DEFAULT — a
+        // headset, CarPlay or a Bluetooth headset still takes the route when one is attached, which is what keeps
+        // the headset intercom working — so there is nothing left for it to break.
+        //
+        // AllowAirPlay goes with it: it was there to let iOS pick the TV, which this category cannot do anyway, and
+        // an AirPlay route it did pick would be a TV the voice is supposed to stay off.
         AVAudioSessionCategoryOptions o = AVAudioSessionCategoryOptionAllowBluetooth |
-                                          AVAudioSessionCategoryOptionAllowBluetoothA2DP | AVAudioSessionCategoryOptionMixWithOthers;
-        if (keepOff) o |= AVAudioSessionCategoryOptionDefaultToSpeaker;
-        else o |= AVAudioSessionCategoryOptionAllowAirPlay;
+                                          AVAudioSessionCategoryOptionAllowBluetoothA2DP |
+                                          AVAudioSessionCategoryOptionMixWithOthers |
+                                          AVAudioSessionCategoryOptionDefaultToSpeaker;
         if (![s.category isEqualToString:AVAudioSessionCategoryPlayAndRecord] || s.categoryOptions != o)
             [s setCategory:AVAudioSessionCategoryPlayAndRecord withOptions:o error:&err];
         [s overrideOutputAudioPort:gForceSpeaker.load() ? AVAudioSessionPortOverrideSpeaker : AVAudioSessionPortOverrideNone error:nil];
@@ -292,6 +365,53 @@ void StartEngine() {
     NSLog(@"[VoiceIO] mic running at %.0f Hz, headphones %d", gR, (int)gHeadphones.load());
 }
 
+/// MAKE THE MICROPHONE'S LIFETIME FOLLOW MicWanted. Called from VO_SetPtt and VO_SetIntercom, so it runs every frame
+/// and must do nothing at all unless the answer has changed — which is what the gState / gEngine tests below are.
+///
+/// Both directions go through the main queue, because AVAudioEngine and AVAudioSession want to be driven from there
+/// and because the release must not happen inside the same Unity frame that is still reading the transmission out of
+/// gTx. The dispatched block asks MicWanted again, so a PTT press and release in the same frame cancels itself out.
+///
+/// WHY A TEARDOWN AND NOT JUST A PAUSE. AVAudioEngine has no "stop the input and leave the rest running" — the
+/// nearest thing is [engine pause], which keeps the session in play-and-record, and holding play-and-record is
+/// itself one of tonight's two bugs (it has no HDMI output, so it silences a TV: see ApplySession). Leaving the
+/// category is also what actually closes the mic, rather than leaving it open with the samples thrown away: a tap
+/// that runs and discards still shows the orange recording indicator and still counts as listening. So the choice
+/// is forced by the TV, not taken freely.
+///
+/// WHAT THE TEARDOWN COSTS. On a key-down with permission already granted: one hop to the main queue (0-16 ms),
+/// setCategory to play-and-record (tens of ms), setActive (tens of ms, it is a route change), then building five
+/// nodes, prepare and start (tens of ms) — call it 70-200 ms before the first sample, worst case ~300 ms on an
+/// awkward route change. That is the first syllable of a transmission, and it is the price of the mic being shut
+/// between them. Three things keep it off the normal path: the permission round trip is skipped after the first
+/// grant (gMicGranted), the 1.5 s linger after an unkey means a conversation pays it once rather than per call, and
+/// a headset intercom never pays it at all because MicWanted is already true there. If Ty reports clipped first
+/// words, the next step is to pre-start the engine when the TALK button appears (RadioAvailable) rather than to go
+/// back to holding the mic all session.
+void ApplyMicLifecycle() {
+    bool want = MicWanted();
+    if (want) {
+        if (gState.load() != 0 || !gMicGranted.load()) return;   // running, failed, denied, or not asked yet
+        gState = 1;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (MicWanted()) StartEngine();
+            else if (gState.load() == 1) gState = 0;
+        });
+        return;
+    }
+    if (gEngine == nil || gReleasing.exchange(true)) return;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (!MicWanted() && gEngine != nil) {
+            ReleaseEngine();
+#if TARGET_OS_IPHONE
+            ApplySession();   // no engine left, so this puts the session back to plain Playback
+#endif
+            NSLog(@"[VoiceIO] nobody is talking: let the microphone go");
+        }
+        gReleasing = false;
+    });
+}
+
 // ---- radio receive ---------------------------------------------------------------------------
 const int Slots = 8;
 struct RxSlot {
@@ -342,7 +462,12 @@ extern "C" void VO_SetTvWantsAudio(int wants)
     bool w = wants != 0;
     if (gTvWantsAudio.load() == w) return;
     gTvWantsAudio = w;
+#if TARGET_OS_IPHONE
+    // ApplySession is iOS-only (the Mac has no AVAudioSession to juggle), and this call was not guarded — so the Mac
+    // bundle, which tools/native-mac/build.sh builds from this very file, had stopped compiling. Nothing on the Mac
+    // has a TV route to keep off, so there is nothing to do there.
     dispatch_async(dispatch_get_main_queue(), ^{ ApplySession(); });
+#endif
 }
 
 void VO_SetRoute(int keepOffTv, int forceSpeaker)
@@ -368,26 +493,52 @@ int VO_RouteOutputs(char *dst, int max)
 }
 
 /// Ask for the microphone (first time only) and start the mic engine. Returns the state (see gState).
+/// VoiceComms calls this every frame once the mic has ever been wanted, so it must be idempotent AND must not
+/// re-open a microphone that ApplyMicLifecycle has just let go of. It therefore does two separate things: ask for
+/// permission, once ever; and otherwise hand the decision to ApplyMicLifecycle, which starts the engine only while
+/// MicWanted says so. Asking early is deliberate — the alternative is the permission sheet appearing on a key-down
+/// and eating the start of the transmission.
 int VO_EnsureMic(void)
 {
+    if (gMicGranted.load()) { ApplyMicLifecycle(); return gState.load(); }
     int st = gState.load();
-    if (st != 0) return st;
+    if (st != 0 || gAskedMic.exchange(true)) return st;
     gState = 1;
+    void (^answered)(BOOL) = ^(BOOL granted) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            gMicGranted = granted;
+            if (!granted) { gState = -1; return; }
+            gState = 0;
+            ApplyMicLifecycle();   // only if it is still wanted: the intercom alone, with nothing to listen on, is not
+        });
+    };
 #if TARGET_OS_IPHONE
-    [AVAudioSession.sharedInstance requestRecordPermission:^(BOOL granted) {
-        dispatch_async(dispatch_get_main_queue(), ^{ if (granted) StartEngine(); else gState = -1; });
-    }];
+    [AVAudioSession.sharedInstance requestRecordPermission:answered];
 #else
-    [AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler:^(BOOL granted) {
-        dispatch_async(dispatch_get_main_queue(), ^{ if (granted) StartEngine(); else gState = -1; });
-    }];
+    [AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler:answered];
 #endif
     return 1;
 }
 
 int VO_State(void) { return gState.load(); }
-void VO_SetIntercom(int on) { gIntercom = on != 0; }
-void VO_SetPtt(int on) { gPtt = on != 0; }
+/// Bit 0: the voice gate is open (the intercom's VOX, or clip narration riding it). Bit 1: something needs the mic
+/// HELD while nobody is talking — narration, whose clip buffer is always rolling. The second bit is new (2026-11-10)
+/// and rides this call rather than a new export, because the committed Mac bundle is a tracked binary and a symbol
+/// it does not have would throw on the first call (see VoiceComms.NarrateClips). An old bundle reading `on != 0`
+/// sees the mask as simply "on", which is what it used to mean.
+void VO_SetIntercom(int on)
+{
+    gIntercom = (on & 1) != 0;
+    gHoldMic = (on & 2) != 0;
+    ApplyMicLifecycle();
+}
+
+void VO_SetPtt(int on)
+{
+    bool ptt = on != 0;
+    if (gPtt.exchange(ptt) && !ptt) gUnkeyAt = CFAbsoluteTimeGetCurrent();   // keyed -> unkeyed: start the linger
+    ApplyMicLifecycle();
+}
 int VO_Headphones(void) { return gHeadphones.load() ? 1 : 0; }
 float VO_MicLevel(void) { return gMicLevel.load(); }
 
