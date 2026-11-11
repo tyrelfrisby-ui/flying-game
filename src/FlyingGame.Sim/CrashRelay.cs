@@ -128,7 +128,12 @@ public sealed class CrashRelay
 
     private WreckPiece Spawn(string name, AirframeComponent c, List<HydroElement> els)
     {
-        WreckPiece p = Wreck.Add(name, c, els, Aircraft.Config.Mass.CgVec(), Aircraft.State);
+        // A SURFACE THAT FLUTTERED OFF IS A THROWN PIECE, not a shed one. It leaves with no kick of its own — it
+        // simply lets go — but at 250 kt the aeroplane flies on past it, and that relative motion carries it down
+        // the fuselage exactly as it carries a departed engine. A break-up piece drifts away from an aeroplane that
+        // is moving with it; this does not, so it gets strike-tested (WreckStrike) and the rest do not.
+        WreckPiece p = Wreck.Add(name, c, els, Aircraft.Config.Mass.CgVec(), Aircraft.State,
+                                 Vec3.Zero, thrown: Aircraft.WasFlutterShed(c));
         // What broke it off may hold it: a trunk the piece struck stops it there (after it has left with the airframe's own
         // velocity field, so momentum is conserved at the separation and the stop is the piece's alone).
         if (Aircraft.TakeSeparationStop(c, out Vec3 stopAt, out Vec3 stopN)) p.StopAt(stopAt, stopN);
