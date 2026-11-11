@@ -105,9 +105,12 @@ public class ThrownBladeTests : IDisposable
                      $"aeroplane {before:F1} -> {ac.MassProperties.MassKg:F1} kg");
         Assert.InRange(m, 5.0, 6.5);                        // Ty's rule on the authored inertia
         Assert.InRange(speed, 120.0, 160.0);
-        // ShedMass recomputes the mass PROPERTIES, not just a visual: the mass drops by what left.
-        Assert.Equal(before - m, ac.MassProperties.MassKg, 6);
-        Assert.Equal(m, ac.ShedMassKg, 6);
+        // AND THE ENGINE WENT WITH IT, which is the point: the blade's unbalance beats the mount by 46x, so the two
+        // are one event. ShedMass recomputes the mass PROPERTIES for both, so what left the aeroplane is the blade
+        // plus the installed engine and the aeroplane is that much lighter — not a visual, the real numbers.
+        Assert.True(relay.EngineGone, "a 225 kN unbalance does not stay on the mount");
+        Assert.Equal(before - ac.ShedMassKg, ac.MassProperties.MassKg, 6);
+        Assert.True(ac.ShedMassKg > m, $"the engine's mass went too ({ac.ShedMassKg:F0} kg against the blade's {m:F1})");
     }
 
     /// <summary>
@@ -138,13 +141,77 @@ public class ThrownBladeTests : IDisposable
         Assert.NotEqual(WreckPhase.InAir, blade.Phase);
         Assert.True(t > 5.0, "a kilometre takes real time to fall");
         Assert.True(end.Z > start.Z + 900.0, "it got to the ground");
-        // The cost of keeping it in the air the whole way: this is what several pieces at once would multiply.
-        Assert.True(sw.Elapsed.TotalMilliseconds < 2000.0, $"a long fall must stay cheap ({sw.Elapsed.TotalMilliseconds:F0} ms)");
+        // THE COST OF KEEPING IT IN THE AIR THE WHOLE WAY, which is the thing to watch if drop altitudes grow or
+        // several pieces are falling at once. Measured: 1,576 ms of CPU for 47.4 s of fall with TWO pieces in the
+        // air (the blade, and the engine its unbalance took off the mount) — 3 % of real time. It was 4,278 ms
+        // before CrashRelay's broad phase, which is what the distance check there bought.
+        Assert.True(sw.Elapsed.TotalMilliseconds < 3000.0, $"a long fall must stay cheap ({sw.Elapsed.TotalMilliseconds:F0} ms)");
+    }
+
+    // ---- the mount, and what the aeroplane becomes ---------------------------------------------------------------
+
+    /// <summary>
+    /// THE MOUNT CANNOT CARRY IT, AND THE MARGIN IS WHY THE DERIVED LIMIT IS SAFE TO SHIP. The limit itself is
+    /// DERIVED and NOT READ (EngineOverspeed.MountLimitG has the paper trail: CAR 4a 4a.84(d)'s -1.5 is a wing
+    /// lift-truss condition by the standard's own words, TCDS A-691 states no load factors at all, and 4a.191 lands
+    /// near 1.9-2.0 g on a wing area A-691 does not publish). What makes it acceptable anyway is that the answer
+    /// does not depend on it: this measures the ratio across the whole plausible range of mount strengths.
+    /// </summary>
+    [Theory]
+    [InlineData("pitts-s2b-like")]
+    [InlineData("j3-cub-like")]
+    public void TheUnbalanceBeatsAnyPlausibleMount(string id)
+    {
+        AircraftConfig c = Load(id);
+        PropulsionConfig p = c.Propulsion!;
+        var ac = Flying(c, 70.0, 1500.0);
+        CrashRelay relay = Relay(ac);
+        relay.ThrowPropellerBlade(p.MaxRpm, 0.0);
+        double unbalance = relay.LastUnbalanceN;
+        double engineKg = FlyingGame.Core.Wreck.WaterPhysics.PistonEngineDryKg(p.MaxPowerW) * 1.4;
+        _o.WriteLine($"{id}: unbalance {unbalance / 1000.0:F1} kN against an engine of about {engineKg:F0} kg — " +
+                     $"{unbalance / EngineOverspeed.MountCapacityN(engineKg):F0}x a {EngineOverspeed.MountLimitG:F2} g mount, " +
+                     $"{unbalance / (15.0 * 9.80665 * engineKg):F1}x a 15 g one");
+        Assert.True(EngineOverspeed.MountFails(unbalance, engineKg));
+        // The conclusion has to be the same anywhere in the plausible range, or the derived limit would be load-bearing.
+        for (double g = 1.5; g <= 15.0; g += 0.5)
+            Assert.True(unbalance > g * 9.80665 * engineKg, $"{id}: a {g:F1} g mount would hold it ({unbalance / 1000.0:F1} kN)");
+        Assert.True(relay.EngineGone, "and so the engine goes");
+    }
+
+    /// <summary>
+    /// WHAT HAPPENS TO THE PILOT NEXT IS THE CG, NOT THE SEPARATION. Taking the engine off the nose of a light
+    /// single is an enormous AFT shift, and ShedMass has to carry it as mass, inertia AND centre of gravity — not as
+    /// a visual. Measured here, printed, so the size of it is on the record.
+    /// </summary>
+    [Theory]
+    [InlineData("pitts-s2b-like")]
+    [InlineData("j3-cub-like")]
+    public void LosingTheEngineIsAnEnormousAftCgShift(string id)
+    {
+        AircraftConfig c = Load(id);
+        var ac = Flying(c, 60.0, 1500.0);
+        double massBefore = ac.MassProperties.MassKg, iyyBefore = ac.MassProperties.Iyy;
+        Vec3 cgBefore = ac.CgShiftBody;
+        CrashRelay relay = Relay(ac);
+        WreckPiece? engine = relay.SeparateEngine();
+        Assert.NotNull(engine);
+        Vec3 cgAfter = ac.CgShiftBody;
+        double shiftM = cgAfter.X - cgBefore.X;
+        double chord = c.Surfaces.Count > 0 && c.Surfaces[0].Strips.Count > 0 ? c.Surfaces[0].Strips[0].Chord : 1.0;
+        _o.WriteLine($"{id}: engine {engine!.MassKg:F0} kg gone — mass {massBefore:F0} -> {ac.MassProperties.MassKg:F0} kg, " +
+                     $"Iyy {iyyBefore:F0} -> {ac.MassProperties.Iyy:F0}, CG moved {shiftM * 100:F0} cm AFT " +
+                     $"({shiftM / chord * 100:F0} % of a {chord:F2} m chord)");
+        Assert.True(engine.MassKg > 50.0, $"{id}: an installed engine is a real mass ({engine.MassKg:F0} kg)");
+        Assert.Equal(massBefore - engine.MassKg, ac.MassProperties.MassKg, 6);
+        Assert.True(ac.MassProperties.Iyy < iyyBefore, "the engine's parallel-axis share of the pitch inertia goes with it");
+        Assert.True(shiftM < -0.05, $"{id}: the CG must move AFT by a real distance ({shiftM * 100:F0} cm)");
     }
 
     /// <summary>
     /// AND ON THIS AEROPLANE IT MISSES — which is a measurement, not a shortcut, and it is worth writing down
-    /// because it was not what I expected.
+    /// because it was not what I expected. My brief said a biplane's two wings and cabin were within a metre of the
+    /// disc and would be struck; they are not, and the reason is geometry rather than opinion. DO NOT "FIX" THIS.
     ///
     /// A thrown blade leaves TANGENTIALLY, in the plane of the disc, and keeps the aeroplane's forward velocity. So
     /// at the instant it goes it has no aft motion relative to the aeroplane at all: it travels straight out

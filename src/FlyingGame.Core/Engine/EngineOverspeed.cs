@@ -197,6 +197,40 @@ public static class EngineOverspeed
         return Math.Abs(rpm) * 2.0 * Math.PI / 60.0 * r;
     }
 
+    /// <summary>
+    /// WHAT THE ENGINE MOUNT CAN CARRY, as a load factor on the engine's own weight. Ty 2026-11-11 asked for the
+    /// separation to be "based on the loads and structural limits" rather than scripted, and this is the limit.
+    ///
+    /// IT IS DERIVED AND IT IS NOT READ, and that has to be said plainly because it would be easy to mistake for a
+    /// published figure. The paper trail, sourced 2026-11-10 and written out at Aircraft.cs's Ratio():
+    ///   - CAR 4a 4a.84(d)'s -1.5 g, which the sim has been dividing the mount by, is by the standard's OWN words a
+    ///     wing lift-truss condition: "Only the rear (or single) lift truss system of externally braced wing
+    ///     structures need be investigated for this condition." It has nothing to do with a welded steel-tube mount.
+    ///   - FAA TCDS A-691 Rev 34 was read in full and states NO load factors at all, only the certification basis.
+    ///   - CAR 4a 4a.191 is the only opposite-sign mount case: "the limit load in each member shall be arbitrarily
+    ///     assumed as 50 percent of that in the level landing condition but of opposite sign". For an 1,100-1,220 lb
+    ///     J-3 that lands near 1.9-2.0 g limit by Figure 4a-10 - but on a wing area A-691 does not publish.
+    ///
+    /// SO WHY IS IT SAFE TO SHIP? Because the outcome does not rest on it. A thrown blade leaves a rotating
+    /// unbalance of 225.6 kN on the Pitts, whose engine is of order 200 kg: a mount at 2 g carries about 4 kN, so the
+    /// unbalance is FIFTY-SIX TIMES over. Even an absurdly strong 15 g mount - far beyond anything an aerobatic
+    /// biplane's is designed to - carries about 29 kN and is still exceeded nearly eightfold. The Cub is the same
+    /// story, 25.2 kN against a 77 kg engine. Any value between about 1.5 g and 15 g gives the same answer, which is
+    /// exactly the condition under which a derived number is safe: the conclusion is insensitive to it across its
+    /// whole plausible range. If Ty ever reads a real mount figure out of a manual, nothing about the behaviour
+    /// changes - only this constant does.
+    /// </summary>
+    public const double MountLimitG = 1.95;
+
+    /// <summary>What the mount can carry, N, for an engine of this mass.</summary>
+    public static double MountCapacityN(double engineMassKg)
+        => MountLimitG * Atmosphere.GravityMs2 * Math.Max(0.0, engineMassKg);
+
+    /// <summary>Does a rotating unbalance this big tear the engine off? See <see cref="MountLimitG"/> for why the
+    /// answer does not depend on the limit being exactly right.</summary>
+    public static bool MountFails(double unbalanceN, double engineMassKg)
+        => engineMassKg > 0.0 && unbalanceN > MountCapacityN(engineMassKg);
+
     /// <summary>Ty's blade rule: each blade is 15 % of the net propeller weight, the rest being hub near the axis.
     /// Two-blade propellers only; the rule runs 60 % high on a three-blade one, which is recorded on every
     /// propInertia note in the fleet.</summary>

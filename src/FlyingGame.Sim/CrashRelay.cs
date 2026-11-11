@@ -188,11 +188,25 @@ public sealed class CrashRelay
         if (!anyThrown) return;                            // the common case: nothing was flung, nothing to test
         IReadOnlyList<HydroElement> airframe = AirframeBoxes();
         if (airframe.Count == 0) return;
+        if (_airframeReachM <= 0.0)
+            foreach (HydroElement e in airframe)
+                _airframeReachM = System.Math.Max(_airframeReachM, (e.Centre - Aircraft.Config.Mass.CgVec()).Length + e.Half.Length);
         RigidBodyState s = Aircraft.State;
         Vec3 cg = Aircraft.Config.Mass.CgVec();
         foreach (WreckPiece p in Wreck.Pieces)
         {
             if (!p.Thrown || p.Phase != WreckPhase.InAir || p.Asleep) continue;
+            // BROAD PHASE, and it is not an optimisation for its own sake: a departed piece spends 47 seconds
+            // falling and all but the first fraction of one of them a long way from the aeroplane, so without this
+            // the slab test runs over every airframe box for the whole fall. One distance check retires it — the
+            // piece cannot reach the aeroplane this step if it is further off than both their reaches plus how far
+            // the two can close in dt. MEASURED: a blade and the engine that followed it off the mount, falling from
+            // 1,000 m, cost 4,278 ms of CPU before this and 1,576 ms after — for the same 47.4 s trajectory to the
+            // same landing point, 247 m downrange. What is left is the two pieces' own 6-DOF aero, which is the
+            // thing actually being asked for; the strike test is no longer most of the bill.
+            Vec3 rel = p.State.Position - s.Position;
+            double close = p.ReachM + _airframeReachM + (p.State.Attitude.Rotate(p.State.Velocity) - s.Attitude.Rotate(s.Velocity)).Length * dt;
+            if (rel.LengthSquared > close * close) { _clear.Add(p.Id); continue; }
             // A PIECE THAT HAS JUST BROKEN OFF IS TOUCHING THE AEROPLANE BY DEFINITION, and must not be read as
             // striking it: it was part of the airframe a moment ago and it spawns exactly where its parts were
             // (WreckSim.Add). Without this every break-up tore further components off on its first step — measured,
@@ -275,8 +289,62 @@ public sealed class CrashRelay
         Aircraft.ShedMass(massKg, hub + radius);              // the aeroplane is that much lighter, at that station
         LastThrownBlade = (massKg, speed, shaftAngleRad % (2.0 * System.Math.PI));
         PieceSpawned?.Invoke(piece);
+
+        // AND THEN THE MOUNT. The blade leaves a rotating unbalance of m·r·omega² and the mount is asked to carry it
+        // (FlyingGame.Core.Engine.EngineOverspeed.MountFails). It cannot, by one to two orders of magnitude — which
+        // is why the limit's exact value does not matter and why this can ship on a DERIVED one; the reasoning is
+        // written out on MountLimitG. Ty 2026-11-11: "with accurate physics that will almost always result in engine
+        // separation from the airplane but should be based on the loads and structural limits".
+        double unbalance = FlyingGame.Core.Engine.EngineOverspeed.ThrownBladeUnbalanceN(
+            p.PropInertia, p.PropDiameterM, p.PropBladeCount, shaftRpm, cs);
+        LastUnbalanceN = unbalance;
+        if (FlyingGame.Core.Engine.EngineOverspeed.MountFails(unbalance, InstalledEngineKg())) SeparateEngine();
         return piece;
     }
+
+    /// <summary>The rotating unbalance the last thrown blade left, N — what the mount was asked to carry.</summary>
+    public double LastUnbalanceN { get; private set; }
+
+    /// <summary>The installed engine's mass, kg: the wreck model's own engine box, which is the same mass the
+    /// flooding and break-up models carry for it rather than a second estimate.</summary>
+    private double InstalledEngineKg()
+    {
+        foreach (HydroElement e in HydroModel().Elements) if (e.Name == "engine") return e.MassKg;
+        return HydroModel().EngineDryKg * 1.4;
+    }
+
+    /// <summary>
+    /// THE ENGINE LEAVES THE AEROPLANE. Ty 2026-11-11: "The engine and prop while separating should follow an
+    /// accurate flight path and if that path contacts the airframe it should damage it appropriately."
+    ///
+    /// It gets no kick of its own. It leaves at the velocity it already had (v + ω × r at its own station), and what
+    /// carries it AFT down the fuselage is the aeroplane continuing to fly forward — which is the whole of why it
+    /// does not fall clear, and which is measured in WreckStrikeTests: a J-3's engine released at the nose strikes
+    /// the Cabin. It is marked thrown so it is strike-tested; from there it is an ordinary wreck piece and falls
+    /// until it reaches ground or water.
+    ///
+    /// AND THE AEROPLANE IS NOW A DIFFERENT AEROPLANE. Taking the engine off the nose of a light single is an
+    /// enormous AFT CG shift, not merely a mass change, and ShedMass carries both: the mass, the parallel-axis share
+    /// of the inertia, and the CG moved away from where it was (Aircraft.CgShiftBody enters the force sum as the
+    /// remaining weight's moment). That shift, not the separation, is what happens to the pilot next — it is
+    /// measured in ThrownBladeTests.
+    /// </summary>
+    public WreckPiece? SeparateEngine()
+    {
+        if (EngineGone) return null;
+        HydroElement? src = null;
+        foreach (HydroElement e in HydroModel().Elements) if (e.Name == "engine") { src = e; break; }
+        if (src is null) return null;
+        EngineGone = true;
+        WreckPiece piece = Wreck.Add("engine", AirframeComponent.Propeller, new List<HydroElement> { src.Clone() },
+                                     Aircraft.Config.Mass.CgVec(), Aircraft.State, Vec3.Zero, thrown: true);
+        Aircraft.ShedMass(src.MassKg, src.Centre);
+        PieceSpawned?.Invoke(piece);
+        return piece;
+    }
+
+    /// <summary>The engine has left the airframe (an over-rev threw a blade and the mount could not carry it).</summary>
+    public bool EngineGone { get; private set; }
 
     /// <summary>The last blade this aeroplane threw: its mass, the speed it left at and the azimuth it left from.</summary>
     public (double MassKg, double SpeedMs, double AzimuthRad)? LastThrownBlade { get; private set; }
@@ -297,6 +365,8 @@ public sealed class CrashRelay
     }
 
     private readonly HashSet<int> _clear = new();
+    /// <summary>How far the airframe reaches from its CG, m — the broad phase's radius, built once.</summary>
+    private double _airframeReachM;
     private AirframeHydroModel? _hydroModel;
     private AirframeHydroModel HydroModel() => _hydroModel ??= AirframeHydroModel.Build(Aircraft.Config, Aircraft.Load);
     private IReadOnlyList<HydroElement> AirframeBoxes() => HydroModel().Elements;

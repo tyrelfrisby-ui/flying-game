@@ -282,11 +282,16 @@ public sealed class WreckSim
     /// the other case: it does not fall off, it is flung, tangentially in the plane of the disc at the rim speed its
     /// centre of mass was already travelling at, which on a Pitts at the red line is about 140 m/s. That is not a
     /// kick invented for effect; it is the velocity the blade had the instant before the hub let go of it.
+    ///
+    /// <paramref name="thrown"/> is separate from the kick because a DEPARTING ENGINE has no kick and still needs
+    /// strike-testing: it leaves at the velocity it already had and it is the aeroplane's own forward motion that
+    /// carries it aft down the fuselage. What the flag means is "this left under a failure and can come back through
+    /// the airframe", not "this was given a shove".
     /// </summary>
     public WreckPiece Add(string name, AirframeComponent comp, List<HydroElement> elements, Vec3 aircraftCgBody,
-                          RigidBodyState aircraft, Vec3 departureVelocityBody)
+                          RigidBodyState aircraft, Vec3 departureVelocityBody, bool thrown = true)
     {
-        var p = new WreckPiece(name, comp, elements) { Id = _nextId++, Thrown = departureVelocityBody.LengthSquared > 1e-6 };
+        var p = new WreckPiece(name, comp, elements) { Id = _nextId++, Thrown = thrown };
         Vec3 r = p.CgBody - aircraftCgBody;
         Vec3 pos = aircraft.Position + aircraft.Attitude.Rotate(r);
         Vec3 vBody = aircraft.Velocity + Vec3.Cross(aircraft.Rates, r) + departureVelocityBody;
