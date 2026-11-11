@@ -55,6 +55,12 @@ namespace FlyingGame.Bridge
                 if (_sim?.Aircraft != null && PlayerIndex == 0) Atmosphere.ClockOwner = _sim.Aircraft;
                 if (_sim?.Aircraft != null) SessionSettings.ApplyLoadTo(AircraftId, _sim.Aircraft);
                 if (_sim?.Aircraft != null && !ReferenceEquals(before, _sim.Aircraft)) AirframeReplaced?.Invoke();
+                // The flight-test recorder follows the aeroplane the pilot is actually flying. Attached here
+                // because EVERY spawn, restart, relocate and type change goes through this setter, so the recorder
+                // cannot be left hooked to an aeroplane that no longer exists. Player 0 only: a drone, a tug or a
+                // second local player is not what a test card is about, and recording all of them would multiply
+                // the cost by the number of aircraft in the world.
+                if (_sim?.Aircraft != null && PlayerIndex == 0) FlightTestRecording.Attach(_sim, _sim.Aircraft);
             }
         }
 
