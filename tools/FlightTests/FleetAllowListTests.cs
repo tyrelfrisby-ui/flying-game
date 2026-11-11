@@ -11,7 +11,12 @@ namespace FlyingGame.FlightTests;
 /// </summary>
 public sealed class FleetAllowListTests
 {
-    private static readonly string[] TheFive = { "glider-2-33-like", "j3-cub-like", "great-lakes-like", "pitts-s2b-like", "extra-300-like" };
+    // SIX since 2026-11-10. Ty asked for five on 11-03 and confirmed "keep the five - it was about quality" earlier
+    // the same evening, then flew the slim build and said "The j3 on floats is not in this build it should be". The
+    // floats were the one type TestFlightFleet PACKAGED and FleetAllowList did not OFFER, so the build carried the
+    // model folder and the selector hid it. The name below stays deliberately un-numbered so the next addition does
+    // not have to rename it again.
+    private static readonly string[] TheProven = { "glider-2-33-like", "j3-cub-like", "j3-cub-floats-like", "great-lakes-like", "pitts-s2b-like", "extra-300-like" };
 
     /// <summary>A slice of the master fleet (SessionSettings.Fleet's order and names), hidden types included.</summary>
     private static readonly (string id, string name)[] Master =
@@ -23,12 +28,12 @@ public sealed class FleetAllowListTests
     };
 
     [Fact]
-    public void IosOffersExactlyTheFiveProvenAircraft()
+    public void IosOffersExactlyTheProvenAircraft()
     {
-        Assert.Equal(TheFive.OrderBy(x => x), FleetAllowList.Ios.OrderBy(x => x));
+        Assert.Equal(TheProven.OrderBy(x => x), FleetAllowList.Ios.OrderBy(x => x));
         var offered = FleetAllowList.Offered(Master, FleetAllowList.Ios);
-        Assert.Equal(new[] { "glider-2-33-like", "j3-cub-like", "extra-300-like", "pitts-s2b-like", "great-lakes-like" }, offered.Select(f => f.id));   // the master's order
-        foreach (string hidden in new[] { "c172-like", "p51d-like", "boeing-737-like", "pa18-cub-like", "j3-cub-floats-like", "paraglider-en-b-like" })
+        Assert.Equal(new[] { "glider-2-33-like", "j3-cub-like", "j3-cub-floats-like", "extra-300-like", "pitts-s2b-like", "great-lakes-like" }, offered.Select(f => f.id));   // the master's order
+        foreach (string hidden in new[] { "c172-like", "p51d-like", "boeing-737-like", "pa18-cub-like", "paraglider-en-b-like" })
         {
             Assert.DoesNotContain(offered, f => f.id == hidden);
             Assert.False(FleetAllowList.Allows(FleetAllowList.Ios, hidden));
@@ -38,7 +43,7 @@ public sealed class FleetAllowListTests
     [Fact]
     public void EveryProvenAircraftHasItsConfigAndNothingWasDeleted()
     {
-        foreach (string id in TheFive.Concat(new[] { "c172-like", "p51d-like" }))
+        foreach (string id in TheProven.Concat(new[] { "c172-like", "p51d-like" }))
         {
             AircraftConfig c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));
             Assert.Equal(id, c.Id);
@@ -48,13 +53,13 @@ public sealed class FleetAllowListTests
     /// <summary>The five are real entries of the game's master fleet (SessionSettings.Fleet), spelled the same: a typo here
     /// would silently hide an aircraft from the phone. (Read as text: the master list lives in the Unity assembly.)</summary>
     [Fact]
-    public void TheFiveAreInTheGamesMasterFleet()
+    public void TheProvenAircraftAreInTheGamesMasterFleet()
     {
         string dir = AppContext.BaseDirectory;
         while (dir != null && !File.Exists(Path.Combine(dir, "unity", "Assets", "_Project", "Scripts", "Bridge", "SessionSettings.cs"))) dir = Path.GetDirectoryName(dir)!;
         Assert.NotNull(dir);
         string src = File.ReadAllText(Path.Combine(dir!, "unity", "Assets", "_Project", "Scripts", "Bridge", "SessionSettings.cs"));
-        foreach (string id in TheFive) Assert.Contains($"(\"{id}\", ", src);
+        foreach (string id in TheProven) Assert.Contains($"(\"{id}\", ", src);
         Assert.Contains("public static string AircraftId = \"glider-2-33-like\";", src);   // the default is one of the five
     }
 
@@ -84,9 +89,9 @@ public sealed class FleetAllowListTests
         var offered = FleetAllowList.Offered(Master, FleetAllowList.Ios);
         string id = FleetAllowList.Resolve(saved, offered, "glider-2-33-like");
         Assert.Equal(expected, id);
-        Assert.Contains(id, TheFive);
+        Assert.Contains(id, TheProven);
         // Even a preferred default that is itself hidden lands on one of the five.
-        Assert.Contains(FleetAllowList.Resolve(saved == "glider-2-33-like" ? "c172-like" : saved, offered, "c172-like"), TheFive);
+        Assert.Contains(FleetAllowList.Resolve(saved == "glider-2-33-like" ? "c172-like" : saved, offered, "c172-like"), TheProven);
     }
 
     [Fact]
