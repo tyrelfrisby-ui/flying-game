@@ -10,6 +10,13 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>Aerotow from the runway with the TugPilot: launch, climb, pattern; glider releases; tug returns,
 /// lands with the rope and stops. Plus the rope-angle auto-release when the glider climbs far too high.</summary>
+// FLIES an aeroplane, so it READS the global ground and weather (WorldTerrain.Active, Atmosphere.*,
+// FloatHydro) through the sim even though it sets none of them. The collection was protecting the
+// classes that WRITE that state from each other and leaving their victims outside it, so this class ran
+// in parallel with 68 that install worlds and weather: StructuralTests went 39 of 40 NaN in one run and
+// passed clean in the next on identical code (2026-11-01). A reader needs the same serialisation as a
+// writer.
+[Collection("WorldTerrainActive")]
 public class GroundTowTests
 {
     private readonly ITestOutputHelper _out;

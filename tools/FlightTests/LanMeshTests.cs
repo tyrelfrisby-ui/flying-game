@@ -23,6 +23,20 @@ public class LanMeshTests
     private static readonly Stopwatch Clock = Stopwatch.StartNew();
     private static double Now => Clock.Elapsed.TotalSeconds;
 
+    /// <summary>
+    /// The base of THIS PROCESS'S port blocks. A block must be the SAME for every mesh in one test — peers find
+    /// each other by sweeping basePort..basePort+PortsPerHost-1 — but it only has to be unique PER PROCESS, and
+    /// the fixed 48310..48390 literals were not. Several worktrees run this suite at once in this repo (four
+    /// were running together on 2026-11-01), so whichever arrived second lost every port in a block and all
+    /// eight tests here reported "no free port in 48370..48373". Offsetting by the process id keeps concurrent
+    /// runs out of each other's way. The band stays BELOW the 49152 ephemeral range, so the kernel never hands
+    /// one of these ports to an unrelated socket before the test asks for it.
+    /// </summary>
+    private static readonly int Origin = 40000 + (Environment.ProcessId % 90) * 100;
+
+    /// <summary>Block <paramref name="n"/>: this process's n-th run of <see cref="LanMesh.PortsPerHost"/> ports.</summary>
+    private static int Block(int n) => Origin + n * 10;
+
     /// <summary>A mesh on its own port block, timings wound down so a test is a second rather than ten.</summary>
     private static LanMesh Mesh(string room, string id, string name, int basePort, string ac = "cub-like")
     {
@@ -65,8 +79,8 @@ public class LanMeshTests
     [Fact]
     public void TwoPilotsFindEachOtherWithNoServerAtAll()
     {
-        using var a = Mesh("LAN", "aaa", "Ty", 48310);
-        using var b = Mesh("LAN", "bbb", "Sam", 48310);
+        using var a = Mesh("LAN", "aaa", "Ty", Block(1));
+        using var b = Mesh("LAN", "bbb", "Sam", Block(1));
 
         var found = Pump(1.5, a, b);
         Assert.Contains(Of(found, a, LanEventKind.Peer), e => e.PeerId == "bbb" && e.Name == "Sam");
@@ -90,8 +104,8 @@ public class LanMeshTests
     [Fact]
     public void APayloadComesThroughUntouchedWhateverIsInIt()
     {
-        using var a = Mesh("LAN", "aaa", "パイロット|Ty", 48320);
-        using var b = Mesh("LAN", "bbb", "Sam", 48320);
+        using var a = Mesh("LAN", "aaa", "パイロット|Ty", Block(2));
+        using var b = Mesh("LAN", "bbb", "Sam", Block(2));
         Pump(1.0, a, b);
         Assert.Equal(1, b.PeerCount);
 
@@ -111,12 +125,12 @@ public class LanMeshTests
     [Fact]
     public void OnePilotFoundIsTheWholeRoomFound()
     {
-        using var a = Mesh("LAN", "aaa", "Ty", 48330);
-        using var b = Mesh("LAN", "bbb", "Sam", 48330);
+        using var a = Mesh("LAN", "aaa", "Ty", Block(3));
+        using var b = Mesh("LAN", "bbb", "Sam", Block(3));
         Pump(1.0, a, b);
         Assert.Equal(1, a.PeerCount);
 
-        using var c = Mesh("LAN", "ccc", "Jen", 48340);          // another block: it cannot sweep its way to A
+        using var c = Mesh("LAN", "ccc", "Jen", Block(4));          // another block: it cannot sweep its way to A
         Pump(0.4, a, b, c);
         Assert.Equal(0, c.PeerCount);
         Assert.True(c.AddHint($"127.0.0.1:{a.Port}"), "the hint was not accepted");
@@ -133,8 +147,8 @@ public class LanMeshTests
     [Fact]
     public void ARoomOnlyHearsItself()
     {
-        using var a = Mesh("LAN", "aaa", "Ty", 48350);
-        using var b = Mesh("K7Q2ZP", "bbb", "Sam", 48350);
+        using var a = Mesh("LAN", "aaa", "Ty", Block(5));
+        using var b = Mesh("K7Q2ZP", "bbb", "Sam", Block(5));
         var found = Pump(1.2, a, b);
         Assert.Empty(Of(found, a, LanEventKind.Peer));
         Assert.Empty(Of(found, b, LanEventKind.Peer));
@@ -153,8 +167,8 @@ public class LanMeshTests
     [Fact]
     public void APilotWhoVanishesIsNoticedAndOneWhoLeavesGoesAtOnce()
     {
-        using var a = Mesh("LAN", "aaa", "Ty", 48360);
-        var b = Mesh("LAN", "bbb", "Sam", 48360);
+        using var a = Mesh("LAN", "aaa", "Ty", Block(6));
+        var b = Mesh("LAN", "bbb", "Sam", Block(6));
         Pump(1.0, a, b);
         Assert.Equal(1, a.PeerCount);
 
@@ -164,7 +178,7 @@ public class LanMeshTests
         Assert.Equal(0, a.PeerCount);
 
         // A fresh session from the same pilot, and this time it leaves properly.
-        var b2 = Mesh("LAN", "bbb", "Sam", 48360);
+        var b2 = Mesh("LAN", "bbb", "Sam", Block(6));
         Pump(1.0, a, b2);
         Assert.Equal(1, a.PeerCount);
         b2.Dispose();
@@ -182,8 +196,8 @@ public class LanMeshTests
     [Fact]
     public void APilotTooFarAwayToSeeGetsASlowerRate()
     {
-        using var a = Mesh("LAN", "aaa", "Ty", 48370);
-        using var b = Mesh("LAN", "bbb", "Sam", 48370);
+        using var a = Mesh("LAN", "aaa", "Ty", Block(7));
+        using var b = Mesh("LAN", "bbb", "Sam", Block(7));
         Pump(1.0, a, b);
         Assert.Equal(1, b.PeerCount);
 
@@ -208,7 +222,7 @@ public class LanMeshTests
     [Fact]
     public void ItSweepsWhileItIsAloneAndStopsWhenItIsNot()
     {
-        using var a = Mesh("LAN", "aaa", "Ty", 48380);
+        using var a = Mesh("LAN", "aaa", "Ty", Block(8));
         Pump(0.8, a);
         int alone = a.ProbesSent;
         Assert.True(alone > 0, "a lone pilot never looked for anybody");
@@ -221,7 +235,7 @@ public class LanMeshTests
         _o.WriteLine($"probes: {alone} in the first 0.8 s, {inSecondWindow} in the second");
         Assert.True(inSecondWindow < alone, $"the sweep never backed off ({alone} then {inSecondWindow})");
 
-        using var b = Mesh("LAN", "bbb", "Sam", 48380);
+        using var b = Mesh("LAN", "bbb", "Sam", Block(8));
         Pump(1.0, a, b);
         Assert.Equal(1, a.PeerCount);
         int withCompany = a.ProbesSent;
@@ -234,8 +248,8 @@ public class LanMeshTests
     [Fact]
     public void ChangingAeroplaneTellsTheRoom()
     {
-        using var a = Mesh("LAN", "aaa", "Ty", 48390, "cub-like");
-        using var b = Mesh("LAN", "bbb", "Sam", 48390);
+        using var a = Mesh("LAN", "aaa", "Ty", Block(9), "cub-like");
+        using var b = Mesh("LAN", "bbb", "Sam", Block(9));
         Pump(1.0, a, b);
         Assert.Equal("cub-like", b.Peers()[0].Ac);
 

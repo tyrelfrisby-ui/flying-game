@@ -51,7 +51,7 @@ public class ForestTests : System.IDisposable
         Assert.InRange(sunny - shady, 259, 261);   // 2 x 130 m: a sun-facing slope is a few kelvin warmer
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy forest layer. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void NobodysRunwayApronOrStripHasTreesOnIt()
     {
         // Every made surface in the world, walked. Timber is allowed on ROUGH ground and nowhere else, which
@@ -114,7 +114,7 @@ public class ForestTests : System.IDisposable
         Assert.True(near.Count >= 3, $"only {near.Count} of {FrankChurch.Strips.Length} backcountry strips have timber within 400 m");
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy forest layer. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void NothingGrowsInTheWaterOnAGlacierOrInTheDryCountry()
     {
         foreach (WorldTerrain.Lake l in WorldTerrain.Lakes)
@@ -167,7 +167,7 @@ public class ForestTests : System.IDisposable
         Assert.True(longest > 300, $"the biggest gap in 11 km is {longest:0} m — there is nowhere to put it down");
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy forest layer. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void ATreeStandsOnTheGroundAndTheOnesNearTheLineAreStunted()
     {
         int n = 0, tall = 0, stunted = 0;

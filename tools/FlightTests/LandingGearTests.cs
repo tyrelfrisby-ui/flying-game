@@ -10,6 +10,13 @@ namespace FlyingGame.FlightTests;
 /// <summary>Landing-gear physics (owner-directed): the aircraft settles on its wheels, a taildragger
 /// is directionally UNSTABLE (ground-loop tendency) while a tricycle self-centers, and side load
 /// shifts weight toward the outer wheel — all emergent from per-wheel tire forces.</summary>
+// FLIES an aeroplane, so it READS the global ground and weather (WorldTerrain.Active, Atmosphere.*,
+// FloatHydro) through the sim even though it sets none of them. The collection was protecting the
+// classes that WRITE that state from each other and leaving their victims outside it, so this class ran
+// in parallel with 68 that install worlds and weather: StructuralTests went 39 of 40 NaN in one run and
+// passed clean in the next on identical code (2026-11-01). A reader needs the same serialisation as a
+// writer.
+[Collection("WorldTerrainActive")]
 public class LandingGearTests
 {
     private static AircraftConfig Cfg(string id) =>

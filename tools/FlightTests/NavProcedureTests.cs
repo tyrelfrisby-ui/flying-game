@@ -34,7 +34,7 @@ public class NavProcedureTests : IDisposable
         throw new System.ArgumentException($"{airport} {rwy}");
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy instrument procedures. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void EveryPublishedMinimumIsStillWhatTheGroundForces()
     {
         var wrong = new List<string>();
@@ -61,7 +61,7 @@ public class NavProcedureTests : IDisposable
         Assert.True(wrong.Count == 0, string.Join("; ", wrong));
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy instrument procedures. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void AnIlsIsAlignedWithItsRunwayAndAVorFinalIsCloseEnough()
     {
         foreach (Approach a in Approaches.All)
@@ -84,7 +84,7 @@ public class NavProcedureTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy instrument procedures. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void EveryFinalApproachFixIsOnItsOwnFinalApproachCourse()
     {
         foreach (Approach a in Approaches.All)
@@ -112,7 +112,7 @@ public class NavProcedureTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy instrument procedures. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheDescentFromEachFinalApproachFixIsFlyable()
     {
         // TERPS wants a non-precision final at about 318 ft/NM and no more than 400. A precision final IS
@@ -142,7 +142,7 @@ public class NavProcedureTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy instrument procedures. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void OneApproachHasACourseReversalAndItIsFlownWhereThereIsRoomForIt()
     {
         var withPt = Approaches.All.Where(a => a.ProcedureTurn != TurnSide.None).ToList();
@@ -165,7 +165,7 @@ public class NavProcedureTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy instrument procedures. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void NoApproachClaimsAProcedureTurnTheTerrainWouldNotAllow()
     {
         // Summit's plate says no course reversal is published and gives the reason. That reason is checked
@@ -183,7 +183,7 @@ public class NavProcedureTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy instrument procedures. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void EveryAirwayLegHasAMinimumAltitudeYouCouldActuallyClimbTo()
     {
         var legs = Airways.Legs(_t);
@@ -200,7 +200,7 @@ public class NavProcedureTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy instrument procedures. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheHillStationsAreWhyNoAirwayMeaIsSetByTheRadio()
     {
         // Every MEA here is set by terrain, not signal — which is the payoff of putting the two extra

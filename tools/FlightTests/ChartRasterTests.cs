@@ -97,7 +97,7 @@ public class ChartRasterTests : IDisposable
         Assert.True(vseen.Count >= 6, $"the VFR chart should show the shape of the ground: only {vseen.Count} colours");
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy chart raster. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheSeaIsBlueOnEveryLayerThatDrawsGround()
     {
         var g = Grid();
@@ -121,7 +121,7 @@ public class ChartRasterTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy chart raster. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheHighPeaksReadHigherThanTheCoast()
     {
         var g = Grid();

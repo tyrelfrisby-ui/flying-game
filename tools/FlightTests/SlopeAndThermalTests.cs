@@ -25,7 +25,7 @@ public class SlopeAndThermalTests : IDisposable
     private readonly ITestOutputHelper _out;
     public SlopeAndThermalTests(ITestOutputHelper o) { _out = o; }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy ridge and thermal terrain. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void WindOntoTheFirstWallRisesOnTheFaceAndSinksInTheLee()
     {
         var t = new WorldTerrain();

@@ -68,7 +68,7 @@ public class RegionalAtmosphereTests : IDisposable
     // The calm start airport
     // =================================================================================================================
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy regional weather sites. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void CalmZoneIsTheDefaultStartAirportsAndCoversThePattern()
     {
         var f = new AtmosphereField(Cfg());
@@ -108,7 +108,7 @@ public class RegionalAtmosphereTests : IDisposable
         yield return ("cross runway W", a.X + WorldTerrain.XwindRunwayDx, a.Y - 560, 1);
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy regional weather sites. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void StartAirportIsExactlyCalmIsaFromTheSurfaceThroughThePattern()
     {
         WithWorld(t =>
@@ -151,7 +151,7 @@ public class RegionalAtmosphereTests : IDisposable
         });
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy regional weather sites. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void CalmZoneBlendsOutSmoothlyAndMonotonically()
     {
         // Flat ground at field elevation, the real config (so the real background air): walk out of the zone sideways.
@@ -203,7 +203,7 @@ public class RegionalAtmosphereTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy regional weather sites. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void NoThermalStandsInTheCalmZone()
     {
         WithWorld(t =>
@@ -254,7 +254,7 @@ public class RegionalAtmosphereTests : IDisposable
         Assert.Contains(c.Regions, r => r.Anchor == "airport:KMYL" && r.Wind.Mode == "gusty");
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy regional weather sites. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void FullRegionalConditionsApplyAwayFromHome()
     {
         WithWorld(t =>
@@ -280,7 +280,7 @@ public class RegionalAtmosphereTests : IDisposable
     // Airport 2: light and variable
     // =================================================================================================================
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy regional weather sites. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void Airport2WindWandersAllTheWayRoundAtAboutFiveKnots()
     {
         WithWorld(t =>
@@ -335,7 +335,7 @@ public class RegionalAtmosphereTests : IDisposable
     // Airport 3: 5 kt gusting 15
     // =================================================================================================================
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy regional weather sites. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void Airport3IsFiveGustingFifteenFromASteadyDirection()
     {
         WithWorld(t =>
@@ -402,7 +402,7 @@ public class RegionalAtmosphereTests : IDisposable
         Assert.True(Math.Abs(crest) > 1.2 * Math.Abs(free), $"speed-up over the crest: {Math.Abs(crest):F2} vs free {Math.Abs(free):F2}");
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy regional weather sites. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void RealBluffHasLiftInFrontOfIt()
     {
         WithWorld(t =>
@@ -621,7 +621,7 @@ public class RegionalAtmosphereTests : IDisposable
         Assert.True(dp < 1.0 && dAngle < 2.0, $"the step size must not change the flight ({dp:F2} m, {dAngle:F2}°)");
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy regional weather sites. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void SamplingIsCheap()
     {
         WithWorld(t =>
