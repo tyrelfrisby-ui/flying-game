@@ -104,7 +104,7 @@ public class MazeTowTests : IDisposable
         return (pilot, worst, worstLeg, hit, t);
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the maze tow tunnel. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheTugTakesOffInsideTheTunnel()
     {
         // The first thing it has to do is get airborne in a bore 32 m tall, from a standing start, without
@@ -116,7 +116,7 @@ public class MazeTowTests : IDisposable
         _ = t;
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the maze tow tunnel. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void ACentredGliderIsTowedRoundWithoutTouchingTheRock()
     {
         // The whole point: a glider pilot who does nothing gets taken round and out.
@@ -128,7 +128,7 @@ public class MazeTowTests : IDisposable
         Assert.Contains("exit.bore", pilot.Took);          // out through the mouth, which is the whole point
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the maze tow tunnel. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheGliderPilotCanAskForADifferentBranch()
     {
         // Holding the rope out to one side has to actually change where the tow goes — and the other way

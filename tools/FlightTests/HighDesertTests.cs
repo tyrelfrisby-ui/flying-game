@@ -19,7 +19,7 @@ public class HighDesertTests : IDisposable
 
     private static WorldTerrain Terrain() { var t = new WorldTerrain(); WorldTerrain.Active = t; return t; }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the high desert block, mesa and playa. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheBlockSitsOnTheMesaPlateauAndNowhereNearAnythingElse()
     {
         // The Alaska plain was laid on top of the Cascades, then across the tunnel maze. Twice. So: the block
@@ -68,7 +68,7 @@ public class HighDesertTests : IDisposable
                      $"{westmost - (HighDesert.X1 + 600):0} m between the desert's margin and the airport pad");
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the high desert block, mesa and playa. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheBlockOwnsItsOwnGround()
     {
         // Sample the whole block against the bare plateau: inside it, the desert is what decides the height,
@@ -105,7 +105,7 @@ public class HighDesertTests : IDisposable
         Assert.True(worstOutside < 3.0, $"the desert leaks {worstOutside:0.0} m of ground 900 m outside its own block");
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the high desert block, mesa and playa. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void NoHillCarvesAnother()
     {
         // The Cascades lesson: two bowls a kilometre apart with 1.3 km radii carve each other's rims. Here the
@@ -159,7 +159,7 @@ public class HighDesertTests : IDisposable
         _o.WriteLine($"{hazards.Count} hazards scattered, none of them in any clean lane");
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the high desert block, mesa and playa. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheMadeStripsAreGradedAndEmpty()
     {
         var t = Terrain();
@@ -203,7 +203,7 @@ public class HighDesertTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the high desert block, mesa and playa. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void ThePlayaIsDeadLevelAndCompletelyClear()
     {
         // The one surface in the desert you can trust.

@@ -13,6 +13,13 @@ namespace FlyingGame.FlightTests;
 /// left rudder, full power, full RIGHT aileron; full aft, then full forward) — the stable pitch, α (and each wing's α at 85 %
 /// semispan), turn time, KIAS, and the PITCH-MOMENT balance about the CG that holds that attitude, split by source: wing
 /// strips, tail strips, fuselage, pure moments (strip Cm, damping), thrust, and the inertial coupling −(ω × Iω)_y.</summary>
+// FLIES an aeroplane, so it READS the global ground and weather (WorldTerrain.Active, Atmosphere.*,
+// FloatHydro) through the sim even though it sets none of them. The collection was protecting the
+// classes that WRITE that state from each other and leaving their victims outside it, so this class ran
+// in parallel with 68 that install worlds and weather: StructuralTests went 39 of 40 NaN in one run and
+// passed clean in the next on identical code (2026-11-01). A reader needs the same serialisation as a
+// writer.
+[Collection("WorldTerrainActive")]
 public class FlatSpinProbe
 {
     private readonly ITestOutputHelper _out;

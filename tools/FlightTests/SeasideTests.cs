@@ -16,7 +16,7 @@ public class SeasideTests : IDisposable
     public void Dispose() => SimGlobals.ClearSolids();
     private static readonly WorldTerrain T = new();
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the seaside coast, Golden Gate and sea cave. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void RiverReachesTheSeaAtSeaLevelThroughCliffs()
     {
         double yb = GoldenGate.Y, xb = GoldenGate.CentreX;
@@ -50,7 +50,7 @@ public class SeasideTests : IDisposable
         Assert.InRange(minR, 150, 400);
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the seaside coast, Golden Gate and sea cave. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void GoldenGateSpansTheMouth()
     {
         double y = GoldenGate.Y, cx = GoldenGate.CentreX, half = GoldenGate.HalfMainSpanM;
@@ -68,7 +68,7 @@ public class SeasideTests : IDisposable
         Assert.Null(WorldSolids.Penetration(cx, y, 60));
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the seaside coast, Golden Gate and sea cave. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void CityStandsOnFlatDryGroundInsideTheCombatZone()
     {
         var b = FlyCity.Towers();
@@ -88,7 +88,7 @@ public class SeasideTests : IDisposable
             Assert.Null(WorldSolids.Penetration(gt.X, gt.Y, T.HeightAt(gt.X, gt.Y) + 1));
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the seaside coast, Golden Gate and sea cave. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void IslandHasItsRunwayArchAvalonAndHarborOffshore()
     {
         double rwy = T.HeightAt(Island.RunwayX, Island.RunwayY);
@@ -120,7 +120,7 @@ public class SeasideTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the seaside coast, Golden Gate and sea cave. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void SeaCaveCanBeTaxiedIntoAndHasABeachAndASkylight()
     {
         double cx = SeaCave.Cx, cy = SeaCave.Cy;

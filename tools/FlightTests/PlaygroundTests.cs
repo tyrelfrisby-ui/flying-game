@@ -16,7 +16,7 @@ public class PlaygroundTests : IDisposable
     private static readonly WorldTerrain T = new();
     private static void Solids() { Landmarks.RegisterSolids(T); }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the playground (mall strip, canyon lake). Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void CanyonLakeIsLongDeepAndWalled()
     {
         double wet = 0;
@@ -110,7 +110,7 @@ public class PlaygroundTests : IDisposable
         Assert.True(hitEdgeOn, "edge-on: the rim is in the way");
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the playground (mall strip, canyon lake). Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void MallIs3000FeetOfLandableWaterAndGrass()
     {
         Solids();

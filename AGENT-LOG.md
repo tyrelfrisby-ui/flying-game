@@ -122,6 +122,33 @@ Running record, one bullet per lane, newest last:
   Still Ty's to look at, not an approved gate: `renders/windsocks/` and `renders/airport-lighting/`, Q110–Q113.
   Two findings from the lane that still stand: **the game has no night**, so the runway lights cannot be flown at
   night yet, and the VASI angles are not from a document anyone read.
+- **`lane/claude-test-triage`** (`086e261a`) — MERGED, **moved forward out of its briefed place** so the lanes merged
+  after it get a trustworthy test run. It only touches `tools/FlightTests/`.
+  Half of it had already shipped: all four of its CLAUDE.md lessons are in the file at HEAD, and HEAD already carries
+  `[Collection("WorldTerrainActive")]` on 161 of 396 test files against the lane's 93. **What is still only here is
+  the half its own writeup says took two goes to see:** 24 classes HEAD lacks it on, and they are precisely the ones
+  that FLY — `SoaringTests`, `StructuralTests`, `SpawnSpeedTests`, `ReversibleControlTests`, `AeroTowTests`,
+  `GroundTowTests`, `LandingGearTests`, `SpinTests`, `MultiEngineTests`, `FloatsOnLandTests`, `TipWheelTests`,
+  `AircraftLoadTests`, `ChallengeTests`, `ExtraCouplingTests`, `StructuralBandTests`, `LateralProbeTests` and the
+  eight spin/stall probes. Its rule: a class needs the collection if it ASSIGNS the global ground and weather **or if
+  it constructs an `Aircraft` or a `SimLoop`** — the writers were being protected from each other while their victims
+  were left outside. It measured 211 failures → 7 and NaN messages 82 → 1, at no measurable wall-clock cost. Also
+  here: the `LanMeshTests` UDP band offset by the process id, which HEAD lacks, so several worktrees can run the LAN
+  tests at once instead of the second arrival losing every port in its block.
+  **One stale thing in it, NOT taken:** it puts `[Fact(Skip = "Legacy world: the approved island world does not
+  build the Frank Church backcountry strips")]` on four `FrankChurchTests` facts. **Those four pass today** — 13
+  passed, 0 failed, measured on the pristine base — so the Skip is stale and ours is kept. Parking four passing tests
+  silently is worse than the untidiness it was meant to fix. `IslandStartupCostTests` keeps HEAD's attribute with the
+  lane's fuller explanation of why a READER of the globals needs it too.
+  **AND IT DOES NOT FIX THE SEVEN.** The reason for merging it early was to find out whether the unattributed
+  failures were a parallelism artefact. They are not. `Grob103|IslandStart|ReversibleControl|FrankChurch|
+  IslandStartupCost|LanMesh` gives **88 passed, 7 failed**, and the seven are the SAME NAMES as on the pristine base:
+  `Grob103Tests.RecoveryControlsSlowTheSpin`, `Grob103Tests.PedalsSteerTheNoseWheelOnTheGround(0.5)`,
+  `IslandStartTests.TheControlsMoveTheAeroplaneAtEveryStart`,
+  `ReversibleControlTests.HandsOffHoldsTrimAndReturnsAfterAPull(p51d)`, and the three
+  `ReversibleControlTests.TailslideSlamsFreeControlsToTheStops` (pitts-s2b, pa18-cub, extra-300). **The baseline of
+  seven is real, and it is now the session's baseline.** Serialising the flying classes is still right, and it did
+  stop the p51d case flapping between runs, but it is not what these seven are.
 
 ## ASTC 4x4: the textures come out of the GLBs, and the whole fleet with every livery is 0.95 GB — Claude, 2026-11-10, lane/claude-textures
 
@@ -5949,6 +5976,59 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
      same surfaces, via their elevators: the Pitts needs −4.97° of elevator to trim where it needed −4.71°,
      glide ratio 5.697 → 5.695). Everything else is bit-for-bit unchanged, protected by a 1 % deadband on the
      coverage measurement. Visuals unaffected. Local commits only; not merged, not installed, no TestFlight.
+- **TEST SUITE TRIAGE (Claude, 2026-11-01, lane/claude-test-triage) — three decisions are yours, and one
+  number in the brief was wrong:**
+  1. **It was never 109 failing of 783. On a QUIET machine the branch point `aacb429` fails 211 of 1233.**
+     The 109/783 in the 2026-10-31 entry is long stale. Worse, the same tree run while three other worktrees
+     were running their suites gave **198**, and re-run alone gave **211** — the two runs disagree with each
+     other, so any count taken here has to say what else was running.
+  2. **DOES THE LEGACY WORLD CONTENT COME BACK? 104 tests are parked waiting on your answer.** The approved
+     island world (1fe347d, your G1 in a0617a1) replaced the old world outright: `WorldTerrain.HeightAt`
+     returns `IslandTerrain.HeightAt` and nothing else, and `LegacyHeightAt` is dead code Codex left marked
+     *"Retained solely for Claude's later legacy-code/test cleanup"*. So the tests for **the Alaska range and
+     its glaciers, the Frank Church strips, the high desert, the alpine range, the seaside coast and Golden
+     Gate, the waterfalls and their tunnels, the stacked plateaus, the playground, the maze tow, the carrier,
+     the legacy navaids, procedures, light-lines and weather sites** are all asserting ground that no longer
+     exists. I **parked them with `Skip`, I did not delete them**: each one still specifies what that content
+     has to do, so if you want any of it rebuilt on the island the specification is still there. **Tell me
+     which to rebuild and which to retire.** I did NOT rewrite them against island values — there is no island
+     Denali to update the number to, and inventing expectations for content I did not author is how a test
+     stops meaning anything.
+  3. **The aircraft StreamingAssets mirrors: still your open decision, untouched.** Two `StreamingAssetsTests`
+     fail because the mirrors are tracked, which `.gitignore` already records as an open question. Either
+     `git rm --cached` the 69 tracked paths and let ConfigSync generate them (what `c3cc22c`'s one-copy policy
+     intends, and what stopped great-lakes shipping with no config), or retire the two tests. **Note the trap:
+     ignoring them while they are still tracked makes the `git ls-files | git check-ignore` guard print, so it
+     has to be `rm --cached` AND ignore in ONE commit.** I changed nothing here.
+  4. **The Pitts still does not land or roll out well** (3 `AerobatGroundHandlingTests`: swings off the runway
+     three-point, bounces on a wheel landing, and will not recover at 12 m/s). That is a handling-feel number
+     and therefore yours; I did not touch it, and I did not loosen the tolerance to hide it.
+  5. **The suite now fails 7, not 211** — and all seven are named below, none of them coupling noise. Making
+     it REPEAT that is the bit that matters, because a suite that disagrees with itself cannot show you a
+     regression; two full runs now give 1116/7/107 with IDENTICAL failing sets by name, so it
+     repeats. It took two goes to get there: with only
+     `SoaringTests` serialised the suite gave 27 failures on one run and **53 on the next from the same tree**.
+     The collection attribute was protecting the classes that WRITE the global ground and weather from each
+     other and leaving their VICTIMS outside it — 24 classes fly an aeroplane, and so read that state through
+     the sim, while declaring no collection at all. All 24 are serialised now. NaN messages across the suite:
+     82 → 1. Runtime is unchanged: 16m27s and 22m20s after, against 23m21s and 21m43s before
+     — overlapping ranges, no speed-up either way (I claimed one off a single run and the repeat disproved it).
+  6. **The rest of what I fixed, all of it test-side — no flight-model number, config performance figure,
+     tolerance or world file was changed.** `LanMeshTests` used fixed UDP port blocks that collide when several
+     worktrees run the suite at once (four were). `j3-cub-like` and `j3-cub-floats-like` shipped own-built
+     models with **no LICENSE.txt and no CREDITS.md entry at all** — written now from the provenance doc, with
+     nothing invented. `ModelRigTests` installed a world and left it standing for the next class.
+  Not merged and not deployed unless the suite improved and the build is green; see the report.
+- **STRAY MAIN-CHECKOUT `OptionsPanel.cs` EDIT — RESOLVED, no action needed, can be closed** (Claude,
+  2026-11-01, lane/claude-test-triage). The "uncommitted OptionsPanel.cs change in the main checkout" noted in
+  the 2026-10-28 handover entry (aaa5b9d, written 16:45 -0700) is **gone**: as of 2026-11-01 ~12:10 PST the
+  main checkout (split-surfaces @ 1b67dd5) is clean, nothing is stashed, and no worktree holds an uncommitted
+  `OptionsPanel.cs`. The file's mtime (2026-10-28 16:56:33 -0700) equals the fast-forward of
+  `lane/claude-menu-aero` into `split-surfaces`, which rewrote the panel into chapters (0936079) — so the old
+  edit (an earlier fix for the unclosable-menu bug, superseded by that rewrite) was already gone by then. The
+  `OptionsPanel` changes made since are intentional and committed: the look-settings move, 934a866
+  (2026-11-01 05:16) and cd30d02 (05:47), on `lane/claude-device-look` and the lanes built on it, not on
+  `split-surfaces`. **Nothing to keep and nothing to drop.** I did not touch the file or the main checkout.
 - **GREAT LAKES LEVER ORDER PUT BACK (Claude, 2026-11-01, lane/claude-gl-lever-order) — my mistake, and how it
   is pinned shut:**
   1. **Throttle (black), prop (blue), mixture (red), left to right from the seat** — your order, in both
