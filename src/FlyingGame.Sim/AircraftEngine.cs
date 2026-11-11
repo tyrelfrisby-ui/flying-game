@@ -141,9 +141,17 @@ public sealed partial class Aircraft
     {
         get
         {
+            // A DEAD ENGINE'S RPM IS THE SHAFT WE ARE INTEGRATING, where we are integrating one. It used to be
+            // WindmillRpm — PropModel.Windmilling's closed form, a SECOND solve of the same propeller that re-derives
+            // the rpm from the oil-loss stop and cannot see the blade angle the governor really left or the
+            // compression the shaft is lumping over. The two disagree: the base commit measured the closed form
+            // returning "the air cannot drive this" where the integrated shaft, held 30 s at the same condition, was
+            // turning 965 rpm. The closed form stays as the answer for a type whose shaft is NOT integrated, which is
+            // all it was ever needed for.
+            double deadRpm = _noseLost ? 0.0 : SolvesShaft ? _shaftRpm : WindmillRpm;
             PropModel.PropDrive d = EngineRunning
                 ? (PowerScale == 1.0 && _propLever == 1.0 ? PropModel.PropDrive.Running : PropModel.PropDrive.RunningAt(PowerScale, _propLever))
-                : PropModel.PropDrive.Dead(_noseLost ? 0.0 : WindmillRpm);
+                : PropModel.PropDrive.Dead(deadRpm);
             return _shaftRpm > 0.0 ? d.WithShaft(_shaftRpm, _bladePitchDeg) : d;
         }
     }
@@ -239,6 +247,11 @@ public sealed partial class Aircraft
     /// <summary>The shaft rpm being integrated, or 0 when this type is still on the old throttle law.</summary>
     public double ShaftRpm => _shaftRpm;
 
+    /// <summary>The blade angle at 0.75 R a governed propeller is actually set to, degrees, or 0 for a fixed blade.
+    /// It is a STATE between the stops, and whether the governor has run out of it is the whole of an overspeed, so
+    /// it has to be readable from outside the engine (PropPhysicsProbe, PropPhysicsTests).</summary>
+    public double BladePitchDeg => _bladePitchDeg;
+
     /// <summary>True when this aeroplane's propeller is solved rather than estimated.</summary>
     public bool HasFittedBlade => Config.Propulsion is { PropDiameterM: > 0, BladePitch75Deg: > 0 };
 
@@ -306,7 +319,7 @@ public sealed partial class Aircraft
             if (_bladePitchDeg <= 0.0) _bladePitchDeg = System.Math.Clamp(0.5 * (fine + coarse), fine, coarse);
             if (GovernorHasOil)
             {
-                double commanded = GovernedRpmAt(_propLever);
+                double commanded = GovernorCommandAt(_propLever);
                 double error = (_shaftRpm - commanded) / System.Math.Max(1.0, commanded);
                 _bladePitchDeg += System.Math.Clamp(error * GovernorGainDegPerSec, -GovernorRateDegPerSec, GovernorRateDegPerSec) * dt;
             }
@@ -405,6 +418,11 @@ public sealed partial class Aircraft
 
     /// <summary>Constant-speed rpm for a governor lever position at the current throttle (the old law at lever 1).</summary>
     private double GovernedRpmAt(double lever) => PropModel.RunningRpm(Config.Propulsion!, _throttle01, lever);   // one law: the gyro uses it too
+
+    /// <summary>What the governor's speeder spring is ASKING for at this lever position, which is not what the
+    /// tachometer reads — see <see cref="PropModel.GovernorCommandRpm"/>, where the throttle used to drag the
+    /// COMMAND down to idle and drive the blade to the coarse stop on a closed throttle.</summary>
+    private double GovernorCommandAt(double lever) => PropModel.GovernorCommandRpm(Config.Propulsion!, _throttle01, lever);
 
     /// <summary>At the same manifold pressure a piston's power goes with its rpm: the governor lever's share.</summary>
     private double GovernorPowerFactor()

@@ -107,11 +107,34 @@ public class EngineStateTests : IDisposable
         // second after the mixture is cut at full throttle the propeller is still carrying most of its governed rpm
         // and decaying against cranking torque and compression — which is what the aeroplane does.
         Assert.InRange(ac.EngineRpm, 1200.0, 1800.0);
-        Assert.Equal((0.0, 0.0, 0.0), ac.LastTailSlipstream);
         Assert.Equal(0.0, ac.FuelFlowKgPerSec);
-        (Vec3 f, Vec3 m) = Aircraft.PropulsionForces(ac.Config, 1.0, Vec3.Zero, Vec3.Zero, Rho0, false, default, null, ac.Drive);
-        Assert.Equal(0.0, f.X);
-        Assert.Equal(Vec3.Zero, m);
+        // NO WASH OVER THE TAIL, AND THAT IS A KNOWN GAP rather than the answer: Aircraft.TailSlipstreamInner's
+        // dead-engine branch takes Min(0, thrust), so a disc that is still THRUSTING on its own inertia — which the
+        // force assertions below measure at 2,266 N — hands the tail nothing at all. It only bites during the second
+        // or so a propeller takes to spin down, which is why it is pinned here rather than chased.
+        Assert.Equal((0.0, 0.0, 0.0), ac.LastTailSlipstream);
+        // AND A PROPELLER STILL TURNING IS STILL A PROPELLER, which is what moved on 2026-11-11 (PropModel.IsSolved
+        // no longer demands a running engine). This used to assert zero force and zero moment from a disc the same
+        // test says is carrying 1,200-1,800 rpm, and a disc at 1,500 rpm standing still is a FAN: it blows, and it
+        // reacts torque, out of the kinetic energy in the blades. Measured here: 2,266 N, which is about half the
+        // Extra's full-power static thrust and is exactly what its own spin-down rate implies (2,700 to ~1,500 rpm in
+        // half a second against 3.06 kg.m2 is a mean 770 N.m, and a disc absorbing that much makes ~3.4 kN static).
+        //
+        // WHAT TY ACTUALLY REPORTED IS STILL PINNED, and it is the invariant that matters: "the prop was completely
+        // stopped but if i had the throttle up it would still yaw with rudder". A dead engine makes no power whatever
+        // the lever says, so the forces must not depend on the throttle at all — which is asserted directly below,
+        // and the stopped case (zero force) has its own test above, with the propeller gone.
+        (Vec3 fFull, Vec3 mFull) = Aircraft.PropulsionForces(ac.Config, 1.0, Vec3.Zero, Vec3.Zero, Rho0, false, default, null, ac.Drive);
+        (Vec3 fIdle, Vec3 mIdle) = Aircraft.PropulsionForces(ac.Config, 0.0, Vec3.Zero, Vec3.Zero, Rho0, false, default, null, ac.Drive);
+        _out.WriteLine($"dead at {ac.EngineRpm:F0} rpm, standing still: X {fFull.X:F1} N, roll {mFull.X:F1} N.m");
+        Assert.Equal(fFull.X, fIdle.X, 9);
+        Assert.Equal(fFull.Y, fIdle.Y, 9);
+        Assert.Equal(fFull.Z, fIdle.Z, 9);
+        Assert.Equal(mFull.X, mIdle.X, 9);
+        Assert.Equal(mFull.Y, mIdle.Y, 9);
+        Assert.Equal(mFull.Z, mIdle.Z, 9);
+        Assert.True(fFull.X > 0.0, "a disc still turning at 1,500 rpm blows, it does not drag, standing still");
+        Assert.Equal(0.0, ac.ShaftPower01, 12);         // and the ENGINE is making nothing: this is all inertia
     }
 
     [Fact]
@@ -150,6 +173,10 @@ public class EngineStateTests : IDisposable
             settleLoop.RunFor(1.0, new ControlInputs(0, 0, 0, FullThrottle));
             settle.State = new RigidBodyState(new Vec3(0, 0, -1500), Quat.Identity, new Vec3(65, 0, 0), Vec3.Zero);
         }
+        // ONE STEP AT THE HELD CONDITION, so what LastTailSlipstream recorded is the condition the wake is checked
+        // against below. The loop above resets the state AFTER each second of free flight, and in that second the
+        // aeroplane has sunk and changed speed — the last wake it recorded was a different aeroplane's.
+        settleLoop.RunFor(SimLoop.DefaultFixedDtSec, new ControlInputs(0, 0, 0, FullThrottle));
         _out.WriteLine($"held at 65 m/s, 30 s dead: {settle.EngineRpm:F1} rpm against the closed form {solved:F1}");
         // IT SETTLES ABOVE THE CLOSED FORM, BY ABOUT A FIFTH, AND THAT GAP IS A KNOWN DEFECT rather than a tolerance.
         // AircraftEngine.StepShaft clamps omega at zero so the air cannot pull a stopped propeller backwards through
@@ -158,17 +185,23 @@ public class EngineStateTests : IDisposable
         // same mechanism is why a dead engine standing still in still air never stops (J-3 and Extra both hold
         // ~200 rpm for ever, measured 2026-11-11). Pinned where it is so a fix shows up here as a change.
         Assert.InRange(settle.EngineRpm, solved, 1.35 * solved);
-        (double du, _, double swirl) = ac.LastTailSlipstream;
-        _out.WriteLine($"windmilling at {v:F1} m/s: {ac.EngineRpm:F0} rpm, tail du {du:F3} m/s swirl {swirl:F3}");
-        // Momentum theory with the windmill's OWN drag: V_slip = V·√(1 − C_D), 90 % developed. The coefficient is no
-        // longer the authored 0.15 — a dead constant-speed propeller's drag is solved at the stop its oil loss left it
-        // on (PropModel.Windmilling), and the Extra's coarse stop up here is a third of that. Derived from the same
-        // solve rather than written down, so the two cannot drift apart.
+        // THE WAKE IS READ OFF THE SETTLED AEROPLANE, NOT OFF THE FIRST 50 ms, and that moved on 2026-11-11 with
+        // PropModel.IsSolved. A dead propeller is now solved blade by blade at the rpm the sim is integrating, so 50 ms
+        // after the mixture is cut the Extra's disc is still turning near its governed rpm against a 34.42 deg blade
+        // and is still THRUSTING on the energy in its own blades — measured, positive — which is a jet and not a
+        // deficit. It is a windmill once it has spun down to the balance, and that is where this is asked.
+        (double du, _, double swirl) = settle.LastTailSlipstream;
+        _out.WriteLine($"windmilling at {v:F1} m/s: {settle.EngineRpm:F0} rpm, tail du {du:F3} m/s swirl {swirl:F3}");
+        // Momentum theory with the windmill's OWN drag: V_slip = V·√(1 − C_D), 90 % developed, and the drag is now the
+        // SOLVED disc's at the rpm it is really turning rather than PropModel.Windmilling's separate closed form —
+        // which is the whole point of the change: one propeller, one solve. Derived from the same force the sim flew
+        // rather than written down, so the two cannot drift apart.
         double discM2 = Math.PI * 0.25 * c.Propulsion!.PropDiameterM * c.Propulsion.PropDiameterM;
-        double rhoHere = Atmosphere.DensityAtAltitude(-ac.State.Position.Z);
-        double cdDisc = PropModel.Windmilling(c.Propulsion, ac.State.Velocity.X, rhoHere).DragN
-                        / (0.5 * rhoHere * ac.State.Velocity.X * ac.State.Velocity.X * discM2);
-        Assert.Equal(0.9 * (Math.Sqrt(1 - cdDisc) - 1) * ac.State.Velocity.X, du, 1);
+        double rhoHere = Atmosphere.DensityAtAltitude(-settle.State.Position.Z);
+        (Vec3 wf, _) = PropModel.Compute(c.Propulsion, 0.0, settle.State.Velocity, Vec3.Zero, rhoHere, settle.Drive);
+        double cdDisc = -wf.X / (0.5 * rhoHere * settle.State.Velocity.X * settle.State.Velocity.X * discM2);
+        Assert.True(cdDisc > 0.0, $"a windmilling disc drags ({cdDisc:F4})");
+        Assert.Equal(0.9 * (Math.Sqrt(1 - cdDisc) - 1) * settle.State.Velocity.X, du, 1);
         Assert.True(du < 0.0 && du > -0.08 * v, $"a small deficit, not a blast ({du:F3})");
         Assert.True(swirl < 0.0, "a windmill swirls the other way");
 
@@ -362,9 +395,14 @@ public class EngineStateTests : IDisposable
         // has barely moved, which is right, and was invisible while the rpm was read off the lever.
         ac.PropLever = 0.0;
         sim.RunFor(4.0, cruise);
-        // Within 5 % of the low stop, not onto it: the coarse stop is reached first. See ExtraPropLeverSetsTheGovernedRpm.
+        // Near the low stop, not onto it: the COARSE stop is reached first, so what the lever can actually pull the
+        // rpm down to is set by how coarse that stop is. It moved on 2026-11-11 — 26.80 deg to 25.93, re-derived at
+        // Vd at 10,000 ft density altitude (BladeElement.GovernorStops, Ty's rule) — and a less coarse high stop
+        // absorbs less, so the lowest governed rpm this lever can reach rose from 1,272 to 1,314, 9.5 % above the
+        // fleet low stop rather than 6. That is a real and visible consequence of the stop change, not a tolerance:
+        // the blue lever has slightly less authority at the bottom end on this type.
         _out.WriteLine($"great lakes, lever to the low stop: {ac.EngineRpm:F1} rpm, powerScale {ac.PowerScale:F4}");
-        Assert.InRange(ac.EngineRpm, PropModel.FleetLowGovernedRpm, 1.06 * PropModel.FleetLowGovernedRpm);
+        Assert.InRange(ac.EngineRpm, PropModel.FleetLowGovernedRpm, 1.10 * PropModel.FleetLowGovernedRpm);
         Assert.Equal(1200.0 / 2700.0, ac.PowerScale, 6);  // same manifold pressure, so power goes with the rpm
         ac.PropLever = 0.5;
         sim.RunFor(4.0, cruise);
