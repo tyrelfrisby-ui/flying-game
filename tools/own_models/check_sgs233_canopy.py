@@ -2,11 +2,13 @@
 across the 2-33 canopy near the front. The real canopy is clear all the way to the fuselage with no painted band or
 frame strip"). Engine-free, from the committed GLBs, every 2-33 variant (factory and Talk Flying):
 
-  1. Canopy_Frame has nothing ahead of the door/canopy split bow (CAN[6] in build_sgs233.py), so no windscreen-arch
-     bow and no forward sill rails;
+  1. Canopy_Frame has nothing ahead of its one bow (BOW_X), so no windscreen-arch bow and no forward sill rails.
+     That bow was the door/canopy split at px 325 until 2026-11-10, when Ty moved it aft to abeam the wing root's
+     leading edge (px 360); rule 1 moved with it, and is therefore stricter than it was;
   2. no OPAQUE (non-glass) geometry of any node lies on the front bubble: within 15 mm of the Canopy_Glass surface,
-     ahead of the split, more than 30 mm above the glass's lower edge AT THAT STATION (below that is the sill, where the
-     glass meets the fuselage and the grey hinge/latch hardware sits; the old rails stood 35 mm). Exempt by name: the
+     ahead of FRONT_X (which did NOT move -- it is where the door begins, and a door is not a band), more than
+     30 mm above the glass's lower edge AT THAT STATION (below that is the sill, where the glass meets the
+     fuselage and the grey hinge/latch hardware sits; the old rails stood 35 mm). Exempt by name: the
      yaw string (red wool taped on the OUTSIDE of the glass, as on the real glider) and the panel's glare-shield
      coaming (black, INSIDE under the nose of the bubble; it is the panel, not a band across the glass). Hits spanning
      under 40 mm (a latch fitting at the sill) are reported as INFO, not failed: a band or strip is longer.
@@ -20,7 +22,17 @@ import numpy as np
 from vr_cockpit import Glb, builder, MODELS
 
 VARIANTS = ['glider-2-33-like/glider-2-33-like-own.glb', 'glider-2-33-like/glider-2-33-like-own-tf.glb']
-SPLIT_X = 1.085          # builder x of the split bow (CAN[6] = 325 px); its 1.3 px half-width is 0.020 m
+# TWO STATIONS, not one. They were the same number until 2026-11-10, when Ty moved the canopy's one bow aft
+# ("move the yellow band around the canopy to abeam the wing leading edge"), and collapsing them again would
+# make this check assert something it was never written to assert.
+BOW_X = 0.55             # builder x of the canopy's one bow, now abeam the wing root's leading edge (px 360).
+                         # Rule 1 below -- Canopy_Frame carries nothing ahead of the bow -- is measured from
+                         # here; the bow's 1.3 px half-width is 0.020 m, inside the 0.025 m slack.
+FRONT_X = 1.085          # aft end of the FRONT BUBBLE, the glass over the front seat that rule 2 keeps clear
+                         # of opaque geometry. It stayed where the old split bow was, because that is where the
+                         # door begins, and the door, its rails, hinges and latch and the rear side window and
+                         # its frame are real and belong there. Policing them as "a band across the front
+                         # canopy" is a different claim from the one in this file's title.
 NEAR_M, EDGE_M = 0.015, 0.030
 FITTING_M = 0.040   # hits spanning less than this are a fitting (INFO), not a band
 EXEMPT = ('YawString', 'Yaw_String', 'Panel_Coaming')
@@ -47,19 +59,19 @@ def check(rel):
     problems = []
     fi = names.index('Canopy_Frame'); gi = names.index('Canopy_Glass')
     fv = np.concatenate([v for v, _, _ in geo(g, W, fi)])
-    ahead = fv[fv[:, 0] > SPLIT_X + 0.025]
-    if len(ahead): problems.append(f'Canopy_Frame has {len(ahead)} vertices ahead of the split (x up to {ahead[:, 0].max():.3f})')
+    ahead = fv[fv[:, 0] > BOW_X + 0.025]
+    if len(ahead): problems.append(f'Canopy_Frame has {len(ahead)} vertices ahead of the bow (x up to {ahead[:, 0].max():.3f})')
     # the glass surface, sampled densely (barycentric grid) on its front part
     pts = []
     for v, idx, _ in geo(g, W, gi):
-        t = v[idx]; t = t[t[:, :, 0].max(1) > SPLIT_X]
+        t = v[idx]; t = t[t[:, :, 0].max(1) > FRONT_X]
         for a in np.linspace(0, 1, 9):
             for b in np.linspace(0, 1 - a, max(2, int(9 * (1 - a)))):
                 pts.append(t[:, 0] * (1 - a - b) + t[:, 1] * a + t[:, 2] * b)
     S = np.concatenate(pts)
     def zlow(x):   # the glass's lower edge at each station (±30 mm)
         return np.array([S[np.abs(S[:, 0] - q) < 0.03, 2].min() for q in x])
-    gx0, gx1 = SPLIT_X + 0.025, S[:, 0].max()
+    gx0, gx1 = FRONT_X + 0.025, S[:, 0].max()
     hits = {}
     for i, n in enumerate(g.doc['nodes']):
         if n.get('mesh') is None or i == gi or n['name'].startswith(EXEMPT): continue
