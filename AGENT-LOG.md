@@ -1,3 +1,82 @@
+## ASTC 4x4: the textures come out of the GLBs, and the whole fleet with every livery is 0.95 GB — Claude, 2026-11-10, lane/claude-textures
+
+<!-- astc-4x4 glb-sidecar-textures gltfast-external-texture 4gb-limit livery-policy-superseded -->
+
+Ty, offered four ways to get the iOS build under App Store Connect's 4 GB, chose: *"Do it - 4x4, keep all
+liveries."*
+
+**THE MEASUREMENT WAS RE-DERIVED FROM THE FILES BEFORE ANYTHING WAS CHANGED, not inherited.** Parsing all 39
+GLBs independently: **754,922,296 pixels**. 754.92e6 x 4 x 4/3 = **4,026,252,245 B** against build
+2026.1105.1550's recorded `resources.assets.resS` of **4,024,558,864 B** — **0.042 % out**. resS was 93.8 %
+of a 4,291,667,298 B build. A texture embedded in a GLB is imported by glTFast's `ScriptedImporter`, so
+Unity's platform texture pipeline never sees it: no compression field exists in a `.glb.meta` at all, and the
+pixels ship uncompressed at four bytes each with a full mip chain. On-disk size is a **20x misleading proxy**
+(265 MB of Assets, a 4.29 GB build).
+
+**THE MECHANISM IS glTFast'S OWN, NOT A FORK.** glTFast has no compression setting of any kind and its
+`GltfImporter` is `internal`. Writing our own `ScriptedImporter` would have meant copying that importer into
+this repo and maintaining the copy; KTX2/`KHR_texture_basisu` picks its transcode target from `SystemInfo` at
+LOAD time, so an Editor import on this Mac would bake BC7 into an iOS build. Both rejected. What landed
+instead: the embedded images were moved OUT into ordinary texture assets the GLB names by URI, because
+`GltfImport.LoadImageFromBytes` says, in its own comment, *"Use the original texture at Editor (asset
+database) import"* — an external texture comes back from `AssetDatabase.LoadAssetAtPath<Texture2D>`, so it
+arrives with everything its `TextureImporter` says. From there **ASTC is one `AssetPostprocessor`**
+(`ModelTextureFormat`), which is the plainest thing in the editor.
+
+**MEASURED, iOS, full fleet AND every livery: 682 MB of texture, ~949 MB of build, against 4 GB.** Was 4,026
+MB of texture and 4,292 MB of build. Three savings compound and all three were measured, not estimated:
+ASTC 4x4 (32 bpp -> 8), **271 Mpix of byte-identical duplicates** that collapse because glTFast references a
+shared file instead of copying it into each GLB, and **34.5 Mpix referenced by no material** that simply stop
+shipping now that they are outside `Resources/`. Mac: 2,721 MB with pixel-identical paint (RGBA32, written
+out explicitly so "Automatic" cannot turn into DXT). Quest: the same 949 MB — it was carrying the same
+uncompressed 4 GB on 8 GB of shared memory.
+
+**WHAT ASTC 4x4 DID TO HIS PAINT.** All 358 sidecars were encoded and decoded with **Unity's own astcenc**
+(`Unity.app/Contents/Frameworks/astcenc-neon.dylib`, driven through ctypes) at the quality the editor uses:
+pixel-weighted mean **77.9 dB**, 96 % of pixels above 50 dB, **26 % bit-exact**, and **every alpha channel in
+the fleet bit-exact** including the three hard-edged cut-outs. **The Pitts checkers come back with no error at
+all.** The worst thing in any of Ty's liveries is a **21/255 error on the anti-aliased edge of a registration
+letter, at 70.3 dB** (visually lossless is normally taken as 40 dB). The before/after close-ups are in the
+handback.
+
+**WHERE IT DOES SHOW: NORMAL MAPS, so they are not compressed.** 47.1 dB on the P-51D's 4096² map but **25.2
+dB on the pilot's 256² twill**, errors to 51/255. There are five normal maps in the fleet; keeping them
+uncompressed costs **68 MB of a 682 MB budget against a 4 GB limit**, which is an obvious trade and one line
+to undo.
+
+**TWO THINGS THAT WOULD HAVE BROKEN A BUILD AND ARE NOW HELD BY TESTS.** The sidecars live OUTSIDE
+`Resources/` (everything under a Resources folder ships whether referenced or not, so inside it the unused
+textures would ship and holding a livery out would stop removing its paint), reached by
+`../../../ModelTextures/...`. glTFast resolves that against the GLB's own directory, so **any directory a GLB
+is moved to for a build must be the same five segments deep** — both of `BuildScript`'s hold directories
+gained a `/Models` level in this commit, and `GlbTextureTests` fails if either loses it. Dedupe is keyed on
+(bytes, sampler) because glTFast makes a private copy of a texture used with a second sampler, and a private
+copy is embedded again.
+
+**REVERSIBLE, AND PROVEN SO OFFLINE.** `tools/models/glb_textures.py embed` is the exact inverse of
+`extract`, and `verify` holds that every accessor's bytes and every part of the glTF JSON except `images`,
+`bufferViews` and `buffers` survive the round trip — **39 of 39 GLBs identical**. The offline tools that do
+surgery on an embedded image (`floor_windows.py`, `glb_visuals.py`, `instrument_face_style.py`,
+`update_engine_faces.py`, `pitts_cockpit_v2.py`, `vr_phase2e.py`, `pilot_body.py`) still work: `embed`, run
+the tool, `extract`. A Blender re-export re-embeds too, and the suite says so.
+
+**NEEDS YOU — the livery restriction is now a choice, not a necessity, and it is yours to keep or drop.**
+`PhoneLiveryTests` measured it: one livery per type used to save **2,133 MB**; it now saves **241 MB**, because
+the alternates no longer carry a full duplicate texture set. Every livery on the phone is ~949 MB against
+4 GB. The flag was NOT touched — it is still on for iOS. One line in `BuildScript` turns it off.
+
+**NOT BUILT. NOT ONE UNITY IMPORT HAS RUN.** Every structural claim above was proved by parsing the files,
+and the .NET tests that read the models are green apart from failures that are present on the base commit
+unchanged (`PittsRearViewTests` x4, and at the older base also `J3OwnModelTests`, `GlideTableTests` and
+`AerobatGroundHandlingTests` — all verified against a clean checkout, none of them mine). But this is exactly
+the kind of change that breaks a Unity build while the suite stays green. What has not been verified: that Unity imports 358 new textures without complaint, that ASTC
+compression of 460 Mpix finishes in a sane time, that the relative URIs resolve inside the editor, and that
+the aeroplanes look right. `python3 tools/models/glb_textures.py embed` puts everything back in one command.
+
+**NOT DONE ON PURPOSE.** ASTC 6x6 halves it again and measured **29.7 dB** against 4x4's 43.9 on a hard test
+pattern — that one would show, and only 4x4 was authorised. Mip-map removal (-25 %), maximum-size reduction
+and crunch compression are available and none was asked for.
+
 ## Boundary friction was the wrong SHAPE, not the wrong size; and each engine's is now solved from his own anchor — Claude, 2026-11-10, lane/claude-boundary-friction
 
 <!-- dry-boundary-excess stribeck-rolloff prop-stop-speed restart-anchor-at-rest -->

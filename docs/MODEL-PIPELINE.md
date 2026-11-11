@@ -371,3 +371,116 @@ switch rather than a dead file.
 On the USDZ files themselves: only the 172 still has its originals, `ref-c172/truescale/` and `ref-c172/wip/`.
 The rest were converted to OBJ in April 2026 (`fdbbee3`/`c0f2ad5`/`95d21e8`) and the USDZ originals are not in
 the repo — each model's `LICENSE.txt` records where it came from, so any of them can be fetched again.
+
+## 10. Where the paint lives: sidecar textures, and ASTC 4x4 on the phone and the headset
+
+**Owner's decision, 2026-11-10,** offered four ways to get the iOS build under App Store Connect's 4 GB:
+*"Do it - 4x4, keep all liveries."*
+
+### What was actually wrong, measured before anything was changed
+
+Build 2026.1105.1550 was **4,291,667,298 B** and was refused (ITMS-90558). `Data/resources.assets.resS` was
+**4,024,558,864 B** of it — 93.8 %. The whole `unity/Assets` tree is 265 MB on disk, so on-disk size says
+nothing at all about build size: **it is a ~20x misleading proxy.**
+
+A texture embedded in a GLB is imported by glTFast's `ScriptedImporter`, so **Unity's platform texture
+pipeline never sees it**. There is no compression field in a `.glb.meta` at all, no per-platform override is
+possible, and the pixels ship uncompressed at four bytes each with a full mip chain. The 39 GLBs held
+**754,922,296 pixels**; 754.92e6 x 4 x 4/3 = **4,026,252,245 B** against the recorded resS of 4,024,558,864 B
+— **0.04 % out**. resS was, to within rounding, *nothing but GLB textures*: not audio (1.1 MB in the whole
+tree), not video (none), not meshes (166 MB), not the configs (StreamingAssets is 1.4 MB).
+
+### The mechanism, and the two that were rejected
+
+glTFast has **no compression setting of any kind** (`ImportSettings` and `EditorImportSettings` are node
+naming, animation, mip maps, filter modes and anisotropy — that is the whole list), and `GltfImporter` is an
+`internal` class, so it cannot be subclassed.
+
+| | why not |
+|---|---|
+| Our own `ScriptedImporter` for `.glb`, registered per asset with `importerOverride`, calling `EditorUtility.CompressTexture` before `ctx.AddObjectToAsset` | It works, but it means copying glTFast's importer into this repo and maintaining the copy — a fork in all but name, where a glTFast upgrade silently stops applying. Every per-texture exception (normal maps, cut-out alpha, maximum size) would have to be re-invented as our own policy code |
+| KTX2 / `KHR_texture_basisu` inside the GLB, with `com.unity.cloud.ktx` | The transcode target is chosen from `SystemInfo` at **load** time, so an Editor import on this Mac bakes BC7 into the asset and an iOS build ships a format iOS cannot sample. It also roughly triples the on-disk size of a public repo |
+| **Chosen: take the images out of the GLB and name them by URI** | glTFast's own first-class path, not a trick |
+
+`GltfImport.LoadImageFromBytes` says it in its own comment:
+
+```csharp
+#if UNITY_EDITOR
+    if (IsEditorImport) {
+        // Use the original texture at Editor (asset database) import
+        return false;
+```
+
+which routes the load through `EditorDownloadProvider.RequestTexture` → `SyncTextureLoader` →
+`AssetDatabase.LoadAssetAtPath<Texture2D>(uri)`. **The texture the importer uses IS the Unity-imported
+asset**, with everything its `TextureImporter` says — ASTC on iOS and Android, mip maps, sRGB or linear,
+normal-map handling, maximum size, per-platform overrides: the whole pipeline we were locked out of.
+`GltfImporter` then sees `AssetDatabase.GetAssetPath(texture)` is not empty and does **not** copy it into the
+GLB asset, so one PNG shared by four liveries is stored once.
+
+### The two tools
+
+- `python3 tools/models/glb_textures.py extract` — images out, GLB rewritten, `.meta` written,
+  `docs/models/glb-textures.json` regenerated. Idempotent.
+- `python3 tools/models/glb_textures.py embed` — the exact inverse. **Run this before any offline tool that
+  does surgery on an embedded image** (`floor_windows.py`, `glb_visuals.py`, `instrument_face_style.py`,
+  `update_engine_faces.py`, `pitts_cockpit_v2.py`, `vr_phase2e.py`, `pilot_body.py`, the instrument face
+  builders), then `extract` again. A Blender re-export re-embeds too; `GlbTextureTests` fails the suite if a
+  shipped GLB has embedded images, so nobody has to remember.
+- `verify` proves the round trip: every accessor's bytes and every part of the glTF JSON except `images`,
+  `bufferViews` and `buffers` survive unchanged, for all 39 GLBs.
+
+### Where the files go, and the one rule a future change must not break
+
+`unity/Assets/_Project/ModelTextures/<model-id>/<name>-<sha1>.<ext>`, with anything used by more than one
+model id under `_shared/`. The URI is `../../../ModelTextures/...`.
+
+**Outside `Resources/` on purpose.** Unity ships every file under a Resources folder whether anything
+references it or not. Inside Resources, the 34.5 Mpix that no material references would ship, and — worse —
+holding an alternate livery's GLB out of a phone build would stop removing that livery's paint. Outside
+Resources a texture is in the build *if and only if* a material that ships references it.
+
+**Three levels up, exactly.** `GLTFast.UriHelper.GetUriString` resolves a relative URI against the GLB's own
+directory, walking up one level per leading `..`. From `Assets/_Project/Resources/Models/<id>` three up is
+`Assets/_Project`. **Any directory a GLB is moved to for the length of a build must sit at the same depth** —
+`Assets/_Project/<hold>/Models/<id>` — or the re-import on the move resolves the URI to nothing and fails.
+That is why `BuildScript`'s two hold directories gained a `/Models` level, and `GlbTextureTests` asserts it.
+
+Dedupe is keyed on **(file bytes, glTF sampler)**. Fifteen images in the fleet are used with two different
+samplers — clamp in one aeroplane, the glTF default in another — and glTFast reacts to that by
+`Object.Instantiate`-ing a private copy, which would be embedded in the GLB asset after all.
+
+### What each platform gets (`ModelTextureFormat`)
+
+| | format | why |
+|---|---|---|
+| iOS | **ASTC 4x4** | the decision; 8 bpp against 32 |
+| Android (Quest) | **ASTC 4x4** | the headset is a Snapdragon, ASTC is native, and it was carrying the same 4 GB of uncompressed texture on 8 GB of shared memory. Parity rule 1: one game |
+| Mac / Standalone | **RGBA32, explicitly** | not "Automatic", which would quietly become DXT on the one platform with no size problem. The Mac's pixels are the bytes they always were. BC7 is the obvious next line if it ever needs to be smaller |
+| **normal maps, everywhere** | **RGBA32** | measured: 47.1 dB on the P-51D's 4096², but **25.2 dB** on the pilot's 256² twill with errors to 51/255. Block compression shows in a normal before it shows anywhere else. Five files, 68 MB of a 682 MB budget against a 4 GB limit |
+
+The rule lives in C# and not in the generated `.meta` files because the per-platform block is integers —
+`ASTC_4x4` is 48, `RGBA32` is 4 — and a wrong integer in generated YAML is a silent quality or size bug.
+The metas carry only what is plainly true: mip maps on, sRGB or linear, normal-map type, wrap and filter from
+the glTF sampler, 4096 maximum, and **`nPOTScale: 0`** — most of these are not powers of two (4096x3870,
+4096x1672, 1275x1650) and Unity's default would rescale them.
+
+### What ASTC 4x4 did to the paint
+
+Every one of the 358 sidecars was encoded and decoded with **Unity's own astcenc**
+(`Unity.app/Contents/Frameworks/astcenc-neon.dylib`, driven through ctypes) at the same quality the editor
+uses (50, "Normal"):
+
+- pixel-weighted mean **77.9 dB**; 96 % of the pixels above 50 dB; **26 % bit-exact**
+- **every alpha channel in the fleet is bit-exact**, including the three hard-edged cut-outs
+- the **Pitts checkers come back with no error at all**; the worst thing anywhere in Ty's own liveries is a
+  21/255 error on the anti-aliased edge of a registration letter, at 70.3 dB
+- visually lossless is normally taken as 40 dB
+- "Best" quality (100) was measured: about **0.1 dB** for several times the import. Left at 50
+
+### Not done, on purpose
+
+ASTC **6x6** halves it again (~0.45 GB) and was measured at **29.7 dB** against 4x4's 43.9 dB on a hard test
+pattern — that one *would* show, and the 2026-11-05 size audit lists texture-format changes as not
+blanket-authorised; Ty authorised 4x4 specifically. Mip-map removal (-25 %), maximum-size reduction and
+crunch compression are all available and none of them was asked for.
