@@ -41,6 +41,35 @@ namespace FlyingGame.Bridge
             return (float)(water.HasValue ? System.Math.Max(ground, water.Value) : ground);
         }
 
+        /// <summary>
+        /// The surface a falling FRAGMENT comes to rest on under a Unity position, m (y) — the terrain with its
+        /// wheel-scale bumps, or the deck, apron or bridge it is over (<c>WorldTerrain.HardPointGroundAt</c>, the same
+        /// lookup the airframe's hard points make and that <c>AirframeVisual.WingDebris.KeepAboveGround</c> already
+        /// uses for the wreck pieces' drawn meshes). <see cref="SurfaceHeight"/> is the BARE height field with the
+        /// water over it, which is right for a canopy or a parachute coming down in the open and wrong for a shard:
+        /// a blade fragment thrown onto a raised apron fell through it to the terrain below, because the bare field
+        /// has no idea the apron is there.
+        /// </summary>
+        public static float FloorUnder(Vector3 unityPos) =>
+            (float)WorldTerrain.HardPointGroundAt(unityPos.z, unityPos.x, unityPos.y);
+
+        /// <summary>
+        /// How far above that floor to put an object's ORIGIN so the thing that is DRAWN rests on the surface instead
+        /// of half through it: half the vertical extent of what it draws, in the attitude it has come to rest in
+        /// (Renderer.bounds is the world AABB, so this is the turned object's own height and not its modelling-time
+        /// one). Ty 2026-11-09: "its parts and pieces need to stay above the surface post crash" — a fragment whose
+        /// ORIGIN was put on the ground is buried by exactly this, which for a blade chunk or a sprig is a few
+        /// centimetres. Zero for an object that draws nothing.
+        /// </summary>
+        public static float RestLift(Transform t)
+        {
+            if (t == null) return 0f;
+            float half = 0f;
+            foreach (Renderer r in t.GetComponentsInChildren<Renderer>(true))
+                if (r != null && r.bounds.extents.y > half) half = r.bounds.extents.y;
+            return half;
+        }
+
         public static bool IsWater(Vector3 unityPos)
         {
             double simX = unityPos.z, simY = unityPos.x;
