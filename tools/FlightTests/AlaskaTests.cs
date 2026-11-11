@@ -39,7 +39,7 @@ public class AlaskaTests : IDisposable
 
     // ---- the mountain ----
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the Alaska range, its glaciers and the braided river. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void ThereIsADenaliAndItIsHuge()
     {
         AlaskaRange.Peak denali = AlaskaRange.Peaks[0];
@@ -81,7 +81,7 @@ public class AlaskaTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the Alaska range, its glaciers and the braided river. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheIceIsSnowUnderTheWheelsAndTheRockIsNot()
     {
         foreach (AlaskaRange.Glacier g in AlaskaRange.Glaciers)
@@ -105,7 +105,7 @@ public class AlaskaTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the Alaska range, its glaciers and the braided river. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void EachGlacierEndsInALakeWithBergsFloatingInIt()
     {
         foreach (AlaskaRange.Glacier g in AlaskaRange.Glaciers)
@@ -161,7 +161,7 @@ public class AlaskaTests : IDisposable
         Assert.True(BraidedRiver.CleanLaneLengthM > 450);
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the Alaska range, its glaciers and the braided river. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheLanesAreActuallyFlatEnoughToLandOn()
     {
         foreach (BraidedRiver.Bar b in BraidedRiver.Bars)
@@ -186,7 +186,7 @@ public class AlaskaTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the Alaska range, its glaciers and the braided river. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheStepsOffTheBarsAreCappedSoTheyCanBeSurvived()
     {
         // Sharp is fine — the owner asked for sharp but visible — and nothing is sharper than the cap.
@@ -206,7 +206,7 @@ public class AlaskaTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the Alaska range, its glaciers and the braided river. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheChannelsAreShallowEnoughToSkimAndTheBarsAreDry()
     {
         int wet = 0, dry = 0;
@@ -230,7 +230,7 @@ public class AlaskaTests : IDisposable
         Assert.True(wet > 40, "there should be water in the braids");
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the Alaska range, its glaciers and the braided river. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheGlacierWindAlwaysBlowsDownTheValley()
     {
         // Owner: an ever-present wind off the ice, so landing upstream on a bar is into a headwind.
@@ -256,7 +256,7 @@ public class AlaskaTests : IDisposable
         Assert.Equal(0, Atmosphere.WindAtPosition(new Vec3(0, 0, -500)).Length, 6);
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the Alaska range, its glaciers and the braided river. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void ThePracticeStripIsTheSizeTheOwnerAskedForAndIsMarked()
     {
         BraidedRiver.NamedStrip s = Array.Find(BraidedRiver.NamedStrips, n => n.Name == "Practice Strip");
@@ -312,7 +312,7 @@ public class AlaskaTests : IDisposable
         Assert.Equal(4, benches);
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the Alaska range, its glaciers and the braided river. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void BothMadeStripsAreGradedFlatAndClearOfObstacles()
     {
         var hazards = BraidedRiver.Hazards();
@@ -347,7 +347,7 @@ public class AlaskaTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the Alaska range, its glaciers and the braided river. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void ThePlainOwnsItsOwnGround()
     {
         // The invariant that two separate mistakes broke: the plain was laid first on top of the Cascades and

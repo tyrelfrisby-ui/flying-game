@@ -19,6 +19,13 @@ namespace FlyingGame.FlightTests;
 /// Extra inverted (full power, push, right rudder, half right aileron): turn time, α, pitch, airspeed.
 /// ROTARY_REPO = repo root when run from another directory.
 /// </summary>
+// FLIES an aeroplane, so it READS the global ground and weather (WorldTerrain.Active, Atmosphere.*,
+// FloatHydro) through the sim even though it sets none of them. The collection was protecting the
+// classes that WRITE that state from each other and leaving their victims outside it, so this class ran
+// in parallel with 68 that install worlds and weather: StructuralTests went 39 of 40 NaN in one run and
+// passed clean in the next on identical code (2026-11-01). A reader needs the same serialisation as a
+// writer.
+[Collection("WorldTerrainActive")]
 public class RotaryBalanceProbe
 {
     private readonly ITestOutputHelper _out;

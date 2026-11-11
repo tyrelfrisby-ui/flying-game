@@ -95,7 +95,7 @@ public class MountainRoughnessTests : IDisposable
         return best;
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy mountain roughness. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheWorldsMountainsDifferAndTheZonesAreTheTerrainsOwn()
     {
         WithWorld(t =>
@@ -128,7 +128,7 @@ public class MountainRoughnessTests : IDisposable
         });
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy mountain roughness. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void SeaplaneLakesComeFromTheTerrainsWaterData()
     {
         WithWorld(t =>
@@ -165,7 +165,7 @@ public class MountainRoughnessTests : IDisposable
                 yield return ($"approach {tt:P0}", x0 + (x1 - x0) * tt, y0 + (y1 - y0) * tt);
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy mountain roughness. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void SeaplaneLakesAndTheirApproachesAreSmootherByTheConfiguredFactor()
     {
         WithWorld(t =>
@@ -222,7 +222,7 @@ public class MountainRoughnessTests : IDisposable
         });
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy mountain roughness. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void SmoothingAtALakeMeasured()
     {
         // The before/after numbers for the log: the worst point of each landable alpine lake's core, 25 kt from each way.
@@ -255,7 +255,7 @@ public class MountainRoughnessTests : IDisposable
         });
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy mountain roughness. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheBlendsAreContinuous()
     {
         WithWorld(t =>
@@ -320,7 +320,7 @@ public class MountainRoughnessTests : IDisposable
         });
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy mountain roughness. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheCalmStartAirportIsStillExactlyZeroUnderItsLakes()
     {
         WithWorld(t =>

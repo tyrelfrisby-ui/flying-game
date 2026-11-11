@@ -112,8 +112,15 @@ public class BrsTests : IDisposable
         var t = new WorldTerrain();
         WorldTerrain.Active = t;
         Atmosphere.SteadyWind = Vec3.Zero;
+        // 2,500 m AGL, not 2,500 m MSL. This fixture was written when the ground at sim (0,0) was near sea
+        // level; the approved island world (1fe347d) put a 2,749 m summit there, so an absolute -2500 started
+        // the aeroplane INSIDE the mountain — the contact spring threw it skyward and the test read a gain of
+        // thousands of feet. DeployBrs takes AGL too, so it was being fed a negative height as well. Terrain-
+        // relative, the way the 500 ft test lower down this file has always done it (owner hand-off 2026-10-31:
+        // "revise the fixture altitude, not parachute physics").
+        double ground = t.HeightAt(0, 0);
         AircraftConfig c = Load(Cirrus);
-        var state = new RigidBodyState(new Vec3(0, 0, -2500), Quat.Identity, new Vec3(c.SpawnIasMs, 0, 0), Vec3.Zero);
+        var state = new RigidBodyState(new Vec3(0, 0, -(ground + 2500)), Quat.Identity, new Vec3(c.SpawnIasMs, 0, 0), Vec3.Zero);
         var ac = new Aircraft(c, state, new ControlDeflections(0, 0, 0, 0));
         var loop = new SimLoop(ac);
         ac.DeployBrs(2000);
@@ -138,13 +145,21 @@ public class BrsTests : IDisposable
         var t = new WorldTerrain();
         WorldTerrain.Active = t;
         Atmosphere.SteadyWind = Vec3.Zero;
+        // 2,500 m AGL, not 2,500 m MSL. This fixture was written when the ground at sim (0,0) was near sea
+        // level; the approved island world (1fe347d) put a 2,749 m summit there, so an absolute -2500 started
+        // the aeroplane INSIDE the mountain — the contact spring threw it skyward and the test read a gain of
+        // thousands of feet. DeployBrs takes AGL too, so it was being fed a negative height as well. Terrain-
+        // relative, the way the 500 ft test lower down this file has always done it (owner hand-off 2026-10-31:
+        // "revise the fixture altitude, not parachute physics").
+        double ground = t.HeightAt(0, 0);
         AircraftConfig c = Load(Cirrus);
-        var state = new RigidBodyState(new Vec3(0, 0, -2500), Quat.Identity, new Vec3(40, 0, 0), Vec3.Zero);
+        var state = new RigidBodyState(new Vec3(0, 0, -(ground + 2500)), Quat.Identity, new Vec3(40, 0, 0), Vec3.Zero);
         var ac = new Aircraft(c, state, new ControlDeflections(0, 0, 0, 0));
         var loop = new SimLoop(ac);
         ac.DeployBrs(2000);
         double start = -ac.State.Position.Z;
-        double terminal = BallisticRecovery.DescentRateMs(c, Atmosphere.DensityAtAltitude(2500));
+        // Density at the height it is actually falling through, now that the start is terrain-relative.
+        double terminal = BallisticRecovery.DescentRateMs(c, Atmosphere.DensityAtAltitude(ground + 2500));
         double lost = -1;
         double prevZ = ac.State.Position.Z;
         int per = (int)(1.0 / SimLoop.DefaultFixedDtSec);

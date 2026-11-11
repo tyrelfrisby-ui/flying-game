@@ -369,3 +369,36 @@ done            # 75 of 218
   global coupling rather than their own change (`claude-start-altitude` and `claude-j3-skis` both show the failures
   passing when run alone), and `claude-test-triage` is the lane that diagnosed that coupling. Those claims are
   plausible and unverified.
+
+---
+
+## Addendum, 2026-11-10 evening: what merging ten of them actually found
+
+Ty approved ten of the lanes below and a merge agent took them one at a time (`lane/claude-backlog-merge`, off
+`lane/claude-tv-companion`). Four more were added during the run. **Four of the fourteen turned out to be STALE** —
+their work had already reached the shipping lane by another route, and in two cases the shipping version was NEWER, so
+merging would have been a silent regression. This section corrects the table above.
+
+| lane | what the merge found |
+|---|---|
+| `claude-wheel-skis` | **ALREADY SHIPPED.** `9c83ca90` is an ancestor of the shipping lane (0 commits ahead, 588 behind), and `535a3b86` — the long swept ski bottom traced off Ty's photographs — is a *descendant* of it. Nothing to merge. |
+| `claude-floor-windows` | **STALE, and ours is newer.** `tools/own_models/floor_windows.py`, `Shaders/Lexan.shader` and `ExtraFloorWindowTests.cs` reached the shipping lane on 2026-11-04/05 (`585aa94b`, `9513e210`), two days after this lane's commits. Ours is theirs **plus** the Extra's FRONT pane (Ty 19:32, "clear floor panels in BOTH cockpits"), the `Footwell_Liner` cut and the longeron run forward to x 0.20. Its seven Pitts/Extra GLBs have had ~25 commits of modelling since its merge base. |
+| `claude-sgs233-eye-raise` | **STALE, and ours is newer.** It raises the 2-33's front eye 2 in (v7, z −0.187, 2026-11-05); the shipping lane already has 3 in (v8, z −0.2122, Ty t887u 2026-11-06, *"Move eye position up 3 inches on 2-33"*). Merging would have LOWERED the eye and re-pinned `CockpitEyeTests` and `SeatChoiceTests` to the old number, so the suite would have gone green while agreeing with the regression. |
+| `codex-landing-v2` | **CONTAINED** in `lane/claude-landing-v2` (an ancestor of it, 0 commits ahead). The Codex UI restyle is already inside the Claude half; the pair is one merge, not two. |
+
+### The lesson: for orphaned work, staleness is the default suspicion, not the exception
+
+**"How big is this lane's blast radius?" and "is this lane's change still TRUE?" are different questions, and the
+triage above answers only the first.** This report measured conflicts, file counts and which flagged surfaces each
+lane touched — all of which said `claude-sgs233-eye-raise` was a safe, narrow, honestly-flagged one-number change. It
+was. It was also a number the owner had already superseded, and a conflict count cannot see that.
+
+The check that catches it is cheap and has to be done per lane: **take the one value the lane exists to change, find
+the shipping lane's value for the same thing, and ask which is newer.** Four of fourteen here, two of them
+regressions the tests would have endorsed. Read the merge, not the diff: `claude-sgs233-eye-raise` looks innocent
+in `git diff` against its own merge base and shows its true shape only when the conflict puts our value and theirs
+side by side.
+
+One live item this surfaced that belongs to nobody on this list: **v8's own status line says the three-inch eye raise
+is "implemented for review: NOT visually approved until Ty reviews before/after"** — so the number now in the build
+has never been looked at.

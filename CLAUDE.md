@@ -723,3 +723,55 @@ checks "the part named X stays" must also check that X contains the thing the us
 the drawn geometry around the seat (`CrashCamOccupantShots`), not the name of the object it hangs on. And the visual
 compared root-local z (from the CG) with config-frame stations, so its cut sat `cg.x` off the sim's (0.76 m on the
 Great Lakes): when two systems cut at "the same" station, check they share a frame.
+### Half a fix for a global is no fix at all
+`SoaringTests` sets `Atmosphere.SteadyWind / ActiveTurbulence / Field`, which are process-wide. It was given a
+`Dispose` (5b5eb46, "Reset the weather after every test, not at the end of a passing one") and never given
+`[Collection("WorldTerrainActive")]`, which 68 other classes carry. Those two guards stop DIFFERENT things:
+the `Dispose` stops a throwing test leaking its weather FORWARD, and the collection stops xUnit running the
+class ALONGSIDE another one. With only the first, the class still put a thermal under other people's
+aeroplanes mid-flight: on 2026-11-01 that was **81 of 211 failures** — `StructuralTests` 39 of 40 and the
+whole fleet of `SpawnSpeedTests` stalling, almost all of them NaN. The symptom was written down in that very
+class's own `Dispose` comment ("That is what put the whole fleet into a stall in SpawnSpeedTests while all 34
+passed in isolation") a commit before the cure was finished. If a class touches process-wide state it needs
+BOTH, and reset in `Dispose`, not in the body of a test that might throw first.
+
+**And auditing only the writers is the same mistake one level up, which is how this took two goes.** With
+`SoaringTests` serialised the suite still gave **27 failures on one run and 53 on the next from the same tree**
+— `StructuralTests` clean, then 39 of 40 NaN. The collection was protecting the classes that WRITE the globals
+from each other and leaving their VICTIMS outside it: 24 classes fly an aeroplane, and so READ
+`WorldTerrain.Active`, `Atmosphere.*` and `FloatHydro` through the sim, while declaring no collection at all.
+Whether a run went NaN was down to scheduling. So the audit is two lines, not one: a class needs
+`[Collection("WorldTerrainActive")]` if it ASSIGNS any of that state **or if it constructs an `Aircraft` or a
+`SimLoop`**. 211 → 7 once both halves were done, and NaN messages across the suite 82 → 1.
+
+Serialising them cost no measurable wall-clock: 16m27s and 22m20s afterwards against 23m21s and 21m43s before,
+which is two overlapping ranges and not a speed-up either way. I claimed a speed-up off the first run alone and
+the second contradicted it — one timing on a machine shared with other agents' suites says nothing.
+
+A suite that disagrees with itself by 26 names cannot report a regression, so prove a fix to nondeterminism
+with TWO runs compared BY NAME, never one. Here both gave 1116/7/107 with identical failing sets.
+
+### A process check that greps command lines matches the agents doing the checking
+`pgrep -f 'tools/deploy/(deploy|testflight).sh'` reported a running deploy twice on 2026-11-01 when there was
+none. The first hit was another agent's `claude` process whose PROMPT TEXT contained the path; the second was
+another agent's own WAIT LOOP, a `zsh -c` whose `pgrep` pattern contained it. A checker that matches other
+checkers will either block forever or, worse, be "cleared" by someone killing an unrelated process. Match the
+real thing — `pgrep -x Unity`, `pgrep -x xcodebuild`, and for a script the invocation itself — then drop any
+hit whose `comm` is `claude` or whose args contain `pgrep`. A genuine one looks like
+`zsh tools/deploy/deploy.sh 00008130-...`, with the script as argv[1].
+
+### A fixed port number is a global shared between PROCESSES
+`LanMeshTests` gave each test its own UDP block (48310, 48320 … 48390), which is unique within one process and
+not between them. Several worktrees run this suite at once here — four were running together on 2026-11-01 —
+so the second arrival lost every port in a block and all eight tests reported "no free port in 48370..48373".
+It had been written off as a sandbox socket restriction; binding `0.0.0.0` and `127.0.0.1` by hand proved it
+was not. A block must be the SAME for every peer in one test (they find each other by sweeping
+`basePort..basePort+PortsPerHost-1`) but need only be UNIQUE PER PROCESS, so offset the origin by the process
+id — and keep the band below 49152 so the kernel's ephemeral range cannot take one first.
+
+### A count from the log is not a baseline — re-measure, and say what was running
+The brief for this triage quoted "109 failing of 783" from an AGENT-LOG entry. The suite was by then 1233
+tests and failing 211. Worse, a first run taken while three other worktrees were running theirs gave 198, and
+the same tree re-run on a quiet machine gave 211: the numbers disagree with each other, not just with the log.
+Counts in this repo decay, and two runs of the same tree are not comparable unless both say what else was
+running. Re-run the branch point yourself, record what the machine was doing, and compare BY NAME.

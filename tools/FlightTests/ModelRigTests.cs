@@ -23,8 +23,15 @@ namespace FlyingGame.FlightTests;
 // INSTALLS a world into the global WorldTerrain.Active: must not run in parallel with anything that steps
 // an aeroplane, because LandingGear, AirframeContact and FloatHydro all read the ground through it.
 [Collection("WorldTerrainActive")]
-public class ModelRigTests
+public class ModelRigTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or fail. FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake
+    /// installs a world into the global WorldTerrain.Active and has no reason to carry it out again, so without this
+    /// the class LEAVES a live world behind for whichever class the collection runs next — ground under an aeroplane
+    /// that was meant to be flying over nothing (2026-11-01).</summary>
+    public void Dispose() => WorldTerrain.Active = null;
+
+
     private static RigNode Node(string name, string param, bool move, double[] p, double[] v,
                                 double wrap = 0, bool extrap = false, double[]? detents = null,
                                 double ax = 0, double ay = 1, double az = 0)

@@ -13,7 +13,7 @@ namespace FlightTests;
 [Collection("WorldTerrainActive")]
 public class PlateauCopyTests
 {
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the stacked plateau copies. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void StepsAre2000Feet()
     {
         for (int i = 0; i < WorldTerrain.Airports.Length; i++)
@@ -25,7 +25,7 @@ public class PlateauCopyTests
     /// each of the seven features survives somewhere. A thinning that quietly dropped one altogether would
     /// pass every other test in this file.
     /// </summary>
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the stacked plateau copies. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void EachUpperPlateauKeepsTwoThingsAndNothingIsLostAltogether()
     {
         var all = (WorldTerrain.Feature[])System.Enum.GetValues(typeof(WorldTerrain.Feature));
@@ -45,7 +45,7 @@ public class PlateauCopyTests
         Assert.True(WorldTerrain.Has(WorldTerrain.NearestPlateauWith(WorldTerrain.Feature.RaceCourse, 3), WorldTerrain.Feature.RaceCourse));
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the stacked plateau copies. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void WhatEachPlateauDoesCarrySitsOnFlatGroundAtItsOwnLevel()
     {
         var t = new WorldTerrain();
@@ -80,7 +80,7 @@ public class PlateauCopyTests
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the stacked plateau copies. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void SolidsAndAeroBoxAreRegisteredOnEveryPlateau()
     {
         var t = new WorldTerrain();
@@ -117,7 +117,7 @@ public class PlateauCopyTests
         finally { WorldTerrain.Active = null; WorldSolids.Boxes.Clear(); }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the stacked plateau copies. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheValleyCityIsTheCombatCityOnFlatDryGroundClearOfTheOtherFeatures()
     {
         // Owner 2026-10-05: "make the city near the initial airport identical to the one you built in the combat zone".

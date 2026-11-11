@@ -13,6 +13,13 @@ namespace FlyingGame.FlightTests;
 /// break off until 2.0 limit load." Three thresholds, not two — the rated limit stays where certification puts it
 /// and the syllabus still grades against it, the noise starts at 1.5 x limit, the wings go at 2.0 x limit.
 /// </summary>
+// FLIES an aeroplane, so it READS the global ground and weather (WorldTerrain.Active, Atmosphere.*,
+// FloatHydro) through the sim even though it sets none of them. The collection was protecting the
+// classes that WRITE that state from each other and leaving their victims outside it, so this class ran
+// in parallel with 68 that install worlds and weather: StructuralTests went 39 of 40 NaN in one run and
+// passed clean in the next on identical code (2026-11-01). A reader needs the same serialisation as a
+// writer.
+[Collection("WorldTerrainActive")]
 public sealed class StructuralBandTests
 {
     private static AircraftConfig Load(string id) =>

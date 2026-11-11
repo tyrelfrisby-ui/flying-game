@@ -44,7 +44,7 @@ public class CarrierTests
         Assert.Equal(18.0, Carrier.SpeedMs / 0.514444, 6);
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the carrier station. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheDeckIsWhereTheShipIsAndMovesWithIt()
     {
         try

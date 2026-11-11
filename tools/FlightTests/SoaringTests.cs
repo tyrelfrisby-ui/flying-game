@@ -10,6 +10,13 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>Soaring energy (owner-directed hill + thermals): a thermal core makes rising air that
 /// beats the glider's sink so it climbs when centered; ridge lift rises on the windward slope.</summary>
+// SETS the process-wide weather (Atmosphere.SteadyWind / ActiveTurbulence / Field), so it must not run in
+// PARALLEL with anything that flies an aeroplane. The Dispose below stops this class leaking its weather
+// FORWARD when a test throws (5b5eb46); it does nothing about xUnit running this class ALONGSIDE another,
+// which puts a thermal under someone else's aeroplane mid-flight. Both halves are needed, and only the
+// first one was done: without this attribute the whole fleet stalls in SpawnSpeedTests and StructuralTests
+// goes NaN, exactly as the Dispose comment below describes (2026-11-01).
+[Collection("WorldTerrainActive")]
 public class SoaringTests : IDisposable
 {
     /// <summary>xUnit calls this after EVERY test, pass or FAIL. Atmosphere.SteadyWind / ActiveTurbulence /
