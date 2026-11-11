@@ -51,9 +51,9 @@ public class FleetBladeFitTool
             if (!measured) target = ProvisionalStaticFraction * p.MaxRpm;
 
             double pitch = PistonEngine.FitPitchForStaticRpm(p.PropBladeCount, 0.5 * p.PropDiameterM, p.ActivityFactor, 0.15,
-                                                             target, p.MaxPowerW, p.MaxRpm, p.IdleRpm);
+                                                             target, PistonEngine.Spec.For(p), p.IdleRpm);
             var g = new BladeElement.Geometry(p.PropBladeCount, 0.5 * p.PropDiameterM, pitch, p.ActivityFactor);
-            double got = PistonEngine.BalancedRpm(g, p.MaxPowerW, p.MaxRpm, p.IdleRpm, 1.0, 1.0, 0.0, 1.225, 1.0);
+            double got = PistonEngine.BalancedRpm(g, p, 1.0, 1.0, 0.0, 1.225, 1.0);
             bool pinned = pitch <= 8.05 || pitch >= 17.95;
             _o.WriteLine($"{c.Id,-22}{p.MaxPowerW / 745.7,6:F0} {p.PropDiameterM,5:F2} {p.PropBladeCount,3}  {p.MaxRpm,6:F0} | {target,13:F0} | {pitch,8:F2}{(pinned ? " PIN" : "   ")}  | {(measured ? "MEASURED" : "provisional")} (got {got:F0})");
             if (write) Write(f, pitch, c.Id, target, measured, got);

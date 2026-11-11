@@ -31,6 +31,10 @@ public class PistonEngineTests
     private static double CubPowerW => Cub.Propulsion!.MaxPowerW;
     private static double CubRatedRpm => Cub.Propulsion!.MaxRpm;
     private static double CubIdle => Cub.Propulsion!.IdleRpm;
+    /// <summary>The Cub's ENGINE as the torque law needs it — the real C-85's 188 in^3 and 6.3:1, out of the config,
+    /// not the fleet fallback. Friction and pumping are mean effective pressures and only become torques through a
+    /// swept volume (PistonMep), so a test that invented the displacement would be testing a different engine.</summary>
+    private static PistonEngine.Spec CubEngine => PistonEngine.Spec.For(Cub.Propulsion!);
 
     /// <summary>
     /// A FIXED-PITCH AEROPLANE CANNOT MAKE RATED RPM STANDING STILL. With no forward speed the blade's angle of
@@ -51,7 +55,7 @@ public class PistonEngineTests
         double at0 = 0, prev = 0;
         foreach (double v in new[] { 0.0, 10.0, 20.0, 30.0, 40.0 })
         {
-            double rpm = PistonEngine.BalancedRpm(CubProp, CubPowerW, CubRatedRpm, CubIdle, 1.0, 1.0, v, 1.225);
+            double rpm = PistonEngine.BalancedRpm(CubProp, CubEngine, CubIdle, 1.0, 1.0, v, 1.225);
             var r = BladeElement.Solve(CubProp, v, 0.0, rpm, 1.225);
             _out.WriteLine($"full throttle at {v,4:F0} m/s: {rpm,6:F0} rpm, {r.ThrustN,6:F0} N, {r.PowerW / 745.7,5:F0} hp absorbed");
             if (v == 0) at0 = rpm;
@@ -59,7 +63,7 @@ public class PistonEngineTests
             if (v > 0) prev = rpm;
         }
         Assert.InRange(at0, 0.80 * CubRatedRpm, 0.99 * CubRatedRpm);
-        double at40 = PistonEngine.BalancedRpm(CubProp, CubPowerW, CubRatedRpm, CubIdle, 1.0, 1.0, 40.0, 1.225);
+        double at40 = PistonEngine.BalancedRpm(CubProp, CubEngine, CubIdle, 1.0, 1.0, 40.0, 1.225);
         Assert.True(at40 > at0, $"rpm must be higher in the cruise than standing still: {at0:F0} -> {at40:F0}");
     }
 
@@ -71,7 +75,7 @@ public class PistonEngineTests
         double prev = 0;
         foreach (double t in new[] { 0.2, 0.4, 0.6, 0.8, 1.0 })
         {
-            double rpm = PistonEngine.BalancedRpm(CubProp, CubPowerW, CubRatedRpm, CubIdle, t, 1.0, 20.0, 1.225);
+            double rpm = PistonEngine.BalancedRpm(CubProp, CubEngine, CubIdle, t, 1.0, 20.0, 1.225);
             _out.WriteLine($"throttle {t:F1}: {rpm:F0} rpm");
             Assert.True(rpm > prev, "more throttle must mean more rpm");
             prev = rpm;
@@ -83,8 +87,8 @@ public class PistonEngineTests
     [Fact]
     public void ItLosesPowerWithAltitudeBecauseItSwallowsLessAir()
     {
-        double sea = PistonEngine.PowerW(CubPowerW, CubRatedRpm, CubRatedRpm, 1.0, 1.0);
-        double tenK = PistonEngine.PowerW(CubPowerW, CubRatedRpm, CubRatedRpm, 1.0, 0.688);   // 10 000 ft pressure ratio
+        double sea = PistonEngine.PowerW(CubEngine, CubRatedRpm, 1.0, 1.0);
+        double tenK = PistonEngine.PowerW(CubEngine, CubRatedRpm, 1.0, 0.688);   // 10 000 ft pressure ratio
         _out.WriteLine($"sea level {sea / 745.7:F0} hp, 10 000 ft {tenK / 745.7:F0} hp ({100 * tenK / sea:F0} %)");
         Assert.InRange(tenK / sea, 0.50, 0.70);     // the classic "about 60 % at ten thousand feet"
     }
@@ -102,11 +106,13 @@ public class PistonEngineTests
         const int blades = 2; const double r = 1.0414, af = 110.0, hub = 0.15;
         const double powerW = 194000, rated = 2700, idle = 700, vne = 94.8;
         var stops = BladeElement.GovernorStops(blades, r, af, hub, powerW, rated, vne);
+        // The real AEIO-540: 541.5 in^3, six cylinders, 8.7:1 — the engine, not a rating with fleet defaults behind it.
+        var engine = new PistonEngine.Spec(powerW, rated, 541.5 * PistonCompression.CubicInchM3, 6, 8.7, -1.0);
         _out.WriteLine($"stops: fine {stops.FineDeg:F1} deg, coarse {stops.CoarseDeg:F1} deg");
         bool heldSomewhere = false, hitAStop = false;
         foreach (double v in new[] { 0.0, 20.0, 40.0, 60.0, 80.0, 104.0, 130.0 })
         {
-            var g = PistonEngine.Govern(blades, r, af, hub, stops, rated, powerW, rated, idle, 1.0, 1.0, v, 1.225);
+            var g = PistonEngine.Govern(blades, r, af, hub, stops, rated, engine, idle, 1.0, 1.0, v, 1.225);
             string where = g.OnFineStop ? "FINE stop" : g.OnCoarseStop ? "COARSE stop" : $"governing at {g.PitchDeg:F1} deg";
             _out.WriteLine($"  {v,5:F0} m/s full power: {g.Rpm,6:F0} rpm   {where}");
             if (!g.OnFineStop && !g.OnCoarseStop) { heldSomewhere = true; Assert.Equal(rated, g.Rpm, 3); }

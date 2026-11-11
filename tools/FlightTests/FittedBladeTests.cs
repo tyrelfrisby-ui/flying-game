@@ -45,7 +45,7 @@ public class FittedBladeTests
         {
             var p = Load(id).Propulsion!;
             Assert.True(p.BladePitch75Deg > 0, $"{id}'s blade has not been fitted");
-            double stat = PistonEngine.BalancedRpm(BladeOf(p), p.MaxPowerW, p.MaxRpm, p.IdleRpm, 1.0, 1.0, 0.0, 1.225);
+            double stat = PistonEngine.BalancedRpm(BladeOf(p), p, 1.0, 1.0, 0.0, 1.225);
             _out.WriteLine($"{id,-22} blade {p.BladePitch75Deg:F2} deg at 0.75 R -> {stat:F0} rpm static");
             Assert.InRange(stat, 2130, 2170);
         }
@@ -63,7 +63,7 @@ public class FittedBladeTests
         var g = BladeOf(p);
         double redline = double.NaN;
         for (double mph = 0; mph <= 160; mph += 0.5)
-            if (PistonEngine.BalancedRpm(g, p.MaxPowerW, p.MaxRpm, p.IdleRpm, 1.0, 1.0, mph / MphPerMs, 1.225) >= p.MaxRpm)
+            if (PistonEngine.BalancedRpm(g, p, 1.0, 1.0, mph / MphPerMs, 1.225) >= p.MaxRpm)
             { redline = mph; break; }
         _out.WriteLine($"full throttle reaches {p.MaxRpm:F0} rpm at {redline:F0} mph");
         Assert.InRange(redline, 80.0, 88.0);
@@ -80,7 +80,7 @@ public class FittedBladeTests
         foreach (double mph in new[] { 0.0, 20.0, 40.0, 60.0, 80.0, 100.0 })
         {
             double v = mph / MphPerMs;
-            double rpm = PistonEngine.BalancedRpm(g, p.MaxPowerW, p.MaxRpm, p.IdleRpm, 1.0, 1.0, v, 1.225);
+            double rpm = PistonEngine.BalancedRpm(g, p, 1.0, 1.0, v, 1.225);
             var r = BladeElement.Solve(g, v, 0.0, rpm, 1.225);
             _out.WriteLine($"{mph,5:F0} mph: {rpm,5:F0} rpm, {r.ThrustN * 0.2248,4:F0} lb, eta {r.Efficiency:F3}");
             Assert.True(r.ThrustN < prevThrust, "thrust must fall with speed");

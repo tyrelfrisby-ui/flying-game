@@ -76,7 +76,7 @@ public class OilLossPitchTests
         // curve's own friction intercept, not a new constant: a closed throttle draws 0.28 of ambient = 8.4 inHg, below
         // the 10 inHg intercept, so the engine absorbs about 8 % of rated at rated rpm.
         PropulsionConfig p = Prop("pitts-s2b-like");
-        double q = PistonEngine.MotoringTorqueNm(p.MaxPowerW, p.MaxRpm, p.MaxRpm, 0.0, 1.0, 1.0, 0.0);
+        double q = PistonEngine.MotoringTorqueNm(PistonEngine.Spec.For(p), p.MaxRpm, 0.0, 1.0, 1.0, 0.0);
         Assert.True(q < 0.0, "it must OPPOSE whatever turns it");
         Assert.InRange(-q, 40.0, 75.0);                         // ~56 N·m for a 540 cubic inch engine at 2,700
         // With the engine's own dry boundary friction on top it is still a little higher at rated rpm: the Stribeck
@@ -90,7 +90,7 @@ public class OilLossPitchTests
         Assert.Equal(0.0, PistonEngine.MotoringTorqueNm(p, p.MaxRpm, 1.0, 1.0, 1.0));
         // It is NOT folded into the power path, where IdleDragCd already carries the same drag against measured glide
         // ratios. Letting it in there would count it twice.
-        Assert.True(PistonEngine.TorqueNm(p.MaxPowerW, p.MaxRpm, p.MaxRpm, 0.0, 1.0) >= 0.0);
+        Assert.True(PistonEngine.TorqueNm(p, p.MaxRpm, 0.0, 1.0) >= 0.0);
     }
 
     [Theory]

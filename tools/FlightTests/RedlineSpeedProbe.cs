@@ -44,11 +44,11 @@ public class RedlineSpeedProbe
                 double redlineV = double.NaN;
                 for (double v = 0; v <= 90; v += 0.25)
                 {
-                    double rpm = PistonEngine.BalancedRpm(g, p.MaxPowerW, p.MaxRpm, p.IdleRpm, 1.0, 1.0, v, 1.225);
+                    double rpm = PistonEngine.BalancedRpm(g, p, 1.0, 1.0, v, 1.225);
                     if (rpm >= p.MaxRpm) { redlineV = v; break; }
                 }
-                double statRpm = PistonEngine.BalancedRpm(g, p.MaxPowerW, p.MaxRpm, p.IdleRpm, 1.0, 1.0, 0.0, 1.225);
-                double at75 = PistonEngine.BalancedRpm(g, p.MaxPowerW, p.MaxRpm, p.IdleRpm, 1.0, 1.0, 75.0 / conv, 1.225);
+                double statRpm = PistonEngine.BalancedRpm(g, p, 1.0, 1.0, 0.0, 1.225);
+                double at75 = PistonEngine.BalancedRpm(g, p, 1.0, 1.0, 75.0 / conv, 1.225);
                 string at = double.IsNaN(redlineV) ? "never below 90 m/s" : $"{redlineV * conv,5:F0} {unit}";
                 _o.WriteLine($"   {pitch,13:F0}° | {at,22} | {statRpm,10:F0}   | {at75,8:F0}");
             }

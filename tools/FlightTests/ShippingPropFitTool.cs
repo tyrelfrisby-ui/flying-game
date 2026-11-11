@@ -52,7 +52,7 @@ public class ShippingPropFitTool
             for (double v = 0; v <= 1.25 * vne; v += 2)
             {
                 var g = PistonEngine.Govern(p.PropBladeCount, radius, p.ActivityFactor, 0.15, st, p.MaxRpm,
-                                            p.MaxPowerW, p.MaxRpm, p.IdleRpm, 1.0, delta, v * tasPerCas, rho);
+                                            PistonEngine.Spec.For(p), p.IdleRpm, 1.0, delta, v * tasPerCas, rho);
                 if (g.OnFineStop || g.OnCoarseStop) break;
                 heldTo = v;
             }
