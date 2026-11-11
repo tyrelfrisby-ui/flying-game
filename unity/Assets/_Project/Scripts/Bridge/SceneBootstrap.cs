@@ -91,7 +91,8 @@ namespace FlyingGame.Bridge
             // The whole-aircraft parachute, on the types that carry one (owner 2026-10-16).
             root.AddComponent<BrsCanopy>().Driver = root.GetComponent<FlightSimDriver>();
             root.AddComponent<PilotEgress>();   // BAIL OUT / EJECT sequencer + pilot/parachute bodies
-            root.AddComponent<GroundShadow>();   // airframe silhouette projected onto the ground (height cue on landing)
+            root.AddComponent<GroundShadow>();   // airframe silhouette projected onto the ground (height cue on landing), and its mask on the water
+            root.AddComponent<SeaSurfaceDriver>();   // wind -> sea state on the water under the aeroplane (fetch-limited: SeaState)
             root.AddComponent<StructuralDamage>();
             root.AddComponent<CombatController>().Driver = driver;   // guns, target drones, the combat zone
             root.AddComponent<CockpitView>().Driver = driver;        // which seat, and where the pilot is looking

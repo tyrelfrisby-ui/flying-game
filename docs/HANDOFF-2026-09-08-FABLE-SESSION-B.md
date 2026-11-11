@@ -87,7 +87,7 @@ FLYINGGAME_IOS_OUT=/private/tmp/flyinggame-ios /Applications/Unity/Hub/Editor/60
   -executeMethod FlyingGame.EditorTools.BuildScript.BuildiOS -logFile "$PWD/build/ios.log"
 cd /private/tmp/flyinggame-ios && xattr -cr . && xcodebuild -project Unity-iPhone.xcodeproj -scheme Unity-iPhone \
   -configuration Release -destination 'generic/platform=iOS' -allowProvisioningUpdates \
-  -derivedDataPath /private/tmp/flyinggame-dd DEVELOPMENT_TEAM=DH425V439F build
+  -derivedDataPath /private/tmp/flyinggame-dd DEVELOPMENT_TEAM=<team-id> build
 xcrun devicectl device install app --device 757C3F5F-062C-5070-9AF1-60E428B8E9C7 /private/tmp/flyinggame-dd/Build/Products/Release-iphoneos/FlyingGame.app
 xcrun devicectl device process launch --device 757C3F5F-062C-5070-9AF1-60E428B8E9C7 com.flyinggame.dev
 ```

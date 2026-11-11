@@ -1,3 +1,56 @@
+## The water: a wind-driven sea state, a shadow that is not a cutout, and the keel's cavity — Claude, 2026-11-11, lane/claude-water-look
+
+<!-- seastate-jonswap-fetch coxmunk-slope shadow-mask-not-cutout gpuprojection-flip planingwake-savitsky-morabito wakebodyat-merged -->
+
+Four of Ty's 2026-11-11 water notes, done as physics rather than as look tuning. `SeaState`, `PlaningWake` and the
+shader's own derivations carry the full reasoning and the sources; this is the ledger.
+
+### What changed
+
+- **`_WaterCalm` was a binary** set by a lighting preset and unconnected to the wind. It is now
+  `SeaState.Glassy01(windMs)`, one number in a continuous model: a capillary floor (clean water's 0.231 m/s minimum
+  phase speed; Beaufort 0 "sea like a mirror"), a texture-first band (Beaufort 1–2), then JONSWAP fetch-limited
+  growth capped at Pierson–Moskowitz. Fetch is marched upwind to the real shoreline and handed to the shader as a
+  plane, so each fragment has its own and the water really is smoother near the upwind shore.
+- **The reflection** got bolder through two physical levers and no fudge: the surface is built to Cox and Munk's
+  measured mean square slope (it was 13× too smooth in rms slope) with the Fresnel averaged over the unresolved
+  slope by two-point Gauss–Hermite; and the submerged term now leaves the water at t/n² = 0.55 (the n-squared law
+  of radiance) instead of at the view-angle Fresnel's 0.98.
+- **The water receives the aeroplane's shadow**, as a mask applied to the submerged term and the sun glint only —
+  not as a silhouette painted on the surface, which is what the old `if (onWater) return;` note was right to
+  reject. The penumbra is the mask's own texel size, so it costs one tap and gets cheaper with height.
+- **The cavity and the rooster tail** are one curve, and it was already here: `FloatHydro.WakeHeightBeams`
+  (Savitsky and Morabito 2010) read against the undisturbed surface instead of the extended keel line. White water
+  starts at Savitsky's planing onset Cv = 2, which on this float's own 0.5358 m beam is 10.3 mph — Ty's "above
+  10 mph" to within 3 %.
+
+### The 90-degree shadow, which was a mirror
+
+Ty: "The shadow is off by 90 degrees". It was not a rotation and not `GroundShadow`'s projection. The sampling
+matrix used `GL.GetGPUProjectionMatrix(p, renderIntoTexture: true)`, whose Y is negated on D3D and Metal so the
+image leaves the rasteriser upright; applying that again at sample time mirrors the mask about the
+sun-perpendicular axis. At that frame's heading the fuselage sat at −135° in mask coordinates and the span at
++135°, symmetric about that axis, so the mirror mapped one exactly onto the other and was indistinguishable from a
+90° yaw **at that heading only**. Proof frames at three headings (`-viewYaw` 0, 50, 90) all show the shadow's long
+axis tracking the fuselage. A constant 90° would have been wrong at every heading but the one that showed it.
+
+### Known and not fixed
+
+- **Far-field hatch.** Beyond roughly fifteen pixels per wave the drawn train still reads as a regular hatch, and
+  it is worst above about 15 kt. Widening `Resolved` to 12..30 removes it and also flattens the middle distance
+  into a sheet; 5..14 is the setting Ty approved on 2026-11-11, so that is the setting that ships.
+- **No airborne rooster plume.** The same contour gives the water's rise speed on to the crest — 0.94 m/s at plow,
+  a 4 cm ballistic throw. A J-3 on floats does not throw a hydroplane's rooster; the crest is drawn on the surface
+  and the number is in `PlaningWake.CrestRiseSpeedMs`.
+- **A second camera still samples the planar reflection in its own screen space.** `WaterReflection` documents this
+  for split screen (`SuppressedForSplit`) but `LandingPreview` copies `Camera.main.cullingMask` and renders the
+  water with no such guard, so the landing page's water draws the MAIN camera's mirror image at the preview's
+  screen coordinates — a ghost aeroplane whose apparent orientation changes as the preview orbits. That matches
+  Ty's "weird ghost plane that was rotating of axis to it about 90 degrees" on the landing page and is a different
+  defect from the one above, in a different code path, and it is not fixed here.
+
+Unpushed: the lane is committed locally only.
+
 ## The Stearman's certificate, and the biplane cellule's lift derived at last — Claude, 2026-11-10, lane/claude-stearman-cellule
 
 <!-- stearman-tcds-a743 biplane-interference-derived munk-rep-151 cellule-per-wing pitts-untouched -->
@@ -1995,7 +2048,7 @@ is no account, no sign-in and no matchmaking: the relay is `no auth, no persiste
 - **A TestFlight invite — NOT the OTA link.** `tools/deploy/publish-ota.sh` serves over **Tailscale Serve, tailnet
   only**, and the script refuses to publish if `tailscale serve status` stops saying "tailnet only" (Funnel would
   put a signed build of your unreleased app on the public internet). A person outside your tailnet cannot resolve
-  `mac-studio.tail9aad2a.ts.net` at all, and the dev profile would refuse the install even if she could. Add her
+  `<ota-host>` at all, and the dev profile would refuse the install even if she could. Add her
   Apple ID as an App Store Connect user and put her in the internal group "Aero Playground Beta"
   (`105fa7b0-…`), which auto-distributes every upload — no Beta App Review, builds arrive in minutes.
 - **Then: OPTIONS → MULTIPLAYER → "Room by code"**, you tap Create and read her the 6 characters. Use the code
@@ -2049,13 +2102,13 @@ SessionSettings.StartAltitudeFt` in `FlightSimDriver.PickRandomStart`) and the c
 - **The Core is committed and tested: `69f660c4`, MultiplayerStartTests 68/68.** All 34 types through
   `AirStart.ComputeRandom`, first try every time, each returned start re-measured by brute force.
 - **The Unity glue is written but UNCOMMITTED**, as a patch at
-  `/private/tmp/claude-502/-Users-tyfrisby-Documents-flying-game/7be7860f-b18b-4893-9f51-5ecae3f36fa8/scratchpad/handover/unity-glue.patch`
+  `/private/tmp/claude-502/-Users-<user>-Documents-flying-game/7be7860f-b18b-4893-9f51-5ecae3f36fa8/scratchpad/handover/unity-glue.patch`
   (523 lines: the "Random, clear air" choice beside the altitude picker, a wait on every fixed start, `StartSlots`,
   `StartHold`, the hold flags through `NetProtocol`/`NetSession`/`RemoteAircraft`, the driver's pick). **The parity
   hook blocks it**: this lane now leads `lane/claude-quest-islandnav` by the Core commit and takes no further
   shared change until that lane merges it. I did not run that merge myself — that worktree has uncommitted
   modifications and may be mid-build, and merging one lane into another is not mine to do unasked. **The one
-  command that unblocks everything:** `git -C /Users/tyfrisby/Developer/flying-game-worktrees/claude-quest-islandnav
+  command that unblocks everything:** `git -C ~/Developer/flying-game-worktrees/claude-quest-islandnav
   merge --no-ff lane/claude-spawns`. Then apply both patches and commit.
 - **`lane/claude-start-altitude`'s own altitude picker was NOT brought across, and that call was confirmed by
   measurement.** The plan was to take it. That lane built `StartAltitude.cs` (Default / 3,000 / 6,000 / 10,000 /
@@ -2738,7 +2791,7 @@ wifi and I install in place, no uninstall.
   behaviour are a like-for-like comparison. All 7 repair files are byte-identical to the tree the full suite ran on.
   Version **2026.1107.1346** / build 202611071346, bundle `com.tyrelfrisby.aeroplayground`, **3.60 GB** (the non-slim build of the same source was 4.2 GB — over TestFlight's limit).
   `** BUILD SUCCEEDED **`, 0 `error CS`, 0 Unity errors. `codesign --verify --deep --strict`: valid on disk,
-  satisfies its Designated Requirement; Authority *Apple Development: SAMUEL TYREL FRISBY (3X7KU2BKP5)*, team DH425V439F;
+  satisfies its Designated Requirement; Authority *Apple Development: <owner> (<team-id>)*, team <team-id>;
   profile *iOS Team Provisioning Profile: \** expires 2027-04-28 and covers your iPhone (5 devices).
   Executable sha256 `8abe70febd398a5a188a96b2271fe530a6462afa1dc4c04a13155ac1ea7a6058`, UnityFramework sha256 `12a5e045f4a48328b098a0355911befe6c92c87bc653400764cee068500085ac`.
 - **Please test (the replay, in this order):**
@@ -2786,7 +2839,7 @@ Launch briefs in agent-lanes/prompts/*landing-wb-envelope-1106*. Job QUEUED firs
 - **LANDING W&B CODEX RENDERS READY (2026-11-06 ~11:32 AKST).** Tip `ea75e7b2`. Coordinator ran `mac-shots.sh pages` → 57 PNGs at `~/Developer/agent-lanes/renders/landing-v2/codex/envelope/` (envelope standard/metric/outside + wb-popup on iPhone land + iPad land/port). Box copies: `/workspace/uploads/landing-wb-evidence-1106/`. **Batch2 staged — NOT Batch1.** No merge/install/TF until Ty visual OK. Foreign aircraft StreamingAssets dirt left unstaged.
 - **LANDING W&B CODEX UI PREPARED — RENDERS BLOCKED (2026-11-06 11:13 PT).** Based on Claude calc `43048f25`; graph gets more vertical space, limit-edge labels, and separate color-keyed takeoff/zero-fuel legend rows. `LandingSelfTest` now captures wheel J-3 verified envelope (inside/outside) and exact t882u popup, both unit systems, both landscape device shapes. No invented limits. **NOT LANDING-WB-ENVELOPE-RENDERS-DONE**: no new images, no Unity compile, no commit, no merge/install/upload. `git diff --check`, `zsh -n tools/landing-v2/mac-shots.sh`, tracked ignore audit clean.
   - **Coordinator action:** run `SHOTS=$HOME/Developer/agent-lanes/renders/landing-v2/codex/envelope zsh tools/landing-v2/mac-shots.sh pages` here once the single Unity slot is free. Sandbox denies ps/pgrep; script now fails closed (exit 2) rather than treating that as idle. Review actual PNGs and iterate before marking done. Expected `iphone-land` / `ipad-land` `-p2-envelope-{standard,metric}.png`, `-p2-envelope-outside-{standard,metric}.png`, `-p2-wb-popup-{standard,metric}.png`. Paths are planned, **not generated**.
-  - **Local commit blocked too:** `git add` cannot create `/Users/tyfrisby/Developer/flying-game/.git/worktrees/codex-landing-v2/index.lock` (Operation not permitted). Three UI/runner files plus this log remain unstaged. Coordinator must commit locally after compile/visual QA and clean ignore audit, never add -f. No Ty visual approval requested until actual renders exist.
+  - **Local commit blocked too:** `git add` cannot create `~/Developer/flying-game/.git/worktrees/codex-landing-v2/index.lock` (Operation not permitted). Three UI/runner files plus this log remain unstaged. Coordinator must commit locally after compile/visual QA and clean ignore audit, never add -f. No Ty visual approval requested until actual renders exist.
 - **TY SPOKEN APPROVAL — LANDING FLOW (Grok Bot, 2026-11-05 11:00 PT).** Ty ~10:56 PT: "Landing page is good but give page two a standard or metric option; most users will be American/standard." **Q088 APPROVED** (two-page Choose → Load & Launch). Units follow-up: lane follow-up on this worktree (`prompts/claude-landing-units.md`); default **Standard**; persist preference. Do not redesign the flow. Q089–Q094 still open. Nothing else marked approved by me.
 
 <!-- landing-v2 needs-you -->
@@ -3309,7 +3362,7 @@ Nothing approved by me. Not for TestFlight.
 
 - **TV MODE: INSTALLED ON TY'S IPHONE + TY ANSWERED Q2/Q7-Q11 (Grok Bot, 2026-11-04 17:20 PT).** Ty approved the
   device install 17:12 PT. Built from e165af8e (isolated /private/tmp/tvc-ios, /private/tmp/tvc-dd), `** BUILD SUCCEEDED **`,
-  installed on iPhone 00008150-001629A83662401C as 2026.1104.1713; regenerated mirrors/ProjectSettings restored. Answers
+  installed on iPhone <device-udid> as 2026.1104.1713; regenerated mirrors/ProjectSettings restored. Answers
   (17:14-17:15 PT): Q2 iPad too; Q7 radio/intercom on phone/headset, not TV; Q8 Mac in scope (instruments on second
   monitor); Q9 QR + PIN, QR recommended; Q10 TLS-PSK in v1; Q11 yes, one Quest batch compile from this lane. Recorded in
   plan §9. Not merged; no gate approved.
@@ -3588,7 +3641,7 @@ Ty approved the visuals (GL ~10:56 PT; Extra ~13:19 PT, Q109/Q117). Nothing flig
   questions (Q057–Q060, Q071, Q072) are still open.
 - Conflicts resolved: PilotEgress (kept crash-bailout's canopy stepping/CanopyClear/ghost chute, added the one-press VR
   `_autoChute`); ModelRig/CockpitRigState (kept GL `fuel_top_wing_frac` and cockpit-common `fuel` + `KollsmanInHg`).
-- iOS `deploy.sh 00008150-001629A83662401C` ** BUILD SUCCEEDED **, 0 error CS, **2026.1105.1525 installed and launched
+- iOS `deploy.sh <device-udid>` ** BUILD SUCCEEDED **, 0 error CS, **2026.1105.1525 installed and launched
   on Ty's iPhone 17 Pro** (devicectl confirms). iPad/Quest not installed this run. The version bump is not committed.
 - Targeted tests (NoRed233/GreatLakes/Extra/CockpitCommon/BeltsAndCords/Magneto/Rig): 438/444 pass, 2 skipped, 4 fail. All 4 fail on the
   base too: NoRed233.ResourcesHoldOnlyTheYellowGlbs (its "grob" regex matches the Grob 103 Acro GLBs, Q104),
@@ -5199,7 +5252,7 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
   approved by me.
   1. **iPhone install did not happen.** The build is fine (2026.1104.0957, BUILD SUCCEEDED), but the phone refused it
      (4016) and then dropped off. Unlock it, plug it in, then run
-     `xcrun devicectl device install app --device 00008150-001629A83662401C /tmp/flyinggame-dd/Build/Products/Release-iphoneos/AeroPlayground.app`
+     `xcrun devicectl device install app --device <device-udid> /tmp/flyinggame-dd/Build/Products/Release-iphoneos/AeroPlayground.app`
      (check that the version reads 2026.1104.0957 first; another lane's build can overwrite that folder), or just run
      `zsh tools/deploy/deploy.sh` from `claude-island-nav-merge`. **The Quest 3S has 2026.1104.1002.**
   2. **`~/Developer/flying-game-worktrees/claude-island-nav` is DETACHED at aeb9695a**, holding your uncommitted
@@ -5586,16 +5639,16 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
 - **CRASH PHYSICS MERGED INTO ISLAND-NAV — ON YOUR IPHONE AS `2026.1104.0427` (Grok Bot, 2026-11-04 04:30 PST,
   lane/claude-crash-physics `da163a65` → island-nav `abeadac3`, Ty approved):** trees snap, crashes keep momentum,
   only overloaded parts come off, debris no longer sinks. Only AGENT-LOG.md conflicted (both sides kept).
-  `deploy.sh` `** BUILD SUCCEEDED **`, 0 `error CS`, installed and launched on the iPhone (00008150-001629A83662401C).
+  `deploy.sh` `** BUILD SUCCEEDED **`, 0 `error CS`, installed and launched on the iPhone (<device-udid>).
   **Still open — grey/white debris paint is NOT fixed.** Ty: launch with `-crashtest grass`
-  (`xcrun devicectl device process launch --device 00008150-001629A83662401C com.tyrelfrisby.aeroplayground -- -crashtest grass`)
+  (`xcrun devicectl device process launch --device <device-udid> com.tyrelfrisby.aeroplayground -- -crashtest grass`)
   and send the `[Debris]` log lines. ProjectSettings/GraphicsSettings left untouched (version bump not committed).
 
 - **FRANK CHURCH STRIPS UNPAVED — ON YOUR IPHONE AS `2026.1103.2218` (Claude, 2026-11-03 22:21 PST,
   lane/claude-frank-church-valleys `35901e96` → island-nav `6c24d8eb`):** all nine strips are real dirt or turf, drawn as worn
   ground, with no centreline, edge marks, numbers or paved look (fc-surfaces' finish, which this lane kept in
   preference to its own). Approach views of each strip are in `renders/frankchurch/v2/` (9 PNGs, 450 m final).
-  `deploy.sh` `** BUILD SUCCEEDED **`, 0 `error CS`, installed and launched on the iPhone (00008150-001629A83662401C).
+  `deploy.sh` `** BUILD SUCCEEDED **`, 0 `error CS`, installed and launched on the iPhone (<device-udid>).
   Check the stamp says 2026.1103.2218 before flying. Nothing for you to decide; fly Soldier Bar and tell us if it
   still reads as paved.
 
@@ -5616,9 +5669,9 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
 
 - **CRASHES KEEP THEIR MOMENTUM; TREES SNAP; ONLY THE PART THAT IS OVERLOADED COMES OFF — ON LAND, IN TREES AND ON WATER
   (Claude, 2026-11-03, lane/claude-crash-physics). Nothing approved; not merged into island-nav (the supervisor's call).**
-  **iPhone build `2026.1103.2157` (lane HEAD 9b267623) is INSTALLED on Ty's iPhone** — `deploy.sh 00008150-001629A83662401C`
+  **iPhone build `2026.1103.2157` (lane HEAD 9b267623) is INSTALLED on Ty's iPhone** — `deploy.sh <device-udid>`
   `** BUILD SUCCEEDED **`, 0 `error CS`, launched (ProjectSettings bump not committed). Launch with
-  `-crashtest runway` or `-crashtest grass` (e.g. `xcrun devicectl device process launch --device 00008150-001629A83662401C
+  `-crashtest runway` or `-crashtest grass` (e.g. `xcrun devicectl device process launch --device <device-udid>
   com.tyrelfrisby.aeroplayground -- -crashtest grass`) to start in the scripted Pitts cartwheel.
   **⚠ SUPERVISOR: that build predates f47db91f and 9a24353c.** 9a24353c fixes a total break-up (everything but the
   cabin gone) going unstable and then FREEZING in the tree sweep's cell loop (CellOf(NaN)) — it hung the test suite, and
@@ -5672,7 +5725,7 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
 - **TY'S DECISION (2026-11-03 21:01 PST): MERGE THE PITTS CRASH DEBRIS INTO THE PLAYABLE LANE (Grok Bot, lane/claude-island-nav).**
   Ty approved merging lane/claude-pitts-debris `d8ab9861` (lane-private build `2026.1103.1929`) into lane/claude-island-nav and
   installing it on his iPhone. Merged here (AGENT-LOG conflict only: both NEEDS YOU entries kept). Install: `tools/deploy/deploy.sh`
-  to the iPhone (00008150-001629A83662401C), foreground, started 21:10:39 PST once no other deploy.sh/xcodebuild/Unity batch was
+  to the iPhone (<device-udid>), foreground, started 21:10:39 PST once no other deploy.sh/xcodebuild/Unity batch was
   running: 0 `error CS`, `** BUILD SUCCEEDED **`, **installed and launched on Ty's iPhone, build `2026.1103.2111`
   (`202611032111`)**, done 21:15:18 PST. Targeted tests on the merge (DebrisWiring, LiveryPicker, OwnPittsModel): 26/26 passed.
   bundleVersion bump not committed. The debris-render approval in the Pitts entry is separate: still no `*-debris.glb` installed.
@@ -5690,7 +5743,7 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
   `d9730e24` code, the same Unity export as device build `2026.1103.2022`):** Ty approved ("yes upload the current playable
   build to testflight"). APFS clone of `/private/tmp/flyinggame-ios` (island-nav export, 20:23) into `/private/tmp/aero-tf/ios`
   so other lanes' deploy.sh runs could not wipe it mid-archive; only the clone's Info.plist was bumped (ProjectSettings untouched,
-  nothing to revert). `xcodebuild archive` Release, team DH425V439F, automatic signing → `** ARCHIVE SUCCEEDED **`;
+  nothing to revert). `xcodebuild archive` Release, team <team-id>, automatic signing → `** ARCHIVE SUCCEEDED **`;
   `-exportArchive` with tools/deploy/ExportOptions-asc.plist (app-store-connect, destination upload) → `Upload succeeded`
   20:54:48 PST, `** EXPORT SUCCEEDED **`. Bundle com.tyrelfrisby.aeroplayground, ASC app id 6810484227.
   `ITSAppUsesNonExemptEncryption` = false was already set (standard HTTPS only), so no export-compliance question.
@@ -5718,7 +5771,7 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
   merge of lane/claude-pitts-spin `3bf6ed2f`/`fe232151` on top of the CAM-button commits):** AGENT-LOG conflict only (both
   NEEDS YOU entries kept). Merged tree: PittsFlatSpinAileron/Spin/PittsRollRate/CameraReference filter 51/52 passed; the one
   failure is the pre-existing `SpinTests.ProSpinDepartsAndSustainsRotation` (fails on base too). `deploy.sh
-  00008150-001629A83662401C` `** BUILD SUCCEEDED **`, 0 `error CS`, installed 19:55; the auto-launch failed only because the
+  <device-udid>` `** BUILD SUCCEEDED **`, 0 `error CS`, installed 19:55; the auto-launch failed only because the
   phone was locked (open it by hand). devicectl shows 2026.1103.1951. ProjectSettings bump not committed. See the run #4
   entry below for what to fly. No gate approved.
 
@@ -5746,7 +5799,7 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
   "(LESSON)"), and the marker follows that forced Track too. Code: `CameraReference.MarkerUsesGroundTrack/MarkerVelocity`
   and `FlightPathVector.cs`, using the same `CameraReference.Effective(button, Driver.GroundReferenceForced)` as the
   camera. `FlightSimDriver.GroundReference` (the 500 ft rule) now has no callers; I left it in place. Tests: 2 new
-  in `CameraReferenceTests`; camera/flight-path filter 23/23 passed. `deploy.sh 00008150-001629A83662401C`
+  in `CameraReferenceTests`; camera/flight-path filter 23/23 passed. `deploy.sh <device-udid>`
   `** BUILD SUCCEEDED **`, 0 `error CS`, installed and launched 17:46 (ProjectSettings bump not committed). Still open:
   Codex to polish the CAM button's look. No gate approved.
 
@@ -5755,13 +5808,13 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
   ground track below 500 ft AGL is gone (that was why the relative-wind camera sat at 7:30 on a low crosswind final). A
   full-time **CAM** button beside SMOKE toggles "CAM: FLT PATH" (air velocity, the default) and "CAM: TRACK" (ground track);
   the choice persists (PlayerPrefs `set.cameraReference`). Pure logic in `src/FlyingGame.Core/CameraReference.cs`, 6 tests in
-  `CameraReferenceTests`; camera tests 21/21 passed; `deploy.sh 00008150-001629A83662401C` `** BUILD SUCCEEDED **`,
+  `CameraReferenceTests`; camera tests 21/21 passed; `deploy.sh <device-udid>` `** BUILD SUCCEEDED **`,
   installed and launched 17:22 (ProjectSettings bump not committed). Questions (1) and (2), about the marker following the
   button and lessons forcing Track, were ANSWERED by Ty the same day; see the `2026.1103.1740` entry above.
   (3) **Codex: please polish the CAM button's look**; it is functional placeholder styling. No gate approved.
 
 - **ISLAND-NAV `2026.1103.1622` IS ON THE IPHONE (island surfaces + Pitts spin #3 merged); ONE TEST HANGS ON THE MERGED TREE
-  (Grok Bot, 2026-11-03 16:55 PST, lane/claude-island-nav `ce53d62e`):** `deploy.sh 00008150-001629A83662401C` →
+  (Grok Bot, 2026-11-03 16:55 PST, lane/claude-island-nav `ce53d62e`):** `deploy.sh <device-udid>` →
   `** BUILD SUCCEEDED **`, 0 `error CS`, installed and launched on Ty's iPhone 16:28 (ProjectSettings bump not committed).
   Earlier, 15:29, the pre-merge `2026.1103.1409` had been put on it as a stopgap. **Please fly it: Pitts spins, island
   strips/snow, gamepad.** Open items: (1) `LaunchReplicationTests.ConsecutiveAirStartsAreTheSameLaunchAndFlyHandsOff`
@@ -5886,9 +5939,9 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
   - **Please fly:** J-3 floats normal landings, a flat fast one, and a step taxi at 35 mph; J-3 on wheels skimming at
     40–45 kt with some power and the tail a little low, then chop the power and feel it dig in; the Extra skimming.
 - **NOTHING INSTALLED 14:35 — IPHONE STILL 4016; PITTS SPIN #3 AND ISLAND SURFACES NEED A MERGE BEFORE THEY CAN GO ON (Grok Bot,
-  2026-11-03 14:35 PST, lane/claude-island-nav `66656185`):** Ty's iPhone (00008150-001629A83662401C) is "unavailable" in
+  2026-11-03 14:35 PST, lane/claude-island-nav `66656185`):** Ty's iPhone (<device-udid>) is "unavailable" in
   devicectl; a direct `devicectl device install` of the built `2026.1103.1409` (deadzone 0.02 + roll-only) gave
-  CoreDeviceError 4016 again. **Unlock it on USB, then run `zsh tools/deploy/deploy.sh 00008150-001629A83662401C` from
+  CoreDeviceError 4016 again. **Unlock it on USB, then run `zsh tools/deploy/deploy.sh <device-udid>` from
   this worktree.** The Pitts spin #3 build (`2026.1103.1118`, lane/claude-pitts-spin `8444fddf`) and the island surfaces
   build (`2026.1103.1055`, lane/claude-island-terrain `b77cc008`) no longer exist: every lane's `deploy.sh` writes to the
   same `/private/tmp/flyinggame-dd`, and the only `.app` there now is 1409. Both lanes also branched off older
@@ -5905,7 +5958,7 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
   idle to full in 2 s) are separate constants and unchanged. The left stick's X (rudder) shares the stick constant, so
   it is 0.02 too. `deploy.sh` `2026.1103.1409` `** BUILD SUCCEEDED **`, 0 `error CS`, but **the iPhone would not take
   it: CoreDeviceError 4016**, and a direct `devicectl install` retry gave the same; devicectl says "Device State:
-  unavailable". Unlock the phone on USB and re-run `zsh tools/deploy/deploy.sh 00008150-001629A83662401C` from the
+  unavailable". Unlock the phone on USB and re-run `zsh tools/deploy/deploy.sh <device-udid>` from the
   island-nav worktree. The build carries roll-only too. One thing to feel for: a pad that rests more than 2 % off
   centre now gets through as a small input (and stops a released stick going free with stick-free on).
 - **NEW ROLL RATES ARE IN THE PLAYABLE LANE — PLEASE FLY THE PITTS (Claude, 2026-11-03, lane/claude-roll-only → island-nav):**
@@ -5913,12 +5966,12 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
   lane's per-section tail wakes. Full aileron, steady: **Pitts 218.6 deg/s at 160 mph**, Extra 239.3 (160), Great Lakes
   66.8 (160), C172 83.7 (110), J-3 53.6 (75), 2-33 15.2 (60). Rig re-solved for it (Pitts aileron rig 0.272° → 0.374°).
   **The iPhone did not take the build: CoreDeviceError 4016** ("not able to fulfill the requested usage assertion
-  requirements" — unlock the phone / keep it awake on USB and re-run `zsh tools/deploy/deploy.sh 00008150-001629A83662401C`
+  requirements" — unlock the phone / keep it awake on USB and re-run `zsh tools/deploy/deploy.sh <device-udid>`
   from the island-nav worktree). See the Log entry for the island-nav install attempt.
 - **HUD-MODE ENGINE ROW MERGED, ON YOUR IPHONE AS `2026.1103.0925` (Claude, 2026-11-03, lane/claude-island-nav):**
   lane/codex-hud-layout (`e0eb27e7`, green HUD engine readouts above the lower control row, approved by Ty) merged
   into lane/claude-island-nav as a fast-forward from `e8a40b0a`; no conflicts. `deploy.sh` build `2026.1103.0925`
-  `** BUILD SUCCEEDED **`, 0 `error CS`; installed and launched on Ty's iPhone (00008150-001629A83662401C) at 09:32.
+  `** BUILD SUCCEEDED **`, 0 `error CS`; installed and launched on Ty's iPhone (<device-udid>) at 09:32.
   The build also carries everything already on island-nav (stick-free launch, rig trim, hydro). Check the build stamp
   on screen before flying. The `ProjectSettings` bundleVersion/build bump was not committed. Small thing in the
   deploy log: it printed "no assets-incoming in … -- wrong repo?" and then carried on; the build was not affected.
@@ -6774,7 +6827,7 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
   ** BUILD SUCCEEDED **, iPad mini installed + launched; iPhone: CoreDeviceError 4016 (locked/asleep), then
   "unavailable" for 14 more minutes. The .app was wiped by the next lane's deploy (claude-j3-cockpit), so for the
   iPhone: unlock it, keep it awake, then from this worktree run
-  `zsh tools/deploy/deploy.sh 00008150-001629A83662401C` (same commit, new build number).
+  `zsh tools/deploy/deploy.sh <device-udid>` (same commit, new build number).
   Open item (pre-existing B4): iPad mini TOUCH layout, the TOP flight row is wider than the band and overlaps.
 - **PITTS SPINS: ELEVATOR AT HIGH α FIXED; INVERTED-FLAT ROLL-OUT DIAGNOSED, NOT FIXED — PLEASE READ + ANSWER (Claude,
   2026-11-03, lane/claude-pitts-spin run #3). Not merged, not installed.**
@@ -6879,7 +6932,7 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
   buttons still sit over the panel dials (they did before too). scripts/codex-run.sh is missing from the repo.
   NOT merged, NOT deployed; no gate approved. Ty picks from the renders first.
 - **GAMEPAD FULL-SCREEN VIEW, CHASE ×1.5, NO MORE SLOWDOWN NEAR THE GROUND, QUEST THROTTLE — PLEASE FLY IT (Grok Bot,
-  2026-11-02, lane/claude-ios-fullview, build `2026.1102.1842`):** iPad mini installed; iPhone: NOT installed: 60 tries of devicectl over 30 min all failed with CoreDeviceError 4016 (phone locked or asleep). Unlock it, keep it awake and connected, then run `xcrun devicectl device install app --device 00008150-001629A83662401C /private/tmp/isnav-1842.app` (the same 2026.1102.1842 build) or re-run deploy.sh.
+  2026-11-02, lane/claude-ios-fullview, build `2026.1102.1842`):** iPad mini installed; iPhone: NOT installed: 60 tries of devicectl over 30 min all failed with CoreDeviceError 4016 (phone locked or asleep). Unlock it, keep it awake and connected, then run `xcrun devicectl device install app --device <device-udid> /private/tmp/isnav-1842.app` (the same 2026.1102.1842 build) or re-run deploy.sh.
   - **Pad connected:** the 3D view fills the whole screen (no black tray where the pads were), the airplane sits in
     the screen's centre, and the buttons drop to the bottom edge. No pad: unchanged.
   - **Chase camera 50 % farther back** on every aircraft, with the height kept at the same fraction so the framing
@@ -7013,13 +7066,13 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
   Each piece's first water-impact timestamp now drives gurgle age: full through 2.5 s, smoothstep fade to
   EXACT silence at 3.75 s. Later Flood/Impact events cannot reset that timestamp; aircraft reset clears it.
   Splash/impact DSP unchanged. Both gurgle WAVs (and the normal comparison artifacts) re-rendered into
-  `/Users/tyfrisby/Developer/agent-lanes/aero-playground/crash-audio/`; reproduction in tools/CrashAudio/README.md.
+  `~/Developer/agent-lanes/aero-playground/crash-audio/`; reproduction in tools/CrashAudio/README.md.
   Verified: CrashAudio headless build 0 errors (2 existing unused-field warnings), 13 runner checks including
   continuing updates/late flooding silence, 6 spectral assertions, git diff --check. No Unity, xcodebuild,
   deploy or full dotnet test run. Unity camera compilation/visual fit, egress underwater view, iPhone audio
   and performance remain UNVERIFIED. No gate approved. Changes left uncommitted for the operator.
 - **CRASH AUDIO + WATER VISUALS — TY LISTEN/LOOK REVIEW (Codex, 2026-11-02, lane/codex-crash-audio):**
-  Listen in `/Users/tyfrisby/Developer/agent-lanes/aero-playground/crash-audio/`:
+  Listen in `~/Developer/agent-lanes/aero-playground/crash-audio/`:
   `crash-land-OLD-{0.3,0.7,1.0}.wav` vs `crash-land-NEW-{0.3,0.7,1.0}.wav`,
   `splash-water-{small-piece,engine,intact-ditch}.wav`, `gurgle-flooding-{fast,slow}.wav`.
   All eleven are 48 kHz mono / 10 seconds, fixed comparison gain (no per-file normalisation).
@@ -7342,7 +7395,7 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
   Files: both existing GLB filenames, grob103-own-rig.json/RIG.md, asset CREDITS.md (LICENSE.txt
   retained), build_grob103_18m.py, grob103_metrics.py, updated Grob checkers/overlay helper,
   render_grob103_18m.py; renders/manifests/validation in `renders/grob103/blanc-18m/`.
-  Copies: `/Users/tyfrisby/Developer/agent-lanes/renders/grob103/18m/`.
+  Copies: `~/Developer/agent-lanes/renders/grob103/18m/`.
   Checks PASS both exports: check_grob103_blanc.py, check_grob103.py; 30-node rig, control
   motion, area/span/stations/upper-only panels/skids, wheel dimensions/contacts, graph/UV/normals,
   2,016 cockpit pairs and 1,608 envelope samples each; old rig/eyes independently compared.
@@ -9059,7 +9112,7 @@ Analysis only, no physics or audio code changed. I added `docs/TIRE-SPINUP-AND-G
   island-nav, as the parity hook asks). `tools/check-parity.sh`: PARITY OK on both. Leftover build files in both
   worktrees untouched.
   - iOS `2026.1104.2107` from claude-island-nav-merge: `deploy.sh` `** BUILD SUCCEEDED **`, 0 `error CS`, installed
-    and launched on **Ty's iPhone** (00008150-001629A83662401C) and **iPad mini** (00008130-001230A92678001C).
+    and launched on **Ty's iPhone** (<device-udid>) and **iPad mini** (<device-udid>).
   - Quest `2026.1104.2141` from claude-quest-islandnav: `deploy-quest.sh` exit 0, 0 `error CS`, `adb install`
     Success and launched on the **Quest 3S** (340YC10GBK0TYV); the headset was asleep at launch. Another lane's
     Unity batch (claude-tire-spinup) started one second after this build did and ran alongside it.
@@ -9180,7 +9233,7 @@ Ty 05:55: "hand flying needs some expo."
   LaunchReplicationTests (Pitts, Cub, PilotControlsLetGo): 9/9. NOT a full-suite run: ShapeAxis' arithmetic is the same
   expression as before (e is now clamped to 0…1, which no config exceeds), so the sim's numbers cannot move; the
   Mac had other lanes' full suites running.
-- Build: `deploy.sh 00008150-001629A83662401C` on b770986f → Unity 0 `error CS`, `** BUILD SUCCEEDED **`, `2026.1104.1433`.
+- Build: `deploy.sh <device-udid>` on b770986f → Unity 0 `error CS`, `** BUILD SUCCEEDED **`, `2026.1104.1433`.
   Install: the iPhone refused (CoreDevice 4016, usage assertion, as for island-nav's 0957; usually locked). Retried after
   the merge: not retried, merge not done (above). ProjectSettings bump and the StreamingAssets copies not committed.
 
@@ -9343,7 +9396,7 @@ IslandCombatTests.AWreckOnTheGround…, the timing test noted before). Still red
 FloatLandingTests J-3 0.5 m/s (step 1). Island-nav worktree (same commit): see below.
 
 **Step 8/9 — builds and installs.**
-- iOS from `claude-island-nav-merge`: `deploy.sh 00008150-001629A83662401C` → PARITY: OK, **`** BUILD SUCCEEDED **`**,
+- iOS from `claude-island-nav-merge`: `deploy.sh <device-udid>` → PARITY: OK, **`** BUILD SUCCEEDED **`**,
   0 `error CS`, bundleVersion **2026.1104.0957**. Install on Ty's iPhone FAILED: CoreDeviceError 4016, then the phone
   went "unavailable" (locked / off USB). The built app (Info.plist checked: 2026.1104.0957) is at
   /tmp/flyinggame-dd/Build/Products/Release-iphoneos/AeroPlayground.app. NEEDS YOU.
@@ -9420,7 +9473,7 @@ panel/stick/row, the Extra rear-panel side gaps, the headset cable, and the Pitt
 ### 2026-11-03 09:31 PST — Claude · lane/claude-vr-hands-fix · Quest store release build (Meta Horizon Store), not uploaded
 - Signing: the Quest APK was signed with Unity's Android Debug key (cert 9c7224d9…3956). New PKCS12 upload keystore
   OUTSIDE the repo, `~/Developer/agent-lanes/keys/aeroplayground-quest.keystore` (dir 700, file 600), alias `upload`,
-  RSA 4096, valid to 2054, DN "CN=Tyrel Frisby, O=Aero Playground, C=US"; 40-char random password stored only in the
+  RSA 4096, valid to 2054, DN "CN=the owner Frisby, O=Aero Playground, C=US"; 40-char random password stored only in the
   login keychain item `aeroplayground-quest-keystore` (added through `security -i` on stdin, never printed or on argv).
 - `deploy-quest.sh --release --version-code N`: reads the password from the keychain into Unity's environment only
   (AERO_QUEST_RELEASE / _KEYSTORE / _KEYSTORE_PASS / _VERSION_CODE), writes build/quest/release/, implies
@@ -9860,7 +9913,7 @@ foot and make the fuel valve a push pull control with the red knob not a lever."
   `generate_gradient` `--check` are current, and the spec reproduces from `frank_church_layout.py`. Lane build
   (no-deploy copy) `** BUILD SUCCEEDED **`, 0 `error CS`.
 - **Merge and install:** island-nav `6c24d8eb` (merge commit; its uncommitted ProjectSettings/GraphicsSettings
-  untouched). `zsh tools/deploy/deploy.sh 00008150-001629A83662401C` in the foreground, after checking no other
+  untouched). `zsh tools/deploy/deploy.sh <device-udid>` in the foreground, after checking no other
   Unity or xcodebuild was running: `** BUILD SUCCEEDED **`, 0 `error CS`, **installed and launched as
   `2026.1103.2218` (202611032218)** at 22:21. The bundleVersion bump is not committed; it sits in island-nav's
   already-modified ProjectSettings.asset alongside work that is not mine.
@@ -10007,7 +10060,7 @@ right), 4/5 (decide the strut stations and the Pitts horns yourself), and water 
   The pre-merge branch run (21:08) aborted at 332 tests on my lock deadlock (fixed f47db91f); the first post-merge run
   aborted at 889 on the remnant blow-up (fixed 9a24353c). Targeted after the last fixes: crash/tree/water/debris/wiring/
   contact/strut/remnant classes all pass (25/25 and 122-test set).
-- Build: `deploy.sh 00008150-001629A83662401C` 22:02 PST from this worktree at 9b267623: `** BUILD SUCCEEDED **`, 0 `error CS`,
+- Build: `deploy.sh <device-udid>` 22:02 PST from this worktree at 9b267623: `** BUILD SUCCEEDED **`, 0 `error CS`,
   bundleVersion `2026.1103.2157`, installed and launched on the iPhone; bundleVersion/GraphicsSettings/StreamingAssets reverted.
 ### 2026-11-03 — Claude · lane/claude-nsew-toggle · N/S/E/W letters: a setting, off by default, drawn at infinity
 Ty: make the floating N/S/E/W letters a toggle in Settings, OFF by default, persisted; added scope: when on they must
@@ -10181,7 +10234,7 @@ WingAileronBreakup), 350 tests:
   new failure is StallAuthority FullAft (SR22, Jenny), which comes from Pitts spin #3 (see NEEDS YOU). There is also the
   LaunchReplication hang, which is new on the merged tree.
 - **No commits besides this log entry.** I found no clear merge mistake to fix.
-- **Build/install:** `2026.1103.1622` / `202611031622`, `** BUILD SUCCEEDED **`, 0 `error CS`, installed on iPhone 00008150-001629A83662401C.
+- **Build/install:** `2026.1103.1622` / `202611031622`, `** BUILD SUCCEEDED **`, 0 `error CS`, installed on iPhone <device-udid>.
 
 ### 2026-11-03 19:00 PST — Claude · lane/claude-wheel-hydroplane · float break-up, wheels on water (camera already shipped)
 - **Camera:** done earlier on this lane (`94fe5aca`, `3a2c895f`), cherry-picked to island-nav and installed by Grok Bot as
@@ -10318,7 +10371,7 @@ which controls it covers and which it does not).
   GroundTow) all pass alone: those ten classes 109/109 (2 skipped). No regression found.
 - **Waited for roll-only:** not in island-nav at 07:16 or at the 90 min mark; it was there (5dc1693a) by 11:05, when
   this session resumed. Merged a93fc332 into island-nav as `50dc7e3b` (Ty approved), no conflicts.
-- **Deploy** from island-nav: `2026.1103.1409` `** BUILD SUCCEEDED **`, 0 `error CS`; iPhone 00008150-001629A83662401C
+- **Deploy** from island-nav: `2026.1103.1409` `** BUILD SUCCEEDED **`, 0 `error CS`; iPhone <device-udid>
   CoreDeviceError 4016, installed on 0 of 1; a direct `devicectl device install` retry gave 4016 too ("Device State:
   unavailable"). ProjectSettings bundleVersion bump not committed.
 
@@ -10361,10 +10414,10 @@ separately from lane/claude-pitts-spin.
   Formation P-51 slot error base 29.4 m, branch 27.2 m. `GlideTableTests.CreditsReachTheUser` (J-3 models have no
   LICENSE.txt) fails on base too. **No failure introduced by this lane.**
 - **Build:** island-nav (73a6b497, HUD-only Unity changes) merged into roll-only (8697e42a), then
-  `zsh tools/deploy/deploy.sh 00008150-001629A83662401C` from roll-only: **`** BUILD SUCCEEDED **`**, 0 `error CS`,
+  `zsh tools/deploy/deploy.sh <device-udid>` from roll-only: **`** BUILD SUCCEEDED **`**, 0 `error CS`,
   build `2026.1103.0950`; iPhone install **CoreDeviceError 4016**, 0 of 1. ProjectSettings bump not committed.
 - **Merged into lane/claude-island-nav by fast-forward** (73a6b497 → c7125b08; Ty approved this merge), then
-  `zsh tools/deploy/deploy.sh 00008150-001629A83662401C` from the island-nav worktree: **`** BUILD SUCCEEDED **`**, 0
+  `zsh tools/deploy/deploy.sh <device-udid>` from the island-nav worktree: **`** BUILD SUCCEEDED **`**, 0
   `error CS`, build `2026.1103.0957`; iPhone again **CoreDeviceError 4016**, installed on 0 of 1. **Not on the phone.**
   The island-nav worktree already had uncommitted ProjectSettings/GraphicsSettings edits before this deploy; left as found.
 ### 2026-11-03 — Claude · lane/claude-contact-patches (off e8a40b0a) · contact patches, wing-panel damage, slave struts, prop strike
@@ -10458,7 +10511,7 @@ Report (Ty, iPhone `2026.1102.1803`): Pitts launches straight into a right spira
 - Merged lane/claude-rig-trim (d4315fd5: launch-to-launch fix, AirStart/PilotControls, LaunchReplicationTests, composed
   with hydro's gamepad stick-free option) — fast-forward. First deploy attempt aborted before building (Unity: "another
   Unity instance is running with this project open"; nothing held the lock a minute later); retried.
-- `zsh tools/deploy/deploy.sh 00008150-001629A83662401C 00008130-001230A92678001C` → `2026.1102.2103`
+- `zsh tools/deploy/deploy.sh <device-udid> <device-udid>` → `2026.1102.2103`
   `** BUILD SUCCEEDED **`, 0 `error CS`. iPad mini: installed, launched. iPhone: "unavailable", install refused
   (CoreDeviceError 4016) at 21:13 and on six retries to 21:18 — NOT installed. bundleVersion and GraphicsSettings
   re-serialisation reverted.
@@ -11173,7 +11226,7 @@ TY-DECISIONS.md: (a) no 60 m collision shortcut; (b) the iOS pad throttle matche
 - **Quest coordination:** reused the Quest lane's 159e5f46 (cherry-pick, adapted) rather than re-doing it; its
   worker has exited, and lane/claude-vr-quest is still ce62f612. The broadphase is in FlyingGame.Core, so the Quest
   gets it on its next merge of island-nav. Its own 60 m shortcut (if any) is now redundant.
-- **Devices:** iPad mini 2026.1102.1842 installed and launched (devicectl verified). iPhone NOT installed: 60 tries of devicectl over 30 min all failed with CoreDeviceError 4016 (phone locked or asleep). Unlock it, keep it awake and connected, then run `xcrun devicectl device install app --device 00008150-001629A83662401C /private/tmp/isnav-1842.app` (the same 2026.1102.1842 build) or re-run deploy.sh.
+- **Devices:** iPad mini 2026.1102.1842 installed and launched (devicectl verified). iPhone NOT installed: 60 tries of devicectl over 30 min all failed with CoreDeviceError 4016 (phone locked or asleep). Unlock it, keep it awake and connected, then run `xcrun devicectl device install app --device <device-udid> /private/tmp/isnav-1842.app` (the same 2026.1102.1842 build) or re-run deploy.sh.
 - **Tests:** SolidsBroadphase/SolidsAboveTheGround/GroundContactCull/GamepadShaping/ChaseFraming/TouchSticks pass.
   Full suite vs island-nav d1bf88d1: no regressions. The lane-only failures seen in the partial full runs (Alaska, AlpineRange, FrankChurch, GlacierLandingZone, GroundSurface, HighDesert, TipWheel, ReversibleControl, Brs, ApproachSpawn, ChartRaster, CrashWater, Challenge, Event, Formation, TrimConvergence) were re-run class by class on git-archive copies of 3313b6ed and d1bf88d1: identical failure sets (16 of 52 and 28 of 93 on both, empty diff), so they are pre-existing on island-nav. ForestTests ×3 and CarrierTests.TheDeck… fail on the baseline too.
 
@@ -11207,7 +11260,7 @@ Report (Ty, iPhone, build `2026.1102.1603`, pad connected): select the cockpit v
 
 ### 2026-11-02 16:08 — Claude · lane/claude-island-nav · gamepad merged and on the iPad mini (not the iPhone)
 Merged `lane/claude-gamepad-ios` at 01f4c28 (merge `21e41d8`, 15:47); another agent then merged
-`lane/claude-crash-test` on top (`c6080bb`, 15:53). `zsh tools/deploy/deploy.sh 00008130-001230A92678001C` from
+`lane/claude-crash-test` on top (`c6080bb`, 15:53). `zsh tools/deploy/deploy.sh <device-udid>` from
 this worktree, iPad mini ONLY (Ty is away with his iPhone): Unity export 16:02:58–16:04:04, 0 `error CS`,
 `** BUILD SUCCEEDED **`, bundleVersion **`2026.1102.1603`** (built from `c6080bb`: gamepad + crash-test),
 **installed and launched on Ty's iPad mini**, "installed on 1 of 1 device(s)". **Not installed on the iPhone**:
@@ -12613,7 +12666,7 @@ shared branch. That merge is Ty's.
 **Builds and tests at handover.** Suite: 4 failures, all pre-existing and all written up above (one flat-spin
 smoke check, three Pitts ground-handling). iOS player: `** BUILD SUCCEEDED **` at 16:22, and the resulting build
 `2026.1028.1623` is installed on the iPhone 17 Pro and the iPad mini and published at
-`https://mac-studio.tail9aad2a.ts.net/ota`.
+`https://<ota-host>/ota`.
 
 **`deploy.sh` printed a guess as a diagnosis (fixed here).** Its install step reported `installed on 0 of 3
 device(s)` at 16:22 and explained each one as "(asleep, or off the network)". That reason was invented: the real
@@ -13401,7 +13454,7 @@ Tunable knobs, all in the config:
 - Validation: package validator PASS; two full generations byte-identical for all7 generated deliverables including both PNGs, grid and report; XML/PNG dimensions/grid length and SHA256 metadata checked; IFR compared with initial transcription and unchanged; git diff --check clean. Map and elevation visually inspected. No src/ or Tests/ changes, no build/deploy, no push/merge/rebase, no other worktree accessed. This is a review draft with known fit failures, not a passing world/G1 approval.
 - [codex -> Claude] HANDOFF: read-only design inputs only, no action before Ty's gates. Runtime Nav currently uses0deg variation; locked island requires7E and50kHz spacing nearDRK/SXC. Reconcile supplied IFR geometry with proposed KMEV150m east shift; IFR section itself is unchanged.
 - [codex -> Claude] HANDOFF: after authorized world build/gates, provide T201 fix coordinates and full missed/hold protection geometry; recompute TERPS/MEAs/minima from final terrain. Bind lesson/challenge arenas, runway choice/ApproachSpawn, box scoring, HOT/COLD engagement, water target hit heights, drone orbits and concealment weather to the world spec. Codex retains all terrain/placement fixes.
-- Local commit BLOCKED by the filesystem sandbox: `git add` failed creating `/Users/tyfrisby/Developer/flying-game/.git/worktrees/codex-island-world/index.lock` with `Operation not permitted`. Approval policy is never; no elevated retry or alternative Git-directory write was attempted. No new commit exists; deliverables remain in this worktree for Ty to stage/commit. Base HEAD remains1b67dd5.
+- Local commit BLOCKED by the filesystem sandbox: `git add` failed creating `~/Developer/flying-game/.git/worktrees/codex-island-world/index.lock` with `Operation not permitted`. Approval policy is never; no elevated retry or alternative Git-directory write was attempted. No new commit exists; deliverables remain in this worktree for Ty to stage/commit. Base HEAD remains1b67dd5.
 [codex -> Ty] island world design ready - PENDING Ty
 
 ### 2026-10-30 — Codex · lane/codex-island-world · Phase 1A.2 revision
@@ -14337,7 +14390,7 @@ Restored the matching v13.1 Great Lakes builder integration from local cockpit c
 
 Rebuilt the requested `great-lakes-like-own.glb` through `build_great_lakes.py --offline-update`, using the immutable v13.1 generated cockpit GLB at the commit above and applying the current sequence-card/sight geometry. Blender 5.2.2 crashes in Metal device detection before Python in this sandbox; no fresh Blender export or Unity runtime validation is claimed. The full Blender builder is restored for subsequent exports. Existing alternate-livery GLBs and their offline base behavior are unchanged; this urgent asset repair targets the explicitly requested default GLB. Existing GLB `.meta` retained; no new Unity asset introduced. Glass Overlay untouched.
 
-Validation: `check_great_lakes_rig.py` passes 58/58 exact node bindings against the runtime rig table, expected parents and world pivots (0.11 mm tolerance), rig parameters, moving mesh descendants, prop/spinner, eyes, avionics displays, sequence card and sights; all nodes have identity rotation and unit scale, with nose -x, up +y and span z. Offline rebuild repeated with identical SHA-256 `0e556105a076cca100ef014f315a2cbc67a10abe41705ed37b1a35cfdbc7653f`. Python syntax compilation and `git diff --check` pass. Required tracked-file ignore audit printed nothing. Commit attempt blocked at `git add`: sandbox denies creation of `/Users/tyfrisby/Developer/flying-game/.git/worktrees/codex-greatlakes-rig/index.lock` outside writable roots. Files remain unstaged; no commit, push, merge, deployment, or forced add occurred.
+Validation: `check_great_lakes_rig.py` passes 58/58 exact node bindings against the runtime rig table, expected parents and world pivots (0.11 mm tolerance), rig parameters, moving mesh descendants, prop/spinner, eyes, avionics displays, sequence card and sights; all nodes have identity rotation and unit scale, with nose -x, up +y and span z. Offline rebuild repeated with identical SHA-256 `0e556105a076cca100ef014f315a2cbc67a10abe41705ed37b1a35cfdbc7653f`. Python syntax compilation and `git diff --check` pass. Required tracked-file ignore audit printed nothing. Commit attempt blocked at `git add`: sandbox denies creation of `~/Developer/flying-game/.git/worktrees/codex-greatlakes-rig/index.lock` outside writable roots. Files remain unstaged; no commit, push, merge, deployment, or forced add occurred.
 
 ## 2026-11-02 — Codex visuals P2c + P2c-2 — NEEDS YOU
 
@@ -14403,11 +14456,11 @@ Nine after2c shots added alongside existing12. Renders and fresh Blender export 
 
 **Exact operator commands (outside sandbox, this worktree only):**
 ```sh
-cd /Users/tyfrisby/Developer/flying-game-worktrees/codex-vr-cockpit
+cd ~/Developer/flying-game-worktrees/codex-vr-cockpit
 export PYTHONDONTWRITEBYTECODE=1
 zsh tools/own_models/rebuild_vr_phase2.sh
 /Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/check_vr_phase2.py --write-report
-/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python tools/own_models/render_vr_phase2.py -- /Users/tyfrisby/Developer/flying-game-worktrees/codex-vr-cockpit/renders/phase2c
+/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python tools/own_models/render_vr_phase2.py -- ~/Developer/flying-game-worktrees/codex-vr-cockpit/renders/phase2c
 ```
 
 ## HANDOFF (Codex → Claude) — P2d / P2d-2, 2026-11-02
@@ -14519,7 +14572,7 @@ paths. No Blender/VR visual review performed. CPU entrypoint applies P1/P2c/P2d/
 
 Exact operator commands, in this worktree (CPU runs already verified):
 ```sh
-cd /Users/tyfrisby/Developer/flying-game-worktrees/codex-vr-cockpit
+cd ~/Developer/flying-game-worktrees/codex-vr-cockpit
 export PYTHONDONTWRITEBYTECODE=1
 /Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/vr_cockpit.py
 /Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/check_vr_phase2.py --write-report
@@ -15110,7 +15163,7 @@ NEEDS YOU: Ty to review the new renders and proposed lowered cockpit eyes; visua
 - Fixed rounded nose .260×.085, main .440×.150, tail .210×.065 m tires at .80/2.90/7.10 m aft of nose; .10/.12/.07 m below local keel. Each gets a fillet entering the fuselage skin, only bottom tire showing. Tail skid removed. No wheel pants or retraction.
 - Retained all 29 moving rig nodes/maps/parents, with outer hinge witnesses extended to span and tailplane/elevators raised .32 m with fin. Corrected canopy exposed old front panel protrusion: panel/gauges .13 m down/.10 m aft, pedals follow, front tow cable routed clear. Proposed eyes lowered to author (1.15,0,.18)/(-.04,0,.26), native (-1.15,.18,0)/(.04,.26,0). These require review and consistent future CG/application integration; eyepoints.json untouched.
 - Asset checks pass both liveries: graph, params/pivots/axes, surface directions/travels, pinned dimensions/wheel positions/sizes/exposures, identical paired geometry, 2145 cockpit pairs each, shell containment, head clearance 83.7/72.8 mm (66 mm threshold). Initial collisions/protrusions during adaptation were corrected, not waived. NumPy/Pillow from existing /tmp/airfoil-plot-venv; nothing installed.
-- Images: `renders/grob/v-fix/{side,three-quarter,front,gear-main,gear-nose,gear-tail,side-poh-overlay}.png` plus manifest. Side overlay uses the Twin III POH page 14/printed 1.6, uniform scale from 18 m plan span, approximate nose registration in level axes; wings omitted in overlay only. Earlier overlay used a Twin II manual and is superseded. CPU views, no Unity/device validation. Copies delivered to `/Users/tyfrisby/Developer/agent-lanes/xfer/grobfix/`.
+- Images: `renders/grob/v-fix/{side,three-quarter,front,gear-main,gear-nose,gear-tail,side-poh-overlay}.png` plus manifest. Side overlay uses the Twin III POH page 14/printed 1.6, uniform scale from 18 m plan span, approximate nose registration in level axes; wings omitted in overlay only. Earlier overlay used a Twin II manual and is superseded. CPU views, no Unity/device validation. Copies delivered to `~/Developer/agent-lanes/xfer/grobfix/`.
 - Local commit only. Glass Overlay untouched. No push/merge/deploy/install, no forced add. Required tracked-file ignore audit silent before commit. No approval marked.
 
 ## 2026-11-03 14:41 PST - Grob: switch to Florian Blanc Twin III Acro model (Ty approved)
@@ -15128,7 +15181,7 @@ NEEDS YOU: Ty, approve `renders/grob103/blanc-v1/` and the proposed visual eyes.
 - Tandem seats, sticks, basic panels and original dial art retained; fitted open liner follows the replacement shell. Front panel/instrument layers lowered .07 m. Proposed visual eyes native glTF front (-1.15,.16,0), rear (.04,.22,0); head clearance 75.4/90.9 mm against the original 66 mm threshold. Application eyepoints, physics stations, CG and runtime files untouched. Static canopies; no opening animation claim.
 - Validation passes both exported assets: graph, indices/finite vertices, UV presence, dimensions, all 29 rig origins/markers/maps/parents, independent TCDS travels and physical control directions, transparent glass, wheel sizes/stations, 2,016 independent cockpit-part pairs and 1,608 shell-envelope samples per asset. Containment uses the full exterior including the integrated wing-root skin. A fresh temporary legacy analytic build also passes its original checker, which remains available. `git diff --check` clean. .NET tests were not run: dotnet absent; nothing installed. No Unity execution.
 - CPU/Cycles renders reimport the exported GLB: side, three-quarter, front, top, main/nose/tail gear closeups and canopy. POH overlay uses Twin III PDF p14/printed 1.6, uniform 854 px : 18 m, approximate nose registration, level axes and wings omitted; no contour fitting. Remaining scan/model mismatch is visible, not marked a pass. Camera/model/reference hashes accompany the images.
-- Copies delivered to `/Users/tyfrisby/Developer/agent-lanes/xfer/grob-blanc-v1/`, including review images, GLBs, attribution, rig and editable Blender scene. Source STL remains in its original transfer folder. Local commit only; no push, merge, deploy or install. No forced add. Required tracked-file ignore audit must be silent immediately before commit; visual approval stays PENDING.
+- Copies delivered to `~/Developer/agent-lanes/xfer/grob-blanc-v1/`, including review images, GLBs, attribution, rig and editable Blender scene. Source STL remains in its original transfer folder. Local commit only; no push, merge, deploy or install. No forced add. Required tracked-file ignore audit must be silent immediately before commit; visual approval stays PENDING.
 
 PITTS-V2-MERGED
 

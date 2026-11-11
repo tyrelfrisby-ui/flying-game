@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "j3-cub-like",
-  "displayName": "J-3 Cub-like (85 hp)",
+  "displayName": "Classic Trainer",
   "structureType": "steelTube",
   "structureTypeSource": "Piper J-3 Cub: welded 4130/1025 steel-tube fuselage, fabric covered (FAA TCDS A-691; Piper J-3 parts catalogue).",
   "wingSpar": "wood",
@@ -19,18 +19,20 @@
   "liftStrutFuselageAttachSource": "Own J-3 model (build_j3_cub.py F_ST): one fitting for both V-struts on the lower longeron, 0.645 m (25.4 in) aft of the wing LE (the TCDS A-691 datum), BL 0.325 m (12.8 in), 1.16 m (45.7 in) below the wing chord line; put in this config's frame from its root wing LE (x 0.407) and chord line (z -0.75).",
   "spawnIasMs": 28,
   "mass": {
-    "massKg": 553.0,
+    "massKg": 394.443,
+    "massKgSource": "THE AEROPLANE AS FLOWN, not the placard. 680 lb = 308.443 kg empty (loading.emptyMassKg, Piper Service Memo 41) + the reference loading this config authors: one 86 kg pilot in the REAR seat, which is where a J-3 is soloed from (loading.seats), and nothing else - the tanks stay at referenceKg 0, for the certificate reason set out there. 308.443 + 86 = 394.443 kg = 869.6 lb against the 1220 lb placard. It was 553.0 kg = 1220 lb, which is FAA A-691's MAXIMUM weight to the pound, and docs/WEIGHT-AND-BALANCE.md had already flagged that every type in the fleet is authored at max gross; this one no longer is (the 1220 lb placard lives on in maxTakeoffMassKg and cgLimits, where it belongs). The number has to be empty + reference load because THREE readers disagree otherwise: AircraftLoad gives the sim empty + whatever is in the stations, while RigSolver and PracticeScenario (stall, Vy, ROC, cruise) read mass.massKg straight. Authoring the empty weight alone left the rig solving a 1220 lb Cub that the sim flew at 870 - a 29 % mass error, the same class of rig/sim mismatch as the fitted-blade propeller behind the fleet-wide hands-off divergence of 2026-11-10, docs/RIGGING.md.",
     "cg": [
       -0.054,
       0,
       0
     ],
     "inertia": {
-      "ixx": 1003,
-      "iyy": 1315,
-      "izz": 2076,
-      "ixz": 42
-    }
+      "ixx": 715.4,
+      "iyy": 938.0,
+      "izz": 1480.8,
+      "ixz": 30.0
+    },
+    "inertiaSource": "The 1220 lb inertias (1003 / 1315 / 2076, ixz 42) scaled by the mass ratio 394.443 / 553.0 = 0.71328. That holds the RADII OF GYRATION exactly where they were - Rx 0.251, Ry 0.452, Rz 0.441 against b 10.73 m and fuselage 6.83 m - and those radii are the only sourced basis the fleet has for an authored inertia (Roskam Part V bands, docs/NEW-AIRPLANE-PROTOCOL.md: Rx 0.25-0.30, Ry 0.35-0.40, Rz 0.38-0.45). The airframe did not change shape; what changed is the belief about how much of it there is, so the mass distribution is unchanged and the inertia scales with the mass. The alternative - scale the SOLVED empty airframe by the empty-mass ratio and then add the pilot and the fuel back as point masses at their published arms - was computed and comes out about 10 % lower again. It was NOT used: it piles two unmeasured assumptions (that the mass we no longer believe in was distributed exactly like the rest of the airframe, and that the empty CG does not move) on top of an inertia that was itself an estimate, and it breaks the only check anyone can repeat. loading.emptyInertia used to sit below as a second, separately authored inertia; it is not read by LoadingConfig and never was, so there was nothing to reconcile against - see the note there."
   },
   "surfaces": [
     {
@@ -1694,14 +1696,14 @@
     }
   },
   "rig": {
-    "aileronRad": 0.001832,
-    "finOffsetRad": 0.044628,
+    "aileronRad": 0.002811,
+    "finOffsetRad": 0.042703,
     "throttleFraction": 0.75,
     "altitudeM": 1219.2,
-    "tasMs": 28.968,
-    "alphaRad": 0.061207,
-    "elevatorTrimRad": -0.030298,
-    "bankRad": 0.000493
+    "tasMs": 32.193,
+    "alphaRad": -0.003621,
+    "elevatorTrimRad": 0.009474,
+    "bankRad": 0.000115
   },
   "controls": {
     "aileron": {
@@ -1962,18 +1964,9 @@
     "cgDatumM": 0.4073,
     "hasCgDatum": true,
     "_cgLimitsSource": "FAA TCDS A-691, J3C-65 (docs/WEIGHT-AND-BALANCE.md): datum = wing leading edge, body x +0.4073 (docs/pending/loading-arm-estimates.md: inner strip LE, anchor HIGH), so body x = 0.4073 - arm x 0.0254. C.G. range (+10.6) to (+22.7), one range at all weights: forward 0.13806 m, aft -0.16928 m. Gross: maxTakeoffMassKg 553.38 = 1220 lb.",
-    "emptyMassKg": 0,
-    "emptyCg": [
-      -0.0855,
-      0.0,
-      0.0485
-    ],
-    "emptyInertia": {
-      "ixx": 999.71,
-      "iyy": 1261.29,
-      "izz": 2025.59,
-      "ixz": 49.08
-    },
+    "emptyMassKg": 308.443,
+    "_emptyMassKgSource": "680 lb, the PUBLISHED figure: PIPER SERVICE MEMO 41 for the J3C-65 gives empty 680 lb against gross 1220 lb, and this config models the J3C-65. 680 x 0.45359237 = 308.443 kg. The owner started from his own aeroplane (785, then 775, then 700 lb over the course of 2026-11-11) and then ruled 'Use published weights' / 'Use book for cub too', so the Cub takes the book number like the rest of the fleet; his own last estimate was 20 lb above it, which is the useful check on both. It also beats the 765 lb standard empty weight docs/WEIGHT-AND-BALANCE.md derived from FAA TCDS A-691, and the 703 lb in a dealer listing. Before this the key was 0, which means DERIVED, and the derivation ran mass.massKg (553 kg, the 1220 lb placard) minus the 86 kg reference pilot = 467 kg = 1030 lb empty - 350 lb more aeroplane than there is. mass.massKg moved with it so empty + reference load still equals the authored mass, which is the invariant AircraftLoad is built on.",
+    "_deadLoadingKeysNote": "REMOVED HERE 2026-11-11: 'emptyCg' [-0.0855, 0.0, 0.0485] and 'emptyInertia' {999.71, 1261.29, 2025.59, ixz 49.08}, left by the 2026-10-30 weight-and-balance lane. LoadingConfig HAS NO SUCH PROPERTIES, so neither System.Text.Json nor Unity's Newtonsoft loader ever read them: the empty CG and the empty inertia are SOLVED BACKWARDS from mass.cg / mass.inertia and the reference stations, every time, by AircraftLoad's constructor. They were not a second opinion to reconcile against mass.inertia, they were dead text - and they described the 1030 lb aeroplane, so leaving them under live-looking names next to a corrected mass block is the same trap as _legacyEmptyMassKg below, which really was read and flew the Cub 206 kg light. The same two dead keys are still in great-lakes-like, pitts-s2b-like and glider-swift-s1-like.",
     "maxTakeoffMassKg": 553.38,
     "stations": [
       {
@@ -2024,6 +2017,7 @@
         ],
         "maxKg": 32.71,
         "referenceKg": 0,
+        "_referenceKgSource": "STAYS 0, and the certificate is why. The obvious move when the published empty weight landed here (2026-11-11) was to put the full 12 gallons into the reference - 45.42 L x 0.72 kg/L = 32.71 kg = 72 lb at A-691's -18 in station - so that mass.massKg described an aeroplane that can actually fly, the way c172-like does with 40 + 40 kg. It was tried and MEASURED, and for this type it is wrong. AircraftLoad solves the empty CG BACKWARDS from mass.cg and the reference stations, so declaring full tanks drags the solved empty CG 3.2 in aft: on the floats J-3 from +13.77 to +16.99 in, outside A-691's own empty-weight CG range for the 'Solo flying in rear seat only' placard (+8.7 to +16.8 on Edo 60-1320) - and the critical loading that range exists to protect, solo in the rear with the tanks run dry, then sits 1.6 in behind the +19.0 aft limit. With the tanks at 0 the J-3 is inside its certificate at every fuel state on both gear: empty CG +13.19 wheels / +13.77 floats, and the loaded CG runs +18.16 to +15.39 (wheels) and +18.00 to +15.57 (floats) from dry to full, the nose tank ahead of the datum carrying it forward as it fills. AircraftLoadTests.TheNewTanksAndBaggageAreEmptyAtSpawn pins this convention for the whole fleet (the 172 is its one carved-out exception) and calls it an open decision; this is the first PHYSICAL evidence for it. The known costs stay: AircraftLoad.BurnFuel only draws from a tank with something in it, so this aeroplane's mass does not change in flight until the player loads fuel on the landing page, and FuelGauges falls through its 'no loading authored, show full' branch.",
         "burnOrder": 0,
         "displayName": "Nose tank",
         "arm": [

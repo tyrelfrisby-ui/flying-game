@@ -1846,8 +1846,8 @@
   },
   "phase_1a2": {
     "baseline": "048d9cd",
-    "original_brief": "/Users/tyfrisby/Developer/agent-lanes/aero-playground/logs/codex-island-world-1a-20261030-1009.prompt.txt",
-    "previous_report": "/Users/tyfrisby/Developer/agent-lanes/aero-playground/logs/codex-island-world-1a-20261030-1009.last.md",
+    "original_brief": "~/Developer/agent-lanes/aero-playground/logs/codex-island-world-1a-20261030-1009.prompt.txt",
+    "previous_report": "~/Developer/agent-lanes/aero-playground/logs/codex-island-world-1a-20261030-1009.last.md",
     "source_of_truth": "Fulloriginalrestatement andTy2026-10-30 decisions1\u20139; Page toolopenfailed again.",
     "ifr_values_equal_to_baseline": true,
     "trainer_reference": {

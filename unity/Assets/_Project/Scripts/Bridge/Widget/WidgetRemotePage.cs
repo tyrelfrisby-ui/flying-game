@@ -5,6 +5,21 @@ namespace FlyingGame.Bridge.Widget
     /// Sends {"cmd":"controls",…} 20× a second while touched.</summary>
     public static class WidgetRemotePage
     {
+        /// <summary>
+        /// The page with the widget's access token written into it — served ONLY to a browser on the Mac itself.
+        ///
+        /// This is where the user reads the token off to type into a phone (Ty, 2026-11-11, rule 2). It is safe
+        /// because the browser being served is already loopback: it can read the token file, and it needs no token
+        /// to drive the widget anyway. A browser on the network gets <see cref="Html"/> instead, where the same row
+        /// is a box to type the token INTO.
+        ///
+        /// The token is 32 hex digits by construction, so there is nothing in it that needs escaping for the
+        /// JavaScript string literal it lands in — and it is checked again here rather than trusted, because
+        /// "nothing needs escaping" is the sentence that precedes most injection bugs.
+        /// </summary>
+        public static string WithToken(string token)
+            => FlyingGame.Core.WidgetAccess.IsToken(token) ? Html.Replace("/*TOKEN*/null", "\"" + token + "\"") : Html;
+
         public const string Html = @"<!doctype html><html><head><meta charset='utf-8'>
 <meta name='viewport' content='width=device-width,initial-scale=1,user-scalable=no'>
 <title>Aero Widget remote</title>
@@ -31,7 +46,13 @@ namespace FlyingGame.Bridge.Widget
  .chips .grp{width:100%;color:#888;font-size:12px;margin-top:4px}
  #fma{font:600 13px Menlo,monospace;color:#7CFC9a;padding:4px 10px}
  #hold{position:absolute;top:8px;left:10px;font:600 13px -apple-system,sans-serif;color:#ffcf5a;display:none}
+ #tok{background:#15181d;border-bottom:1px solid #333}
+ #tokv{font:600 15px Menlo,monospace;color:#4fd1ff;user-select:text;-webkit-user-select:text}
+ #toki{background:#2a2d33;color:#eee;border:1px solid #444;border-radius:8px;padding:10px 12px;font:15px Menlo,monospace;width:19em}
 </style></head><body>
+<div id='tok' class='row' style='display:none'><span class='lbl' id='tokl'></span><span id='tokv'></span>
+ <input id='toki' type='text' inputmode='latin' autocapitalize='off' autocorrect='off' spellcheck='false' placeholder='access token' style='display:none'>
+ <button id='tokb' onclick=""useToken()"" style='display:none'>Connect</button></div>
 <div id='pf' class='row' style='display:none;background:#2a2410;color:#ffcf5a'><span id='pft'></span>
  <button id='req' onclick=""requestControls()"">Request controls</button></div>
 <div id='banner' class='row' style='display:none;background:#14532d;color:#fff;font-weight:600'></div>
@@ -115,7 +136,25 @@ namespace FlyingGame.Bridge.Widget
 // This remote's identity (protocol 4): a stable id and the pilot's name, kept on this device.
 let myId=null,myName='';try{myId=localStorage.getItem('aeroRemoteId');myName=localStorage.getItem('aeroRemoteName')||'';}catch(e){}
 if(!myId){myId='web-'+Math.random().toString(36).slice(2,10);try{localStorage.setItem('aeroRemoteId',myId);}catch(e){}}
-function cmd(o){o.from=myId;o.name=myName;return fetch('/cmd',{method:'POST',body:JSON.stringify(o)}).then(r=>r.json()).catch(()=>{});}
+// THE ACCESS TOKEN (2026-11-11). The widget writes its own token into this line when it serves the page to a
+// browser ON THE MAC ITSELF, and leaves it null for every other device — so the presenter can read it off the
+// screen here, and a phone on the network has to be given it. A request from the Mac needs no token at all.
+const SHOWN=/*TOKEN*/null;
+let TOKEN='';try{TOKEN=localStorage.getItem('aeroWidgetToken')||'';}catch(e){}
+if(SHOWN){TOKEN=SHOWN;try{localStorage.setItem('aeroWidgetToken',TOKEN);}catch(e){}}
+function showToken(needed){const r=document.getElementById('tok');
+ if(SHOWN){r.style.display='flex';document.getElementById('tokl').textContent='Access token for other devices:';document.getElementById('tokv').textContent=SHOWN;return;}
+ if(!needed){r.style.display='none';return;}
+ r.style.display='flex';document.getElementById('tokl').textContent='This widget is on the network. Enter its access token (shown on the widget window):';
+ document.getElementById('tokv').textContent='';document.getElementById('toki').style.display='';document.getElementById('tokb').style.display='';
+ if(TOKEN&&!document.getElementById('toki').value)document.getElementById('toki').value=TOKEN;}
+function useToken(){TOKEN=(document.getElementById('toki').value||'').trim().toLowerCase();try{localStorage.setItem('aeroWidgetToken',TOKEN);}catch(e){}location.reload();}
+showToken(false);
+// Every request carries the token: HTTP has no connection for the widget to remember a handshake on.
+function cmd(o){o.from=myId;o.name=myName;if(TOKEN)o.token=TOKEN;
+ return fetch('/cmd',{method:'POST',body:JSON.stringify(o)}).then(r=>r.json()).then(j=>{if(j&&j.needsToken)showToken(true);return j;}).catch(()=>{});}
+// The same POST without this remote's identity: the queries the page makes once at load (hello, fleet).
+function post(o){if(TOKEN)o.token=TOKEN;return fetch('/cmd',{method:'POST',body:JSON.stringify(o)}).then(r=>r.json()).then(j=>{if(j&&j.needsToken)showToken(true);return j;}).catch(()=>({}));}
 function requestControls(){if(!myName){myName=(prompt('Your name (shown as the pilot flying)')||'').trim();if(!myName)return;try{localStorage.setItem('aeroRemoteName',myName);}catch(e){}}
  cmd({cmd:'requestControls'});document.getElementById('req').textContent='Requested…';}
 let S={},FIT=null;
@@ -133,12 +172,12 @@ function buildChips(){const c=document.getElementById('chips');c.innerHTML='';
  const d=document.createElement('div');d.className='grp';d.textContent='Insets';c.appendChild(d);
  Object.keys(INSETS).forEach(k=>{const b=document.createElement('button');b.id='in-'+k;b.textContent=INSETS[k];b.onclick=()=>cmd({cmd:'inset',name:k,show:!(S.insets||[]).includes(k)});c.appendChild(b);});}
 buildChips();
-fetch('/cmd',{method:'POST',body:JSON.stringify({cmd:'hello'})}).then(r=>r.json()).then(h=>{const sel=document.getElementById('lesson');(h.lessons||[]).forEach(l=>{const o=document.createElement('option');o.value=l.id;o.textContent=l.name;sel.appendChild(o);});window.HELLO=h;});
+post({cmd:'hello'}).then(h=>{const sel=document.getElementById('lesson');(h.lessons||[]).forEach(l=>{const o=document.createElement('option');o.value=l.id;o.textContent=l.name;sel.appendChild(o);});window.HELLO=h;});
 document.getElementById('wt').addEventListener('input',e=>{const f=(HELLO.fleet||[]).find(x=>x.id===S.aircraft);if(f&&f.loading)cmd({cmd:'loading',grossWeightLb:Math.round(f.loading.defaultLb*e.target.value)});});
 document.getElementById('cg').addEventListener('input',e=>{const f=(HELLO.fleet||[]).find(x=>x.id===S.aircraft);if(f&&f.loading)cmd({cmd:'loading',cgPercentMac:f.loading.defaultCgMac+ +e.target.value});});
 let viewOnly=false,lastPilot=null,bannerUntil=0,cwsT=0;
 ['cwsP','cwsB'].forEach(id=>document.getElementById(id).addEventListener('input',e=>{cwsT=Date.now();const o={cmd:'autopilot'};o[id==='cwsP'?'pitchDeg':'bankDeg']=+e.target.value;cmd(o);}));
-fetch('/cmd',{method:'POST',body:JSON.stringify({cmd:'fleet'})}).then(r=>r.json()).then(j=>{const s=document.getElementById('ac');(j.fleet||[]).forEach(f=>{const o=document.createElement('option');o.value=f.id;o.textContent=f.name;s.appendChild(o);});});
+post({cmd:'fleet'}).then(j=>{const s=document.getElementById('ac');(j.fleet||[]).forEach(f=>{const o=document.createElement('option');o.value=f.id;o.textContent=f.name;s.appendChild(o);});});
 const stick=document.getElementById('stick'),dot=document.getElementById('dot');let sx=0,sy=0,live=false;
 let stickT=0,rudT=0;
 function setFrom(t){stickT=Date.now();const r=stick.getBoundingClientRect();sx=Math.max(-1,Math.min(1,((t.clientX-r.left)/r.width)*2-1));sy=Math.max(-1,Math.min(1,((t.clientY-r.top)/r.height)*2-1));dot.style.left=((sx+1)*50)+'%';dot.style.top=((sy+1)*50)+'%';}
@@ -156,7 +195,8 @@ document.getElementById('rud').addEventListener('change',e=>{if(!hold)e.target.v
 function send(){const o={cmd:'controls',source:'remote',throttle:+document.getElementById('thr').value,brake:+document.getElementById('brk').value};
  if(live||Date.now()-stickT<300){o.aileron=sx;o.elevator=-sy;}if(Date.now()-rudT<300)o.rudder=+document.getElementById('rud').value;cmd(o);}
 setInterval(()=>{if(!viewOnly&&(live||Date.now()-touched<300))send();},50);
-setInterval(()=>{fetch('/state?from='+encodeURIComponent(myId)+'&name='+encodeURIComponent(myName)).then(r=>r.json()).then(s=>{
+setInterval(()=>{fetch('/state?from='+encodeURIComponent(myId)+'&name='+encodeURIComponent(myName)+(TOKEN?'&token='+encodeURIComponent(TOKEN):'')).then(r=>r.json()).then(s=>{
+ if(s&&s.needsToken){showToken(true);return;}
  S=s;Object.keys(s.show||{}).forEach(k=>{const b=document.getElementById('sh-'+k);if(b)b.classList.toggle('on',!!s.show[k]);});
  Object.keys(INSETS).forEach(k=>{const b=document.getElementById('in-'+k);if(b)b.classList.toggle('on',(s.insets||[]).includes(k));});
  const a=s.autopilot||{};document.getElementById('fma').textContent=(a.fma||'AP OFF')+(a.disc?'  · AP DISC':'');

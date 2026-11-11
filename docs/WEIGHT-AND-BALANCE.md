@@ -90,7 +90,8 @@ pretending the type does not exist, and shows the envelope with where the aeropl
 | type | source | envelope (%MAC) | loadable |
 |---|---|---|---|
 | `c172-like` | Cessna 172N POH 1979 §2.13, §6 figs 6-3/6-5; TCDS 3A12 | 21.0–35.7 at gross, 15.2 fwd below 1950 lb | yes — 1454 lb @ sta 39.6, 2300 lb gross |
-| `j3-cub-like` | FAA TCDS A-691 (J3C-65) | 14.6–34.4 | yes — 765 lb, CG derived @ sta 19.4, 1220 lb gross |
+| `j3-cub-like` | FAA TCDS A-691 (J3C-65) | 14.6–34.4 | yes — **680 lb** (Piper Service Memo 41), 1220 lb gross |
+| `j3-cub-floats-like` | FAA A-691 Rev 34 (J3C-65S), **Edo 60-1320** rows | aft limit 3.7 in tighter than the landplane | yes — 805 lb (680 + the 125 lb seaplane exchange), 1300 lb gross |
 | `pitts-s2b-like` | FAA TCDS A8SO rev 21, acrobatic category | **20.0–22.2 at 1625 lb** | limits only |
 | `great-lakes-like` | FAA TCDS A18EA rev 11 | 25.1–32.5 | limits only |
 | `glider-swift-s1-like` | EASA TCDS A.038 | 26.0–41.9 | limits only |
@@ -143,6 +144,230 @@ wing is positioned differently from the real aeroplane's, or the datum note mean
 reading. The number that would settle it is the Archer's MAC and LEMAC station, which FAA TCDS 2A13 does not carry
 (it gives the CG range in inches only) and the POH does not either. The UK CAA sheet for the PA-28-181 repeats the
 same wing-leading-edge datum without a MAC. Left out rather than fudged.
+
+### 2026-11-11: what `mass.massKg` means — the rule, found on the J-3 and meant for the other 33
+
+The owner, 2026-11-11: *"the j3 empty weight is too high"*. He owns and flies a J-3 on floats and gave three
+successive estimates from it over the day (785, 775, 700 lb), then saw the published figures and ruled **"Use
+published weights"** and **"Use book for cub too"** — so the Cub takes the book number like the rest of the fleet:
+
+* **680 lb on wheels** — **Piper Service Memo 41** for the J3C-65, empty 680 against gross 1,220, the manufacturer's
+  own figure for the type this config models. (A dealer listing says 703; the Piper memo is the better source.) His
+  own last estimate was 700, which is the useful check on both.
+* **805 lb on floats** — 680 + 125 by the exchange rule below. Not an independent number.
+
+That is the first direct evidence against "**Two things for the owner, 1**" above — every type is authored at max
+gross — and the whole fleet is said to be too heavy empty. This section is the rule the J-3 lane worked out so the
+other thirty-three can follow it without re-deriving it.
+
+**`mass.massKg` is the aeroplane AS FLOWN at the reference loading. It is not the placard, and it is not the empty
+weight.** Three readers disagree if it is anything else, and only one of them goes through `AircraftLoad`:
+
+| reader | what it uses | notes |
+|---|---|---|
+| the sim | `AircraftLoad.Properties` → `Aircraft.MassProperties` | empty + what is in the stations right now |
+| `RigSolver` | `config.Mass.MassKg` | the rig is solved for THIS weight, at 75 % power, 4,000 ft |
+| `PracticeScenario` | `config.Mass.MassKg` | Vso, Vx, Vy, ROC, best glide, 75 % cruise — every performance number the lessons quote |
+
+So authoring `loading.emptyMassKg` on its own does not make the aeroplane lighter, it makes the aeroplane and its
+rig **two different aeroplanes**. On the J-3, the empty weight alone left the rig solving a 1,220 lb Cub
+that the sim flew at 870 lb — a 29 % mass mismatch, which is the same shape of fault as the fitted-blade propeller that
+caused the fleet-wide hands-off divergence of 2026-11-10 (`docs/RIGGING.md`, "the rig was solving a propeller the
+sim does not fly"). The invariant `AircraftLoad` is built on says it plainly:
+
+```
+mass.massKg  ==  loading.emptyMassKg  +  Σ station.referenceKg
+```
+
+`AircraftLoad` solves the empty CG and the empty inertia BACKWARDS from `mass.cg` / `mass.inertia` and the
+reference stations, so whatever is authored is by definition what the aeroplane weighs when loaded as authored. Break
+that sum and the type still flies — it just flies something nobody authored.
+
+**The reference loading is one pilot in the seat the type is soloed from, and NO FUEL.** For a J-3 that is the rear
+seat, which `loading.seats` already encoded (rear `referenceKg` 86 kg, front 0 — "Types done" above works out that
+which seat the pilot sits in is worth 8 %MAC on this type), with the tanks left at `referenceKg` 0.
+
+**Full fuel in the reference was tried first, and the certificate rejected it.** The argument for it is good: a
+reference loading with dry tanks authors an aeroplane that cannot fly and is light by a full fuel load (72 lb on a
+Cub, 176 lb on a 172), `c172-like` already carries 40 + 40 kg, `AircraftLoad.BurnFuel` only moves mass when a tank
+has something in it so a type with `referenceKg` 0 **never changes weight in flight**, and `FuelGauges` falls
+through a "no loading authored, show full" branch when `FuelKg` is 0. All true, and all beaten by one measurement:
+
+> `AircraftLoad` solves the empty CG **backwards** from `mass.cg` and the reference stations. Declaring full tanks
+> at the J-3's nose station (−18 in, well forward) therefore drags the solved EMPTY CG **aft**, by 3.2 in. On the
+> floats J-3 that puts it at **+16.99 in against A-691's empty-weight CG range of (+8.7) to (+16.8)** for the
+> "Solo flying in rear seat only" placard — and the critical loading that range exists to protect, solo in the rear
+> with the tanks run dry, then sits **1.6 in behind the +19.0 aft limit**. `LandingFlowTests` caught it the moment
+> the float envelope was authored.
+
+| | empty CG | solo, tanks dry | solo, tanks full | certificate |
+|---|---|---|---|---|
+| floats, full-fuel reference | +16.99 | **+20.61** | +18.00 | empty +8.7…+16.8, loaded +10.6…+19.0 |
+| floats, dry reference | +13.77 | +18.00 | +15.57 | — all inside |
+| wheels, dry reference | +13.19 | +18.16 | +15.39 | empty +8.5…+20.3, loaded +10.6…+22.7 |
+
+Two things to carry forward. **The nose tank is ahead of the datum, so running it dry is the aft-critical case** —
+which is precisely what the certificate's solo-rear placard and its separate empty-weight CG range are about, and
+the sim now reproduces it. And **the landplane alone would never have caught this**: its envelope is wide enough
+that the full-fuel reference is legal on wheels. It took the float's 3.7 in tighter aft limit to show that the
+reference loading was wrong. So `AircraftLoadTests.TheNewTanksAndBaggageAreEmptyAtSpawn`, which pins
+`referenceKg` 0 for every authored type but the 172 and calls it an open decision, now has physical evidence behind
+it rather than just inertia — and the 172 is the **exception** to copy carefully, not the precedent.
+
+**`loading.emptyCg` and `loading.emptyInertia` are DEAD KEYS. Do not reconcile against them — delete them.**
+`LoadingConfig` has no such properties, so neither `System.Text.Json` nor Unity's Newtonsoft loader has ever read
+one. They were left by the 2026-10-30 lane, they describe whatever the aeroplane weighed that week, and under
+live-looking names beside a corrected `mass` block they are exactly the `_legacyEmptyMassKg` trap that flew the Cub
+206 kg light. Removed from `j3-cub-like` here (the floats file never had them), with the old values kept in a
+`_`-prefixed note; still present in `great-lakes-like`, `pitts-s2b-like` and `glider-swift-s1-like`.
+
+**`mass.inertia` scales with `mass.massKg` — AS AN INTERIM.** It is the LOADED inertia, and it was authored from
+Roskam Part V radii of gyration (`docs/NEW-AIRPLANE-PROTOCOL.md`). The airframe does not change shape when the
+belief about how much of it there is changes, so the mass distribution is unchanged and the cheapest defensible
+move is `I_new = I_old × massKg_new / massKg_old`, which holds every radius of gyration exactly where it was and
+keeps the only check anyone can repeat. That is what the two J-3s carry today. It is **not** what they should carry
+— see the next section.
+
+### The inertias want a component build-up, and most of it is already written
+
+Ty, 2026-11-11: *"With the new empty weights all of the inertia calls need to be redone. Start with empty and known
+weights like engines and props then estimate structure weight and arm for each item then use the weight and arm
+from the loading so inertia is as accurate as possible."*
+
+He is right about why, and the reason is structural rather than a matter of taste. **Today every inertia is authored
+as a total and `AircraftLoad` works backwards from it**: it takes `mass.inertia` about the authored CG and subtracts
+the reference load to get an empty inertia. Nothing underneath that number is physical, so it cannot survive a
+change of empty weight — which is exactly the change now being made to all 34 types. The scaling above is a
+placeholder that keeps the radii of gyration honest; it does not know where anything is.
+
+The method, in his order, which is also the order of decreasing certainty:
+
+1. **KNOWN** — looked up, never estimated: the published empty weight (`loading.emptyMassKg`), the engine's
+   published dry weight, the propeller's published weight.
+2. **ESTIMATED** — a weight *and an arm* for each structural item: wing, fuselage, tail surfaces, gear, floats,
+   systems. The residual (empty minus the known items) is what the structure must add up to.
+3. **THE LOAD** — occupants, fuel and baggage at the arms this page already establishes, parallel-axis onto the
+   empty tensor. `AircraftLoad.Add`/`Subtract` already do this and need no change.
+
+**`src/FlyingGame.Core/Wreck/AirframeHydroModel.cs` ALREADY IS steps 1 and 2, for every type in the fleet.** It was
+written for flotation, and nothing has noticed that it is also the mass model this asks for. It builds a list of
+`HydroElement`s from the config's own geometry — every wing panel, aileron, stabiliser, elevator, fin, rudder, the
+fuselage cut into nose / cabin / tail cone at the same stations the break-up uses, and each gear leg — and gives
+each one a **`MassKg`, a `Centre` in the body frame, and a `Half` box size**. Mass comes from Raymer's general
+aviation class-II buildup (*Aircraft Design: A Conceptual Approach*, Table 15.2, constants in `WaterPhysics`): wing
+12.2 kg/m² of exposed planform, tails 9.76 kg/m², fuselage 6.84 kg/m² of wetted area, gear 5.7 % and "all else"
+10 % of design gross, installed engine 1.4 × dry with dry from power, propeller from `propInertia` and the disc
+radius. The airframe items are then **scaled together by one factor so the sum lands on `AircraftLoad.EmptyMassKg`**
+— which is Ty's residual, already implemented, already called `StructureScale`.
+
+So the inertia build-up is a small tool on top of a model that exists, not a new model:
+
+```
+I_empty = Σ over elements [ m·(its own box inertia, from Half) + m·(parallel axis from Centre to the empty CG) ]
+I_loaded = I_empty + the reference load by parallel axis      (AircraftLoad already does this half)
+```
+
+Whoever builds it should put it in `RigTool`'s shape — env-var gated, printing by default, writing only on request,
+scoped by an id list — because that is this project's convention for a fleet-wide rewrite and it is what makes the
+result reproducible. Three independent checks exist and all three should be used: the Pitts' part-by-part build-up
+already gives a vertical CG of 0.147 against the authored 0.200 (whose own note says "for ground handling, not
+certified"), so reproducing 0.147 from components is strong evidence the method works; the Pitts' inertias were
+trimmed per axis against Roskam's published ranges, so a build-up should land inside them without being pushed; and
+`docs/NEW-AIRPLANE-PROTOCOL.md`'s radii-of-gyration bands are the fleet-wide sanity check. Ty's own propeller rule
+(each blade 15 % of net propeller weight, centre of mass at 25 % of DIAMETER, two-blade, +60 % on a three-blade)
+belongs in the known tier rather than being re-invented.
+
+One caution found while authoring the J-3: `AirframeHydroModel` takes `DesignGrossKg` from `config.Mass.MassKg`, and
+two of Raymer's terms (gear 5.7 %, all-else 10 %) are fractions OF IT. That was harmless while `mass.massKg` was
+every type's max gross; now that it is the aeroplane as flown, those two terms shrink with it and the structure
+scale absorbs the difference. Whoever does the build-up should decide deliberately whether those fractions should
+read the PLACARD (`loading.maxTakeoffMassKg`, which is what Raymer's W_dg means) rather than the flying weight.
+
+**`mass.cg` does NOT move.** Every type's pitch stability is tuned against it, five types are validated by landing
+inside their own certificated envelope, and this page already flags moving the tuned CG as the owner's call rather
+than a lane's. Holding `mass.cg` fixed and letting `AircraftLoad` re-solve the empty CG backwards is the
+minimum-change choice, and it is the one that keeps every existing calibration meaningful. (For the record, on the
+J-3 the physically-derived loaded CG would have moved ~4.4 cm FORWARD — about 3 %MAC more stable — which is the
+wrong direction against the "the fleet flies slightly nose-heavy" finding above.)
+
+**A floatplane's empty weight is NOT an independent number.** The owner: *"Floats use an exchange weight removing
+landing gear and adding floats."* The delta between a wheels config and its floats config is floats-installed MINUS
+gear-removed. On the J-3 that is **125 lb**: Edo 1320s run 171–182 lb installed with rigging against about 50 lb of
+wheel gear. Wipaire publish the same figure for their own installations and call it the seaplane exchange weight,
+and the owner's own pre-publication estimates (700 / 825) used exactly the same 125, which is the cross-check that
+this is the rule he means. So a floats config's `loading.emptyMassKg` is its landplane's plus the exchange — here
+680 + 125 = 805 — and if the two ever drift apart one of them is wrong. Worth stating because the two files look
+independent: nothing mechanical holds them 56.699 kg apart, so it has to be held by whoever edits them. The same
+rule is waiting for `pa18-floats-like`, `dhc2-beaver-floats-like` and `aircam-amphib-like`, none of which has a
+`loading` block yet.
+
+**What it did to the aeroplane** (`J3WeightProbe`, `J3_WEIGHT=1`; `PracticeScenario`'s own performance solve, which
+is where the lessons' numbers come from):
+
+| | wheels, before → after | floats, before → after |
+|---|---|---|
+| authored mass | 553.0 → 394.4 kg (−28.7 %) | 589.7 → 451.1 kg (−23.5 %) |
+| empty weight | 1,029.6 → 680.0 lb | 1,110.5 → 805.0 lb |
+| stall Vso | 43.2 → 36.5 mph (−15.5 %) | 43.8 → 38.3 mph (−12.6 %) |
+| climb, ROC at Vy | 537 → 991 fpm (+85 %) | 506 → 846 fpm (+67 %) |
+| 75 % cruise | 80.7 → 83.2 mph (+3.1 %) | 83.8 → 85.5 mph (+2.0 %) |
+| rig point, 75 % | 56.3 → 62.6 KTAS | 59.6 → 65.6 KTAS |
+
+Weight buys **climb**, a useful slice of **stall speed**, and almost nothing at **cruise** — which is what a
+power-limited aeroplane does, and worth knowing before the same change is made to thirty-three more types. On the
+owner's *"the j3 is noticibly slower"* (2026-11-09): the rig point answers it better than `cruise75` does, because
+`PracticeScenario.EstimateCruise75` uses a flat propeller efficiency while `RigSolver` flies the blade-element
+propeller. At 75 % the J-3's indicated speed goes **61.1 → 67.9 mph IAS** and its TAS **64.8 → 72.0 mph**, against a
+book cruise of about 73 mph — which it now essentially reaches, and could not before.
+
+It also **turned the J-3's three red tests green**: `RigTests.HandsOffLevelAtRigPower(j3-cub-like)` and
+`PowerAwayFromTheRigYawsAndRollsTheRightWay` for both J-3s had been failing for days, and the J-3 was the only type
+in the fleet still red. `J3HandsOffModeProbe` had traced that mode to the propeller disc's cross-flow terms and
+recorded "a real J-3 is directionally stable, so something here is too big". Something was — the aeroplane. At
+1,220 lb the rig point is 56.3 KTAS at α 3.51°, where the disc's destabilising cross-flow force beats a fin whose
+restoring moment follows ½ρV²; at the weight a J-3 is actually soloed at, the same 75 % gives 62.6 KTAS at α −0.21°
+and the fin wins. Nothing in the aero or propeller model was touched. **That is the lesson worth carrying to the
+other thirty-three: a handling bug on a type authored at max gross may be the weight, not the physics.**
+
+**While you are in there: the gross was right, and nothing else in the file was.** `j3-cub-floats-like` was authored
+at 589.7 kg, which is A-691's 1,300 lb seaplane gross to within 30 grams — that is how you can tell `mass.massKg`
+was a placard and not an aeroplane. It carried **no `maxTakeoffMassKg`, no `cgDatumM` and no `cgLimits` at all**, so
+nothing read that number as a placard and the landing page showed no limits for the type. All three are now
+authored from the certificate, and the landplane's envelope was NOT copied across, because it does not fit:
+
+> **FAA Aircraft Specification A-691 Rev 34, section V, Model J3C-65S** — Maximum Weight *"1160 lb. with McKinley
+> floats / 1200 lb. with Edo, Wollam or Heath floats / **1300 lb. with Edo 60-1320**, Edo 92-1400 or Wollam 1200
+> floats"*; C.G. Range *"(+10.6) to (+19.0) with Edo 60-1320 or Wollam 1200 floats and 1300 lb. maximum weight"*.
+
+Three things follow, and each is a trap avoided:
+
+1. **There are three seaplane grosses, by float model.** This aeroplane wears Edo 60-1320s, so it is the 1,300 lb
+   row. The owner: *"The j3 has several gross weights on floats by serial number and I think the highest is 1300
+   just use the highest in the tcds."*
+2. **The float aft CG limit is +19.0, 3.7 inches tighter than the landplane's +22.7.** Copying the landplane's
+   envelope across — the obvious shortcut, and both files share a datum — would have authored an aeroplane with
+   3.7 in of aft travel it does not have.
+3. **`LandingFlow.GrossOverrideKg` would have thrown the certificate away.** Floats and amphibians took
+   `LandingCatalog.FloatGrossFactor` × the landplane's placard unconditionally; on the J-3 that is 1,464 lb against
+   the certificate's 1,300. The factor is a stand-in for a figure nobody has looked up, so it now yields to a float
+   config that authors its own — otherwise an authored, sourced number sits unread, which is exactly what
+   `loading.emptyCg` was. Only this type authors one today.
+
+The datum mapping was **verified rather than assumed**: run this file's own authored arms back through
+`arm = (0.4073 − x) / 0.0254` and they come out as the certificate's own stations to three decimals — seats +9.000
+and +36.000, baggage +49.000, fuel −18.000. That is the check that the landplane's anchor carries over.
+
+And the certificate hands back one more check, the sharpest this config has — it is the one that decided the
+reference loading above. A-691 also gives an **empty-weight** CG range for this float at 1,300 lb with the
+*"Solo flying in rear seat only"* placard: **(+8.7) to (+16.8)**. The empty CG `AircraftLoad` solves backwards from
+`mass.cg` and the reference stations is body x +0.0264 = **+13.77 in**, comfortably inside, and every fuel state
+follows: solo in the rear the CG runs +18.00 with the tanks dry to +15.57 brim-full, against the +10.6…+19.0 range.
+Declare full tanks in the reference instead and the empty CG goes to +16.99, outside — which is how that decision
+got made.
+
+Against the 805 lb empty weight the aeroplane is 994.6 lb as authored, 77 % of its 1,300 lb gross, with 305 lb of
+useful load left — a passenger and most of the fuel, or full fuel and 230 lb of gear. The landplane for comparison:
+869.6 lb against its 1,220 lb placard and 350 lb left, which is the two-up Cub that really does exist.
 
 ## Still to build
 

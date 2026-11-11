@@ -38,7 +38,13 @@ namespace FlyingGame.Bridge
             RenderSettings.ambientEquatorColor = new Color(.48f, .34f, .30f);
             RenderSettings.ambientGroundColor = new Color(.30f, .29f, .34f);
             Shader.SetGlobalFloat("_SunsetOn", 1);
-            Shader.SetGlobalFloat("_WaterCalm", calm ? 1 : 0);
+            // THE WATER IS NOT THE LIGHTING'S TO DECIDE any more. _WaterCalm used to be set here from this flag,
+            // which is how a lake came to look the same in a dead calm and in 25 knots: the only thing that could
+            // change it was which lighting preset you called. The sea state now comes from the wind, through
+            // SeaSurfaceDriver -> SeaState (Ty, 2026-11-11: "water texture should change with wind ... use real
+            // physics"). `calm` therefore only means what it says: put the water in a dead calm, a mirror. A
+            // non-calm sunset leaves whatever the wind has made of the water alone.
+            if (calm) SeaSurface.Calm();
             Shader.SetGlobalVector("_SunsetSunDir", direction);
             Shader.SetGlobalVector("_BubbleSunDir", direction);
             RenderSettings.skybox = new Material(Shader.Find("FlyingGame/SunsetSky"));

@@ -30,7 +30,7 @@ RIG_TYPE=c172-like RIG_SHOTS="$PWD/renders/c172/instruments-v3" \
   -batchmode -projectPath "$PWD/unity" \
   -executeMethod FlyingGame.EditorTools.OwnRigCheck.Run \
   -logFile "$PWD/renders/c172/instruments-v3/unity-rig-check.txt"
-/Users/tyfrisby/.dotnet/dotnet test tools/FlightTests/FlightTests.csproj \
+~/.dotnet/dotnet test tools/FlightTests/FlightTests.csproj \
   --filter 'FullyQualifiedName~C172InstrumentTests|FullyQualifiedName~ModelRigTests'
 ```
 

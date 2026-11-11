@@ -447,10 +447,19 @@ public sealed class LandingFlow
         }
     }
 
-    /// <summary>The placard gross the plot uses for this configuration, or 0 for the config's own.</summary>
+    /// <summary>The placard gross the plot uses for this configuration, or 0 for the config's own.
+    ///
+    /// A FLOAT CONFIG THAT CARRIES ITS OWN PLACARD KEEPS IT. The 1.2 factor is a stand-in for types whose seaplane
+    /// gross nobody has looked up, and it is not close: on the J-3 it makes 1,464 lb where FAA A-691 Rev 34 gives
+    /// 1,300 lb on Edo 60-1320 floats, 1.066x the landplane's 1,220 and not 1.2x. Once a certificate figure is
+    /// authored as the float file's own maxTakeoffMassKg, overriding it would make an authored, sourced number
+    /// unreadable — the same trap as loading.emptyCg, which LoadingConfig never read (docs/WEIGHT-AND-BALANCE.md,
+    /// 2026-11-11). Today only j3-cub-floats-like authors one; pa18-floats-like, dhc2-beaver-floats-like and
+    /// aircam-amphib-like have no loading block at all, so they still take the factor.</summary>
     public double GrossOverrideKg()
     {
         if (Gear.Kind != GearKind.Floats && Gear.Kind != GearKind.Amphibian) return 0;
+        if ((Load?.PlacardGrossKg ?? 0) > 0) return 0;      // this configuration's own certificate wins
         var wheels = LoadFor(Family.Standard.AircraftId);
         double g = wheels?.PlacardGrossKg ?? 0;
         return g > 0 ? g * LandingCatalog.FloatGrossFactor : 0;

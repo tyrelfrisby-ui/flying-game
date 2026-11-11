@@ -159,6 +159,112 @@ public class SprayFieldTests
         Assert.Equal(0, FloatSprayVisual.CloudVisibility(outside, forward, .5358, new[] { f }));
     }
 
+    /// <summary>Every field a pilot can actually choose that has water a floatplane would be spawned onto
+    /// (FlightSimDriver.StartWater asks IslandRunways.Water for the same thing). PALH, the float variant of PANC, is in
+    /// the island spec but its start_group is "PANC float variant", so WorldTerrain.Airports — coastal and inland only —
+    /// does not list it and no session can start there; the seaplane lanes a pilot reaches are these.</summary>
+    public static IEnumerable<object[]> SeaplaneFields()
+    {
+        // AND PUT IT BACK. This used `??=` and never restored, so enumerating the theory's cases left
+        // WorldTerrain.Active pointing at a live island for every test that ran afterwards — including ones written
+        // against no terrain at all. The 2-33's braking rollout (NoseSkidTests) then started on a hillside instead of
+        // flat ground and its velocity went NaN, which read as a physics regression and is not one. A test that
+        // changes global state and does not change it back makes every later result conditional on the order the
+        // filter happened to pick.
+        WorldTerrain? saved = WorldTerrain.Active;
+        try
+        {
+            WorldTerrain.Active ??= new WorldTerrain();
+            foreach (WorldTerrain.Airport a in WorldTerrain.Airports)
+                if (IslandRunways.Water(a, 600) != null) yield return new object[] { a.Name };
+        }
+        finally { WorldTerrain.Active = saved; }
+    }
+
+    /// <summary>
+    /// DOES THE SPRAY ACTUALLY COME OUT ON THE ISLAND? (Ty has said twice that the wake and the spray are not there.)
+    /// The wake's bug was that WakeWaves looked its water up in the legacy <c>WorldTerrain.Lakes</c> table, which on the
+    /// island names nothing within five lake-radii of the seaplane lanes, so its height field was never allocated. Every
+    /// other spray test in this file sets <see cref="FloatHydro.FlatWaterOverride"/> — an infinite flat sea — so not one
+    /// of them would have caught the same mistake here. This one flies the J-3 off the ISLAND'S OWN water, spawned
+    /// exactly as FlightSimDriver spawns it, with nothing overridden, and steps the same <see cref="SprayField"/> that
+    /// FloatSplash steps, on the same (config, state, dt).
+    ///
+    /// It then asks the question the picture asks: not only "were parcels emitted" but "would any of them be DRAWN".
+    /// FloatSplash draws a speck only where <see cref="FloatSprayVisual.CloudVisibility"/> is above zero, and that reads
+    /// the static <c>FloatHydro.Floats</c> — the per-float wet/step state the last Compute left behind — so a field full
+    /// of live parcels can still draw nothing. Both counts are asserted, in the displacement taxi AND on the step.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(SeaplaneFields))]
+    public void TheIslandsOwnSeaplaneLaneThrowsSprayAndItIsDrawn(string airport)
+    {
+        // Restored to what it WAS, not to null: nulling it is just as much a change as setting it.
+        WorldTerrain? savedWorld = WorldTerrain.Active;
+        WorldTerrain.Active = new WorldTerrain();
+        try
+        {
+            AircraftConfig cfg = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "j3-cub-floats-like.json"));
+            int index = Array.FindIndex(WorldTerrain.Airports, a => a.Name == airport);
+            Assert.True(index >= 0, "no airport called " + airport);
+            WorldTerrain.Airport ap = WorldTerrain.Airports[index];
+            WorldTerrain.Lake lane = IslandRunways.Water(ap, 600) ?? throw new Exception("no water at " + ap.Name);
+            _out.WriteLine($"{ap.Name} seaplane lane ({lane.Cx:F0},{lane.Cy:F0}) surface {lane.SurfaceM:F2} m, rx {lane.Rx:F0} m — no FlatWaterOverride, the island's own WaterSurfaceAt");
+
+            var pos = new Vec3(lane.Cx - lane.Rx * 0.5, lane.Cy, -(lane.SurfaceM + cfg.Floats!.KeelZ - 0.25));
+            var ac = new Aircraft(cfg, new RigidBodyState(pos, new Quat(0, 0, 0, 1), Vec3.Zero, Vec3.Zero), ControlDeflections.Neutral);
+            var sim = new SimLoop(ac);
+            var field = new SprayField();
+
+            int taxiDrawn = 0, stepDrawn = 0, taxiParcels = 0, stepParcels = 0;
+            double peakFlux = 0;
+            // Full power, stick back until the nose stops rising then held — FloatsIslandTakeoffProbe's "ease".
+            double peak = -99, integ = 0; bool eased = false;
+            for (double t = 0; t < 30; t += 1 / 60.0)
+            {
+                RigidBodyState s = ac.State;
+                double v = s.Velocity.Length;
+                double pitch = -Math.Asin(Math.Clamp(s.Attitude.Rotate(new Vec3(1, 0, 0)).Z, -1, 1)) * 57.2958, stick;
+                if (!eased) { stick = -1; if (pitch > peak) peak = pitch; else if (peak > 6 && pitch < peak - 1) eased = true; }
+                else
+                {
+                    double target = v < 18 ? 6.0 : 10.0;
+                    integ = Math.Clamp(integ + (target - pitch) * (1 / 60.0), -20, 20);
+                    stick = Math.Clamp(-0.15 - 0.10 * (target - pitch) - 0.03 * integ, -1, 1);
+                }
+                sim.RunFor(1 / 60.0, new ControlInputs(0, stick, 0, -1.0));
+
+                // Exactly FloatSplash.Step's own two lines: the field off the live config and state, then the
+                // per-parcel visibility test against the float states the sim's Compute has just written.
+                field.Step(ac.Config, ac.State, 1 / 60.0);
+                peakFlux = Math.Max(peakFlux, field.LastFluxKgS);
+                Vec3 forward = ac.State.Attitude.Rotate(new Vec3(1, 0, 0));
+                var floats = new ReadOnlySpan<FloatHydro.FloatState>(FloatHydro.Floats, 0, 2);
+                int alive = 0, drawn = 0;
+                foreach (SprayField.Parcel p in field.Parcels)
+                {
+                    if (!p.Alive || p.Age > FloatSprayVisual.VisibleLife) continue;
+                    alive++;
+                    if (FloatSprayVisual.CloudVisibility(p.Pos, forward, ac.Config.Floats!.BeamM, floats) > 0) drawn++;
+                }
+                bool onStep = FloatSprayVisual.IsOnStep(FloatHydro.Floats[0]) || FloatSprayVisual.IsOnStep(FloatHydro.Floats[1]);
+                if (onStep) { stepParcels = Math.Max(stepParcels, alive); stepDrawn = Math.Max(stepDrawn, drawn); }
+                else if (v > 1.0) { taxiParcels = Math.Max(taxiParcels, alive); taxiDrawn = Math.Max(taxiDrawn, drawn); }
+
+                if (Math.Abs(t * 60 % 120) < 0.5)
+                    _out.WriteLine($"t={t,5:F1}s V={v * 2.237,5:F1}mph roots={field.LastRootCount,3} flux={field.LastFluxKgS,7:F2}kg/s visible={alive,4} drawn={drawn,4} onStep={onStep} wet={FloatHydro.Floats[0].Wet}");
+                if (!FloatHydro.Floats[0].Wet && !FloatHydro.Floats[1].Wet && -ac.State.Position.Z - lane.SurfaceM > 1.6) { _out.WriteLine($"airborne at {t:F1}s"); break; }
+            }
+            _out.WriteLine($"peak flux {peakFlux:F1} kg/s; plow/taxi: {taxiParcels} visible, {taxiDrawn} drawn; on the step: {stepParcels} visible, {stepDrawn} drawn");
+            Assert.True(peakFlux > 0.1, $"the island's lane threw only {peakFlux:F3} kg/s of spray");
+            Assert.True(taxiParcels > 0, "no spray parcels at all while taxiing on the island's lane");
+            Assert.True(taxiDrawn > 0, $"{taxiParcels} parcels in the air taxiing and NONE of them would be drawn");
+            Assert.True(stepParcels > 0, "no spray parcels at all on the step");
+            Assert.True(stepDrawn > 0, $"{stepParcels} parcels in the air on the step and NONE of them would be drawn");
+        }
+        finally { WorldTerrain.Active = savedWorld; }
+    }
+
     [Theory]
     [InlineData(18, 3, .13, true, 1996, 1998, 444, 446)]
     [InlineData(6, 12, .20, false, 1306, 1308, 898, 900)]

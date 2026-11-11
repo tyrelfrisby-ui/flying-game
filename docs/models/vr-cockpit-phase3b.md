@@ -47,7 +47,7 @@ Blender presets use Eye_Rear (−1.700,0,.550) and Eye_Front (−.800,0,.550), 7
 ## Operator commands
 
 ```sh
-cd /Users/tyfrisby/Developer/flying-game-worktrees/codex-vr-cockpit
+cd ~/Developer/flying-game-worktrees/codex-vr-cockpit
 export PYTHONDONTWRITEBYTECODE=1
 # NumPy + Pillow environment used for this CPU run:
 /tmp/topo-venv/bin/python tools/own_models/vr_cockpit.py

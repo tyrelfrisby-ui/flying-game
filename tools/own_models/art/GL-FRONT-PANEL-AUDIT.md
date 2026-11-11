@@ -1,6 +1,6 @@
 # Great Lakes front panel — art and model handoff
 
-Reference inspected: `/Users/tyfrisby/Developer/agent-lanes/aero-playground/gl-eye/ref-real-great-lakes-front-cockpit.jpg` (800 × 600). Model source inspected: `tools/own_models/gl_cockpit.py`, front `PANEL['F']`, shared bezel and needle construction, and rear compass construction. No model, rig, GLB, scene or C# changes made here.
+Reference inspected: `~/Developer/agent-lanes/aero-playground/gl-eye/ref-real-great-lakes-front-cockpit.jpg` (800 × 600). Model source inspected: `tools/own_models/gl_cockpit.py`, front `PANEL['F']`, shared bezel and needle construction, and rear compass construction. No model, rig, GLB, scene or C# changes made here.
 
 Photo observations below combine visible features with Ty's supplied identifications. Fine legends and the centre instrument's identity cannot be established from this photograph. Dimensions are estimates (E), not measured hardware dimensions or approved operating limitations.
 

@@ -641,7 +641,7 @@ C172 cabin: 135 objects, 104 moving bindings
 17:18:40 | INFO: Primitives created: 1
 17:18:40 | INFO: Finished glTF 2.0 export in 0.2840769290924072 s
 
-C172 EXPORT /Users/tyfrisby/Developer/flying-game-worktrees/claude-172-instruments/unity/Assets/_Project/Resources/Models/c172-like/c172-like-own.glb
+C172 EXPORT ~/Developer/flying-game-worktrees/claude-172-instruments/unity/Assets/_Project/Resources/Models/c172-like/c172-like-own.glb
 C172 parts=28 faces=2198
 C172 names=['Aileron.L', 'Aileron.R', 'Elevator.L', 'Elevator.R', 'Fin', 'Fin.Dorsal', 'Flap.L', 'Flap.R', 'Fuselage', 'Gear.Main.L.Leg', 'Gear.Main.L.Wheel', 'Gear.Main.R.Leg', 'Gear.Main.R.Wheel', 'Gear.Nose.Steer', 'Glass.Door.L', 'Glass.Door.R', 'Glass.Rear.L', 'Glass.Rear.R', 'Glass.Windscreen', 'HStab.L', 'HStab.R', 'Prop', 'Rudder', 'Spinner', 'Strut.L', 'Strut.R', 'Wing.L', 'Wing.R']
 Blender 5.2.2 LTS (hash d13f752e3b9c built 2026-09-15 01:49:19)

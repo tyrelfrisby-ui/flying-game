@@ -148,6 +148,33 @@ going and which the Cubs' measured-supported fin offsets argue for. It is not do
 blast over their tails by about 17 % and takes six `EngineStateTests` pins and a `FuelValveTests` pin with it, and
 that is a handling change for three aerobatic types rather than a bookkeeping fix.
 
+**RE-SOLVED AGAIN, 2026-11-11, for the two J-3s only** — not because the model moved, but because the AEROPLANE did.
+Both configs had been authored at their placards, 1,220 lb and 1,300 lb, and they now carry the type's published
+empty weight plus the fleet's one-pilot-in-the-rear-seat reference: 680 lb (Piper Service Memo 41) + 86 kg, and
+805 lb (that plus the 125 lb seaplane exchange) + 86 kg. `mass.massKg` is what `RigSolver` flies, so the wheels Cub
+dropped 553.0 → 394.4 kg and the floats one 589.7 → 451.1 (see `docs/WEIGHT-AND-BALANCE.md`, "what `mass.massKg`
+means"). A lighter aeroplane at the same 75 % power is a **different rig**: it flies faster and at a far lower angle
+of attack — 56.3 → 62.6 KTAS at α 3.51° → −0.21° on wheels, 59.6 → 65.6 at 3.08° → 0.00° on floats — and the
+elevator trim crosses zero with it (−1.74° → +0.54°, −1.51° → +0.55°). The fin offsets move about a tenth of a
+degree and keep their shape (+2.557 → +2.447, +2.243 → +2.314), which is the check that this is a weight change and
+not a tail change: a tail change moves the fin first. `RIG_ONLY=j3-cub-like,j3-cub-floats-like`, so the other
+thirty-two configs were not touched.
+
+This is also the second time the rig has caught a **rig/sim mismatch rather than a rig fault**, and the first time
+in the mass rather than the propeller. Authoring the J-3's empty weight ALONE — the obvious reading of the
+instruction — would have left `RigSolver` and `PracticeScenario` on `mass.massKg` (1,220 lb) while `AircraftLoad`
+handed the sim 870 lb: a 29 % mass error between the aeroplane that was rigged and the aeroplane that flies, which is
+exactly the shape of "the rig was solving a propeller the sim does not fly" above. Whatever authors an empty weight
+must move `mass.massKg` with it.
+
+**AND IT FIXED THE J-3's THREE RED TESTS.** `RigTests.HandsOffLevelAtRigPower(j3-cub-like)` and
+`PowerAwayFromTheRigYawsAndRollsTheRightWay` for both J-3s had been failing for days — the J-3 was the only type
+still red — and `J3HandsOffModeProbe` above had traced the hands-off mode to the propeller disc's cross-flow terms
+and noted "a real J-3 is directionally stable, so something here is too big". Something was: the aeroplane. At
+1,220 lb the rig point is 56.3 KTAS and α 3.51°, where the disc's destabilising cross-flow force beats a fin whose
+restoring moment follows ½ρV²; at the weight a J-3 is actually soloed at the same 75 % gives 62.6 KTAS and α
+−0.21°, and the fin wins. RigTests went 276/279 to **279/279** with no change to the aero or propeller model at all.
+
 Fin + = leading edge left. Aileron + = right-roll deflection. Elevator + = trailing edge down. 4,000 ft ISA.
 
 | aircraft | power | rig speed KTAS / KIAS | α ° | elevator trim ° | aileron rig ° | fin offset ° | bank ° |
@@ -168,8 +195,8 @@ Fin + = leading edge left. Aileron + = right-roll deflection. Elevator + = trail
 | Glasair III | 75 % | 235.3 / 221.8 | −0.38 | +0.24 | +0.438 | +0.131 | +0.310 |
 | Great Lakes | 75 % | 106.7 / 100.6 | −2.36 | +0.98 | +0.472 | +0.358 | +0.343 |
 | Hughes H-4 | 75 %, 8 × CW | 151.2 / 142.5 | −0.83 | −0.59 | +0.041 | +0.033 | +0.025 |
-| J-3 Cub floats | 75 % | 59.6 / 56.2 | +3.08 | −1.51 | +0.094 | +2.243 | +0.024 |
-| J-3 Cub | 75 % | 56.3 / 53.1 | +3.51 | −1.74 | +0.105 | +2.557 | +0.028 |
+| J-3 Cub floats | 75 % | 65.6 / 61.9 | −0.00 | +0.55 | +0.148 | +2.314 | +0.008 |
+| J-3 Cub | 75 % | 62.6 / 59.0 | −0.21 | +0.54 | +0.161 | +2.447 | +0.007 |
 | JN-4 Jenny | 75 % | 51.3 / 48.3 | +2.74 | +0.02 | +0.487 | +0.722 | +0.217 |
 | P-51D | 75 % | 209.3 / 197.2 | +0.41 | −1.33 | +0.494 | +0.194 | +0.229 |
 | PA-18 bush | 75 % | 91.2 / 86.0 | −0.33 | +0.74 | +0.255 | +0.424 | +0.306 |
@@ -220,8 +247,12 @@ How each kind was handled:
 * **Rig speeds** are in the neighbourhood of the books' 75 % cruises. The book figures here are from memory, not a
   POH in hand, and are quoted at ~8,000 ft where 75 % is full throttle on a normally aspirated engine (so their TAS is
   higher than a 4,000 ft figure): 172 here 123 KTAS (book ≈ 120–124), SR22 163 (book ≈ 170–180), PA-28 Archer 109
-  (book ≈ 120), J-3 66 KTAS (≈ 73 mph cruise), 2-33 best glide 39.5 KIAS (AFM 50 mph ≈ 43 kt). Treat as a sanity
-  check only.
+  (book ≈ 120), J-3 **62.6 KTAS = 72.0 mph** (≈ 73 mph cruise), 2-33 best glide 39.5 KIAS (AFM 50 mph ≈ 43 kt). Treat
+  as a sanity check only. The J-3's figure was 56.3 KTAS = 64.8 mph until the 2026-11-11 empty-weight re-solve above:
+  a Cub authored at its 1,220 lb placard could not reach its own book cruise, and one authored at the weight it is
+  actually soloed at lands on it — 72.0 against 73 mph, which is the closest agreement of any type on this list. That
+  is one number and it was not fitted to, but it points the same way as the owner's "the j3 is noticibly slower" of
+  2026-11-09.
 
 ## Verification
 

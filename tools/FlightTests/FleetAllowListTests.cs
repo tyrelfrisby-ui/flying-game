@@ -73,7 +73,13 @@ public sealed class FleetAllowListTests
         while (dir != null && !Directory.Exists(Path.Combine(dir, "unity", "Assets", "_Project", "Resources", "Models"))) dir = Path.GetDirectoryName(dir)!;
         Assert.NotNull(dir);
         string folder = Path.Combine(dir!, "unity", "Assets", "_Project", "Resources", "Models", "glider-2-33-like");
-        var files = Directory.GetFiles(folder).Select(Path.GetFileName).Where(f => !f!.EndsWith(".meta")).OrderBy(f => f).ToArray();
+        // MODELS, not every file in the folder. The folder also holds the licence notice this project writes
+        // beside each of its own models (2026-11-10), and a LICENSE.txt is not a 2-33 anybody can fly — listing it
+        // here made a licence notice look like a stray airframe. The point of the test is that no OTHER 2-33 mesh
+        // creeps in beside the two yellow ones, so it asks about meshes.
+        var files = Directory.GetFiles(folder).Select(Path.GetFileName)
+                             .Where(f => f!.EndsWith(".glb", StringComparison.OrdinalIgnoreCase))
+                             .OrderBy(f => f).ToArray();
         Assert.Equal(new[] { "glider-2-33-like-own-tf.glb", "glider-2-33-like-own.glb" }, files);
     }
 

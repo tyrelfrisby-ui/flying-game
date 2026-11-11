@@ -19,12 +19,17 @@ public class FloatLiftProbe
         var d = new System.IO.DirectoryInfo(System.AppContext.BaseDirectory);
         while (!System.IO.Directory.Exists(System.IO.Path.Combine(d!.FullName, "configs", "aircraft"))) d = d.Parent;
         var c = AircraftConfigLoader.LoadFromFile(System.IO.Path.Combine(d.FullName, "configs", "aircraft", "j3-cub-floats-like.json"));
+        var cWheels = AircraftConfigLoader.LoadFromFile(System.IO.Path.Combine(d.FullName, "configs", "aircraft", "j3-cub-like.json"));
         var f = c.Floats!;
-        double wFloat = (589.7 - 553.0) * 9.80665;
+        // Read from the two configs, not from the literals 589.7 / 553.0, which went stale the moment the J-3's
+        // authored mass moved (2026-11-11, the empty-weight lane). It is an EXCHANGE weight — the owner, "floats use
+        // an exchange weight removing landing gear and adding floats" — so it is floats-on minus gear-off (125 lb),
+        // and the floats' own weight is higher again (Edo 1320s: 171-182 lb installed with rigging).
+        double wFloat = (c.Mass.MassKg - cWheels.Mass.MassKg) * 9.80665;
         double v = 75.0 / 2.23694, alphaCruise = 0.95 * System.Math.PI / 180.0;   // the level-flight alpha at 75 mph
         _o.WriteLine($"floats {f.LengthM:F2} x {f.BeamM:F2} m, AR {f.BeamM / f.LengthM:F3}, planform {2 * f.LengthM * f.BeamM:F2} m2");
-        _o.WriteLine($"their own weight {wFloat:F0} N; cruise 75 mph at alpha {alphaCruise * 180 / System.Math.PI:F2} deg\n");
-        _o.WriteLine("  rigged at | float alpha |     CL    |  lift N  | share of their weight | drag N | pitching moment N.m");
+        _o.WriteLine($"exchange weight (floats on, gear off) {wFloat:F0} N; cruise 75 mph at alpha {alphaCruise * 180 / System.Math.PI:F2} deg\n");
+        _o.WriteLine("  rigged at | float alpha |     CL    |  lift N  | share of the exchange | drag N | pitching moment N.m");
         foreach (double inc in new[] { 0.0, 2.0, 4.0, 6.0, 8.0, 10.0 })
         {
             f.IncidenceDeg = inc;

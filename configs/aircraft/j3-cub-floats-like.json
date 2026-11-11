@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "j3-cub-floats-like",
-  "displayName": "J-3 Cub-like on Floats",
+  "displayName": "Classic Trainer on Floats",
   "structureType": "steelTube",
   "structureTypeSource": "Piper J-3 Cub: welded 4130/1025 steel-tube fuselage, fabric covered (FAA TCDS A-691; Piper J-3 parts catalogue).",
   "wingSpar": "wood",
@@ -19,18 +19,20 @@
   "liftStrutFuselageAttachSource": "As j3-cub-like (same airframe, same eye, Spec.SitHighM): build_j3_cub.py F_ST, 0.645 m aft of the wing LE, BL 0.325 m, 1.16 m below the chord line.",
   "spawnIasMs": 26,
   "mass": {
-    "massKg": 589.7,
+    "massKg": 451.142,
+    "massKgSource": "THE AEROPLANE AS FLOWN, not the placard. 805 lb = 365.142 kg empty (loading.emptyMassKg: the landplane's published 680 lb plus the 125 lb seaplane exchange) + the reference loading: one 86 kg pilot in the REAR seat, which is where a J-3 is soloed from, and nothing else - the tanks stay at referenceKg 0, and this aeroplane's own certificate is why (see loading.tanks). 365.142 + 86 = 451.142 kg = 994.6 lb, which is 77 % of the 1300 lb this float is certificated to (loading.maxTakeoffMassKg, FAA A-691 Rev 34 section V, Edo 60-1320). It was authored at 589.7 kg - that same 1300 lb gross to within 30 grams, which is how you can tell it was a placard and not an aeroplane. Why massKg has to move with the empty weight: AircraftLoad gives the sim empty + whatever is in the stations, while RigSolver and PracticeScenario (stall, Vy, ROC, cruise) read mass.massKg straight, so authoring the empty weight alone leaves the rig solving one aeroplane and the sim flying another - the same class of mismatch as the fitted-blade propeller behind the fleet-wide hands-off divergence of 2026-11-10, docs/RIGGING.md.",
     "cg": [
       -0.05,
       0,
       0
     ],
     "inertia": {
-      "ixx": 1117,
-      "iyy": 1502,
-      "izz": 2252,
-      "ixz": 40
-    }
+      "ixx": 854.5,
+      "iyy": 1149.1,
+      "izz": 1722.9,
+      "ixz": 30.6
+    },
+    "inertiaSource": "The 1300 lb inertias (1117 / 1502 / 2252, ixz 40) scaled by the mass ratio 451.142 / 589.7 = 0.76504, which holds the radii of gyration exactly where they were (Rx 0.257, Ry 0.467, Rz 0.445 against b 10.73 m and fuselage 6.83 m) - the Roskam Part V check in docs/NEW-AIRPLANE-PROTOCOL.md, and the only sourced basis the fleet has for an authored inertia. The float installation is unchanged hardware on the same airframe; what moved is the belief about how much airframe there is, not where it is. See j3-cub-like.json's inertiaSource for the alternative derivation that was computed and rejected."
   },
   "surfaces": [
     {
@@ -1694,14 +1696,14 @@
     }
   },
   "rig": {
-    "aileronRad": 0.001632,
-    "finOffsetRad": 0.039149,
+    "aileronRad": 0.002588,
+    "finOffsetRad": 0.040392,
     "throttleFraction": 0.75,
     "altitudeM": 1219.2,
-    "tasMs": 30.68,
-    "alphaRad": 0.05381,
-    "elevatorTrimRad": -0.026287,
-    "bankRad": 0.000411
+    "tasMs": 33.77,
+    "alphaRad": -0.000027,
+    "elevatorTrimRad": 0.009572,
+    "bankRad": 0.000136
   },
   "controls": {
     "aileron": {
@@ -2400,6 +2402,16 @@
     ]
   },
   "loading": {
+    "cgLimits": [
+      { "massKg": 589.67, "forwardM": 0.13806, "aftM": -0.0753 }
+    ],
+    "cgDatumM": 0.4073,
+    "hasCgDatum": true,
+    "maxTakeoffMassKg": 589.67,
+    "_cgLimitsSource": "FAA AIRCRAFT SPECIFICATION A-691 REV 34 (March 8, 2011), section V, Model J3C-65S, the EDO 60-1320 rows - which is the float this aeroplane wears (docs/models/j3-cub-own-PROVENANCE.md). The certificate gives THREE seaplane grosses by float model: '1160 lb. with McKinley floats / 1200 lb. with Edo, Wollam or Heath floats / 1300 lb. with Edo 60-1320, Edo 92-1400 or Wollam 1200 floats', and the owner 2026-11-11: 'The j3 has several gross weights on floats by serial number and I think the highest is 1300 just use the highest in the tcds.' So maxTakeoffMassKg 589.67 = 1300 lb, and the config's old 589.7 kg massKg was that gross to within 30 grams - it was the placard, not an aeroplane. C.G. Range at that weight is '(+10.6) to (+19.0) with Edo 60-1320 or Wollam 1200 floats and 1300 lb. maximum weight'. THE AFT LIMIT IS 3.7 INCHES TIGHTER THAN THE LANDPLANE'S +22.7, so the landplane's envelope must NOT be copied across. Mapped through the same datum as j3-cub-like (datum = wing leading edge = body x +0.4073, body x = 0.4073 - arm x 0.0254): forward 0.13806 m, aft -0.0753 m. The mapping was verified against this file's own authored arms rather than assumed - they come back as the certificate's own stations to three decimals: seats +9.000 and +36.000, baggage +49.000, fuel -18.000. The authored CG (-0.05, i.e. +18.00) sits 1.0 inch inside the aft limit.",
+    "_emptyCgCheck": "The certificate also gives an EMPTY-weight CG range for this float at 1300 lb with the 'Solo flying in rear seat only' placard: (+8.7) to (+16.8), and it is the sharpest check this config has - it is what decided the reference loading (loading.tanks). The empty CG AircraftLoad solves backwards from mass.cg and the reference stations is body x +0.0264 = +13.77 in, comfortably inside; declaring full tanks in the reference instead would have put it at +16.99, outside. With it where it is, every fuel state is legal: solo in the rear, the CG runs +18.00 with the tanks dry to +15.57 brim-full, against the +10.6 to +19.0 range above, and the nose tank ahead of the datum carries the CG FORWARD as it fills, so running the tanks dry is the aft-critical case - which is exactly what the certificate's placard and its separate empty-weight range are about. The equivalent landplane figures are +13.19 empty and +18.16 to +15.39 loaded, against its wider (+8.5) to (+20.3) and (+10.6) to (+22.7); the landplane is so much more forgiving that it would never have caught a reference loading this type cannot take.",
+    "emptyMassKg": 365.142,
+    "_emptyMassKgSource": "805 lb = 365.142 kg. THIS IS NOT AN INDEPENDENT NUMBER: it is j3-cub-like.json's published 680 lb (Piper Service Memo 41) plus 125 lb of seaplane EXCHANGE weight, the owner's own framing - 'Floats use an exchange weight removing landing gear and adding floats' - so the delta is floats-installed MINUS gear-removed, not floats-installed. Edo 1320s run 171-182 lb installed with rigging and the J-3's wheel gear is about 50 lb, which is the 125. Wipaire publish the same figure for their own installations and call it the seaplane exchange weight, and the owner's own earlier estimates (700/825) used the same 125, which is the cross-check that this is the rule he means. So this file's empty weight must stay exactly 56.699 kg above the landplane's: if the two ever drift apart, one of them is wrong. Before this the key was 0, which means DERIVED, and the derivation ran mass.massKg (589.7 kg) minus the 86 kg reference pilot = 503.7 kg = 1110 lb empty. mass.massKg moved with it so empty + reference load still equals the authored mass, which is the invariant AircraftLoad is built on.",
     "seats": [
       {
         "id": "rear",
@@ -2447,6 +2459,7 @@
         ],
         "maxKg": 32.71,
         "referenceKg": 0,
+        "_referenceKgSource": "STAYS 0, and THIS aeroplane is the one that proved it. Putting the full 12 gallons (32.71 kg at A-691's -18 in station) into the reference was tried on 2026-11-11 and measured: because AircraftLoad solves the empty CG backwards from mass.cg and the reference stations, it put this file's solved empty CG at +16.99 in, outside A-691's empty-weight CG range for the solo-rear placard on Edo 60-1320 floats (+8.7 to +16.8), and the solo-rear-with-dry-tanks case 1.6 in behind the +19.0 aft limit. The float's aft limit is 3.7 in tighter than the landplane's, so the landplane alone would never have caught it. At referenceKg 0 the empty CG is +13.77 and every fuel state is legal (+18.00 dry to +15.57 full). Full reasoning in j3-cub-like.json's _referenceKgSource.",
         "burnOrder": 0
       }
     ],

@@ -109,6 +109,18 @@ namespace FlyingGame.Bridge.Widget
         {
             if (Widget.Paused) return false;   // review is read-only: nothing moves the airplane until resume
             if (!Accepts(sourceId)) return false;
+            // NOT-A-NUMBER IS NOT A CONTROL POSITION (pre-ship audit, 2026-11-11). Everything below is clamped, and
+            // CLAMPING IS NOT A GUARD: UnityEngine.Mathf.Clamp is "if (v < min) … else if (v > max) … else return v",
+            // and NaN compares false against both, so NaN goes in and NaN comes out of what reads like a limit.
+            // Json.NET hands them over without complaint — the bare literals NaN / Infinity / -Infinity parse, the
+            // string "NaN" converts, and 1e400 reads back as +∞ (all four measured, 2026-11-11). One NaN elevator is
+            // a NaN moment, a NaN quaternion, and an aeroplane that is gone for the rest of the session.
+            // A non-finite field is treated as NOT SENT, which every field here already handles, so the control keeps
+            // the position the pilot last gave it rather than jumping to a substituted number.
+            n.Aileron = WidgetAccess.Finite(n.Aileron); n.Elevator = WidgetAccess.Finite(n.Elevator);
+            n.Rudder = WidgetAccess.Finite(n.Rudder); n.Throttle = WidgetAccess.Finite(n.Throttle);
+            n.Brake = WidgetAccess.Finite(n.Brake); n.BrakeL = WidgetAccess.Finite(n.BrakeL); n.BrakeR = WidgetAccess.Finite(n.BrakeR);
+            n.Flaps = WidgetAccess.Finite(n.Flaps); n.Spoilers = WidgetAccess.Finite(n.Spoilers);
             // Pilot stick or rudder input disconnects the autopilot (protocol 8: "AP DISC"); power alone doesn't.
             // (CWS — PIT / BANK — doesn't disconnect: the AP lets go while the pilot flies and holds the attitude on release.)
             if (Widget.Autopilot.On && (n.Aileron.HasValue || n.Elevator.HasValue || n.Rudder.HasValue)) Widget.Autopilot.PilotInput();
