@@ -28,8 +28,9 @@ namespace FlyingGame.Clouds
         public const float BoxOverDepth = 2.2f;
         /// <summary>The patch runs only while the eye is this near a site (m, beyond its half-length) and this low.</summary>
         public const float ActiveRangeM = 1500f, ActiveHeightM = 700f;
-        /// <summary>Whole sites are not drawn past this (m).</summary>
-        public const float DrawRangeM = 14000f;
+        /// <summary>Whole sites are not drawn past this (m). The one scale owns it (GraphicsQuality.Knobs
+        /// .GroundFogDrawRangeM): 14 km at High, as it always was, and 0 - no fog at all - at Minimum.</summary>
+        public static float DrawRangeM => (float)GraphicsQualityDirector.Knobs.GroundFogDrawRangeM;
         /// <summary>How far ahead of the eye, along its horizontal look, the patch is centred (m).</summary>
         public const float LookAheadM = 80f;
         /// <summary>How often the weather's fog amount per site is re-read (s), and the least amount drawn.</summary>

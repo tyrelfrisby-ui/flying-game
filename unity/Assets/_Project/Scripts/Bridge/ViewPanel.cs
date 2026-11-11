@@ -97,6 +97,41 @@ namespace FlyingGame.Bridge
             if (Replay != null && Replay.Active) { if (!DebriefPanel.IsOpen) DrawReplayBar(); }
             else if ((Options == null || !Options.IsOpen) && !Widget.GameAeroPanel.IsOpen) DrawLiveColumn();
             DrawToast();
+            DrawGraphicsWarning();
+        }
+
+        /// <summary>
+        /// THE GRAPHICS WARNING (Ty 2026-11-11): "a warning when graphics would compromise the flight model or frame
+        /// rate". It names what was given up and why — "clouds drawn closer in ...: the simulator was not keeping up
+        /// — the flight model lost 0.4 s of flying" — and it is DISMISSIBLE: OK clears it, and it clears itself after
+        /// <see cref="GraphicsWarningSeconds"/> so it cannot sit over the instruments for the rest of the flight.
+        /// It cannot nag: <see cref="FlyingGame.Core.AutoQuality"/> raises at most one, rate-limited, per downgrade.
+        /// </summary>
+        public const float GraphicsWarningSeconds = 12f;
+        private string _gfxWarning;
+        private float _gfxUntil;
+
+        private void DrawGraphicsWarning()
+        {
+            var pending = GraphicsQualityDirector.Warning;
+            if (pending.HasValue && pending.Value.Message != _gfxWarning)
+            {
+                _gfxWarning = pending.Value.Message;
+                _gfxUntil = Time.realtimeSinceStartup + GraphicsWarningSeconds;
+            }
+            if (string.IsNullOrEmpty(_gfxWarning)) return;
+            if (Time.realtimeSinceStartup > _gfxUntil) { _gfxWarning = null; GraphicsQualityDirector.DismissWarning(); return; }
+
+            float s = Mathf.Min(Screen.width, Screen.height);
+            float w = Mathf.Min(UiSurface.Width * 0.82f, s * 1.1f);
+            float textW = w - _fs * 2f;
+            float h = UiLayout.WrappedHeight(_small, _gfxWarning, textW) + _fs * 1.2f + UiLayout.ButtonH;
+            Rect line = UiLayout.NextLine(h);
+            var r = new Rect(line.center.x - w * 0.5f, line.y, w, h);
+            GUI.DrawTexture(r, _bg);
+            UiLayout.LabelWrapped(new Rect(r.x + _fs, r.y + _fs * 0.5f, textW, h - _fs * 1.2f - UiLayout.ButtonH), _gfxWarning, _small);
+            var ok = new Rect(r.center.x - w * 0.18f, r.yMax - UiLayout.ButtonH - _fs * 0.3f, w * 0.36f, UiLayout.ButtonH);
+            if (UiLayout.Button(ok, "OK", _btn)) { _gfxWarning = null; GraphicsQualityDirector.DismissWarning(); }
         }
 
         private void DrawToast()

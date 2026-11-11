@@ -38,6 +38,14 @@ namespace FlyingGame.Bridge
         public static float StreakDim => BubbleStreaks == Streaks.Long ? 0.2f : 0.6f;
         /// <summary>A streak never draws shorter than this many bubble diameters (0 = length purely from speed).</summary>
         public static float StreakMinAspect => BubbleStreaks == Streaks.Long ? 6f : 0f;
+        /// <summary>THE GRAPHICS SLIDER (Ty 2026-11-11). The pilot's CEILING, not what is drawn: the automatic
+        /// downgrade may hold the picture below this when the simulator stops keeping up, never above it, and
+        /// <see cref="GraphicsQualityDirector.Effective"/> is what is actually being drawn. Balanced on a device,
+        /// which is the water reflection the build has been shipping; High on a desktop.</summary>
+        public static FlyingGame.Core.GraphicsQuality.Tier GraphicsTier =
+            FlyingGame.Core.GraphicsQuality.DefaultFor(
+                Application.isMobilePlatform ? FlyingGame.Core.GraphicsQuality.Platform.Handheld
+                                             : FlyingGame.Core.GraphicsQuality.Platform.Desktop);
         public static string AircraftId = "glider-2-33-like";
         /// <summary>The type a fresh install starts in, and what a saved type this build does not offer falls back to.</summary>
         public const string DefaultAircraftId = "glider-2-33-like";
@@ -598,6 +606,9 @@ namespace FlyingGame.Bridge
             ShowModelIdentity  = GetBool("set.modelIdentity", ShowModelIdentity);
             ShowAtmosphereMap  = GetBool("set.atmosphereMap", ShowAtmosphereMap);
             Instruments        = (InstrumentMode)PlayerPrefs.GetInt("set.instruments", (int)Instruments);
+            GraphicsTier       = FlyingGame.Core.GraphicsQuality.Clamp(
+                                   (FlyingGame.Core.GraphicsQuality.Tier)PlayerPrefs.GetInt(
+                                       FlyingGame.Core.GraphicsQuality.PrefKey, (int)GraphicsTier));
             UseAirframeModels  = GetBool("set.airframeModels", UseAirframeModels);
             UseOwnModels       = GetBool("set.ownModels", UseOwnModels);
             Seat               = (CockpitSeat)PlayerPrefs.GetInt("set.seat", (int)Seat);
@@ -643,6 +654,7 @@ namespace FlyingGame.Bridge
             SetBool("set.modelIdentity", ShowModelIdentity);
             SetBool("set.atmosphereMap", ShowAtmosphereMap);
             PlayerPrefs.SetInt("set.instruments", (int)Instruments);
+            PlayerPrefs.SetInt(FlyingGame.Core.GraphicsQuality.PrefKey, (int)GraphicsTier);
             SetBool("set.airframeModels", UseAirframeModels);
             SetBool("set.ownModels", UseOwnModels);
             PlayerPrefs.SetInt("set.seat", (int)Seat);
@@ -672,6 +684,7 @@ namespace FlyingGame.Bridge
             ShowFlightPath = false; ShowForceVectors = false; FlightTestData = false; ShowAtmosphereMap = false;
             ShowModelIdentity = true;   // the one aid that is on by shipped default (see the field): a reset must not hide it
             Instruments = InstrumentMode.Hud; UseAirframeModels = true; UseOwnModels = false; Seat = CockpitSeat.Rear;
+            GraphicsTier = FlyingGame.Core.GraphicsQuality.DefaultFor(GraphicsQualityDirector.Platform);
             ShowOtherBadges = true; ShowOwnBadge = true; PauseWhenMenuOpen = true; NavRadios.Shown = true;
             SavePrefs();
         }

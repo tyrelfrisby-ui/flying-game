@@ -40,8 +40,7 @@ namespace FlyingGame.Bridge
             if (_glow == null)
             {
                 _glow = new Material(Shader.Find("FlyingGame/AirportGlow"));
-                string tier = QualitySettings.names[QualitySettings.GetQualityLevel()];
-                bool low = tier.IndexOf("low", System.StringComparison.OrdinalIgnoreCase) >= 0 || tier.IndexOf("fast", System.StringComparison.OrdinalIgnoreCase) >= 0;
+                bool low = GraphicsQualityDirector.Low;
                 _glow.SetFloat("_HaloPixels", low ? 1.5f : Application.isMobilePlatform ? 2.0f : 3.0f);
             }
             var batches = new Dictionary<string, B>();

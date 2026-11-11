@@ -10,20 +10,23 @@ namespace FlyingGame.Bridge
         /// <summary>Water-side props drawn into the reflection too: lane buoys, docks, the seaplane hangar (owner 2026-10-07).</summary>
         public const int PropsLayer = 9;
         public FlightSimDriver Driver;
-        public enum ReflectionQuality { Low, Balanced, High }
-        public ReflectionQuality Quality = ReflectionQuality.Balanced;
-        // 0 = tier default; explicit override is useful for comparison captures.
-        public int TextureSize = 0;
+        /// <summary>The reflection's own three-step quality enum is GONE (2026-11-11). It was one of three quality
+        /// ideas in the tree that did not know about each other, and the game never set it anyway — SceneBootstrap
+        /// added the component and left it on Balanced/768/scenery, which is why that is what
+        /// <see cref="FlyingGame.Core.GraphicsQuality.Tier.Balanced"/> says. These two fields are now written by
+        /// <see cref="GraphicsQualityDirector"/> from the one scale; an explicit non-zero size still overrides it,
+        /// which is what the editor's comparison captures want.</summary>
+        public int TextureSize = 0;                 // 0 = whatever the tier says
         public const int WaterLayer = 4;
         public bool ReflectScenery = true;
-        private int Mask => ((Quality == ReflectionQuality.Low || !ReflectScenery)
+        private int Mask => (!ReflectScenery
             ? (1 << AircraftLayer) | (1 << PropsLayer)
             : _main.cullingMask) & ~((1 << WaterLayer) | (1 << 5) | (1 << 2));
 
         private void EnsureTexture()
         {
             int size = TextureSize > 0 ? Mathf.Clamp(TextureSize, 128, 2048)
-                : Quality == ReflectionQuality.High ? 1536 : Quality == ReflectionQuality.Low ? 384 : 768;
+                : Mathf.Clamp(GraphicsQualityDirector.Knobs.ReflectionTextureSize, 128, 2048);
             int width = Mathf.Max(128, Mathf.RoundToInt(size * Mathf.Min(1, _main.aspect)));
             int height = Mathf.Max(128, Mathf.RoundToInt(size / Mathf.Max(1, _main.aspect)));
             if (_rt != null && _rt.width == width && _rt.height == height) return;
@@ -54,6 +57,7 @@ namespace FlyingGame.Bridge
             _refl.enabled = false;
             _refl.clearFlags = CameraClearFlags.SolidColor;
             _refl.backgroundColor = new Color(0, 0, 0, 0);      // alpha 0 = "no aircraft here" → sky
+            ReflectScenery = GraphicsQualityDirector.Knobs.ReflectScenery;
             EnsureTexture();
             Shader.SetGlobalFloat(ReflOnId, 0f);
         }
@@ -62,6 +66,10 @@ namespace FlyingGame.Bridge
         /// player's camera and read by the water shader in screen space, so the second view would show the first view's
         /// mirror image; and a second planar camera is the most expensive thing that could be doubled on a phone.</summary>
         public static bool SuppressedForSplit;
+
+        /// <summary>Switched off by the tier (Minimum draws no reflection at all): the water shader keeps sampling
+        /// whatever was in the target until it is told, so tell it.</summary>
+        private void OnDisable() => Shader.SetGlobalFloat(ReflOnId, 0f);
 
         private void OnPreCull()
         {

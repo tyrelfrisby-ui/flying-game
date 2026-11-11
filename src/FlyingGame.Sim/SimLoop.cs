@@ -68,9 +68,17 @@ public sealed class SimLoop
 
     /// <summary><see cref="Advance(double, ControlInputs, ref double)"/> with the caller's own cap. Returns true when the
     /// cap threw time away: the sim ran slower than real time this frame rather than make the next frame late.</summary>
+    /// <summary>Simulated seconds the cap threw away on the last <see cref="Advance(double, ControlInputs, ref double, double)"/>
+    /// (0 when it did not cap), and the running total since this loop was built. The graphics policy puts the total in
+    /// the pilot's warning: "the flight model lost 0.4 s of flying" is a fact, where "performance" is not.</summary>
+    public double LastDiscardedSec { get; private set; }
+    public double DiscardedSec { get; private set; }
+
     public bool Advance(double realDtSec, ControlInputs inputs, ref double accumulatorSec, double maxCatchUpSec)
     {
         double wanted = accumulatorSec + realDtSec;
+        LastDiscardedSec = FlyingGame.Core.SimCatchUp.Discarded(accumulatorSec, realDtSec, maxCatchUpSec);
+        DiscardedSec += LastDiscardedSec;
         accumulatorSec = Math.Min(wanted, maxCatchUpSec);
         bool capped = wanted > maxCatchUpSec;
         bool capture = Aircraft.CaptureForces;

@@ -478,6 +478,12 @@ namespace FlyingGame.Bridge
         /// increase): a steady count means the frame cannot carry the physics.</summary>
         public static int CatchUpCappedFrames;
 
+        /// <summary>Simulated seconds the catch-up cap has DISCARDED, summed over every driver. The cap does not
+        /// defer the surplus, it throws it away (<see cref="FlyingGame.Core.SimCatchUp"/>), so this is the flying the
+        /// aeroplane did not do while the pilot lived through it — the number the graphics warning quotes, and the
+        /// reason the automatic downgrade watches this signal rather than the frame rate.</summary>
+        public static double CatchUpDiscardedSec;
+
         /// <summary>Stopwatch ticks spent inside <see cref="SimLoop.Advance(double, ControlInputs, ref double, double)"/>
         /// by every driver, summed (the [QuestPerf] line and the AERO_SELFTEST=perf line report it per frame beside
         /// SimProfile's breakdown / the frame time).</summary>
@@ -493,7 +499,11 @@ namespace FlyingGame.Bridge
             // frame with up to ten physics steps made the next frame late as well, and so on.
             double cap = XrHeadset.Active ? SimLoop.HeadsetCatchUpSec(XrHeadset.CurrentRefreshHz) : SimLoop.MaxCatchUpSec;
             long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
-            if (Sim.Advance(Time.deltaTime, inputs, ref _accumulator, cap)) CatchUpCappedFrames++;
+            if (Sim.Advance(Time.deltaTime, inputs, ref _accumulator, cap))
+            {
+                CatchUpCappedFrames++;
+                CatchUpDiscardedSec += Sim.LastDiscardedSec;
+            }
             SimAdvanceTicks += System.Diagnostics.Stopwatch.GetTimestamp() - t0;
             PostStep?.Invoke(Sim.Aircraft);   // e.g. the wing runner holding the wings level on the ground roll
             // Wakes (docs/WAKE-VORTEX.md): this aeroplane sheds one from its own lift; every wake ages on the sim clock.

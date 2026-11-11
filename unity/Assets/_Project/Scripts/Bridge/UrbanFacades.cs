@@ -224,7 +224,7 @@ namespace FlyingGame.Bridge
             // new side wings. Stepped podium lots have no surface bays under the building.
             bool podiumLot=(size.y>90 && (i*7+j*3)%5<2) || ((i==2 || i==4) && (j==6 || j==9));
             if(!podiumLot && size.z<62)
-            for(int k=0;k<(QualitySettings.GetQualityLevel()<=2?4:6);k++)
+            for(int k=0;k<(GraphicsQualityDirector.UnityLevel<=2?4:6);k++)
             {
                 Vector3 car=bottom+new Vector3(-30+k*12,.30f,-40);
                 if((i+j+k)%4!=0) Car(b,car,Quaternion.Euler(0,90,0),i*29+j*7+k);
@@ -255,7 +255,7 @@ namespace FlyingGame.Bridge
                     Terrace(b,roof,extent,seed);
                     // Wing roofs have bounded service geometry; tanks remain on main roofs.
                     b.Box(roof+new Vector3(-extent.x*.25f,1.5f,-extent.z*.25f),new Vector3(4,3,5),paint*.82f);
-                    int units=QualitySettings.GetQualityLevel()<=2?1:2;
+                    int units=GraphicsQualityDirector.UnityLevel<=2?1:2;
                     for(int unit=0;unit<units;unit++)
                     {
                         Vector3 hvac=roof+new Vector3(0,1.1f,(unit-.5f)*7);
@@ -451,7 +451,7 @@ namespace FlyingGame.Bridge
                 b.Box(roof+new Vector3(0,.5f,side*(size.z*.5f-.25f)),new Vector3(size.x,1.4f,.65f),rim);
             }
             b.Box(roof+new Vector3(-size.x*.30f,2.5f,-size.z*.30f),new Vector3(8,5,9),rim*.8f);
-            int units=Mathf.Min(size.z<28?3:QualitySettings.GetQualityLevel()<=2?3:4+seed%3,
+            int units=Mathf.Min(size.z<28?3:GraphicsQualityDirector.UnityLevel<=2?3:4+seed%3,
                 size.x<30?2:6);
             for(int k=0;k<units;k++)
             {
@@ -461,7 +461,7 @@ namespace FlyingGame.Bridge
                 b.Box(hvac-Vector3.up*1.45f,new Vector3(9.5f,1.2f,8.5f),new Color(.22f,.24f,.24f));
                 b.Box(hvac,new Vector3(8.5f,3.4f,7.5f),new Color(.66f,.69f,.68f));
                 for(int fan=0;fan<2;fan++)
-                    b.Cylinder(hvac+new Vector3(fan*4f-2f,1.71f,0),1.6f,.16f,QualitySettings.GetQualityLevel()<=2?6:10,new Color(.16f,.20f,.21f));
+                    b.Cylinder(hvac+new Vector3(fan*4f-2f,1.71f,0),1.6f,.16f,GraphicsQualityDirector.UnityLevel<=2?6:10,new Color(.16f,.20f,.21f));
                 b.Box(hvac+new Vector3(0,-.3f,3.78f),new Vector3(7,1.8f,.09f),new Color(.32f,.36f,.36f));
             }
             if(style==1 && seed%3!=1)
@@ -483,7 +483,7 @@ namespace FlyingGame.Bridge
             b.Box(foot+Vector3.up*2,new Vector3(.28f,4,.28f),new Color(.28f,.22f,.16f));
             // Six sided rounded crown: three latitude rings, opaque and combined.
             Color green=Color.Lerp(new Color(.18f,.28f,.13f),new Color(.32f,.40f,.19f),(seed%7)/6f);
-            int sides=QualitySettings.GetQualityLevel()<=2?4:6;
+            int sides=GraphicsQualityDirector.UnityLevel<=2?4:6;
             for(int k=0;k<sides;k++)
             {
                 float a=k*Mathf.PI*2/sides, c=(k+1)*Mathf.PI*2/sides;
@@ -521,7 +521,7 @@ namespace FlyingGame.Bridge
             reservedRows.Add(grid.Tallest.J);
             foreach(var ring in grid.RooftopRings()) reservedRows.Add(ring.t.J);
             int count=0,emptyBlocks=0,bodyStart=b.Count;
-            bool roofChimneys=QualitySettings.GetQualityLevel()>2;
+            bool roofChimneys=GraphicsQualityDirector.UnityLevel>2;
             float area=0;
             // Sim collision, from the same foot and size that make the mesh (no second copy of the layout).
             // Unity (x,up,z) is sim (y,up,x); the district roof is a 36-degree gable ridged along the long
@@ -668,7 +668,7 @@ namespace FlyingGame.Bridge
             var usedFrontage=new List<Vector3>();
             int villageDropped=0,villagePlaced=0,lanePieces=0,laneRejected=0,networkComponents=0,cityLinks=0;
             int yardCount=0,yardTrees=0,laneLamps=0;
-            bool detailedYards=QualitySettings.GetQualityLevel()>2;
+            bool detailedYards=GraphicsQualityDirector.UnityLevel>2;
             // C14: all road/yard vertices sample the existing heightfield. No terrain,
             // forest, road registry or collision is edited. Check an ENTIRE edge before
             // submitting it: a failed crossing never leaves half a road in the field.
@@ -1250,10 +1250,10 @@ namespace FlyingGame.Bridge
                     if(grid.InPlaza(blockCentre.x,blockCentre.y)) continue;
                     Vector3 forward=(P2(across,along+1,0)-P2(across,along,0)).normalized;
                     Vector3 right=Vector3.Cross(Vector3.up,forward);
-                    int trafficStride=QualitySettings.GetQualityLevel()<=1?3:QualitySettings.GetQualityLevel()<=2?2:1;
+                    int trafficStride=GraphicsQualityDirector.UnityLevel<=1?3:GraphicsQualityDirector.UnityLevel<=2?2:1;
                     if(block%trafficStride==0)
                     foreach(int direction in new[]{-1,1})
-                    for(int lane=0;lane<(QualitySettings.GetQualityLevel()<=2?1:2);lane++)
+                    for(int lane=0;lane<(GraphicsQualityDirector.UnityLevel<=2?1:2);lane++)
                     for(int car=0;car<2;car++)
                     {
                         int seed=axis*2000+road*71+block*13+(direction+1)*5+lane*131;
@@ -1281,14 +1281,14 @@ namespace FlyingGame.Bridge
                         for(int joint=-9;joint<=9;joint++)
                             Flat(P2(across+side*18,along+joint*7,.307),S(4.7f,0,.045f),new Color(.44f,.44f,.41f));
                         // Tree rows: 14 m spacing, 28 m on Low. No alpha canopies or separate renderers.
-                        int stride=QualitySettings.GetQualityLevel()<=1?2:1;
+                        int stride=GraphicsQualityDirector.UnityLevel<=1?2:1;
                         for(int k=-4;k<=4;k+=stride) Tree(b,P2(across+side*19,along+k*14,.31),road+block+k+10);
                         // Deterministic gaps along each curb, clear of crosswalks.
-                        for(int parked=0;parked<(QualitySettings.GetQualityLevel()<=1?3:QualitySettings.GetQualityLevel()<=2?6:9);parked++)
+                        for(int parked=0;parked<(GraphicsQualityDirector.UnityLevel<=1?3:GraphicsQualityDirector.UnityLevel<=2?6:9);parked++)
                             if((road*7+block+parked)%3!=0)
                                 Car(b,P2(across+side*12.5,along-48+parked*12,.09),Quaternion.LookRotation(forward*side,Vector3.up),road*17+block+parked);
                         // Four lamps on each side per block: road pools overlap gently to reveal the grid.
-                        int lamps=QualitySettings.GetQualityLevel()<=2?2:4;
+                        int lamps=GraphicsQualityDirector.UnityLevel<=2?2:4;
                         for(int k=0;k<lamps;k++)
                         {
                             double z=along-70+(k+.5)*140/lamps;
