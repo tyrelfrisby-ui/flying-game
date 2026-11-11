@@ -88,6 +88,25 @@ is 0.17 lower looks like the decline of XFOIL's optimistic one. It is the same c
 kind, but it is more extrapolation, and if a measured post-stall curve for this shape ever appears this is the part
 it should replace.
 
+## 1g. READ THIS BEFORE COMPARING ANY OF THESE NUMBERS WITH FLIGHT: the Extra's lateral rig is broken
+
+Everything measured in §1f was flown on an aeroplane whose **lateral rig does not close** (measured 2026-11-10,
+lane/claude-backlog2). The Extra's stored rig leaves a yawing moment of **N = +7.3 × 10⁻³** at its own 4,000 ft rig
+point, where `RigTests.HandsOffLevelAtRigPower` demands under 2 × 10⁻⁴, and hands off for ten seconds it rolls
+**30.8° at a 3,000 ft start and 52.1° at 10,000 ft**. Its config's rig angles no longer match the hand-copied
+`RigTable.Rows` either (aileron 0.1244° against 0.202°, fin offset 1.1861° against 0.1548°), so
+`RigTests.ConfigRigMatchesTheHandCopiedTable` is red for it — one of seven types, all of them ones whose tails changed
+when twelve got flat-plate horizontal stabilisers and all 26 fins moved to `fin-lowAR`. RigTool was re-run and the
+literals were not re-copied, and the rigs it produced do not close against the model that flies today.
+
+**What that means for the numbers above.** The LONGITUDINAL and STATIC measurements — the lift curve, CLmax, the stall
+angle, Vs, the glide row, how much CL the break costs and how fast — do not depend on the lateral rig and stand. The
+**LATERAL** ones do: the wing drop at the break (+40°, 53 °/s), the spin rate, the snap, and any "it rolled off" report
+from a hands-off flight are contaminated by a rolling and yawing moment that has nothing to do with the wing section.
+Anyone re-measuring those should do it **after** the Extra has been re-rigged, and should not read a difference against
+this section until then. The §1f before-against-after comparison is still valid as a comparison, because the
+`extra-sym` baseline was flown on the same broken rig in the same run.
+
 ## 1e. Run 5e result: B at full thickness, with XFOIL's stall corrected against Ladson's 0012 (SUPERSEDED by 1f;
 reproducible with `--method r5e`)
 
