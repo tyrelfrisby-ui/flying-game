@@ -604,6 +604,61 @@ public sealed class StaggeredWingFailureTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// TY'S DEFECT, 2026-11-10, flying a Pitts at a 6.6° permanent set: "only the tips stay 'bent' and now they are
+    /// disjointed from the rest of the wing when they get bent as a result."
+    ///
+    /// The set was already a CURVE in <see cref="WingPanel.Shape"/> — what was wrong is that only the panel's OWN rows
+    /// (outboard of the station) were ever written with it. Measured at the time: the Pitts' inner wing flat at every
+    /// station while the outer panel sat 18.9 cm up at the station, an 18.9 cm step. And it was not a drawing fault —
+    /// the STRIPS were unmoved too, so the aeroplane was flying the kinked wing as well as being drawn as one, with
+    /// the inboard lift in the wrong place.
+    ///
+    /// So: every row of the wing side flies exactly what Shape gives it, inboard rows included, and the shape is
+    /// CONTINUOUS across the station. A step there is the defect, and this is what would catch it coming back.
+    /// </summary>
+    [Fact]
+    public void APermanentAerodynamicSetCurvesTheWholeWingWithNoStepAtTheStation()
+    {
+        Aircraft ac = At("pitts-s2b-like");
+        double limit = ac.Config.Limits.PublishedLimits().Pos;
+        Ramp(ac, 1.7 * limit, sec: 2.0);
+        Ramp(ac, 1.0, sec: 0.5, holdSec: 0.5);                 // a set, no fold, no strike
+        var all = ac.Config.Surfaces.SelectMany(sf => sf.Strips).ToList();
+        StripFlowState fs = ac.FlowStateForTests;
+
+        foreach (WingPanel p in ac.Panels)
+        {
+            Assert.True(Math.Abs(p.OverstressSetRad) > 0.003, "the pull must have left a set");
+            Assert.Equal(0.0, p.FoldRad);
+            Assert.Equal(0.0, p.StrikeBendRad, 12);
+            int inboard = 0;
+            foreach (int i in p.SideStrips)
+            {
+                Vec3 pos = all[i].PosVec();
+                Vec3 want = p.Shape(pos) - pos;
+                Assert.Equal(want.Y, fs.BendOffset![i].Y, 9);
+                Assert.Equal(want.Z, fs.BendOffset[i].Z, 9);
+                Assert.Equal(p.LocalShapeRad(Math.Abs(pos.Y)), fs.BendRad![i], 9);
+                if (Math.Abs(pos.Y) < p.BreakY)
+                {
+                    inboard++;
+                    Assert.True(Math.Abs(fs.BendOffset[i].Z) > 1e-4,
+                        $"the row at |y| {Math.Abs(pos.Y):F2} is INBOARD of the station and must have risen with the curve");
+                }
+            }
+            Assert.True(inboard > 0, $"{p.Component} has no inboard rows to check");
+
+            // NO STEP AT THE STATION: the rise a hair either side of it differs by less than a millimetre. A kink at
+            // the station — the old behaviour — puts the whole of the set's rise into that gap.
+            double InRise(double ay) => p.BreakZ - p.Shape(new Vec3(0, p.Side * ay, p.BreakZ)).Z;
+            double step = Math.Abs(InRise(p.BreakY + 0.001) - InRise(p.BreakY - 0.001));
+            _o.WriteLine($"{p.Component}: set {p.OverstressSetRad * 180 / Math.PI:F2}°, rise at the station " +
+                         $"{InRise(p.BreakY) * 100:F1} cm, step across it {step * 1000:F3} mm, {inboard} inboard rows curved");
+            Assert.True(step < 0.001, $"a {step * 100:F1} cm step at the station is the disjoint Ty reported");
+        }
+    }
+
     // ---- the law itself, as arithmetic -------------------------------------------------------------------------------
 
     // ---- what the RENDERER is promised (Ty 2026-11-10: "draw it folded and limit the aileron") -----------------------
@@ -616,6 +671,8 @@ public sealed class StaggeredWingFailureTests : IDisposable
     ///
     /// This is the half of it that a .NET test can reach. What it does NOT prove is that the Unity side compiles or that
     /// the meshes end up where the maths says: no Unity build has seen any of this.
+    /// (APermanentAerodynamicSetCurvesTheWholeWingWithNoStepAtTheStation is the same contract for a wing that has only
+    /// a g-load set, which is the case Ty found broken.)
     /// </summary>
     [Fact]
     public void EveryRowOfAFoldedWingFliesExactlyWhatWingPanelShapeGivesIt()

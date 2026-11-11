@@ -35,12 +35,32 @@ public static class SimProfile
         ContactPoints,
         /// <summary>Structure, damage, tailwheel and lag bookkeeping after the integration.</summary>
         AfterStep,
+        /// <summary>Every surface's own wake, prepared once per aero call (<see cref="Aero.TailWake"/>).</summary>
+        Wakes,
+        /// <summary>The propeller's traced jet tube, prepared once per aero call (<see cref="Aero.PropJet"/>).</summary>
+        Jet,
+        /// <summary>The propeller model, however it gets its forces: <see cref="PropModel"/>.Compute.</summary>
+        Prop,
+        /// <summary>
+        /// BLADE-ELEMENT MOMENTUM THEORY, the leaf: <see cref="BladeElement"/>.Solve — 24 annuli, 16 azimuths whenever
+        /// there is any crossflow, up to 60 inner iterations each. Nested inside <see cref="Prop"/>,
+        /// <see cref="Slipstream"/> and <see cref="Shaft"/>, which is the point: on a type with a fitted blade it is
+        /// reached from all three, and before 2026-11-09 it was reached from none of them in flight.
+        /// </summary>
+        Blade,
+        /// <summary>The propeller's wash over the tail, once a step (Aircraft.TailSlipstream) — which solves a disc.</summary>
+        Slipstream,
+        /// <summary>The propeller shaft's rpm integration, once a step (AircraftEngine.StepShaft) — which solves a disc.</summary>
+        Shaft,
+        /// <summary>The engine's own state: mixture, governor, oil, quit and caught again (AircraftEngine.UpdateEngine).</summary>
+        Engine,
         Count,
     }
 
     private static readonly string[] Names =
     {
         "step", "air", "forces", "groundEffect", "aero", "floats", "gear", "contact", "contactClear", "contactPoints", "afterStep",
+        "wakes", "jet", "prop", "blade", "slipstream", "shaft", "engine",
     };
 
     [System.ThreadStatic] private static bool _on;

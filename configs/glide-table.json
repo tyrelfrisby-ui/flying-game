@@ -5,12 +5,12 @@
     "VsoKt": 45.87,
     "SpeedKt": 59.64,
     "GlideDeg": 8.719,
-    "GlideRatio": 6.521,
+    "GlideRatio": 6.52,
     "SinkFpm": 915.5,
     "AlphaDeg": 5.147,
     "PitchDeg": -3.572,
-    "ElevatorDeg": -2.436,
-    "TrimStick": -0.1181
+    "ElevatorDeg": -2.435,
+    "TrimStick": -0.118
   },
   {
     "Id": "aircam-amphib-like",
@@ -35,8 +35,8 @@
     "SinkFpm": 960,
     "AlphaDeg": 4.031,
     "PitchDeg": -5.971,
-    "ElevatorDeg": 2.353,
-    "TrimStick": 0.1151
+    "ElevatorDeg": 2.352,
+    "TrimStick": 0.115
   },
   {
     "Id": "aircam-like",
@@ -48,8 +48,8 @@
     "SinkFpm": 839.6,
     "AlphaDeg": 5.038,
     "PitchDeg": -3.7,
-    "ElevatorDeg": -2.334,
-    "TrimStick": -0.1144
+    "ElevatorDeg": -2.333,
+    "TrimStick": -0.1143
   },
   {
     "Id": "aircam-like",
@@ -60,7 +60,7 @@
     "GlideRatio": 6.082,
     "SinkFpm": 855.2,
     "AlphaDeg": 4.506,
-    "PitchDeg": -4.83,
+    "PitchDeg": -4.831,
     "ElevatorDeg": -0.011,
     "TrimStick": -0.0304
   },
@@ -71,50 +71,50 @@
     "SpeedKt": 50.79,
     "GlideDeg": 10.09,
     "GlideRatio": 5.62,
-    "SinkFpm": 901.1,
+    "SinkFpm": 901.2,
     "AlphaDeg": 3.466,
     "PitchDeg": -6.624,
-    "ElevatorDeg": 2.867,
-    "TrimStick": 0.1336
+    "ElevatorDeg": 2.866,
+    "TrimStick": 0.1335
   },
   {
     "Id": "boeing-737-like",
     "Flaps": 0,
-    "VsoKt": 151.62,
-    "SpeedKt": 197.11,
-    "GlideDeg": 8.163,
-    "GlideRatio": 6.971,
-    "SinkFpm": 2834.3,
-    "AlphaDeg": 5.834,
-    "PitchDeg": -2.329,
-    "ElevatorDeg": -0.369,
-    "TrimStick": -0.0433
+    "VsoKt": 143.84,
+    "SpeedKt": 187,
+    "GlideDeg": 8.038,
+    "GlideRatio": 7.081,
+    "SinkFpm": 2648,
+    "AlphaDeg": 6.804,
+    "PitchDeg": -1.235,
+    "ElevatorDeg": -0.597,
+    "TrimStick": -0.0516
   },
   {
     "Id": "boeing-737-like",
     "Flaps": 0.5,
-    "VsoKt": 135.1,
-    "SpeedKt": 175.63,
-    "GlideDeg": 7.125,
-    "GlideRatio": 8,
-    "SinkFpm": 2206,
-    "AlphaDeg": 4.279,
-    "PitchDeg": -2.846,
-    "ElevatorDeg": 29.794,
-    "TrimStick": 1
+    "VsoKt": 129.27,
+    "SpeedKt": 168.05,
+    "GlideDeg": 7.725,
+    "GlideRatio": 7.372,
+    "SinkFpm": 2287.5,
+    "AlphaDeg": 5.294,
+    "PitchDeg": -2.431,
+    "ElevatorDeg": 5.148,
+    "TrimStick": 0.2155
   },
   {
     "Id": "boeing-737-like",
     "Flaps": 1,
-    "VsoKt": 252.7,
-    "SpeedKt": 328.51,
-    "GlideDeg": 7.125,
-    "GlideRatio": 8,
-    "SinkFpm": 4126.3,
-    "AlphaDeg": -7.681,
-    "PitchDeg": -14.806,
-    "ElevatorDeg": 29.794,
-    "TrimStick": 1
+    "VsoKt": 122.46,
+    "SpeedKt": 159.2,
+    "GlideDeg": 7.757,
+    "GlideRatio": 7.341,
+    "SinkFpm": 2176,
+    "AlphaDeg": 2.843,
+    "PitchDeg": -4.914,
+    "ElevatorDeg": 11.862,
+    "TrimStick": 0.4503
   },
   {
     "Id": "c172-like",
@@ -126,8 +126,8 @@
     "SinkFpm": 824.6,
     "AlphaDeg": 7.147,
     "PitchDeg": 0.293,
-    "ElevatorDeg": -4.443,
-    "TrimStick": -0.1902
+    "ElevatorDeg": -4.415,
+    "TrimStick": -0.1892
   },
   {
     "Id": "c172-like",
@@ -139,7 +139,7 @@
     "SinkFpm": 898,
     "AlphaDeg": 6.333,
     "PitchDeg": -1.424,
-    "ElevatorDeg": -1.701,
+    "ElevatorDeg": -1.7,
     "TrimStick": -0.0915
   },
   {
@@ -164,48 +164,48 @@
     "GlideRatio": 5.506,
     "SinkFpm": 1189,
     "AlphaDeg": 7.15,
-    "PitchDeg": -3.143,
-    "ElevatorDeg": -3.891,
-    "TrimStick": -0.1704
+    "PitchDeg": -3.144,
+    "ElevatorDeg": -3.832,
+    "TrimStick": -0.1683
   },
   {
     "Id": "cirrus-sr22-like",
     "Flaps": 0,
-    "VsoKt": 69.98,
-    "SpeedKt": 90.97,
-    "GlideDeg": 6.452,
-    "GlideRatio": 8.842,
-    "SinkFpm": 1035.3,
-    "AlphaDeg": 6.49,
-    "PitchDeg": 0.038,
-    "ElevatorDeg": -0.954,
-    "TrimStick": -0.0748
+    "VsoKt": 68.03,
+    "SpeedKt": 88.44,
+    "GlideDeg": 6.352,
+    "GlideRatio": 8.983,
+    "SinkFpm": 990.9,
+    "AlphaDeg": 7.084,
+    "PitchDeg": 0.732,
+    "ElevatorDeg": -1.107,
+    "TrimStick": -0.0821
   },
   {
     "Id": "cirrus-sr22-like",
     "Flaps": 0.5,
-    "VsoKt": 66.09,
-    "SpeedKt": 85.92,
-    "GlideDeg": 7.044,
-    "GlideRatio": 8.093,
-    "SinkFpm": 1066.9,
-    "AlphaDeg": 5.976,
-    "PitchDeg": -1.067,
-    "ElevatorDeg": 0.947,
-    "TrimStick": 0.0745
+    "VsoKt": 65.12,
+    "SpeedKt": 84.65,
+    "GlideDeg": 6.983,
+    "GlideRatio": 8.164,
+    "SinkFpm": 1042.3,
+    "AlphaDeg": 6.321,
+    "PitchDeg": -0.662,
+    "ElevatorDeg": 0.806,
+    "TrimStick": 0.0679
   },
   {
     "Id": "cirrus-sr22-like",
     "Flaps": 1,
-    "VsoKt": 63.17,
-    "SpeedKt": 82.13,
-    "GlideDeg": 7.694,
-    "GlideRatio": 7.402,
-    "SinkFpm": 1113.5,
-    "AlphaDeg": 5.307,
-    "PitchDeg": -2.387,
-    "ElevatorDeg": 3.179,
-    "TrimStick": 0.1791
+    "VsoKt": 62.2,
+    "SpeedKt": 80.86,
+    "GlideDeg": 7.62,
+    "GlideRatio": 7.475,
+    "SinkFpm": 1085.8,
+    "AlphaDeg": 5.701,
+    "PitchDeg": -1.918,
+    "ElevatorDeg": 2.864,
+    "TrimStick": 0.1644
   },
   {
     "Id": "dc3-like",
@@ -217,8 +217,8 @@
     "SinkFpm": 1168.4,
     "AlphaDeg": 5.787,
     "PitchDeg": -1.206,
-    "ElevatorDeg": -5.003,
-    "TrimStick": -0.2103
+    "ElevatorDeg": -4.997,
+    "TrimStick": -0.2101
   },
   {
     "Id": "dc3-like",
@@ -226,7 +226,7 @@
     "VsoKt": 68.03,
     "SpeedKt": 88.44,
     "GlideDeg": 7.388,
-    "GlideRatio": 7.713,
+    "GlideRatio": 7.712,
     "SinkFpm": 1151.7,
     "AlphaDeg": 4.51,
     "PitchDeg": -2.878,
@@ -243,8 +243,8 @@
     "SinkFpm": 1156.6,
     "AlphaDeg": 3.157,
     "PitchDeg": -4.714,
-    "ElevatorDeg": 5.454,
-    "TrimStick": 0.2264
+    "ElevatorDeg": 5.447,
+    "TrimStick": 0.2262
   },
   {
     "Id": "decathlon-8kcab-like",
@@ -255,165 +255,165 @@
     "GlideRatio": 5.716,
     "SinkFpm": 1102.6,
     "AlphaDeg": 6.87,
-    "PitchDeg": -3.054,
-    "ElevatorDeg": -2.233,
-    "TrimStick": -0.1107
+    "PitchDeg": -3.055,
+    "ElevatorDeg": -2.231,
+    "TrimStick": -0.1106
   },
   {
     "Id": "dhc2-beaver-floats-like",
     "Flaps": 0,
-    "VsoKt": 63.76,
-    "SpeedKt": 82.89,
-    "GlideDeg": 9.028,
-    "GlideRatio": 6.294,
-    "SinkFpm": 1317.1,
-    "AlphaDeg": 5.246,
-    "PitchDeg": -3.782,
-    "ElevatorDeg": -1.881,
-    "TrimStick": -0.098
+    "VsoKt": 62.79,
+    "SpeedKt": 81.62,
+    "GlideDeg": 8.914,
+    "GlideRatio": 6.375,
+    "SinkFpm": 1280.8,
+    "AlphaDeg": 5.589,
+    "PitchDeg": -3.325,
+    "ElevatorDeg": -2.111,
+    "TrimStick": -0.1063
   },
   {
     "Id": "dhc2-beaver-floats-like",
     "Flaps": 0.5,
-    "VsoKt": 58.9,
-    "SpeedKt": 76.57,
-    "GlideDeg": 9.016,
-    "GlideRatio": 6.302,
-    "SinkFpm": 1215.2,
-    "AlphaDeg": 3.813,
-    "PitchDeg": -5.203,
-    "ElevatorDeg": 4.293,
-    "TrimStick": 0.1849
+    "VsoKt": 57.93,
+    "SpeedKt": 75.3,
+    "GlideDeg": 8.919,
+    "GlideRatio": 6.372,
+    "SinkFpm": 1182.3,
+    "AlphaDeg": 4.25,
+    "PitchDeg": -4.669,
+    "ElevatorDeg": 3.942,
+    "TrimStick": 0.1723
   },
   {
     "Id": "dhc2-beaver-floats-like",
     "Flaps": 1,
-    "VsoKt": 55.01,
-    "SpeedKt": 71.51,
-    "GlideDeg": 9.419,
-    "GlideRatio": 6.028,
-    "SinkFpm": 1185.2,
-    "AlphaDeg": 2.35,
-    "PitchDeg": -7.069,
-    "ElevatorDeg": 12.001,
-    "TrimStick": 0.4551
+    "VsoKt": 54.04,
+    "SpeedKt": 70.25,
+    "GlideDeg": 9.308,
+    "GlideRatio": 6.101,
+    "SinkFpm": 1150.7,
+    "AlphaDeg": 2.876,
+    "PitchDeg": -6.433,
+    "ElevatorDeg": 10.469,
+    "TrimStick": 0.4026
   },
   {
     "Id": "dhc2-beaver-like",
     "Flaps": 0,
-    "VsoKt": 61.23,
-    "SpeedKt": 79.6,
-    "GlideDeg": 8.299,
-    "GlideRatio": 6.856,
-    "SinkFpm": 1163.5,
-    "AlphaDeg": 5.317,
-    "PitchDeg": -2.982,
-    "ElevatorDeg": -1.926,
-    "TrimStick": -0.0996
+    "VsoKt": 60.26,
+    "SpeedKt": 78.34,
+    "GlideDeg": 8.204,
+    "GlideRatio": 6.936,
+    "SinkFpm": 1132,
+    "AlphaDeg": 5.676,
+    "PitchDeg": -2.527,
+    "ElevatorDeg": -2.152,
+    "TrimStick": -0.1078
   },
   {
     "Id": "dhc2-beaver-like",
     "Flaps": 0.5,
-    "VsoKt": 57.34,
-    "SpeedKt": 74.55,
-    "GlideDeg": 8.465,
-    "GlideRatio": 6.719,
-    "SinkFpm": 1111.3,
-    "AlphaDeg": 3.543,
-    "PitchDeg": -4.922,
-    "ElevatorDeg": 4.151,
-    "TrimStick": 0.1798
+    "VsoKt": 55.4,
+    "SpeedKt": 72.02,
+    "GlideDeg": 8.301,
+    "GlideRatio": 6.854,
+    "SinkFpm": 1053,
+    "AlphaDeg": 4.443,
+    "PitchDeg": -3.858,
+    "ElevatorDeg": 3.524,
+    "TrimStick": 0.1572
   },
   {
     "Id": "dhc2-beaver-like",
     "Flaps": 1,
-    "VsoKt": 53.46,
-    "SpeedKt": 69.49,
-    "GlideDeg": 8.942,
-    "GlideRatio": 6.356,
-    "SinkFpm": 1093.8,
-    "AlphaDeg": 2.099,
-    "PitchDeg": -6.842,
-    "ElevatorDeg": 11.552,
-    "TrimStick": 0.4398
+    "VsoKt": 52.48,
+    "SpeedKt": 68.23,
+    "GlideDeg": 8.841,
+    "GlideRatio": 6.429,
+    "SinkFpm": 1062,
+    "AlphaDeg": 2.63,
+    "PitchDeg": -6.211,
+    "ElevatorDeg": 9.968,
+    "TrimStick": 0.3853
   },
   {
     "Id": "extra-300-like",
     "Flaps": 0,
     "VsoKt": 56.37,
     "SpeedKt": 73.28,
-    "GlideDeg": 9.835,
-    "GlideRatio": 5.768,
-    "SinkFpm": 1267.7,
-    "AlphaDeg": 8.243,
-    "PitchDeg": -1.592,
-    "ElevatorDeg": -5.293,
-    "TrimStick": -0.2568
+    "GlideDeg": 9.872,
+    "GlideRatio": 5.746,
+    "SinkFpm": 1272.4,
+    "AlphaDeg": 8.244,
+    "PitchDeg": -1.629,
+    "ElevatorDeg": -5.611,
+    "TrimStick": -0.2703
   },
   {
     "Id": "f86-sabre-like",
     "Flaps": 0,
-    "VsoKt": 145.79,
-    "SpeedKt": 189.52,
-    "GlideDeg": 9.128,
-    "GlideRatio": 6.224,
-    "SinkFpm": 3044.8,
-    "AlphaDeg": 6.154,
-    "PitchDeg": -2.974,
-    "ElevatorDeg": -0.327,
-    "TrimStick": -0.0418
+    "VsoKt": 138.01,
+    "SpeedKt": 179.42,
+    "GlideDeg": 8.962,
+    "GlideRatio": 6.341,
+    "SinkFpm": 2830.4,
+    "AlphaDeg": 6.893,
+    "PitchDeg": -2.069,
+    "ElevatorDeg": -0.744,
+    "TrimStick": -0.0569
   },
   {
     "Id": "f86-sabre-like",
     "Flaps": 0.5,
     "VsoKt": 122.46,
     "SpeedKt": 159.2,
-    "GlideDeg": 7.125,
-    "GlideRatio": 8,
-    "SinkFpm": 1999.7,
-    "AlphaDeg": 5.375,
-    "PitchDeg": -1.75,
-    "ElevatorDeg": 29.794,
-    "TrimStick": 1
+    "GlideDeg": 8.765,
+    "GlideRatio": 6.485,
+    "SinkFpm": 2456.8,
+    "AlphaDeg": 5.373,
+    "PitchDeg": -3.392,
+    "ElevatorDeg": 6.152,
+    "TrimStick": 0.2512
   },
   {
     "Id": "f86-sabre-like",
     "Flaps": 1,
-    "VsoKt": 349.89,
-    "SpeedKt": 454.86,
-    "GlideDeg": 7.125,
-    "GlideRatio": 8,
-    "SinkFpm": 5713.4,
-    "AlphaDeg": -6.679,
-    "PitchDeg": -13.804,
-    "ElevatorDeg": 29.794,
-    "TrimStick": 1
+    "VsoKt": 122.46,
+    "SpeedKt": 159.2,
+    "GlideDeg": 9.817,
+    "GlideRatio": 5.779,
+    "SinkFpm": 2748.8,
+    "AlphaDeg": 1.877,
+    "PitchDeg": -7.94,
+    "ElevatorDeg": 15.316,
+    "TrimStick": 0.5659
   },
   {
     "Id": "geebee-r2-like",
     "Flaps": 0,
-    "VsoKt": 76.78,
-    "SpeedKt": 99.82,
-    "GlideDeg": 11.831,
-    "GlideRatio": 4.774,
-    "SinkFpm": 2072.4,
-    "AlphaDeg": 5.672,
-    "PitchDeg": -6.159,
-    "ElevatorDeg": -3.957,
-    "TrimStick": -0.1728
+    "VsoKt": 73.87,
+    "SpeedKt": 96.03,
+    "GlideDeg": 11.427,
+    "GlideRatio": 4.947,
+    "SinkFpm": 1926.6,
+    "AlphaDeg": 6.495,
+    "PitchDeg": -4.932,
+    "ElevatorDeg": -3.349,
+    "TrimStick": -0.151
   },
   {
     "Id": "glasair3-like",
     "Flaps": 0,
     "VsoKt": 82.61,
     "SpeedKt": 107.4,
-    "GlideDeg": 8.679,
+    "GlideDeg": 8.68,
     "GlideRatio": 6.551,
-    "SinkFpm": 1641.2,
+    "SinkFpm": 1641.3,
     "AlphaDeg": 7.061,
     "PitchDeg": -1.618,
-    "ElevatorDeg": -3.378,
-    "TrimStick": -0.152
+    "ElevatorDeg": -3.245,
+    "TrimStick": -0.1472
   },
   {
     "Id": "glasair3-like",
@@ -424,7 +424,7 @@
     "GlideRatio": 6.37,
     "SinkFpm": 1547.9,
     "AlphaDeg": 6.185,
-    "PitchDeg": -2.737,
+    "PitchDeg": -2.738,
     "ElevatorDeg": -0.376,
     "TrimStick": -0.0436
   },
@@ -438,8 +438,8 @@
     "SinkFpm": 1544.4,
     "AlphaDeg": 5.124,
     "PitchDeg": -4.393,
-    "ElevatorDeg": 2.461,
-    "TrimStick": 0.1189
+    "ElevatorDeg": 2.408,
+    "TrimStick": 0.117
   },
   {
     "Id": "glider-2-33-like",
@@ -451,8 +451,8 @@
     "SinkFpm": 339.2,
     "AlphaDeg": 5.933,
     "PitchDeg": 0.578,
-    "ElevatorDeg": -0.729,
-    "TrimStick": -0.0564
+    "ElevatorDeg": -0.728,
+    "TrimStick": -0.0563
   },
   {
     "Id": "glider-eb29r-like",
@@ -464,8 +464,8 @@
     "SinkFpm": 528.4,
     "AlphaDeg": 5.598,
     "PitchDeg": 0.557,
-    "ElevatorDeg": -3.376,
-    "TrimStick": -0.1519
+    "ElevatorDeg": -3.352,
+    "TrimStick": -0.1511
   },
   {
     "Id": "glider-grob103-acro-like",
@@ -490,21 +490,21 @@
     "SinkFpm": 392.4,
     "AlphaDeg": 8.004,
     "PitchDeg": 3.117,
-    "ElevatorDeg": -2.962,
-    "TrimStick": -0.137
+    "ElevatorDeg": -2.932,
+    "TrimStick": -0.1359
   },
   {
     "Id": "great-lakes-like",
     "Flaps": 0,
     "VsoKt": 44.51,
     "SpeedKt": 57.87,
-    "GlideDeg": 7.28,
-    "GlideRatio": 7.828,
-    "SinkFpm": 742.6,
-    "AlphaDeg": 3.002,
-    "PitchDeg": -4.278,
-    "ElevatorDeg": -1.58,
-    "TrimStick": -0.0981
+    "GlideDeg": 7.313,
+    "GlideRatio": 7.792,
+    "SinkFpm": 746,
+    "AlphaDeg": 3,
+    "PitchDeg": -4.313,
+    "ElevatorDeg": -1.564,
+    "TrimStick": -0.0974
   },
   {
     "Id": "hang-glider-like",
@@ -529,8 +529,8 @@
     "SinkFpm": 949.9,
     "AlphaDeg": 5.943,
     "PitchDeg": 0.262,
-    "ElevatorDeg": -5.024,
-    "TrimStick": -0.211
+    "ElevatorDeg": -5.011,
+    "TrimStick": -0.2106
   },
   {
     "Id": "hughes-h4-like",
@@ -551,103 +551,103 @@
     "VsoKt": 64.15,
     "SpeedKt": 83.39,
     "GlideDeg": 6.876,
-    "GlideRatio": 8.293,
+    "GlideRatio": 8.292,
     "SinkFpm": 1011,
     "AlphaDeg": 3.408,
     "PitchDeg": -3.468,
-    "ElevatorDeg": 4.992,
-    "TrimStick": 0.2099
+    "ElevatorDeg": 4.98,
+    "TrimStick": 0.2095
   },
   {
     "Id": "j3-cub-floats-like",
     "Flaps": 0,
     "VsoKt": 39.07,
     "SpeedKt": 50.79,
-    "GlideDeg": 10.622,
-    "GlideRatio": 5.332,
-    "SinkFpm": 948.1,
-    "AlphaDeg": 5.321,
-    "PitchDeg": -5.3,
-    "ElevatorDeg": -4.233,
-    "TrimStick": -0.1639
+    "GlideDeg": 8.73,
+    "GlideRatio": 6.512,
+    "SinkFpm": 780.7,
+    "AlphaDeg": 5.384,
+    "PitchDeg": -3.347,
+    "ElevatorDeg": -4.281,
+    "TrimStick": -0.1654
   },
   {
     "Id": "j3-cub-like",
     "Flaps": 0,
     "VsoKt": 37.52,
     "SpeedKt": 48.77,
-    "GlideDeg": 9.261,
-    "GlideRatio": 6.133,
-    "SinkFpm": 794.9,
-    "AlphaDeg": 5.547,
-    "PitchDeg": -3.714,
-    "ElevatorDeg": -4.218,
-    "TrimStick": -0.1634
+    "GlideDeg": 9.29,
+    "GlideRatio": 6.113,
+    "SinkFpm": 797.3,
+    "AlphaDeg": 5.546,
+    "PitchDeg": -3.745,
+    "ElevatorDeg": -4.19,
+    "TrimStick": -0.1626
   },
   {
     "Id": "jn4-jenny-like",
     "Flaps": 0,
-    "VsoKt": 33.78,
-    "SpeedKt": 43.92,
-    "GlideDeg": 7.376,
-    "GlideRatio": 7.725,
-    "SinkFpm": 571,
-    "AlphaDeg": 4.933,
-    "PitchDeg": -2.443,
-    "ElevatorDeg": -1.21,
-    "TrimStick": -0.0817
+    "VsoKt": 32.81,
+    "SpeedKt": 42.66,
+    "GlideDeg": 7.25,
+    "GlideRatio": 7.861,
+    "SinkFpm": 545.1,
+    "AlphaDeg": 5.587,
+    "PitchDeg": -1.663,
+    "ElevatorDeg": -1.46,
+    "TrimStick": -0.0924
   },
   {
     "Id": "p51d-like",
     "Flaps": 0,
-    "VsoKt": 95.25,
-    "SpeedKt": 123.82,
-    "GlideDeg": 9.893,
-    "GlideRatio": 5.734,
-    "SinkFpm": 2154.5,
-    "AlphaDeg": 6.767,
-    "PitchDeg": -3.127,
-    "ElevatorDeg": -2.656,
-    "TrimStick": -0.126
+    "VsoKt": 93.3,
+    "SpeedKt": 121.3,
+    "GlideDeg": 9.764,
+    "GlideRatio": 5.811,
+    "SinkFpm": 2083.1,
+    "AlphaDeg": 7.214,
+    "PitchDeg": -2.549,
+    "ElevatorDeg": -2.735,
+    "TrimStick": -0.1288
   },
   {
     "Id": "p51d-like",
     "Flaps": 0.5,
-    "VsoKt": 87.47,
-    "SpeedKt": 113.71,
-    "GlideDeg": 10.306,
-    "GlideRatio": 5.499,
-    "SinkFpm": 2060.2,
-    "AlphaDeg": 5.379,
-    "PitchDeg": -4.927,
-    "ElevatorDeg": 1.954,
-    "TrimStick": 0.1007
+    "VsoKt": 85.53,
+    "SpeedKt": 111.19,
+    "GlideDeg": 10.195,
+    "GlideRatio": 5.561,
+    "SinkFpm": 1993,
+    "AlphaDeg": 5.957,
+    "PitchDeg": -4.238,
+    "ElevatorDeg": 1.677,
+    "TrimStick": 0.0906
   },
   {
     "Id": "p51d-like",
     "Flaps": 1,
-    "VsoKt": 80.67,
-    "SpeedKt": 104.87,
-    "GlideDeg": 11.161,
-    "GlideRatio": 5.069,
-    "SinkFpm": 2055.6,
-    "AlphaDeg": 4.227,
-    "PitchDeg": -6.934,
-    "ElevatorDeg": 7.501,
-    "TrimStick": 0.2991
+    "VsoKt": 79.7,
+    "SpeedKt": 103.61,
+    "GlideDeg": 11.101,
+    "GlideRatio": 5.097,
+    "SinkFpm": 2020.1,
+    "AlphaDeg": 4.584,
+    "PitchDeg": -6.517,
+    "ElevatorDeg": 6.51,
+    "TrimStick": 0.264
   },
   {
     "Id": "pa18-bush-like",
     "Flaps": 0,
     "VsoKt": 46.07,
     "SpeedKt": 59.89,
-    "GlideDeg": 8.596,
+    "GlideDeg": 8.597,
     "GlideRatio": 6.615,
     "SinkFpm": 906.6,
     "AlphaDeg": 5.366,
     "PitchDeg": -3.231,
-    "ElevatorDeg": -4.015,
-    "TrimStick": -0.1749
+    "ElevatorDeg": -4.011,
+    "TrimStick": -0.1747
   },
   {
     "Id": "pa18-bush-like",
@@ -667,26 +667,26 @@
     "Flaps": 1,
     "VsoKt": 40.24,
     "SpeedKt": 52.31,
-    "GlideDeg": 9.589,
+    "GlideDeg": 9.59,
     "GlideRatio": 5.919,
     "SinkFpm": 882.5,
     "AlphaDeg": 2.956,
     "PitchDeg": -6.634,
-    "ElevatorDeg": 6.587,
-    "TrimStick": 0.2667
+    "ElevatorDeg": 6.568,
+    "TrimStick": 0.2661
   },
   {
     "Id": "pa18-cub-like",
     "Flaps": 0,
     "VsoKt": 44.71,
     "SpeedKt": 58.12,
-    "GlideDeg": 8.275,
+    "GlideDeg": 8.276,
     "GlideRatio": 6.875,
-    "SinkFpm": 847.1,
+    "SinkFpm": 847.2,
     "AlphaDeg": 5.702,
     "PitchDeg": -2.574,
-    "ElevatorDeg": -4.347,
-    "TrimStick": -0.1868
+    "ElevatorDeg": -4.342,
+    "TrimStick": -0.1866
   },
   {
     "Id": "pa18-cub-like",
@@ -708,11 +708,11 @@
     "SpeedKt": 51.8,
     "GlideDeg": 9.393,
     "GlideRatio": 6.045,
-    "SinkFpm": 856.1,
+    "SinkFpm": 856.2,
     "AlphaDeg": 2.8,
-    "PitchDeg": -6.592,
-    "ElevatorDeg": 6.728,
-    "TrimStick": 0.2717
+    "PitchDeg": -6.593,
+    "ElevatorDeg": 6.709,
+    "TrimStick": 0.271
   },
   {
     "Id": "pa18-floats-like",
@@ -721,11 +721,11 @@
     "SpeedKt": 62.67,
     "GlideDeg": 8.887,
     "GlideRatio": 6.395,
-    "SinkFpm": 980.4,
+    "SinkFpm": 980.5,
     "AlphaDeg": 5.519,
-    "PitchDeg": -3.368,
-    "ElevatorDeg": -4.421,
-    "TrimStick": -0.1895
+    "PitchDeg": -3.369,
+    "ElevatorDeg": -4.419,
+    "TrimStick": -0.1894
   },
   {
     "Id": "pa18-floats-like",
@@ -733,10 +733,10 @@
     "VsoKt": 45.29,
     "SpeedKt": 58.88,
     "GlideDeg": 9.226,
-    "GlideRatio": 6.157,
-    "SinkFpm": 955.9,
+    "GlideRatio": 6.156,
+    "SinkFpm": 956,
     "AlphaDeg": 4.106,
-    "PitchDeg": -5.12,
+    "PitchDeg": -5.121,
     "ElevatorDeg": 1.311,
     "TrimStick": 0.0774
   },
@@ -749,9 +749,9 @@
     "GlideRatio": 5.77,
     "SinkFpm": 952.6,
     "AlphaDeg": 2.97,
-    "PitchDeg": -6.862,
-    "ElevatorDeg": 6.919,
-    "TrimStick": 0.2785
+    "PitchDeg": -6.863,
+    "ElevatorDeg": 6.912,
+    "TrimStick": 0.2782
   },
   {
     "Id": "pa25-pawnee-like",
@@ -762,16 +762,16 @@
     "GlideRatio": 6.558,
     "SinkFpm": 925.8,
     "AlphaDeg": 5.525,
-    "PitchDeg": -3.145,
-    "ElevatorDeg": -3.507,
-    "TrimStick": -0.1566
+    "PitchDeg": -3.146,
+    "ElevatorDeg": -3.472,
+    "TrimStick": -0.1554
   },
   {
     "Id": "pa25-pawnee-like",
     "Flaps": 0.5,
     "VsoKt": 43.74,
     "SpeedKt": 56.86,
-    "GlideDeg": 8.914,
+    "GlideDeg": 8.915,
     "GlideRatio": 6.375,
     "SinkFpm": 892.2,
     "AlphaDeg": 5.02,
@@ -782,15 +782,15 @@
   {
     "Id": "pa25-pawnee-like",
     "Flaps": 1,
-    "VsoKt": 42.76,
-    "SpeedKt": 55.59,
-    "GlideDeg": 9.522,
-    "GlideRatio": 5.961,
-    "SinkFpm": 931.4,
-    "AlphaDeg": 3.569,
-    "PitchDeg": -5.953,
-    "ElevatorDeg": 3.447,
-    "TrimStick": 0.1545
+    "VsoKt": 41.79,
+    "SpeedKt": 54.33,
+    "GlideDeg": 9.452,
+    "GlideRatio": 6.007,
+    "SinkFpm": 903.5,
+    "AlphaDeg": 4.192,
+    "PitchDeg": -5.26,
+    "ElevatorDeg": 3.117,
+    "TrimStick": 0.1426
   },
   {
     "Id": "pa28-archer-like",
@@ -841,21 +841,21 @@
     "SinkFpm": 279.9,
     "AlphaDeg": -1.161,
     "PitchDeg": -9.019,
-    "ElevatorDeg": 8.202,
-    "TrimStick": 0.4088
+    "ElevatorDeg": 8.189,
+    "TrimStick": 0.4082
   },
   {
     "Id": "pitts-s2b-like",
     "Flaps": 0,
     "VsoKt": 58.32,
     "SpeedKt": 75.81,
-    "GlideDeg": 9.976,
-    "GlideRatio": 5.685,
-    "SinkFpm": 1329.9,
-    "AlphaDeg": 6.188,
-    "PitchDeg": -3.788,
-    "ElevatorDeg": -5.114,
-    "TrimStick": -0.2332
+    "GlideDeg": 9.967,
+    "GlideRatio": 5.691,
+    "SinkFpm": 1328.8,
+    "AlphaDeg": 6.164,
+    "PitchDeg": -3.803,
+    "ElevatorDeg": -4.465,
+    "TrimStick": -0.2076
   },
   {
     "Id": "seminole-like",
@@ -867,8 +867,8 @@
     "SinkFpm": 1215.4,
     "AlphaDeg": 6.629,
     "PitchDeg": -1.522,
-    "ElevatorDeg": -1.787,
-    "TrimStick": -0.0946
+    "ElevatorDeg": -1.782,
+    "TrimStick": -0.0944
   },
   {
     "Id": "seminole-like",
@@ -880,8 +880,8 @@
     "SinkFpm": 1142.2,
     "AlphaDeg": 5.617,
     "PitchDeg": -2.661,
-    "ElevatorDeg": 2.992,
-    "TrimStick": 0.1381
+    "ElevatorDeg": 2.969,
+    "TrimStick": 0.1373
   },
   {
     "Id": "seminole-like",
@@ -893,8 +893,8 @@
     "SinkFpm": 1149.9,
     "AlphaDeg": 4.103,
     "PitchDeg": -4.658,
-    "ElevatorDeg": 8.381,
-    "TrimStick": 0.33
+    "ElevatorDeg": 7.91,
+    "TrimStick": 0.3134
   },
   {
     "Id": "stearman-pt17-like",
@@ -902,12 +902,12 @@
     "VsoKt": 46.65,
     "SpeedKt": 60.65,
     "GlideDeg": 7.651,
-    "GlideRatio": 7.445,
-    "SinkFpm": 817.6,
+    "GlideRatio": 7.444,
+    "SinkFpm": 817.7,
     "AlphaDeg": 2.799,
     "PitchDeg": -4.852,
-    "ElevatorDeg": -9.7,
-    "TrimStick": -0.376
+    "ElevatorDeg": -9.679,
+    "TrimStick": -0.3753
   },
   {
     "Id": "target-drone-like",
@@ -918,8 +918,8 @@
     "GlideRatio": 5.506,
     "SinkFpm": 1189,
     "AlphaDeg": 7.15,
-    "PitchDeg": -3.143,
-    "ElevatorDeg": -3.891,
-    "TrimStick": -0.2084
+    "PitchDeg": -3.144,
+    "ElevatorDeg": -3.832,
+    "TrimStick": -0.2057
   }
 ]

@@ -120,7 +120,7 @@ public static class LandingGear
     // Third pass (owner: "a tailwheel would never reverse a swerve"): the castor answers within a few hundredths of a
     // second (damping 0.4), so the skidding-tail moment that was cancelling the mains' swerve moment for the first 0.2 s
     // is gone; the small hard tyre's friction is half a main's.
-    public const double TailwheelCorneringPerLoad = 4.0, TailwheelMuScale = 0.5;
+    public const double TailwheelCorneringPerLoad = 4.0, TailwheelMuScale = 0.8;
     // Steering unit (owner 2026-09-13): springs to the rudder (no slack) at half the earlier
     // stiffness; swivelling past 45° UNLOCKS the steering (free castor — 45° is beyond rudder travel, so it takes rudder
     // plus side load or brake stretching the springs); it re-engages only once the wheel is back inside rudder travel
@@ -259,6 +259,55 @@ public static class LandingGear
         double runNew = System.Math.Sqrt(System.Math.Max(0.0, len * len - dz * dz));
         double side = g.Pos[1] >= qy ? 1.0 : -1.0;
         return new MathTypes.Vec3(p.X, qy + side * runNew, qz + dz);
+    }
+
+    /// <summary>
+    /// How far a leg has TURNED on its hinge (rad, + = swung UP toward the pivot) when a point of it sitting
+    /// <paramref name="run"/> out and <paramref name="drop"/> down from the pivot has risen <paramref name="rise"/>
+    /// metres. A rigid leg turns as one piece, so this one angle is the whole motion: it is the same for the axle, the
+    /// axle fitting, the tyre's contact patch and the leg tubes, and each of them rises by its OWN amount at it.
+    ///
+    /// 0 where the geometry cannot deliver that rise (no arm, or a rise that would swing the point past the pivot's own
+    /// height) — a visual asking for an impossible pose leaves the gear where the model drew it rather than invert.
+    /// </summary>
+    public static double HingeRadForRise(double run, double drop, double rise)
+    {
+        double len2 = run * run + drop * drop;
+        if (len2 < 1e-9 || run < 1e-6) return 0.0;
+        double dz = drop - rise;
+        if (dz * dz >= len2) return 0.0;                               // swung past the horizontal: not a real stroke
+        double runNew = System.Math.Sqrt(len2 - dz * dz);
+        return System.Math.Atan2(drop, run) - System.Math.Atan2(dz, runNew);
+    }
+
+    /// <summary>
+    /// The angle this leg's hinge stands at when it has compressed <paramref name="stroke"/> metres — the rotation
+    /// <see cref="ContactPointM"/> is the result of, stated as an angle instead of a point, because that is what a
+    /// DRAWN leg needs: a model's gear is one rigid piece hung on the fuselage (Gear_Pivot_L/R about Gear_HingeAxis_L/R
+    /// in our own J-3 and Great Lakes GLBs), and the only thing you can do to it that keeps the legs on their fittings
+    /// is turn it about that line.
+    ///
+    /// It is measured on the CONTACT point (the same run and drop <see cref="SplayPerM"/> and
+    /// <see cref="ContactPointM"/> use), so the contact rises by exactly <paramref name="stroke"/> at it. The axle
+    /// rises by LESS, because the tyre's radius vector is not along the arc: measured off our J-3's own GLB, the axle
+    /// sits 0.485 m below and 0.600 m out from the pivot and the contact 0.7085 m below it, so 0.100 m of axle rise is
+    /// 9.01 deg of hinge and 0.103 m of contact rise. 9.019 deg is what tools/own_models/build_j3_cub.py published on
+    /// the node as `hinge_deg_full` for `wheel_rise_full_m` 0.10, and this gives 9.014 — the model's full 3-D arc and
+    /// this planar one agree to 0.005 deg (GearVisualTests.TheHingeAngleIsTheOneTheModelPublishes).
+    ///
+    /// A DRAWN leg must not be turned by this angle about its own hinge line unless that line is square to the arc.
+    /// The J-3's is, to 1.97 deg (measured: Gear_Pivot_L -> Gear_HingeAxis_L is (-0.9994, 0.0345, 0) in the GLB), and
+    /// turning the drawn leg by this angle about THAT line lifts its contact 99.9 % of the asked stroke — nothing to
+    /// correct. The Great Lakes' axle hinges at the fuselage CENTRELINE with its compression strut running aft, and its
+    /// line is canted 35.8 deg in plan: the same angle lifts its wheel only 86-87 % as far (measured over 20-200 mm of
+    /// stroke), so its drawn leg needs 1.14-1.16 times this angle. The drawn side therefore solves its OWN angle
+    /// against its OWN measured axis for the rise this asks for; this function is the rise it has to hit, and the sim's
+    /// statement of the kinematics.
+    /// </summary>
+    public static double LegHingeRad(GearConfig g, double stroke)
+    {
+        if (stroke <= 0 || SplayPerM(g) <= 0) return 0.0;
+        return HingeRadForRise(System.Math.Abs(g.Pos[1] - g.LegPivot![1]), g.Pos[2] - g.LegPivot[2], stroke);
     }
 
     /// <summary>Tyre grip by surface, relative to the config's TireMu (dry pavement): gravel and grass hold less, the
@@ -736,12 +785,16 @@ public static class LandingGear
             // its wheels grows with the load on them. With no pivot authored this is the authored point, as before.
             // (The contact's VELOCITY is still taken at the authored point: the splay changes it by the splay times the
             // body rates, millimetres per second, and taking it here would need the stroke before the ground query.)
-            Vec3 rContact = SplayPerM(g) > 0 ? ContactPointM(g, System.Math.Max(0.0, penetration - tyreDefl)) - cg : rBody;
+            double legStrokeNow = System.Math.Max(0.0, penetration - tyreDefl);
+            Vec3 rContact = SplayPerM(g) > 0 ? ContactPointM(g, legStrokeNow) - cg : rBody;
             if (ws != null && firstStage)
             {
                 // A wheel standing in shallow water on the bed is still in the water to the ear.
                 bool onDeck = WorldDecks.All.Count > 0 && WorldDecks.DeckUnder(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z, out double deckTop)
                               && deckTop > WorldTerrain.GroundHeightAt(wheelWorld.X, wheelWorld.Y) + 1;
+                // The stroke the line above swung the contact point by, kept for the DRAWN wheel (WheelState.LegStrokeM).
+                // It is the same number the force went on at, not a second estimate of it.
+                ws.LegStrokeM = legStrokeNow;
                 ws.InContact = true; ws.LoadN = normalN; ws.Surface = surface; ws.Brake01 = wheelBrake;
                 ws.TyreLoadN = normalN; ws.PatchWorld = wheelWorld;
                 ws.OverWater = overWater;

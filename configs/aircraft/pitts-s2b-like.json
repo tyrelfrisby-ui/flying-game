@@ -2382,6 +2382,7 @@
     },
     "airspeed": {
       "units": "mph",
+      "_unitsSource": "Ty t897u, and TCDS A8SO rev 28 publishes the S-2B's Vne 212 and Vno/Va 154 in mph CAS (Q099).",
       "scaleMin": 40,
       "scaleMax": 240,
       "arcs": {

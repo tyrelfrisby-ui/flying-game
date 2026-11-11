@@ -59,7 +59,11 @@ namespace FlyingGame.Bridge
             if (_driver == null || _driver.Sim == null) return;
             Vector3 nose = _driver.transform.forward;
             float heading = (Mathf.Atan2(nose.x, nose.z) * Mathf.Rad2Deg + 360) % 360;
-            string readout = $"{_driver.IasMs * 1.9438:F0} kt  {_driver.AltitudeM * 3.28084:F0} ft  {heading:000}°";
+            // The headset's world HUD reads the same unit as the aeroplane's own dial (Core AsiUnits; Ty 2026-11-10,
+            // "by era and category"). iOS, Mac and Quest show the same aeroplane, so they show the same unit.
+            var asiUnit = FlyingGame.Core.Instruments.AsiUnits.For(_driver.Sim.Aircraft.Config);
+            double ias = FlyingGame.Core.Instruments.AsiUnits.FromMs(asiUnit, _driver.IasMs);
+            string readout = $"{ias:F0} {FlyingGame.Core.Instruments.AsiUnits.Word(asiUnit)}  {_driver.AltitudeM * 3.28084:F0} ft  {heading:000}°";
             if (_text.text == readout) return;
             _text.characterSize = .01f;
             _text.text = readout;

@@ -178,7 +178,10 @@ public class InstrumentLibraryTests
             Assert.True(File.Exists(Path.Combine(Repo, "unity", "Assets", "_Project", "Resources", s.FaceArt + ".png")), s.FaceArt);
         }
         // the literals, by hand
-        Assert.Equal(("mph", 40.0, 200.0), (InstrumentLibrary.C172Asi.Units, InstrumentLibrary.C172Asi.Floor, InstrumentLibrary.C172Asi.Top));
+        // The 172 read mph until 2026-11-10: Ty's fleet rule ("vintage, fabric and experimental read mph; anything
+        // certified modern or turbine reads knots") put it in knots, and its face turned out to be a 172M's mph arcs
+        // under a 172S's knots red line (configs/aircraft/c172-like.json instruments.airspeed._arcsWasWrong).
+        Assert.Equal(("kt", 40.0, 200.0), (InstrumentLibrary.C172Asi.Units, InstrumentLibrary.C172Asi.Floor, InstrumentLibrary.C172Asi.Top));
         Assert.Equal(("kt", 40.0, 260.0), (InstrumentLibrary.ExtraAsi.Units, InstrumentLibrary.ExtraAsi.Floor, InstrumentLibrary.ExtraAsi.Top));
         Assert.Equal(("mph", 40.0, 200.0), (InstrumentLibrary.GreatLakesAsi.Units, InstrumentLibrary.GreatLakesAsi.Floor, InstrumentLibrary.GreatLakesAsi.Top));
         Assert.Equal(("mph", 40.0, 240.0), (InstrumentLibrary.PittsAsi.Units, InstrumentLibrary.PittsAsi.Floor, InstrumentLibrary.PittsAsi.Top));

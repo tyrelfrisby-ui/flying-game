@@ -12,7 +12,7 @@ One generator, one GLB per instrument, one runtime, used by every aircraft:
 | Instrument | GLB (`Resources/Models/instruments/`) | Moving parts → param | Per aircraft |
 |---|---|---|---|
 | Turn coordinator | `turn-coordinator` | `TC_Airplane` ← `turn_rate_dps` (3 °/s = the 20° index), `TC_Ball` ← `slip_ball` | nothing |
-| Airspeed | `airspeed` | `ASI_Needle` ← `airspeed_mph` / `airspeed_kias` (floor at 30°, top at 330°) | units, floor, top, arcs, red line: `configs/aircraft/<id>.json` `instruments.airspeed` |
+| Airspeed | `airspeed` | `ASI_Needle` ← `airspeed_mph` / `airspeed_kias` (floor at 30°, top at 330°) | units, floor, top, arcs, red line: `configs/aircraft/<id>.json` `instruments.airspeed` (the UNIT is fleet-wide — see below) |
 | Altimeter (3-pointer) | `altimeter` | `ALT_Hand100/1000/10000` ← `altitude_ft` | nothing (Kollsman window: the panel's, or CockpitTaps') |
 | G-meter | `g-meter` | `GM_Needle` ← `g_load`, `GM_Max`/`GM_Min` ← the followers | red lines = `limits.gMax/gMin`, when `instruments.gMeter` is present |
 | Attitude | `attitude` | `AI_Roll` ← `bank_deg`, `AI_Pitch` (slide) ← `pitch_deg` | nothing |
@@ -48,10 +48,58 @@ An aeroplane whose gyro instruments have a model of their own reads that instead
 | J-3 Cub | none: PERIOD instruments (mph ASI, 2-pointer altimeter, no gyros) — `InstrumentLibrary.PeriodVariants` |
 | SGS 2-33, Grob 103 | none yet (glider ASI/altimeter/variometer): next; listed in `PeriodVariants` until then |
 
+## Which unit the airspeed indicator reads (fleet-wide, Ty 2026-11-10)
+
+Ty had settled five types by hand — *"mph on the J-3, the 2-33, the Great Lakes and the Pitts; knots on the Extra"* —
+and, asked what rule the other 27 follow, chose **"by era and category"**:
+
+> *"Vintage, fabric and experimental types read mph; anything certified modern or turbine reads knots."*
+
+So **every** config in `configs/aircraft/` now declares `instruments.airspeed.units` (`"mph"` or `"kt"`) with a
+`_unitsSource` saying why, and `FlyingGame.Core.Instruments.AsiUnits` / `AsiDial` is the one place that reads it.
+`AsiUnitsTests` fails if a type leaves the key out, if one of the five he settled drifts, or if a declared red line is
+not Vne in the declared unit.
+
+| | types |
+|---|---|
+| **mph** (17) | J-3 (+floats), PA-18 (cub/bush/floats), Stearman, Jenny, Gee Bee, Pawnee, Great Lakes, 2-33, Pitts S-2B, Cassutt, Decathlon, AirCam (+amphib), hang glider, paraglider, **P-51D, DC-3, H-4** |
+| **knots** (18) | 172, Archer, SR22, Extra 300, Glasair III, Beaver (+floats), Seminole, 737, F-86, EB29R, Swift S-1, Grob 103, target drone |
+
+Two of those are **the owner's word against the rule, and his word wins — do not "correct" either**: the **Great
+Lakes** is mph (TCDS A18EA is in mph CAS anyway) and the **Extra 300** is knots (its POH section 2 is in KIAS, so here
+the rule is what was wrong). Three **depart from the shape he was shown** by applying the rule he chose — the
+**P-51D, DC-3 and H-4** are vintage pistons, and their real indicators are marked in mph; one line flips any of them.
+
+Everything the pilot reads an airspeed off comes from `AsiUnits`: the flat dials and their readout
+(`Bridge/AnalogGauges`), the HUD box (`Bridge/HudOverlay`), the headset's world HUD (`Bridge/VrWorldHud`), the
+split-screen HUD (`Bridge/LocalPlayerHud`), and `docs/GLIDE-TABLE.md`'s speeds to fly. What stays in **knots** on
+purpose: the flight-test data block (KIAS/KTAS/KEAS/MACH), the companion widget's NTSB panel and its wire protocol
+(`kias`), and the ACS tolerances in `Syllabus/Standards` — those are instrumentation, a contract and a published
+standard, not the dial in front of him.
+
+A **full face** (`scaleMin`/`scaleMax`/`arcs`/`redline`) is authored only for the types whose cockpit is modelled, off
+a TCDS or a POH; `build.py` draws a PNG for exactly those. Everything else gets a scale derived from its spawn speed
+and `limits.vneMs` by `AsiDial`, with no invented arcs — a derived scale is still forced to reach Vne, because the
+red line has to go somewhere.
+
+**Five faces, not four, since 2026-11-10: the 2-33 now declares its own** (20–160 mph, green 38–65, yellow 65–98,
+red line 98). It is the one authored face whose PNG does **not** come from `build.py` — `make_sgs_dials.py` drew the
+2-33's dials before the library existed and still carries the same four numbers as its own literals, so that script
+and the config have to be changed together until it reads the block. It was authored for a reason worth keeping in
+mind when the next type is left derived: `limits.vneMs` had been 60 m/s = **134 mph** since a September 2026
+scaffolding commit with no source, so the derived flat dial drew a red line at 134 while the panel ASI 60 cm away —
+and the painted FLIGHT LIMITS placard — read **NEVER EXCEED 98 MPH**. Ty settled it on 2026-11-10 (*"98 mph - the
+placard is right"*: the AFM figure and the placard agree with each other and the config number had no source), and
+declaring the face brought the type under `AsiUnitsTests.ADeclaredRedLineIsVneInTheDialsOwnUnit`, which is what stops
+the two drifting apart again. A derived face would have put the red line in the right place too, but its scale top
+would have fallen to 140 against the painted 160.
+
 ## Adding an aircraft or an instrument
 
+- **Every new type declares `instruments.airspeed.units` in its config, with a `_unitsSource`** — `AsiUnitsTests`
+  will not let it ship silent. The rest of the `instruments` block (the face) is only for a modelled cockpit.
 - A new cockpit gets NO instrument builder: leave a hole and a bezel on the panel, add mounts to `InstrumentLibrary`
-  (numbers from `measure_mounts.py`), and, for an ASI or g-meter, the `instruments` block in its config.
+  (numbers from `measure_mounts.py`), and, for an ASI or g-meter, the rest of the `instruments` block in its config.
 - A period-correct face (J-3, P-51) is a VARIANT in the library, not a private copy in an aircraft script; until it
   exists, the aircraft script is named in `PeriodVariants` with the reason.
 - Builders that draw the library's instruments were cut back to the panel's part (bezel / case / knobs): c172_cockpit,

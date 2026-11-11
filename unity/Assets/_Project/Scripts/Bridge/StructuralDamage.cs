@@ -268,10 +268,11 @@ namespace FlyingGame.Bridge
                 p.BendRad = rec.BendRad; p.TwistRad = rec.TwistRad; p.ElasticRad = 0.0; p.FlightFlexRad = 0.0;
                 p.FoldRad = rec.FoldRad;
                 p.State = rec.State;
-                // The FOLD of the moment being watched, before the bend, as live flight draws them (ShowWingFold owns
-                // the inboard bay and the ailerons). A fold is permanent, so there is no "unfolded" case to scrub back
-                // to within one flight; the recorded angle simply is the angle.
-                if (System.Math.Abs(rec.FoldRad) > 0.003) _visual.ShowWingFold(p, ac.Config);
+                // The shape that reaches the ROOT at the moment being watched — the fold, and the aerodynamic bend,
+                // which is a curve from the root — before the bend at the station, as live flight draws them
+                // (ShowWingShape owns the inboard bay and the ailerons).
+                if (System.Math.Abs(rec.FoldRad) > 0.003 || System.Math.Abs(rec.BendRad) > 0.003)
+                    _visual.ShowWingShape(p, ac.Config);
                 // Straight panels still need the call once the meshes exist, or a bend from later in the flight stays
                 // on the model after the head is scrubbed back before it.
                 if (rec.State == FlyingGame.Core.PanelState.Bent || _visual.HasBentPanel(p.Component)) _visual.ShowPanelBend(p, ac.Config);
@@ -308,14 +309,20 @@ namespace FlyingGame.Bridge
             _relay?.Step(Time.deltaTime);
             ObserveTrees(ac);
             // Bent wing panels follow their shape: the plastic set and twist, and the elastic flex under a tip contact.
-            // A FOLDED WING first (Ty 2026-11-10: "draw it folded and limit the aileron"), because the fold owns the
-            // inboard bay and every aileron of that wing, and ShowPanelBend must find the carriers it has already made
-            // rather than make a second set — AirframeVisual.ShowWingFold says how the two compose.
+            // THE PART OF THE SHAPE THAT REACHES THE ROOT first — a fold, or the aerodynamic bend, which is a curve
+            // from the root — because it owns the inboard bay and every aileron of that wing, and ShowPanelBend must
+            // find the carriers it has already made rather than make a second set (AirframeVisual.ShowWingShape says
+            // how the two compose).
+            //
+            // ON THE AERODYNAMIC BEND TOO, not only a fold (Ty 2026-11-10, flying a Pitts at a 6.6° set: "only the
+            // tips stay 'bent' and now they are disjointed from the rest of the wing"). Without the bay the inner wing
+            // is drawn flat while the outer panel sits 18.9 cm up at the station.
             if (_visual != null)
                 foreach (FlyingGame.Core.WingPanel p in ac.Panels)
                 {
-                    if (p.State == FlyingGame.Core.PanelState.Broken || System.Math.Abs(p.FoldRad) <= 0.003) continue;
-                    _visual.ShowWingFold(p, ac.Config);
+                    if (p.State == FlyingGame.Core.PanelState.Broken) continue;
+                    if (System.Math.Abs(p.FoldRad) <= 0.003 && System.Math.Abs(p.AeroBendRad) <= 0.003) continue;
+                    _visual.ShowWingShape(p, ac.Config);
                 }
             if (_visual != null)
                 foreach (FlyingGame.Core.WingPanel p in ac.Panels)

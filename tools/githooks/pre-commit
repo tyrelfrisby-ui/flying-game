@@ -1,7 +1,11 @@
 #!/bin/bash
 # The iOS/Quest parity lock (docs/PARITY.md, "The lock"). Installed into the repository's common hooks directory by
-# tools/githooks/install.sh, so it runs in every worktree; it does nothing on any branch but lane/claude-island-nav and
-# lane/claude-quest-islandnav. Never bypass it with --no-verify: sync the lanes instead (the message says how).
+# tools/githooks/install.sh, so it runs in every worktree that HAS this file. What it does depends on the branch:
+# on any lane/* branch it keeps that lane in sync with the Quest lane; on a trunk (main, master, split-surfaces) it
+# refuses to let a shared change originate there at all; on anything else (codex-*, wip/*, a detached HEAD) nothing.
+# The claim this comment used to make -- that it fires only on lane/claude-island-nav and lane/claude-quest-islandnav
+# -- stopped being true on 2026-11-08, when the iOS lane started defaulting to the branch the worktree is on.
+# Never bypass it with --no-verify: sync the lanes instead (the message says how).
 top=$(git rev-parse --show-toplevel) || exit 0
 [ -x "$top/tools/check-parity.sh" ] || exit 0
 exec "$top/tools/check-parity.sh" --hook

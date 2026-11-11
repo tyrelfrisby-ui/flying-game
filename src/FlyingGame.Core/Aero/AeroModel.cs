@@ -35,7 +35,31 @@ public static class AeroModel
         double wingZ = WingGeom(c)[1];
         return double.IsNaN(wingZ) ? 0 : c.Mass.CgVec().Z - wingZ;
     }
-    private static double[] WingGeom(AircraftConfig c) => _span.GetValue(c, cfg =>
+    // Held in a field rather than written as a method group at the call site: WingGeom is on the step's path, and a
+    // method-group conversion allocates a delegate per call on every language version before C# 11. The lambda this
+    // replaced was cached by the compiler, so this keeps the allocation behaviour exactly as it was.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, double[]>.CreateValueCallback
+        _measureWingGeom = MeasureWingGeom;
+    private static double[] WingGeom(AircraftConfig c) => _span.GetValue(c, _measureWingGeom);
+
+    /// <summary>
+    /// THE SAME MEASUREMENT, WITHOUT THE CACHE (the model-identity diagnostic, Ty 2026-11-09).
+    ///
+    /// Every per-config geometry table in this file and in TailWake / PropJet / BiplaneCellule is a
+    /// ConditionalWeakTable keyed on the AircraftConfig OBJECT, on the standing assumption that one object is one
+    /// aeroplane for its whole life. Nothing in the loader violates that today — UnityAircraftConfigLoader
+    /// deserializes a fresh object per load and caches nothing — but if anything ever reused or re-pointed a config,
+    /// the tables would quietly keep serving the FIRST aeroplane's geometry under the second one's name, which is
+    /// precisely the shape of the bug Ty reported ("almost like it was the extra flying but the pitts livery").
+    ///
+    /// So the diagnostic reads the span twice: once through <see cref="WingSpan"/> (the table) and once through this
+    /// (the strips as authored, right now). They agree on every healthy aeroplane. If they ever disagree, the caches
+    /// are holding another aeroplane's geometry and the report says so instead of leaving it to be inferred. It
+    /// allocates and loops the strips, so it is for a diagnostic line and never for the step.
+    /// </summary>
+    public static double WingSpanUncached(AircraftConfig c) => MeasureWingGeom(c)[0];
+
+    private static double[] MeasureWingGeom(AircraftConfig cfg)
     {
         double maxY = 0, zSum = 0, aSum = 0, ySum = 0;
         foreach (SurfaceConfig sf in cfg.Surfaces)
@@ -47,7 +71,7 @@ public static class AeroModel
         // sideslip-roll distribution (see SLIP ROLL, PER STRIP in the strip loop) so that a uniformly separated wing
         // reproduces the TR-379 coefficient exactly.
         return new[] { 2 * maxY, aSum > 0 ? zSum / aSum : double.NaN, aSum > 0 ? ySum / aSum : 0.0, aSum };
-    });
+    }
 
     /// <summary>
     /// Aspect ratio of the LIFTING SYSTEM a surface belongs to (owner 2026-10-06: "I think your induced drag curve is off"):
@@ -256,6 +280,17 @@ public static class AeroModel
         }
         return e;
     }
+
+    /// <summary>Diagnostics only (<c>SlipPitchProbe</c>): fly the tail WITHOUT the fuselage's crossflow vortices
+    /// (<see cref="BodyVortex"/>), as the model did before 2026-11-10, so the before and the after of the
+    /// sideslip-to-pitch coupling come out of one run of one binary. Never set in the game.</summary>
+    public static bool NoBodyVortexForDiagnostics;
+
+    /// <summary>UNDER DEVELOPMENT, off unless BODYVORTEX is set (lane/claude-slip-pitch): the fuselage's crossflow
+    /// vortices over the tail. Carried over from the orphaned lane/claude-endo and MEASURED on today's model, where it
+    /// delivers a ninth of the tail-carried Cm(beta) the data wants and nothing at all past beta 40 deg. See
+    /// docs/aircraft/CM-BETA.md. Kept off so the shipped model is unchanged while the mechanism is being found.</summary>
+    public static bool BodyVortexEnabled = Environment.GetEnvironmentVariable("BODYVORTEX") != null;
 
     public const double FinEndPlateFactor = 1.55;
 
@@ -533,11 +568,21 @@ public static class AeroModel
             : 0.4 * Math.Clamp(wake.FlowAlpha, -0.5, 0.5) * (1.0 - wake.StalledFraction));
         epsTail = (epsTail + 0.4 * flapDownwashRad * (1.0 - wake.StalledFraction)) * gePhi;
         // Every wing and stabiliser section's own wake (TailWake): where it goes, how wide and how deep.
+        long tWakes = SimProfile.Begin();
         TailWake.Field wakes = TailWake.Prepare(config, airfoilTables, bodyVelocity - windBody, bodyRates, cg, flowState, surfaceMask, stripMask, epsTail, controls);
+        SimProfile.End(SimProfile.Scope.Wakes, tWakes);
         // THE THRUST JET (PropJet, owner 2026-11-08): the propeller's tube of faster air, traced from the disc through
         // the air's own motion, so it tilts with alpha and beta and bends under pitch and yaw rate. One trace serves
         // every strip below. Off (and free) whenever the prop is doing nothing to the air.
+        long tJet = SimProfile.Begin();
         PropJet.Jet jet = PropJet.Prepare(config, bodyVelocity - windBody, bodyRates, cg, slipstreamDeltaU, slipstreamRadius, slipstreamSwirlMs, swirlProfile);
+        SimProfile.End(SimProfile.Scope.Jet, tJet);
+
+        // THE FUSELAGE'S CROSSFLOW VORTICES OVER THE TAIL (BodyVortex). One pair per evaluation, from the crossflow
+        // drag the fuselage already carries; every non-wing strip then flies in the flow it induces. See BodyVortex for
+        // the derivation and the sources, and docs/aircraft/CM-BETA.md for the measurement that said it was missing.
+        BodyVortex.Pair bodyVortex = NoBodyVortexForDiagnostics || !BodyVortexEnabled ? default
+                                   : BodyVortex.For(config, bodyVelocity - windBody, airDensity);
 
         // THE SEPARATED WING'S ROLLING MOMENT DUE TO SIDESLIP, accumulated STRIP BY STRIP as they are flown (owner
         // 2026-11-09: "make each of these real science not lump sums"). It used to be one bulk C_l*q*S*b at the bottom
@@ -638,6 +683,18 @@ public static class AeroModel
                 // The air is not the same across the airframe (regional atmosphere): the strip sees the wind where IT is.
                 if (windGradient.Active) vLocal -= windGradient.PerX * r.X + windGradient.PerY * r.Y;
                 Vec3 vAirStrip = vLocal;   // the relative wind here before the slipstream: what carries the wakes over this strip
+
+                // THE FUSELAGE'S CROSSFLOW VORTICES (BodyVortex; Polhamus, NACA RM L55E20b): the air they move at this
+                // strip, averaged across the strip's width. Tail surfaces only -- the vortices are shed from the body
+                // AHEAD of the tail, and over the wing they are not yet a wake but the attached crossflow the wing-body
+                // term below already describes. They are carried WITH the air, so this goes in before the jet and before
+                // the wakes, which ride on the flow it leaves.
+                if (!isWing && bodyVortex.Active)
+                {
+                    double halfWidth = 0.5 * (strip.Chord > 1e-9 ? strip.Area / strip.Chord : 0.0);
+                    vLocal -= BodyVortex.Induced(bodyVortex, stripAt, halfWidth, isVertical);
+                    vAirStrip = vLocal;
+                }
 
                 // Propeller slipstream: a surface inside the (contracted) prop wash sees the accelerated flow — this is
                 // why a prop aircraft has elevator and rudder authority at low speed (taxi, takeoff roll, floats on the
