@@ -497,7 +497,7 @@ public sealed class LandingFlowTests
     /// <summary>The verified envelopes, against the certificates' own numbers copied by hand (CLAUDE.md: literals, not
     /// the file under test). Arms are read back off the chart's own axis (inches / mm aft of the type's datum), so this
     /// also pins each datum. Sources: FAA TCDS A8SO Rev. 21 (Pitts S-2B), A-691 (J3C-65), A18EA Rev. 11 (2T-1A-2), EASA
-    /// TCDS A.038 (Swift S-1), Grob G 103 Acro [POH] 2.7.</summary>
+    /// TCDS A.038 (Swift S-1), Grob G 103 Acro [POH] 2.7, FAA Glider Data Sheet G2EA Rev. 2 (SGS 2-33).</summary>
     [Theory]
     //          id                          kg at     fwd arm  aft arm   units      gross kg
     [InlineData("pitts-s2b-like",           737.09,   89.58,   90.50,   "in",      737.09)]    // acrobatic at 1625 lb
@@ -512,6 +512,10 @@ public sealed class LandingFlowTests
     [InlineData("j3-cub-floats-like",       589.67,   10.6,    19.0,    "in",      589.67)]
     [InlineData("great-lakes-like",         816.47,   20.0,    23.8,    "in",      816.47)]
     [InlineData("glider-swift-s1-like",     410.0,    257,     414,     "mm",      410.0)]
+    // G2EA Rev 2 covers the 2-33, 2-33A and 2-33AK at 1040 lb; the Class II Utility limits +11.86/+19.76 are the
+    // envelope authored here. The datum is the wing root leading edge, confirmed by the manual's own stations:
+    // 78.20 - 11.86 = 86.10 - 19.76 = 66.34, two numbers that had to agree and did.
+    [InlineData("glider-2-33-like",          471.74,   11.86,   19.76,   "in",      471.74)]
     [InlineData("glider-grob103-acro-like", 600.0,    270,     480,     "mm",      600.0)]
     public void TheVerifiedEnvelopesAreTheCertificatesOwnNumbers(string id, double kg, double fwdArm, double aftArm, string unit, double grossKg)
     {
@@ -540,9 +544,11 @@ public sealed class LandingFlowTests
             .Where(id => new FlyingGame.Core.AircraftLoad(Real(id!)).HasCgEnvelope)
             .OrderBy(id => id, System.StringComparer.Ordinal).ToArray();
         // j3-cub-floats-like joined the list 2026-11-11, from A-691 Rev 34's own J3C-65S / Edo 60-1320 rows.
-        Assert.Equal(new[] { "glider-grob103-acro-like", "glider-swift-s1-like", "great-lakes-like", "j3-cub-floats-like", "j3-cub-like", "pitts-s2b-like" }, withEnvelope);
+        // glider-2-33-like joined the same day, from G2EA Rev 2. It is the game's default aeroplane and had
+        // carried no gross weight, no datum and no CG limits at all.
+        Assert.Equal(new[] { "glider-2-33-like", "glider-grob103-acro-like", "glider-swift-s1-like", "great-lakes-like", "j3-cub-floats-like", "j3-cub-like", "pitts-s2b-like" }, withEnvelope);
 
-        foreach (string id in new[] { "c172-like", "extra-300-like", "glider-2-33-like" })
+        foreach (string id in new[] { "c172-like", "extra-300-like" })
         {
             var wb = WeightBalance.From(new FlyingGame.Core.AircraftLoad(Real(id)));
             Assert.False(wb.HasEnvelope, id);
