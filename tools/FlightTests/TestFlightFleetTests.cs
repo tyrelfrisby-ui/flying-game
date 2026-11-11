@@ -63,7 +63,12 @@ public sealed class TestFlightFleetTests
     public void TheFullFleetOffersEveryListedType()
     {
         string src = Read("unity", "Assets", "_Project", "Scripts", "Bridge", "SessionSettings.cs");
-        int a = src.IndexOf("public static readonly (string id, string name)[] Fleet", StringComparison.Ordinal);
+        // MasterFleet, not Fleet. `Fleet` stopped being a literal when the allow-list landed — it is now
+        // FleetAllowList.Offered(MasterFleet, PlatformAllowList), so slicing to the next "};" caught a computed
+        // expression and the regex matched NOTHING. An empty list compared against the listed types failed with
+        // "Actual: []", which reads like a missing fleet rather than a test looking at the wrong symbol.
+        // Scraping C# source with a regex is brittle by construction; this is what that costs.
+        int a = src.IndexOf("public static readonly (string id, string name)[] MasterFleet", StringComparison.Ordinal);
         string block = src.Substring(a, src.IndexOf("};", a, StringComparison.Ordinal) - a);
         var ids = Regex.Matches(block, @"\(""([a-z0-9-]+-like)"",").Select(m => m.Groups[1].Value).ToArray();
         Assert.Equal(TestFlightFleet.Listed.ToArray(), ids.Where(TestFlightFleet.IsListed).OrderBy(i => TestFlightFleet.Listed.ToList().IndexOf(i)).ToArray());
