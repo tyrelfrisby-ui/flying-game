@@ -86,14 +86,24 @@ namespace FlyingGame.Core.Vr
     public interface ICanopyObstacle
     {
         string? Hit(Vec3 at, double radiusM);
+
+        /// <summary>
+        /// The obstacle's OWN velocity at <paramref name="at"/>, in the caller's frame. The shell's velocity minus
+        /// this is the CLOSING speed, and the closing speed — not the shell's speed through the air — is what decides
+        /// whether the glass breaks (<see cref="CanopyFreeBody.ShatterSpeedMs"/>). A caller already working in the
+        /// aeroplane's own body frame answers zero: the aeroplane does not move there.
+        /// </summary>
+        Vec3 VelocityAt(Vec3 at);
     }
 
-    /// <summary>An <see cref="EgressClearance"/> used directly, for a caller already in the aeroplane's body frame.</summary>
+    /// <summary>An <see cref="EgressClearance"/> used directly, for a caller already in the aeroplane's body frame —
+    /// in which the aeroplane is at rest, so it closes on nothing of its own.</summary>
     public sealed class ClearanceObstacle : ICanopyObstacle
     {
         private readonly EgressClearance? _c;
         public ClearanceObstacle(EgressClearance? c) { _c = c; }
         public string? Hit(Vec3 at, double radiusM) => _c?.Hit(at, radiusM);
+        public Vec3 VelocityAt(Vec3 at) => Vec3.Zero;
     }
 
     /// <summary>
@@ -103,9 +113,11 @@ namespace FlyingGame.Core.Vr
     ///
     /// IT CAN HIT THE AEROPLANE IT JUST LEFT (Ty 2026-11-10: "if it hits the tail or other structure use a mechanical
     /// sound for impact and shatter the glass both audibly and visually"). Give <see cref="Step"/> an
-    /// <see cref="ICanopyObstacle"/> and the flight is swept against it: the FIRST strike sets
-    /// <see cref="Shattered"/>, <see cref="StruckWhat"/>, <see cref="StrikeSpeedMs"/> and the rest, once, and the
-    /// caller plays the mechanical impact and breaks the glass. The surface it is already beside when it leaves (the
+    /// <see cref="ICanopyObstacle"/> and the flight is swept against it: a contact ABOVE
+    /// <see cref="ShatterSpeedMs"/> of closing speed sets <see cref="Shattered"/>, <see cref="StruckWhat"/>,
+    /// <see cref="StrikeClosingMs"/> and the rest, once, and the caller plays the mechanical impact and breaks the
+    /// glass; one below it sets <see cref="Touched"/> and nothing breaks — a canopy is tough plastic and it can lean
+    /// on the turtledeck. The surface it is already beside when it leaves (the
     /// Pitts' top wing over the front cockpit) is not a strike — pass it as <c>ignore</c>, the way
     /// <see cref="CanopyTailCheck"/> always has. What happens to the shell AFTER it shatters is the caller's: this
     /// goes on flying it as one body, because a quasi-steady shell model has nothing true to say about shards.
@@ -157,18 +169,60 @@ namespace FlyingGame.Core.Vr
         /// <summary>The sphere the strike test uses, m: the same one <see cref="CanopyTailCheck"/> has always used —
         /// half the greater of the shell's height and half its span.</summary>
         public readonly double RadiusM;
-        /// <summary>It has struck the aeroplane and the glass has broken. Set once, never cleared.</summary>
+
+        /// <summary>
+        /// HOW FAST IT HAS TO MEET THE AIRFRAME TO BREAK, m/s of CLOSING speed. Below this the shell touches the
+        /// aeroplane and does not break (<see cref="Touched"/>); above it the glass goes.
+        ///
+        /// Until 2026-11-11 there was no threshold at all: ANY contact at ANY speed shattered the canopy, and
+        /// <see cref="StrikeSpeedMs"/> was recorded and then played no part in the decision. So a shell that drifted
+        /// onto the turtledeck at a walking pace broke exactly as hard as one that hit the fin at 60 m/s, and that is
+        /// what Ty flew into on 2026-11-11: *"I had a hard landing on the extra but the airplane was intact and
+        /// upright. When I 'bailed out' the canopy shattered even though it didn't hit anything."* On the ground the
+        /// released shell had nowhere to go but straight down onto the aeroplane, at about a metre a second.
+        ///
+        /// THE NUMBER IS THE REPO'S OWN, NOT A NEW ONE: <see cref="Glazing.ShatterClosingMs"/>, the speed at which a
+        /// pane of this material shatters when its own surface arrives on something hard — 6 m/s for cast acrylic,
+        /// 8 for the fighters' stretched acrylic. That is the same event as this one (acrylic meeting structure at a
+        /// closing speed), and having the two systems disagree about it would be worse than either number being off.
+        /// It is AUTHORED, as it says where it is defined ("CHOSEN, not derived"), and this does not pretend
+        /// otherwise. What can be said for the order of magnitude: the strain energy a cast-acrylic shell can store
+        /// in bending before it fractures is σ²/2E per unit volume — (69 MPa)²/(2 × 3.0 GPa) ≈ 0.8 MJ/m³ — and over
+        /// the part of a 4.8 mm skin that a local contact bends (a disc of radius ~0.15 m, with the usual 1/3 for a
+        /// linear through-thickness stress) that is some 30–90 J; a 9–14 kg shell carries that much kinetic energy at
+        /// 2–4.5 m/s. Same order as 6, which is as much as this kind of argument is worth.
+        ///
+        /// Settable, because the body does not know what type it came off: the caller sets it from
+        /// <see cref="Glazing.MaterialFor"/>. The default is cast acrylic, which is most of the fleet.
+        /// </summary>
+        public double ShatterSpeedMs = Glazing.ShatterClosingMs(GlazingMaterial.CastAcrylic);
+
+        /// <summary>It has struck the aeroplane hard enough and the glass has broken. Set once, never cleared.</summary>
         public bool Shattered { get; private set; }
         /// <summary>What it struck (the surface's name), or null.</summary>
         public string? StruckWhat { get; private set; }
         /// <summary>Where it struck, caller's frame.</summary>
         public Vec3 StrikeAt { get; private set; }
-        /// <summary>Its speed through the air at the strike, m/s — how hard the impact sounds.</summary>
+        /// <summary>Its speed through the AIR at the strike, m/s. Kept for the log and the sound's loudness; it is not
+        /// what decides the shatter, because a shell brushing the fin at 150 kt is closing on it at nothing.</summary>
         public double StrikeSpeedMs { get; private set; }
+        /// <summary>Its speed RELATIVE TO THE AEROPLANE at the strike, m/s — what broke the glass.</summary>
+        public double StrikeClosingMs { get; private set; }
         /// <summary>Its own rate at the strike, rad/s.</summary>
         public double StrikeSpinRadS { get; private set; }
         /// <summary>When it struck, s from release (NaN if it has not).</summary>
         public double StrikeAtSec { get; private set; } = double.NaN;
+
+        /// <summary>It has met the aeroplane too gently to break: it is leaning on the airframe, whole. Set on the
+        /// first such contact and never cleared; a later, harder one can still shatter it.</summary>
+        public bool Touched { get; private set; }
+        /// <summary>What it first touched without breaking, or null.</summary>
+        public string? TouchedWhat { get; private set; }
+        /// <summary>Where that touch was, caller's frame, and how fast it was closing, m/s.</summary>
+        public Vec3 TouchAt { get; private set; }
+        public double TouchClosingMs { get; private set; }
+        /// <summary>When it first touched without breaking, s from release (NaN if it has not).</summary>
+        public double TouchAtSec { get; private set; } = double.NaN;
 
         public CanopyFreeBody(CanopyDynamics c, Vec3 position, Vec3 velocity, Vec3 up, Vec3 forward, Vec3 spin)
         {
@@ -316,18 +370,38 @@ namespace FlyingGame.Core.Vr
                 }
                 TimeSec += h;
                 // Did it just run into the aeroplane? Tested after the move, so the first sub-step that puts it inside
-                // a surface is the strike, and only the first: the glass breaks once.
+                // a surface is the contact, and only the first: the glass breaks once.
+                //
+                // HOW HARD, not merely WHETHER. What breaks acrylic is the speed it closes on the structure at, so
+                // the test is against the AEROPLANE'S own velocity here, not against the air: a shell falling onto a
+                // parked aeroplane is closing at its fall speed (and does not break), one dropping back into the fin
+                // at 150 kt is closing at tens of metres a second (and does).
                 if (obstacle != null && !Shattered)
                 {
                     string? what = obstacle.Hit(Position, RadiusM);
                     if (what != null && what != ignore)
                     {
-                        Shattered = true;
-                        StruckWhat = what;
-                        StrikeAt = Position;
-                        StrikeSpeedMs = (Velocity - wind).Length;
-                        StrikeSpinRadS = Spin.Length;
-                        StrikeAtSec = TimeSec;
+                        double closing = (Velocity - obstacle.VelocityAt(Position)).Length;
+                        if (closing > ShatterSpeedMs)
+                        {
+                            Shattered = true;
+                            StruckWhat = what;
+                            StrikeAt = Position;
+                            StrikeSpeedMs = (Velocity - wind).Length;
+                            StrikeClosingMs = closing;
+                            StrikeSpinRadS = Spin.Length;
+                            StrikeAtSec = TimeSec;
+                        }
+                        else if (!Touched)
+                        {
+                            // It is lying against the aeroplane, whole. Recorded, and the flight goes on: whether it
+                            // comes to rest there is the caller's, who knows whether there is any air to carry it.
+                            Touched = true;
+                            TouchedWhat = what;
+                            TouchAt = Position;
+                            TouchClosingMs = closing;
+                            TouchAtSec = TimeSec;
+                        }
                     }
                 }
             }
@@ -362,7 +436,13 @@ namespace FlyingGame.Core.Vr
             public readonly double TimeSec;
             /// <summary>Where it was (body frame) when it passed the tail's leading station, or when it hit.</summary>
             public readonly Vec3 AtTail;
-            public Result(string? s, double t, Vec3 at) { Surface = s; TimeSec = t; AtTail = at; }
+            /// <summary>It meets <see cref="Surface"/> hard enough to break the glass
+            /// (<see cref="CanopyFreeBody.ShatterSpeedMs"/>). False with a surface named: it touches it and survives.</summary>
+            public readonly bool Shatters;
+            /// <summary>How fast it closes on that surface, m/s.</summary>
+            public readonly double ClosingMs;
+            public Result(string? s, double t, Vec3 at, bool shatters = false, double closingMs = 0.0)
+            { Surface = s; TimeSec = t; AtTail = at; Shatters = shatters; ClosingMs = closingMs; }
         }
 
         public static Result Predict(CanopyDynamics c, Vec3 comBody, Vec3 relVelBody, Vec3 upBody, double tasMs, double rho,
@@ -382,7 +462,10 @@ namespace FlyingGame.Core.Vr
             {
                 b.Step(0.005, rho, wind, g, obstacle, startedBy);
                 if (!passed && b.Position.X <= tailX) { passed = true; atTail = b.Position; }
-                if (b.StruckWhat != null) return new Result(b.StruckWhat, b.StrikeAtSec, b.StrikeAt);
+                if (b.StruckWhat != null) return new Result(b.StruckWhat, b.StrikeAtSec, b.StrikeAt, true, b.StrikeClosingMs);
+                // It meets the structure too gently to break: still worth reporting — it hits the tail — but the glass
+                // survives, so the warning says so rather than promising a shatter that will not happen.
+                if (b.TouchedWhat != null) return new Result(b.TouchedWhat, b.TouchAtSec, b.TouchAt, false, b.TouchClosingMs);
                 if (b.Position.X < tailX - 2.0) break;
             }
             return new Result(null, b.TimeSec, passed ? atTail : b.Position);

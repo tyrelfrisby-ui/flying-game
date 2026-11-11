@@ -433,6 +433,13 @@ namespace FlyingGame.Bridge
             }
             static FlyingGame.Core.MathTypes.Vec3 C(Vector3 v) => new(v.x, v.y, v.z);
             var body = new FlyingGame.Core.Vr.CanopyFreeBody(canopy, C(b.center), C(velocityWorld), C(upWorld), C(transform.forward), C(spinWorld));
+            // HOW HARD IT HAS TO MEET THE AIRFRAME TO BREAK: this type's own glazing, through the same constant the
+            // crash model uses for a pane arriving on something (Core Glazing.ShatterClosingMs — 6 m/s cast acrylic,
+            // 8 for the fighters' stretched). Before 2026-11-11 there was no threshold at all and the shell broke on
+            // any contact at any speed, which is how a canopy let go on a parked aeroplane "shattered even though it
+            // didn't hit anything" (Ty).
+            body.ShatterSpeedMs = FlyingGame.Core.Glazing.ShatterClosingMs(
+                FlyingGame.Core.Glazing.MaterialFor(_driver != null ? _driver.AircraftId : ""));
             // WHAT IT CAN RUN INTO on the way past, and who to tell when it does (Ty 2026-11-10: "if it hits the tail
             // or other structure use a mechanical sound for impact and shatter the glass both audibly and visually").
             // The clearance boxes are this aeroplane's own surfaces in its body frame, and the transform is read every

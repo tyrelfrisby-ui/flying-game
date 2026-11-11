@@ -216,6 +216,9 @@ public class CanopyTumbleTests
         public readonly double AtZ;
         public Wall(double atZ) { AtZ = atZ; }
         public string? Hit(Vec3 at, double radiusM) => at.Z + radiusM >= AtZ ? "HStab" : null;
+        /// <summary>A wall bolted to the frame the shell is flown in: it does not move, so the shell's own velocity
+        /// IS the closing speed.</summary>
+        public Vec3 VelocityAt(Vec3 at) => Vec3.Zero;
     }
 
     /// <summary>

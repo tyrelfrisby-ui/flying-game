@@ -523,8 +523,10 @@ namespace FlyingGame.Bridge
                                                                   ac.State.Velocity.Length, EgressAir.Density(_air.position.y), _clear);
             Debug.Log($"[VrEgress] canopy {(torn ? $"TORN OFF ITS HINGES at {ias * 1.9438445:F0} KIAS ({c.PeakFittingLoadN:F0} N on fittings rated {c.Spec.FittingStrengthN:F0})" : $"JETTISONED at {ias * 1.9438445:F0} KIAS")}: " +
                       $"{c.Spec.MassKg:F0} kg gone, CG moved ({ac.CgShiftBody.X * 1000:F0}, {ac.CgShiftBody.Y * 1000:F0}, {ac.CgShiftBody.Z * 1000:F0}) mm; open-cockpit drag {c.DragAreaM2:F2} m²");
-            if (tail.Surface != null)
-                Debug.LogWarning($"[VrEgress] the departing canopy would pass through the {tail.Surface} {tail.TimeSec:F2} s after leaving (predicted; no strike is modelled)");
+            if (tail.Surface != null && tail.Shatters)
+                Debug.LogWarning($"[VrEgress] the departing canopy would hit the {tail.Surface} {tail.TimeSec:F2} s after leaving, closing at {tail.ClosingMs:F1} m/s — hard enough to break the glass (predicted)");
+            else if (tail.Surface != null)
+                Debug.Log($"[VrEgress] the departing canopy would touch the {tail.Surface} {tail.TimeSec:F2} s after leaving, closing at only {tail.ClosingMs:F1} m/s: the glass survives (predicted)");
             else
                 Debug.Log($"[VrEgress] the canopy clears the tail: {tail.AtTail.Y:F1} m right, {-tail.AtTail.Z:F1} m up at the tail station");
         }
