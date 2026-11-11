@@ -336,7 +336,15 @@ public sealed class PracticeScenario
             }
         }
         catch (Exception) { }
-        _alphaCap.Add(config, cap);
+        // AddOrUpdate, not Add: Add THROWS on a duplicate key, so two threads reaching this cache cold for the SAME
+        // config would turn a cache into a crash -- the loser of the race adds a key the winner has just put there.
+        // AddOrUpdate costs nothing to be right here because both threads compute the same answer: the cap is a pure
+        // function of the config's own surfaces and airfoil tables, so whichever write lands last is the same number.
+        // The identical bug was found and fixed in RigSolver's two per-config caches (2026-11-10); every other weak-table
+        // cache in the fleet already uses the atomic GetValue(key, factory), which this one predates. It has evidently
+        // never fired, but the suite is now deliberately parallelised -- a collection attribute went onto 24 test
+        // classes that fly -- so the two threads this needs are no longer hypothetical.
+        _alphaCap.AddOrUpdate(config, cap);
         return cap;
     }
 
