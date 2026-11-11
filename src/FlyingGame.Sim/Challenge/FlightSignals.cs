@@ -14,7 +14,20 @@ public static class FlightSignals
     {
         RigidBodyState s = aircraft.State;
         Quat q = s.Attitude;
-        Vec3 v = s.Velocity;
+        // AIR-RELATIVE, NOT GROUND. An aeroplane flies in the air mass, so airspeed, angle of attack and SIDESLIP are
+        // all measured against the air it is moving through — subtract the wind, exactly as Aircraft and
+        // FlightSimDriver already do (`s.Velocity - s.Attitude.Conjugate().Rotate(Atmosphere.WindAtPosition(...))`).
+        //
+        // Reading s.Velocity raw made every graded signal a GROUND measurement, and the default wind is 5 m/s, so a
+        // perfectly coordinated turn was graded as sideslipping: fly a circle in wind and the ground-referenced beta
+        // swings once per revolution with an amplitude of asin(wind/speed) — about 6 degrees at 45 kt — while the
+        // ball sits dead centre the whole way round. The same error made "iasMs" read groundspeed, so a downwind leg
+        // passed a speed window the upwind leg failed.
+        //
+        // What stays on the GROUND velocity, deliberately: verticalSpeedMs (a VSI follows the aeroplane's own
+        // altitude change, not the air mass's) and altitudeM (a position).
+        Vec3 ground = s.Velocity;
+        Vec3 v = ground - q.Conjugate().Rotate(Atmosphere.WindAtPosition(s.Position));
         double speed = v.Length;
 
         return signal switch
@@ -31,7 +44,7 @@ public static class FlightSignals
             "pitchRate" => s.Rates.Y,
             "yawRate" => s.Rates.Z,
             "gLoad" => GLoad(aircraft),
-            "verticalSpeedMs" => q.Rotate(v).Z, // world +z down: sink positive
+            "verticalSpeedMs" => q.Rotate(ground).Z, // world +z down: sink positive. GROUND: a VSI follows the aeroplane.
             _ => throw new System.ArgumentException($"Unknown challenge signal '{signal}'"),
         };
     }

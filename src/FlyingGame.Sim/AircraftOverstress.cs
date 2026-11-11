@@ -25,7 +25,25 @@ public sealed partial class Aircraft
 
     /// <summary>The gross mass the wings' limit load factors were rated at: the placard's maximum take-off mass, else the
     /// config's authored mass.</summary>
-    internal static double StructuralGrossKg(AircraftConfig c) => c.Loading is { MaxGrossMassKg: > 0 } l ? l.MaxGrossMassKg : c.Mass.MassKg;
+    /// <summary>
+    /// THE DESIGN GROSS WEIGHT, which is what a structural limit is certificated against — not the weight the
+    /// aeroplane happens to be flying at. A float's ultimate water load, a tyre's rating, a spar's limit load: all of
+    /// them are fixed properties of the structure, set once at the design weight. They do not get weaker because the
+    /// aeroplane is light today.
+    ///
+    /// THE FALLBACK TO Mass.MassKg IS A LAST RESORT AND IT USED TO BE HARMLESS. While every config authored
+    /// mass.massKg AS its max gross the two were the same number. They stopped being the same on 2026-11-11, when the
+    /// fleet's empty weights were corrected and massKg became the aeroplane AS FLOWN — the J-3 on floats went 589.7
+    /// to 451.1 kg. Anything structural still reading massKg therefore shrank with it. Measured on that type: the
+    /// 23.527 ultimate water load is proportional to W^(2/3), so the float's modelled strength fell 16.4 %.
+    ///
+    /// So this now consults the PLACARD first (loading.maxTakeoffMassKg, which the certificate work authors) before
+    /// falling back. A type with neither is authored at its gross the old way and is unchanged.
+    /// </summary>
+    internal static double StructuralGrossKg(AircraftConfig c) =>
+        c.Loading is { MaxGrossMassKg: > 0 } g ? g.MaxGrossMassKg
+        : c.Loading is { MaxTakeoffMassKg: > 0 } t ? t.MaxTakeoffMassKg
+        : c.Mass.MassKg;
 
     /// <summary>The horizontal tail's rows: the stabiliser and the elevator (LoseComponent's TailHorizontal).</summary>
     internal static bool IsHorizontalTail(string id) =>
