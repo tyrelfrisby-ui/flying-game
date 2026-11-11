@@ -397,8 +397,19 @@ public sealed partial class Aircraft
     /// engine quits or catches again.</summary>
     private void UpdateEngine(double dt, double airDensity)
     {
+        // SimProfile only: the engine's own state, and inside it the shaft integration, which on a type with a fitted
+        // blade solves a propeller disc every step (Scope.Shaft). Off, Begin() is one thread-static read.
+        long tEngine = SimProfile.Begin();
+        UpdateEngineInner(dt, airDensity);
+        SimProfile.End(SimProfile.Scope.Engine, tEngine);
+    }
+
+    private void UpdateEngineInner(double dt, double airDensity)
+    {
         _sigma = airDensity / Atmosphere.SeaLevelDensityKgM3;
+        long tShaft = SimProfile.Begin();
         StepShaft(dt, airDensity);          // the propeller's rpm is a state, not a throttle position
+        SimProfile.End(SimProfile.Scope.Shaft, tShaft);
         if (!HasMixture || _noseLost) return;
         _roughPhase += dt * 2.0 * System.Math.PI * 3.1;   // a lean misfire's beat, a few times a second
         if (_roughPhase > 1e4) _roughPhase -= 2.0 * System.Math.PI * 1000.0;

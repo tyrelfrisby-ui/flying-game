@@ -1,3 +1,59 @@
+## The 2-33's Vne is 98 mph, the number painted on the aeroplane — Claude, 2026-11-10, lane/claude-vne-cam
+
+<!-- vne-2-33 placard-vs-config unsourced-scaffolding-number asi-face-fifth overspeed-events -->
+
+Ty, asked which of the two numbers was wrong, chose: *"98 mph - the placard is right"*, on the reasoning he accepted —
+**the AFM figure and the painted placard agree with each other, and the config number had no source.**
+
+`configs/aircraft/glider-2-33-like.json` carried `limits.vneMs` **60 m/s = 134 mph** from a September 2026
+scaffolding commit, with no citation anywhere. The same aeroplane's modelled panel ASI and its painted FLIGHT LIMITS
+placard both read **NEVER EXCEED 98 MPH** — the FAA AFM figure at 1040 lb, drawn by `tools/own_models/make_sgs_dials.py`
+twice over (the red tick and the placard text). Now **43.81 m/s** (98 × 0.44704), with a `_vneSource` in the config
+that says where it came from, what it superseded and what moved with it.
+
+**EVERY PLACE THE OLD NUMBER WAS READ, and what each one did.** Vne is read in four places in this repo and nowhere
+else (`grep VneMs`):
+
+| reads it | what moved |
+|---|---|
+| `Core/Instruments/AsiDial.For` | the red line, 134 → **98 mph**. This was the visible defect: the exterior flat dial drew a red line 36 mph past the one painted on the panel 60 cm away. |
+| `Sim/Replay/FlightEventLog.Limits` (via `Limits.VneAt`) | the `OverspeedBegan`/`Ended` threshold, and so the debrief's "overspeed" line. The only place Vne reaches the pilot other than the dial. |
+| `DataContracts/LimitsConfig.LimitAt` | **nothing.** The VA-to-VNE load-factor ramp is gated on `vaMs > 0` and the 2-33 declares none, so `gMax` 4.67 / `gMin` −2.33 hold to VNE exactly as before. |
+| `Sim/AircraftEngine` (0.9 × Vne windmill restart) | **nothing.** `propulsion` is null. |
+
+**NOTHING WAS CALIBRATED AGAINST THE OLD 134 MPH.** The one thing that would have been is the dive speed: this repo
+derives constant-speed propeller pitch stops and a structural case from **1.1 × Vne** (`BladeElement.GovernorStops`,
+Ty's rule of 2026-11-09, cached as `pitchStopSource` in the configs that have a governor). A 2-33 has no propeller
+and no `pitchStopSource`, so the 134 mph never produced a cached number. Checked, not assumed.
+
+**NO TEST FLIES THE 2-33 INTO AN OVERSPEED,** and no test could have been broken by this even if it did: Vne is not a
+force in this simulation — nothing clamps, damps or breaks at it. The two tests that put the 2-33 near the speed are
+`StructuralTests.PullPastTheLimitHoldsAndIsSilentUntilTheGroanThreshold` (45 m/s TAS at 1500 m = **41.8 m/s IAS,
+93.6 mph**, under the new red line, and it asserts on g, not on speed) and
+`PittsRollRateTests`/`PittsRollProbe`, whose `glider-2-33-like` row is **60 mph**, not 60 m/s — the parameter is
+`iasMph` and the 60 is a coincidence of the two numbers, which is worth knowing before anyone "fixes" it.
+`SpoilerTests.VerticalDiveWithBrakesIsNotSlow` still reads as written: its comment that a real 2-33 dives past Vne on
+brakes alone is *more* true at 98 mph, not less.
+
+**THE 2-33 IS NOW THE FIFTH TYPE WITH A DECLARED ASI FACE** (20–160 mph, green 38–65, yellow 65–98, red line 98) —
+transcribed off `make_sgs_dials.py`, not invented. Two reasons, and the alternative is recorded because it nearly won:
+leaving the face DERIVED would have put the red line in the right place (43.81 × 2.2369 = 98.0) but dropped the
+derived scale top to 140 against the painted 160, re-opening the same exterior-vs-panel disagreement one rung lower;
+and declaring it brings the type under `AsiUnitsTests.ADeclaredRedLineIsVneInTheDialsOwnUnit`, the test that fails if
+the red line and `limits.vneMs` ever drift more than 3 % apart again. The low-speed red arc also now ends at the
+published 38 mph stall instead of at 0.62 × spawn = 30 mph. **Caveat for whoever redraws the art:** unlike the four
+`build.py` faces, `make_sgs_dials.py` still holds these four numbers as its own literals and does not read the config
+block. The two have to be changed together until it does.
+
+**WHAT I DID NOT TOUCH, deliberately.** The same placard reads **MANEUVERING 65 MPH**, MAX AERO TOW 98 MPH and MAX
+WINCH TOW 69 MPH. `vaMs` is still unset: setting it without the AFM's load factors AT Vne would only make `LimitAt`
+interpolate between a number and itself, and 98 mph being barely 1.5 × Va is the sort of envelope decision that is
+Ty's to spend. `Syllabus/Maneuver.FlightNow.VneMs` and `Syllabus/Standards.SpeedLimits` are both **dead** — declared,
+never assigned, never graded. Pre-existing; flagged, not fixed.
+
+Also corrected: `docs/DATA-CONTRACTS.md`'s schema example, which was the 2-33's own limits block rounded (60 / 4.7 /
+−2.3), and `docs/INSTRUMENT-LIBRARY.md`'s "four authored faces".
+
 ## Multiplayer starts: a queue with waits, and a random air start that guarantees separation — Claude, 2026-11-10, lane/claude-spawns
 
 <!-- multiplayer-starts start-queue random-air-start separation-distances relay-reachable-from-anywhere -->
@@ -171,10 +227,10 @@ not this change.
 its wire protocol (`kias`), and the ACS tolerances in `Syllabus/Standards`. Those are instrumentation, a contract and
 a published standard — not the dial in front of the pilot.
 
-**NEEDS YOU — the 2-33's Vne disagrees with its own placard.** `limits.vneMs` is 60 m/s = 134 mph, straight from the
-2026-09 scaffolding commit and never revisited; the 2-33's modelled panel and its FLIGHT LIMITS placards say NEVER
-EXCEED 98 MPH (FAA AFM at 1040 lb, `make_sgs_dials.py`). One of them is wrong. Changing Vne is a physics change, not a
-units change, so it is not in this commit.
+**~~NEEDS YOU~~ — the 2-33's Vne disagreed with its own placard. SETTLED by Ty 2026-11-10 and fixed on
+`lane/claude-vne-cam`: 98 mph.** `limits.vneMs` was 60 m/s = 134 mph, straight from the 2026-09 scaffolding commit and
+never revisited; the 2-33's modelled panel and its FLIGHT LIMITS placards say NEVER EXCEED 98 MPH (FAA AFM at
+1040 lb, `make_sgs_dials.py`). See the top of this log.
 ## One livery per type on the phone: 2.13 GB of 4.03 GB was alternate paint — Claude, 2026-11-10, lane/claude-fleet-shape
 
 <!-- phone-liveries 4gb-limit glb-textures-uncompressed testflight-size build-time-subset -->

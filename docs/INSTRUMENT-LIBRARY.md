@@ -82,6 +82,18 @@ a TCDS or a POH; `build.py` draws a PNG for exactly those. Everything else gets 
 and `limits.vneMs` by `AsiDial`, with no invented arcs — a derived scale is still forced to reach Vne, because the
 red line has to go somewhere.
 
+**Five faces, not four, since 2026-11-10: the 2-33 now declares its own** (20–160 mph, green 38–65, yellow 65–98,
+red line 98). It is the one authored face whose PNG does **not** come from `build.py` — `make_sgs_dials.py` drew the
+2-33's dials before the library existed and still carries the same four numbers as its own literals, so that script
+and the config have to be changed together until it reads the block. It was authored for a reason worth keeping in
+mind when the next type is left derived: `limits.vneMs` had been 60 m/s = **134 mph** since a September 2026
+scaffolding commit with no source, so the derived flat dial drew a red line at 134 while the panel ASI 60 cm away —
+and the painted FLIGHT LIMITS placard — read **NEVER EXCEED 98 MPH**. Ty settled it on 2026-11-10 (*"98 mph - the
+placard is right"*: the AFM figure and the placard agree with each other and the config number had no source), and
+declaring the face brought the type under `AsiUnitsTests.ADeclaredRedLineIsVneInTheDialsOwnUnit`, which is what stops
+the two drifting apart again. A derived face would have put the red line in the right place too, but its scale top
+would have fallen to 140 against the painted 160.
+
 ## Adding an aircraft or an instrument
 
 - **Every new type declares `instruments.airspeed.units` in its config, with a `_unitsSource`** — `AsiUnitsTests`

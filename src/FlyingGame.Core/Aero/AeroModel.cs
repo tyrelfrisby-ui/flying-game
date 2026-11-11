@@ -281,6 +281,17 @@ public static class AeroModel
         return e;
     }
 
+    /// <summary>Diagnostics only (<c>SlipPitchProbe</c>): fly the tail WITHOUT the fuselage's crossflow vortices
+    /// (<see cref="BodyVortex"/>), as the model did before 2026-11-10, so the before and the after of the
+    /// sideslip-to-pitch coupling come out of one run of one binary. Never set in the game.</summary>
+    public static bool NoBodyVortexForDiagnostics;
+
+    /// <summary>UNDER DEVELOPMENT, off unless BODYVORTEX is set (lane/claude-slip-pitch): the fuselage's crossflow
+    /// vortices over the tail. Carried over from the orphaned lane/claude-endo and MEASURED on today's model, where it
+    /// delivers a ninth of the tail-carried Cm(beta) the data wants and nothing at all past beta 40 deg. See
+    /// docs/aircraft/CM-BETA.md. Kept off so the shipped model is unchanged while the mechanism is being found.</summary>
+    public static bool BodyVortexEnabled = Environment.GetEnvironmentVariable("BODYVORTEX") != null;
+
     public const double FinEndPlateFactor = 1.55;
 
     /// <summary>Gilruth & White fuselage pitch factor, 57.3·K_f·w²·L (m³): M_y = this · q · ½ sin 2α. K_f against the wing
@@ -557,11 +568,21 @@ public static class AeroModel
             : 0.4 * Math.Clamp(wake.FlowAlpha, -0.5, 0.5) * (1.0 - wake.StalledFraction));
         epsTail = (epsTail + 0.4 * flapDownwashRad * (1.0 - wake.StalledFraction)) * gePhi;
         // Every wing and stabiliser section's own wake (TailWake): where it goes, how wide and how deep.
+        long tWakes = SimProfile.Begin();
         TailWake.Field wakes = TailWake.Prepare(config, airfoilTables, bodyVelocity - windBody, bodyRates, cg, flowState, surfaceMask, stripMask, epsTail, controls);
+        SimProfile.End(SimProfile.Scope.Wakes, tWakes);
         // THE THRUST JET (PropJet, owner 2026-11-08): the propeller's tube of faster air, traced from the disc through
         // the air's own motion, so it tilts with alpha and beta and bends under pitch and yaw rate. One trace serves
         // every strip below. Off (and free) whenever the prop is doing nothing to the air.
+        long tJet = SimProfile.Begin();
         PropJet.Jet jet = PropJet.Prepare(config, bodyVelocity - windBody, bodyRates, cg, slipstreamDeltaU, slipstreamRadius, slipstreamSwirlMs, swirlProfile);
+        SimProfile.End(SimProfile.Scope.Jet, tJet);
+
+        // THE FUSELAGE'S CROSSFLOW VORTICES OVER THE TAIL (BodyVortex). One pair per evaluation, from the crossflow
+        // drag the fuselage already carries; every non-wing strip then flies in the flow it induces. See BodyVortex for
+        // the derivation and the sources, and docs/aircraft/CM-BETA.md for the measurement that said it was missing.
+        BodyVortex.Pair bodyVortex = NoBodyVortexForDiagnostics || !BodyVortexEnabled ? default
+                                   : BodyVortex.For(config, bodyVelocity - windBody, airDensity);
 
         // THE SEPARATED WING'S ROLLING MOMENT DUE TO SIDESLIP, accumulated STRIP BY STRIP as they are flown (owner
         // 2026-11-09: "make each of these real science not lump sums"). It used to be one bulk C_l*q*S*b at the bottom
@@ -662,6 +683,18 @@ public static class AeroModel
                 // The air is not the same across the airframe (regional atmosphere): the strip sees the wind where IT is.
                 if (windGradient.Active) vLocal -= windGradient.PerX * r.X + windGradient.PerY * r.Y;
                 Vec3 vAirStrip = vLocal;   // the relative wind here before the slipstream: what carries the wakes over this strip
+
+                // THE FUSELAGE'S CROSSFLOW VORTICES (BodyVortex; Polhamus, NACA RM L55E20b): the air they move at this
+                // strip, averaged across the strip's width. Tail surfaces only -- the vortices are shed from the body
+                // AHEAD of the tail, and over the wing they are not yet a wake but the attached crossflow the wing-body
+                // term below already describes. They are carried WITH the air, so this goes in before the jet and before
+                // the wakes, which ride on the flow it leaves.
+                if (!isWing && bodyVortex.Active)
+                {
+                    double halfWidth = 0.5 * (strip.Chord > 1e-9 ? strip.Area / strip.Chord : 0.0);
+                    vLocal -= BodyVortex.Induced(bodyVortex, stripAt, halfWidth, isVertical);
+                    vAirStrip = vLocal;
+                }
 
                 // Propeller slipstream: a surface inside the (contracted) prop wash sees the accelerated flow — this is
                 // why a prop aircraft has elevator and rudder authority at low speed (taxi, takeoff roll, floats on the
