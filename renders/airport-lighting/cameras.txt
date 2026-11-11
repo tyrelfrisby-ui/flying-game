@@ -1,0 +1,26 @@
+lights: 11 glide path rows, 44 boxes, 1224 runway lights
+papi-slightly-high 3.35 deg: R W W W  elev 3.35 3.35 3.35 3.35  (index 0 = nearest runway)
+papi-slightly-high-tele	eye (7998.04, 113.57, 5807.21)	look (6146.32, 5.17, 5839.53)	fov 3
+papi-slightly-high-pilot	eye (7998.04, 113.57, 5807.21)	look (6062.50, 4.27, 5881.28)	fov 40
+papi-on-path 3.00 deg: R R W W  elev 3.00 3.00 3.00 3.00  (index 0 = nearest runway)
+papi-on-path-tele	eye (7998.04, 102.23, 5807.21)	look (6146.32, 5.17, 5839.53)	fov 3
+papi-on-path-pilot	eye (7998.04, 102.23, 5807.21)	look (6062.50, 4.27, 5881.28)	fov 40
+papi-slightly-low 2.65 deg: R R R W  elev 2.65 2.65 2.65 2.65  (index 0 = nearest runway)
+papi-slightly-low-tele	eye (7998.04, 90.89, 5807.21)	look (6146.32, 5.17, 5839.53)	fov 3
+papi-slightly-low-pilot	eye (7998.04, 90.89, 5807.21)	look (6062.50, 4.27, 5881.28)	fov 40
+papi-low 2.20 deg: R R R R  elev 2.20 2.20 2.20 2.20  (index 0 = nearest runway)
+papi-low-tele	eye (7998.04, 76.31, 5807.21)	look (6146.32, 5.17, 5839.53)	fov 3
+papi-low-pilot	eye (7998.04, 76.31, 5807.21)	look (6062.50, 4.27, 5881.28)	fov 40
+vasi-on-path 3.00 deg: W W R R  elev 3.18 3.18 2.84 2.84  (0-1 downwind/near bar, 2-3 upwind/far bar)
+vasi-on-path-tele	eye (-7332.44, 209.11, 3109.25)	look (-6491.65, 112.05, 4759.39)	fov 4
+vasi-on-path-pilot	eye (-7332.44, 209.11, 3109.25)	look (-6445.96, 111.25, 4782.04)	fov 40
+vasi-low 2.40 deg: R R R R  elev 2.55 2.55 2.27 2.27  (0-1 downwind/near bar, 2-3 upwind/far bar)
+vasi-low-tele	eye (-7332.44, 189.67, 3109.25)	look (-6491.65, 112.05, 4759.39)	fov 4
+vasi-low-pilot	eye (-7332.44, 189.67, 3109.25)	look (-6445.96, 111.25, 4782.04)	fov 40
+vasi-high 3.70 deg: W W W W  elev 3.93 3.93 3.50 3.50  (0-1 downwind/near bar, 2-3 upwind/far bar)
+vasi-high-tele	eye (-7332.44, 231.82, 3109.25)	look (-6491.65, 112.05, 4759.39)	fov 4
+vasi-high-pilot	eye (-7332.44, 231.82, 3109.25)	look (-6445.96, 111.25, 4782.04)	fov 40
+night-panc-final	eye (-11445.02, 203.25, 1427.18)	look (-9914.97, 46.02, -4283.04)	fov 40
+night-patk-final	eye (-7717.14, 242.27, 2287.22)	look (-6279.44, 111.25, 5108.86)	fov 40
+night-ap10-final	eye (985.73, 1458.59, -246.20)	look (1811.29, 1371.60, 1524.22)	fov 40
+night-3u2-final	eye (2239.60, 1587.83, 1214.06)	look (1795.43, 1512.40, -875.58)	fov 40

@@ -74,6 +74,30 @@ Running record, one bullet per lane, newest last:
   2026-11-10, so it is simply absent in a fresh checkout and the test failed there. Re-pinned to the source of
   truth, `configs/aircraft/great-lakes-like.json`, found by walking up for the `configs/aircraft` directory the way
   the other tests do.
+- **`lane/claude-windsocks`** (`4021041a`) — MERGED. Two features in one lane, both of them Ty's own words.
+  **Windsocks** (08:43: *"every airport has a wind sock off to the side of the runway at each end and in the middle"*):
+  one shared part, `src/FlyingGame.Core/WindsockPart.cs`, drawn only by `Bridge/Windsock.cs` — three per runway on all
+  43 island runways, 129 of them, abeam each end and midfield, 12 m outside the FAA RSA (30.3 / 34.9 / 88.2 m off the
+  centreline), swinging and filling from `Atmosphere.WindAtPosition` (droop 80° calm → 0 at 15 kt).
+  **Airport lighting** (08:44: *"only airports with instrument approaches have vasi or papi make sure both are
+  represented at one airport or more the rest of the airports have no visual aids and roughly half have runway lights
+  for night flying"*): PAPI at PANC KSNA PHDH KMYL KMEV KPGA, 2-bar VASI at KAVX and PATK, nothing anywhere else;
+  edge lights at 19 of 39 airports, 1,224 lamps on 22 runways. Light **colour is emergent** — each PAPI box and VASI
+  bar is white above its own setting angle and red below it, computed from the angle between that lens and the eye
+  every frame, lit toward its approach only (±10°, gone by 15°).
+  Only `AGENT-LOG.md` conflicted; both sides kept.
+  **Two deletions checked before taking them**, because they look alarming: the lane removes
+  `WorldBuilder.BuildWindsocks` and the whole runway-edge / threshold / static-PAPI block from
+  `Bridge/AirportVisuals.cs`. **Both are dead code.** `AirportVisuals` is referenced nowhere in the tree, and
+  `WorldBuilder.BuildAll` does nothing but `return IslandWorldBuilder.Build()`. So the old world's copies cost
+  nothing live, and the new shared parts are drawn from the island builder, which is the only one that runs.
+  Tests: `Windsock|AirportLighting|IslandSurface|IslandGeometry` — **55 passed, 0 failed.**
+  Carried forward for the wake lane: the windsock lane's own log says `WindsockPart.AirAt` is
+  `Atmosphere.WindAtPosition` alone and that *"lane/claude-wake-vortex has a field, one line in WindsockPart.AirAt
+  when it merges"*. That line goes in with the wake lane, or the socks will not move in a wake.
+  Still Ty's to look at, not an approved gate: `renders/windsocks/` and `renders/airport-lighting/`, Q110–Q113.
+  Two findings from the lane that still stand: **the game has no night**, so the runway lights cannot be flown at
+  night yet, and the VASI angles are not from a document anyone read.
 
 ## ASTC 4x4: the textures come out of the GLBs, and the whole fleet with every livery is 0.95 GB — Claude, 2026-11-10, lane/claude-textures
 
@@ -2258,6 +2282,67 @@ Lane lane/claude-floats (from island-nav 6a42a199). Ty 08:58 + 09:00 (agent-lane
   2026.1105.0855 (build only, 0 error CS). **NOT merged and NOT installed** on purpose: your 08:50 crosswind note
   (squeal threshold + fade-in) is queued as the follow-up session in this same lane, and it does the merge into both
   lanes and the iPhone / iPad mini / Quest installs once, with both changes in. Nothing here is an approved gate.
+<!-- airport-lighting needs-you -->
+- **AIRPORT LIGHTING: built and rendered, waiting for Ty's look (Claude, 2026-11-05, lane/claude-windsocks 0c73b1b6+).
+  `** BUILD SUCCEEDED **` (deploy.sh NOINSTALL, 13:42, stamp 2026.1105.1334, not installed); Unity batch 0 error CS.
+  NOT merged, NOT installed.** Ty 08:44: "only airports with instrument approaches have vasi or papi
+  make sure both are represented at one airport or more the rest of the airports have no visual aids and roughly half
+  have runway lights for night flying". Doc: docs/AIRPORT-LIGHTING.md.
+  - **Ty, please look at** `renders/airport-lighting/`: papi-{slightly-high,on-path,slightly-low,low}-{tele,pilot},
+    vasi-{on-path,low,high}-{tele,pilot}, night-{panc,patk,ap10,3u2}-final; `cameras.txt` lists each eye's angle and
+    the colour every box computed for it. Questions Q110-Q113 in the queue.
+  - **Who has what.** Instrument approach yes/no per airport (`AirportLighting.Table`, 39 airports;
+    `WorldTerrain.Airport.InstrumentApproach`), from the island's ifr.approaches: PANC KSNA PHDH KMYL KMEV KPGA KAVX
+    PATK. PAPI at the first six, **2-bar VASI at KAVX and PATK**, on each runway end a procedure leads to (KAVX's VOR-A
+    is circling: both ends). Every other airport: no aid. **Runway lights at 19 of 39**: the 8 + PALH SITX TERN NHVN
+    KITE RIME + AP1 AP3 AP8 AP10 AP12 (1,224 lamps on 22 runways; KMEV's grass 13G/31G unlit).
+  - **Colour is emergent.** Each PAPI box / VASI bar is white above its setting angle, red below (PAPI 3°30' 3°10'
+    2°50' 2°30', 3' pink band; VASI 2.75° near / 3.25° far), from the angle between its lens and the camera, every
+    frame. Lit toward its approach only (±10°, gone by 15°). Edge lights: white MIRL, 200 ft max spacing; yellow over
+    the last 2,000 ft each way on instrument runways; green-out / red-in threshold and end bars.
+  - **One shared part each**: Core `PapiPart`, `VasiPart`, `EdgeLightPart`; `Bridge/AirportLights.cs` is the only
+    drawer (`AirportLightingTests.EachAidIsOneSharedPart`). AirportLightingTests 20/20.
+  - Findings (not changed): **the game has no night** (always day; halos only under the debug sunset), so the runway
+    lights can't be flown at night yet (Q112). The VASI angles are not from a document I read (Q113).
+  - Step 1 grep (what existed): `Bridge/AirportVisuals.cs` (OLD world, not built since the island) had a static
+    2-red/2-white PAPI (not angle-sensitive) and white edge / green-red end lamps on every paved strip, with AirportGlow
+    halos. Both removed now (the old world keeps its taxi lamps). `Editor/WorldRender.cs` has old runway-papi-*
+    capture cameras (left alone). The island drew no runway lamps at all. ILS `HasGlideslope` exists on navaids
+    (Navaid.cs, NavReceiver) but there was no airport flag; no VASI code anywhere.
+  - Status: <!-- airport-lighting status -->Rendered 13:33 and LOOKED AT: every plate matches what Core computed
+    (cameras.txt). PAPI at PHDH 26, 1 NM: 3.35° R W W W, 3.00° R R W W, 2.65° R R R W, 2.20° all red (red always
+    nearest the runway, row left of the runway). VASI at PATK 2: on path far bar red over near bar white, 2.4° all red,
+    3.7° all white. Night: PANC, PATK and AP10 show white edges, green threshold, red far end and the PAPI/VASI glow;
+    3U2 (unlit) is dark. Notes on the plates: in the 40° pilot views at 1 NM the boxes are a few pixels (real size;
+    the 3-4° telephotos show them). The red-white pole in the PAPI telephoto is the end windsock ~80 m beyond the row
+    (depth compressed). **Night plates are a stand-in**: the terrain shaders ignore sun and ambient, so the ground stays
+    day-bright under a black sky, and at 3 km the 200 ft-spaced edge lights merge into solid bars (the shared
+    AirportGlow halo's pixel floor, not changed here). The AP10 camera sits low over a glacier.
+  - Not an approved gate.
+
+## NEEDS YOU
+<!-- windsocks needs-you -->
+- **WINDSOCKS: built and rendered, waiting for Ty's look (Claude, 2026-11-05, lane/claude-windsocks 872fd1a3+).**
+  Update 13:42: WindsockShots ran (0 error CS) -> `renders/windsocks/`, and the lane's deploy.sh NOINSTALL reached
+  `** BUILD SUCCEEDED **` (stamp 2026.1105.1334, same build as the airport lighting). Looked at: the sock hangs at calm,
+  fills throat-first and sags at 7 kt, no winding faults. The "NOT done" lines below are superseded.
+  Ty 08:43: "every airport has a wind sock off to the side of the runway at each end and in the middle".
+  - Done: one shared part (`src/FlyingGame.Core/WindsockPart.cs`, drawn only by `Bridge/Windsock.cs`); 3 per runway
+    on all 43 airport runways (129), abeam each end and midfield, 12 m outside the FAA RSA (sock 30.3 / 34.9 / 88.2 m
+    off the centreline); swings and fills from `Atmosphere.WindAtPosition` (droop 80 deg calm -> 0 at 15 kt).
+    WindsockTests 18/18; targeted island classes: same 6 reds as the branch point. Doc: docs/WINDSOCKS.md.
+  - **NOT done: the Unity batch (compile + renders) and `** BUILD SUCCEEDED **`.** The slot gate (3 idle minutes, no
+    Unity/xcodebuild/deploy) never opened in 2 h; the job hit the background limit before Unity started. Next owner:
+    run `Unity -batchmode -quit -projectPath unity -buildTarget iOS -executeMethod FlyingGame.EditorTools.WindsockShots.Render`
+    (writes renders/windsocks/), LOOK at the renders (winding of the sock mesh is unverified), then
+    `zsh tools/deploy/deploy.sh NOINSTALL`. Do not merge or install before Ty sees the renders.
+  - Findings for Ty (not changed): no night in the game, so no lit sock; wake vortices / prop wash are not in the wind
+    query (lane/claude-wake-vortex has a field, one line in `WindsockPart.AirAt` when it merges); the regional
+    atmosphere config fails to load on the island (`airport:Bench` anchor) so free flight is uniform air; and uniform-air
+    turbulence never drifts (`Turbulence.MeanWind` unset), so gusts stand still over the ground and a sock holds still.
+  - Not an approved gate.
+
+## NEEDS YOU
 <!-- merge-tundra-recorder needs-you -->
 - **Ty to fly-check and confirm defaults: TUNDRA TYRES + FLIGHT RECORDER phase 1 MERGED (Claude, 2026-11-05, Ty approved
   05:36 "take each lane's defaults"). island-nav 04278266 (tundra) + 23922ee1 (recorder); Quest 221db87f. PARITY: OK.
