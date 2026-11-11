@@ -1043,7 +1043,8 @@ public sealed partial class Aircraft
     /// A float's ultimate water load, N — 14 CFR 23.527 (hull and main float load factors): the limit water reaction
     /// load factor n_w = C1·V_S0² / (tan^(2/3) β · W^(1/3)), C1 = 0.012, V_S0 in knots, W in pounds, β the deadrise at
     /// the step; for twin floats each float is the hull of a fictitious seaplane of half the weight (23.527(b)); times
-    /// the 1.5 factor of safety (23.303). V_S0 is the type's own (PracticeScenario.EstimateVso, power off, no flap).
+    /// the 1.5 factor of safety (23.303). V_S0 is the type's own (PracticeScenario.EstimateVso, power off, no flap),
+    /// AT THE DESIGN GROSS — see <see cref="InitFloatWaterLoads"/>.
     /// Above it the float's bottom splits (FloatFlooding): the aeroplane does not come apart, it starts to fill on that
     /// side — the damage a float actually takes from a landing far harder than it was designed for. 0 = no floats.
     /// </summary>
@@ -1057,14 +1058,47 @@ public sealed partial class Aircraft
     public const double FloatLoadWindowS = 0.02;
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, double> VsoCache = new();
 
+    /// <summary>
+    /// THE STALL SPEED 23.527 MEANS: V_S0 AT THE DESIGN GROSS, m/s. 23.527 is one equation evaluated at ONE weight —
+    /// both the W in it and the V_S0 in it are the weight the float was certificated at.
+    ///
+    /// Half of that was fixed on 2026-11-11 ("A float was getting 16% weaker because the aeroplane was authored
+    /// lighter"): W moved to <see cref="AircraftOverstress.StructuralGrossKg"/>. V_S0 was left reading
+    /// PracticeScenario.EstimateVso, which trims the aeroplane at config.Mass.MassKg — the weight AS FLOWN. The two
+    /// then disagreed, and the half that was missed was the bigger one: n_w goes as V_S0², so the float lost the whole
+    /// mass ratio and not merely its cube root.
+    ///
+    /// MEASURED on j3-cub-floats-like, whose massKg went 589.67 → 451.142 kg that same morning: EstimateVso read
+    /// 33.24 kt where V_S0 at the certificated 1,300 lb is 38.0, n_w came out 3.139 against the 4.12 FloatLandingTests
+    /// derives by hand from the certificate, and the ultimate 13.62 kN against 17.9 — a float 24 % weaker than the one
+    /// A-691 approved, which split BOTH bottoms on a 98 fpm touchdown.
+    ///
+    /// V_S ∝ √W at a fixed CLmax, wing area and density, so the design-gross stall is the trimmed one scaled by
+    /// √(design / as-flown): no second trim solve, and the result is a property of the TYPE, which is why the cache
+    /// holds this and not the as-flown figure. A type authored at its own gross — the rest of the fleet, where
+    /// StructuralGrossKg falls back to Mass.MassKg — scales by exactly 1 and does not move.
+    /// </summary>
+    private static double DesignGrossVsoMs(AircraftConfig c)
+    {
+        double designKg = StructuralGrossKg(c), flownKg = System.Math.Max(1.0, c.Mass.MassKg);
+        return Practice.PracticeScenario.EstimateVso(c, 0.0) * System.Math.Sqrt(designKg / flownKg);
+    }
+
     private void InitFloatWaterLoads()
     {
         if (Config.Floats is null || FloatFlood is null) return;
-        double vso = VsoCache.GetOrAdd(Config.Id ?? "", _ => Practice.PracticeScenario.EstimateVso(Config, 0.0));
-        int floats = Config.Floats.Count == 1 ? 1 : 2;
         // THE DESIGN GROSS, not the weight it is flying at: 14 CFR 23.527's water load is certificated once, and a
         // float does not get weaker because the aeroplane is light today (StructuralGrossKg, in AircraftOverstress.cs).
         double designKg = StructuralGrossKg(Config);
+        // THE CACHE KEY CARRIES THE TWO WEIGHTS, not the type id alone. A production config's masses are read from
+        // its file and never move, so this still solves one trim per type; but a TEST that loads the same id twice
+        // and authors a different mass on each copy — StructuralGrossTests does exactly that, and so does
+        // FloatLandingTests.AFloatsUltimateLoadIsItsCertificatesAndDoesNotFollowTodaysWeight — was being handed back
+        // whichever copy happened to reach the cache first. xUnit runs those two classes in parallel in one process
+        // over one static dictionary, so which answer they got depended on the scheduler. A float's strength is not
+        // allowed to depend on that.
+        double vso = VsoCache.GetOrAdd($"{Config.Id}|{designKg:R}|{Config.Mass.MassKg:R}", _ => DesignGrossVsoMs(Config));
+        int floats = Config.Floats.Count == 1 ? 1 : 2;
         double wLb = designKg * 2.20462 / floats;
         double vKt = vso * 1.943844;
         double beta = Config.Floats.DeadriseDeg * System.Math.PI / 180;

@@ -35,7 +35,16 @@ public sealed partial class Aircraft
     /// mass.massKg AS its max gross the two were the same number. They stopped being the same on 2026-11-11, when the
     /// fleet's empty weights were corrected and massKg became the aeroplane AS FLOWN — the J-3 on floats went 589.7
     /// to 451.1 kg. Anything structural still reading massKg therefore shrank with it. Measured on that type: the
-    /// 23.527 ultimate water load is proportional to W^(2/3), so the float's modelled strength fell 16.4 %.
+    /// float's modelled strength fell 36.3 %.
+    ///
+    /// (THAT FIGURE WAS 16.4 % HERE UNTIL 2026-11-11, and the 16.4 was an understatement with an instructive cause.
+    /// It takes the 23.527 ultimate as ∝ W^(2/3), which is only true with V_S0 held still — and V_S0 does not hold
+    /// still when the whole aeroplane is lighter. The ultimate is 1.5·n_w·W with n_w ∝ V_S0²/W^(1/3), so it goes as
+    /// V_S0²·W^(2/3), and V_S ∝ √W carries another full factor of W: W^(5/3), measured 0.637 against the predicted
+    /// 0.640. The reason W^(2/3) looked right in StructuralGrossTests is that Aircraft's V_S0 cache was keyed by type
+    /// id alone, so its two copies of one type were handed each other's stall speed and the V_S0² cancelled. Both are
+    /// fixed in Aircraft.InitFloatWaterLoads: the stall speed in 23.527 is the DESIGN GROSS one too, and the cache
+    /// key carries the weights.)
     ///
     /// So this now consults the PLACARD first (loading.maxTakeoffMassKg, which the certificate work authors) before
     /// falling back. A type with neither is authored at its gross the old way and is unchanged.
