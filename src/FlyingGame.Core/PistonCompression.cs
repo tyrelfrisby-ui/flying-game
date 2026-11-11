@@ -120,46 +120,134 @@ public static class PistonCompression
     private static double _peakCr = double.NaN, _peak = 1.0;
 
     /// <summary>The blade angle a dead propeller sits at: the governor's fine stop on a constant-speed type, the fitted
-    /// 75 % pitch on a fixed-pitch one, 15 deg for a type whose blade has not been fitted yet. Both of Ty's anchors are
-    /// stated "at fine pitch", so every calibration below reads this.</summary>
+    /// 75 % pitch on a fixed-pitch one, 15 deg for a type whose blade has not been fitted yet. Ty's stall-speed anchor
+    /// is stated "at fine pitch", so every calibration below reads this.</summary>
     public static double FinePitchDeg(DataContracts.PropulsionConfig p)
         => p is { ConstantSpeed: true, FineStopDeg: > 0.0 } ? p.FineStopDeg
          : p.BladePitch75Deg > 0.0 ? p.BladePitch75Deg : 15.0;
+
+    /// <summary>
+    /// A FLEET BMEP, Pa, and the ONLY reason it exists is that most of this fleet's displacement is not authored.
+    /// 1.00 MPa = 145 psi is the mean of the SIX distinct engines whose displacement <see cref="SmokeConfig"/> does
+    /// carry — Continental C-85 959 kPa, Lycoming O-320 949, the two O-360s 1007 and 1008, the Pitts' O-540 972 and the
+    /// Extra's 1125 — a 17 % spread, which is what a brake mean effective pressure is: nearly a constant across
+    /// naturally aspirated direct-drive engines, because that is what fixes how much power a given displacement makes.
+    ///
+    /// AND IT IS AN ESTIMATE, SO HERE IS HOW WRONG IT IS. Inverted against engines whose real displacement is known
+    /// from elsewhere it gives the Cassutt's O-200 to 0.7 %, the Decathlon's, Archer's and Seminole's O-360s to 2 %,
+    /// the Beaver's R-985 to +10 %, the SR22's IO-550 to +15 %, the Stearman's R-670 to −12 %, the JN-4's OX-5 to
+    /// −29 %, the DC-3's R-1830 to +34 %, the Merlin to +65 % (it is supercharged: its BMEP is nothing like this
+    /// fleet's) and the AirCam's Rotax to +180 % (it is GEARED, so maxRpm is the propeller's and not the crank's).
+    /// So: good to about 15 % on a direct-drive, naturally aspirated four or six, and not to be trusted on a
+    /// supercharged engine, a radial or a geared one. No type that falls back to this estimate runs the compression
+    /// mechanism today — none of them has a fitted blade or fitted governor stops — and each wants its real
+    /// displacement authored on <see cref="SmokeConfig.DisplacementCuIn"/> when its blade is fitted.
+    /// </summary>
+    public const double FleetBmepPa = 1.00e6;
+
+    /// <summary>
+    /// THE ENGINE'S SWEPT VOLUME, m^3: <see cref="SmokeConfig.DisplacementCuIn"/> where it is authored, and otherwise
+    /// backed out of rated torque at <see cref="FleetBmepPa"/> — because for a four-stroke BMEP = 4π·Q_rated / V_d, and
+    /// that is a definition, not a fit. <paramref name="authored"/> says which you got, so a probe can print it.
+    /// </summary>
+    public static double DisplacementM3(DataContracts.AircraftConfig c, out bool authored)
+    {
+        double cuIn = c.Smoke?.DisplacementCuIn ?? 0.0;
+        authored = cuIn > 0.0;
+        if (authored) return cuIn * CubicInchM3;
+        DataContracts.PropulsionConfig? p = c.Propulsion;
+        if (p is null || p.MaxPowerW <= 0.0 || p.MaxRpm <= 0.0) return 0.0;
+        double qRated = p.MaxPowerW / (p.MaxRpm * 2.0 * Math.PI / 60.0);
+        return 4.0 * Math.PI * qRated / FleetBmepPa;
+    }
+
+    public const double CubicInchM3 = 16.387064e-6;
 
     /// <summary>The rpm the calibrations below call "at rest": not zero, because a blade-element solve needs an omega
     /// to divide by.</summary>
     public const double AtRestRpm = 5.0;
 
     /// <summary>
-    /// HOW HARD A CYLINDER ON COMPRESSION PUSHES BACK, N·m, calibrated to Ty's restart anchor, 2026-11-10: "To get
-    /// prop windmilling again should take 10% under vne". A STOPPED propeller has no stored energy, so it has to beat
-    /// the worst of the ripple from rest, and that condition fixes this one number:
+    /// HOW HARD A CYLINDER ON COMPRESSION PUSHES BACK, N·m at sea-level ambient — AND IT IS THE ENGINE'S OWN GAS LOAD
+    /// NOW, computed from its displacement and compression ratio, not solved from anything. Ty 2026-11-10, shown that
+    /// the Pitts and the Extra carry the SAME AEIO-540 and were coming out at 99 and 683 N·m purely because their
+    /// airframes have different Vne: "that settles it - compute from displacement". Two identical engines cannot
+    /// resist differently because they are bolted to different aeroplanes.
     ///
-    ///     Q_air(0.9·Vne, fine stop, at rest)  =  |Q_mean(at rest)|  +  peak · worstRipple(cylinders, CR)
+    /// It is the same slider-crank and polytropic charge the ripple's SHAPE comes from, in absolute units instead of
+    /// normalised ones. The clearance volume is V_c = V_d / (cylinders · (CR − 1)), the peak of
+    /// (p/p_amb − 1)·dV/dφ over the stroke is <see cref="PeakFor"/> in units of V_c per radian, so
     ///
-    /// AT REST ON BOTH SIDES, which is a correction (2026-11-10, second pass). This used to take the motoring mean at
-    /// RATED rpm, which was harmless while the boundary friction was a spike below 300 rpm and is not harmless now:
-    /// the mean at rest is three to five times the mean at rated, and leaving that out of an equation written at
-    /// rest put the restart speed at 1.07 Vne on the Pitts and 1.11 Vne on the Cub instead of the 0.90 Vne he asked
-    /// for. With the mean at rest it measures 0.900 Vne on every type. It is still one equation in one unknown.
+    ///     peak = p_amb · V_c · PeakFor(CR)
     ///
-    /// Which leaves his OTHER anchor — the propeller stopping at the stall speed — as what
-    /// <see cref="PistonEngine.BoundaryExcessFor"/> is solved from, and the two anchors then share one budget: at rest
-    /// the air at 0.9 Vne has to pay for the dry friction AND the compression peak out of the same torque. On the Great
-    /// Lakes, whose Vne is only 68 m/s, the dry friction alone takes 68 % of that budget and what is left makes a weak
-    /// lump. That is a finding about those two anchors on that type, not a knob.
+    /// which for a 541.5 cubic inch six at 8.7:1 is 326 N·m — about 20 kN on the piston through a 55 mm crank throw,
+    /// and the Pitts and the Extra now agree because they are the same engine. A 361 cubic inch FOUR at the same
+    /// compression comes out at 326 as well, which is right: an O-360 and an O-540 share the 5.125 in bore and the
+    /// 4.375 in stroke, so they share a cylinder and differ only in how many. The Cub's 188 cubic inch four at 6.3:1
+    /// is 125.
+    ///
+    /// WHAT THIS GAVE UP IS HIS RESTART ANCHOR — "To get prop windmilling again should take 10% under vne" — and he
+    /// gave it up on purpose, told that it and a physical compression peak cannot both hold: he would rather the Pitts
+    /// thud than restart at an exact number. So the restart speed is now a MEASUREMENT of this model
+    /// (<see cref="RestartSpeedMs"/>, printed by CompressionStopProbe) and not an input to it, and the only thing still
+    /// solved from an anchor is the dry boundary friction, from the stall speed
+    /// (<see cref="PistonEngine.BoundaryExcessFor"/>).
+    ///
+    /// Sea-level ambient, because the charge is drawn at ambient and a cached per-type number cannot know the altitude.
+    /// AircraftEngine scales the ripple by the pressure ratio where it uses it, so a dead engine at 10,000 ft has a
+    /// softer lump — which is correct, and is the altitude lapse of a gas spring.
     /// </summary>
     public static double PeakNmFor(DataContracts.AircraftConfig c)
     {
         DataContracts.PropulsionConfig? p = c.Propulsion;
         if (p is null || p.PropDiameterM <= 0.0 || p.MaxPowerW <= 0.0) return 0.0;
-        double restartMs = 0.9 * (c.Limits?.VneMs ?? 0.0);
-        if (restartMs <= 1.0) return 0.0;
+        double displacement = DisplacementM3(c, out _);
+        double cr = Math.Max(1.5, c.EngineCompressionRatio);
+        double vClearance = displacement / (Math.Max(1, c.EngineCylinders) * (cr - 1.0));
+        return Atmosphere.SeaLevelPressurePa * vClearance * PeakFor(cr);
+    }
+
+    /// <summary>
+    /// THE SPEED AT WHICH A STOPPED PROPELLER BREAKS AWAY AND STARTS WINDMILLING AGAIN, m/s at sea level — a
+    /// MEASUREMENT of this model since 2026-11-10, not an anchor into it. A stopped propeller has no stored energy, so
+    /// the air on the blade at rest has to beat the mean it takes to turn the engine over PLUS the worst of the
+    /// compression ripple:
+    ///
+    ///     Q_air(v, fine stop, at rest)  =  |Q_mean(at rest)|  +  peak · worstRipple(cylinders, CR)
+    ///
+    /// Both sides at rest: the mean at rest is several times the mean at rated rpm (PistonEngine's boundary friction),
+    /// and an equation written at rest that used the rated figure would be wrong by that much.
+    ///
+    /// <paramref name="leak01"/> is how well the cylinders are still holding: 1 is a freshly stopped engine, every
+    /// cylinder sealed, which is the hardest case and the one to quote. Lower is a propeller that has been standing a
+    /// few seconds, and it matters enormously — the gas load is proportional to the trapped charge, so a cylinder bled
+    /// to a third needs a third of the shove. That is Ty's "occasional flips through a compression stroke can occur at
+    /// speeds below": the leak-down is what lets a stopped propeller creep over onto the next cylinder long before it
+    /// could break away against a sealed one.
+    ///
+    /// Ty's original anchor was 0.9 Vne. It is no longer enforced, and what it has become is a finding — see
+    /// <see cref="PeakNmFor"/> for why, and CompressionStopProbe for the number each type actually lands on.
+    /// </summary>
+    public static double RestartSpeedMs(DataContracts.AircraftConfig c, double leak01 = 1.0)
+    {
+        DataContracts.PropulsionConfig? p = c.Propulsion;
+        if (p is null || p.PropDiameterM <= 0.0 || p.MaxPowerW <= 0.0) return double.NaN;
         var g = new BladeElement.Geometry(p.PropBladeCount, 0.5 * p.PropDiameterM, FinePitchDeg(p), p.ActivityFactor);
-        double qAir = -BladeElement.Solve(g, restartMs, 0.0, AtRestRpm, Atmosphere.SeaLevelDensityKgM3).TorqueNm;
-        double qMean = -PistonEngine.MotoringTorqueNm(p, AtRestRpm, 0.0, 1.0, 1.0);
-        double worst = WorstRipple(c.EngineCylinders, c.EngineCompressionRatio);
-        return Math.Max(0.0, (qAir - qMean) / Math.Max(1e-6, worst));
+        int cyl = Math.Max(1, c.EngineCylinders);
+        var leak = new double[cyl];
+        for (int i = 0; i < cyl; i++) leak[i] = Math.Clamp(leak01, 0.0, 1.0);
+        double worst = 0.0;
+        for (int i = 0; i <= 1440; i++)
+        {
+            double r = RippleFactor(4.0 * Math.PI * i / 1440.0, cyl, c.EngineCompressionRatio, leak);
+            if (r < worst) worst = r;
+        }
+        double need = -PistonEngine.MotoringTorqueNm(p, AtRestRpm, 0.0, 1.0, 1.0) + PeakNmFor(c) * -worst;
+        double QAir(double v) => -BladeElement.Solve(g, v, 0.0, AtRestRpm, Atmosphere.SeaLevelDensityKgM3).TorqueNm;
+        double lo = 1.0, hi = 400.0;
+        if (QAir(hi) < need) return double.NaN;              // no speed in the model's range can shove it over
+        for (int i = 0; i < 40; i++) { double m = 0.5 * (lo + hi); if (QAir(m) >= need) hi = m; else lo = m; }
+        return 0.5 * (lo + hi);
     }
 
     /// <summary>

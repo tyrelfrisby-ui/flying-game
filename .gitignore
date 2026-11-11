@@ -64,10 +64,12 @@ unity/Assets/StreamingAssets/credits.md
 unity/Assets/StreamingAssets/credits.md.meta
 unity/Assets/StreamingAssets/rigs/
 unity/Assets/StreamingAssets/rigs.meta
-# The aircraft JSON mirrors are VERSIONED on this branch (NEEDS YOU, see AGENT-LOG): only the generated Unity
-# folder/file metadata beside them is ignored.
-unity/Assets/StreamingAssets/aircraft/great-lakes-like.json.meta
-unity/Assets/StreamingAssets/aircraft.meta
+# The aircraft JSON mirrors are GENERATED and NOT versioned. Ty 2026-11-10, asked to settle the open
+# decision recorded here: "Untrack them". ConfigSync writes them from configs/ on every build, so a tracked
+# copy is a second source of truth that drifts, and it is exactly the trap described above -- 71 of them were
+# tracked-but-ignored, which is how great-lakes-like shipped with no runtime config on 2026-10-30. It also
+# cost real time on 2026-11-10: locally regenerated mirrors blocked two lane merges outright.
+unity/Assets/StreamingAssets/aircraft/
 *.csproj.meta
 unity/*.csproj
 unity/*.sln
@@ -102,5 +104,5 @@ assets-incoming/
 # Agent worktrees: full checkouts of this repo (329 MB), never part of it.
 .claude/worktrees/
 
-# Tracked-vs-generated for the aircraft mirrors is still an open decision (AGENT-LOG NEEDS YOU): they are
-# tracked here, which is why two StreamingAssetsTests fail. build/cg-check.csv is tracked and stays so.
+# Tracked-vs-generated for the aircraft mirrors is SETTLED (Ty 2026-11-10): generated, not tracked, which is
+# what the two StreamingAssetsTests assert. build/cg-check.csv is tracked and stays so.
