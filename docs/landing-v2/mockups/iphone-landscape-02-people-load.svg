@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="852" height="393" viewBox="0 0 852 393">
+<rect width="852" height="393" fill="#f1f4f2"/>
+<text x="24" y="28" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#4b626b">AERO / PLAYGROUND</text>
+<text x="24" y="61" font-family="Arial, sans-serif" font-size="14" font-weight="400" fill="#4b626b">01  Aircraft &amp; place</text>
+<text x="187" y="61" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#152d35">02  People &amp; load</text>
+<rect x="187" y="68" width="146" height="3" rx="0" fill="#d6a325" stroke="none" stroke-width="2"/>
+<text x="350" y="61" font-family="Arial, sans-serif" font-size="14" font-weight="400" fill="#4b626b">03  Conditions</text>
+<rect x="654" y="80" width="174" height="225" rx="12" fill="#ffffff" stroke="none" stroke-width="2"/>
+<text x="672" y="108" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#4b626b">YOUR FLIGHT</text>
+<text x="672" y="135" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#152d35">Free play</text>
+<text x="672" y="157" font-family="Arial, sans-serif" font-size="12" font-weight="400" fill="#4b626b">Choose your own setup</text>
+<rect x="666" y="174" width="150" height="48" rx="12" fill="#e5ece9" stroke="none" stroke-width="2"/>
+<g transform="translate(675 183)" stroke="#152d35" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M6 29 V3 Q13 -1 20 4 Q24 7 28 3 V17 Q22 21 17 17 Q11 13 6 17"/>
+</g>
+<text x="713" y="204" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#152d35">Challenges</text>
+<rect x="666" y="234" width="150" height="48" rx="12" fill="#e5ece9" stroke="none" stroke-width="2"/>
+<g transform="translate(675 243)" stroke="#152d35" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M2 7 L15 2 L28 7 L15 12 Z M7 10 V20 Q15 26 23 20 V10 M28 7 V20"/>
+</g>
+<text x="713" y="264" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#152d35">Lessons</text>
+<text x="24" y="103" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#152d35">Bring your crew.</text>
+<rect x="24" y="118" width="614" height="70" rx="12" fill="#ffffff" stroke="none" stroke-width="2"/>
+<g transform="translate(38 135)" stroke="#152d35" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M8 3 L8 20 L25 20 L25 28 M8 12 L21 12 L21 20 M5 28 L9 20"/>
+</g>
+<text x="82" y="144" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#152d35">Front seat · Pilot</text>
+<text x="82" y="166" font-family="Arial, sans-serif" font-size="12" font-weight="400" fill="#4b626b">You · flight controls</text>
+<rect x="24" y="200" width="614" height="70" rx="12" fill="#ffffff" stroke="none" stroke-width="2"/>
+<g transform="translate(38 217)" stroke="#152d35" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M8 3 L8 20 L25 20 L25 28 M8 12 L21 12 L21 20 M5 28 L9 20"/>
+</g>
+<text x="82" y="226" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#152d35">Rear seat</text>
+<text x="82" y="248" font-family="Arial, sans-serif" font-size="12" font-weight="400" fill="#4b626b">Default person or invite a player</text>
+<text x="24" y="297" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#152d35">Baggage &amp; balance ›</text>
+<text x="24" y="316" font-family="Arial, sans-serif" font-size="12" font-weight="400" fill="#4b626b">Fuel: not applicable to this glider</text>
+<rect x="24" y="329" width="106" height="48" rx="12" fill="#e5ece9" stroke="none" stroke-width="2"/>
+<text x="40" y="359" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#152d35">‹ Back</text>
+<text x="148" y="358" font-family="Arial, sans-serif" font-size="14" font-weight="400" fill="#4b626b">2 / 3</text>
+<rect x="618" y="329" width="208" height="48" rx="12" fill="#ffd15c" stroke="none" stroke-width="2"/>
+<text x="634" y="359" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#152d35">Conditions  →</text>
+<text x="24" y="386" font-family="Arial, sans-serif" font-size="10" font-weight="400" fill="#4b626b">DESIGN MOCKUP · iphone-landscape · illustrative scenery / not a Unity capture</text>
+</svg>

@@ -326,6 +326,24 @@ that is the right place to spend it, and the **oldest** marks go first.
   `ReversibleControlTests.TailslideSlamsFreeControlsToTheStops` (pitts-s2b, pa18-cub, extra-300). **The baseline of
   seven is real, and it is now the session's baseline.** Serialising the flying classes is still right, and it did
   stop the p51d case flapping between runs, but it is not what these seven are.
+- **`lane/claude-landing-v2`** (`8ca16bac`) — MERGED, and it carries `lane/codex-landing-v2` with it: that branch is
+  an ANCESTOR of this one (0 commits ahead), so the Codex UI restyle is already inside the Claude half and the "pair"
+  is one merge, not two. The pre-flight flow Ty approved on 11-05 (*"Landing page is good but give page two a
+  standard or metric option; most users will be American/standard"*): two pages, Choose then Load & Launch, a live
+  preview, Standard | Metric on one pref key `landing.units` defaulting to Standard, and a handbook-style W&B chart
+  — CG across, weight up — with each type's certificated envelope: Pitts S-2B (FAA A8SO), J-3 (A-691), Great Lakes
+  (A18EA), Swift S-1 (EASA A.038) and Grob 103 (POH 2.7). LAUNCH out of limits asks first, in his exact words, with
+  **Go back** | **Fly**; in limits there is no popup. Types with no verified envelope say "No envelope authored"
+  rather than inventing one, and the C172's is the open question already in the queue.
+  **Three real conflicts, all resolved by combining rather than choosing:**
+  1. `StartMenu.cs`'s FLY button. The shipping lane had rewritten its SIZE (`flyW` / `flyH`, from the stacked bottom
+     row) while the lane rewrote what it DOES (through the Load page, so the weight and balance is seen before the
+     aeroplane is — Ty t881u/t882u). Kept the shipping layout and the lane's action. Either side whole loses one.
+  2. `QuestMenu.cs`'s Seat row — the shipping lane added a Gear row (wheels / bushwheels / wheel-skis) exactly where
+     the lane rewrote the Seat label to read from the W&B flow. Both kept.
+  3. `ClipSelfTest.cs` — one self-test mode each (`options` ours, `landing` and `landing-thumbs` theirs). Both kept.
+  `AGENT-LOG.md` and `CLAUDE.md`: both sides in full.
+  Tests: `LandingFlow|AircraftLoad|WeightBalance|FleetAllowList` — **144 passed, 0 failed.**
 
 ## ASTC 4x4: the textures come out of the GLBs, and the whole fleet with every livery is 0.95 GB — Claude, 2026-11-10, lane/claude-textures
 
@@ -1512,6 +1530,120 @@ wifi and I install in place, no uninstall.
   anything this repair touches. The 139 are NOT a green suite and NOT a blanket exemption for future branches.
   Focused replay tests on the delivered tree: **18/18 passed**.
 <!-- /replay-damage-t1001 needs-you -->
+## ACTIVE BRIEF ADDENDUM — t881u + t882u (same W&B job)
+- No "you can still fly". Labels: Over gross / Aft c.g. / Forward c.g. (factual only).
+- Popup EXACT: "Your W&B is out of limits which will negatively affect aircraft handling and performance." · Go back | Fly.
+- Still NO merge/install until revised renders approved. Queued first free slot.
+
+## ACTIVE BRIEF — Ty t880u W&B envelope (2026-11-06 ~04:51 PT) — NO MERGE/INSTALL
+Ty rejected landing-units merge: W&B graph must plot **CG and weight limits** so the user can see where they fall.
+Reuse tip **a1ca8481**. Claude: envelope calc/config/tests from verified data only (flag missing). Codex: UI + iPhone/iPad Standard|Metric renders. **Do not merge or install** until revised renders approved.
+Launch briefs in agent-lanes/prompts/*landing-wb-envelope-1106*. Job QUEUED first free slot (cap full).
+
+## NEEDS YOU
+- **LANDING W&B CODEX RENDERS READY (2026-11-06 ~11:32 AKST).** Tip `ea75e7b2`. Coordinator ran `mac-shots.sh pages` → 57 PNGs at `~/Developer/agent-lanes/renders/landing-v2/codex/envelope/` (envelope standard/metric/outside + wb-popup on iPhone land + iPad land/port). Box copies: `/workspace/uploads/landing-wb-evidence-1106/`. **Batch2 staged — NOT Batch1.** No merge/install/TF until Ty visual OK. Foreign aircraft StreamingAssets dirt left unstaged.
+- **LANDING W&B CODEX UI PREPARED — RENDERS BLOCKED (2026-11-06 11:13 PT).** Based on Claude calc `43048f25`; graph gets more vertical space, limit-edge labels, and separate color-keyed takeoff/zero-fuel legend rows. `LandingSelfTest` now captures wheel J-3 verified envelope (inside/outside) and exact t882u popup, both unit systems, both landscape device shapes. No invented limits. **NOT LANDING-WB-ENVELOPE-RENDERS-DONE**: no new images, no Unity compile, no commit, no merge/install/upload. `git diff --check`, `zsh -n tools/landing-v2/mac-shots.sh`, tracked ignore audit clean.
+  - **Coordinator action:** run `SHOTS=$HOME/Developer/agent-lanes/renders/landing-v2/codex/envelope zsh tools/landing-v2/mac-shots.sh pages` here once the single Unity slot is free. Sandbox denies ps/pgrep; script now fails closed (exit 2) rather than treating that as idle. Review actual PNGs and iterate before marking done. Expected `iphone-land` / `ipad-land` `-p2-envelope-{standard,metric}.png`, `-p2-envelope-outside-{standard,metric}.png`, `-p2-wb-popup-{standard,metric}.png`. Paths are planned, **not generated**.
+  - **Local commit blocked too:** `git add` cannot create `/Users/tyfrisby/Developer/flying-game/.git/worktrees/codex-landing-v2/index.lock` (Operation not permitted). Three UI/runner files plus this log remain unstaged. Coordinator must commit locally after compile/visual QA and clean ignore audit, never add -f. No Ty visual approval requested until actual renders exist.
+- **TY SPOKEN APPROVAL — LANDING FLOW (Grok Bot, 2026-11-05 11:00 PT).** Ty ~10:56 PT: "Landing page is good but give page two a standard or metric option; most users will be American/standard." **Q088 APPROVED** (two-page Choose → Load & Launch). Units follow-up: lane follow-up on this worktree (`prompts/claude-landing-units.md`); default **Standard**; persist preference. Do not redesign the flow. Q089–Q094 still open. Nothing else marked approved by me.
+
+<!-- landing-v2 needs-you -->
+- **LANDING-WB-ENVELOPE-CALC-DONE (Claude, lane/claude-landing-v2, 2026-11-06; Ty t880u + t881u + t882u). Local commit only:
+  NOT merged, NOT pushed, NOT installed, renders NOT made, nothing approved by me.** Codex's turn:
+  `prompts/codex-landing-wb-envelope-1106-launch.md` (UI restyle + iPhone/iPad Standard|Metric renders + popup render).
+  - **What it does.** The W&B chart is now handbook-style (CG across, weight up) with the type's verified envelope:
+    forward/aft limits that move with weight (`loading.cgLimits`, straight line between certificate rows), named limit
+    lines (`Forward c.g. limit` / `Aft c.g. limit` / `Max gross`), ticks in lb + in (Standard, default) or kg + mm
+    (Metric) aft of the type's own datum, the takeoff point and the zero-fuel point, each checked at its own weight.
+    Labels are factual only: `Over gross` / `Forward c.g.` / `Aft c.g.` (+ `... at zero fuel`); "(you can still fly)"
+    is gone. LAUNCH / FLY out of limits asks first with exactly "Your W&B is out of limits which will negatively affect
+    aircraft handling and performance." and **Go back** | **Fly** (flat page, classic FLY, Quest rows). In limits: no popup.
+  - **Envelopes drawn (verified, cited in each config):** Pitts S-2B (FAA A8SO: +86.35 at 1475 lb or less → +89.58 at
+    1625, aft +90.50), J-3 (A-691: +10.6 to +22.7), Great Lakes (A18EA: +20.0 to +23.8; datum anchor MEDIUM, ±25 mm),
+    Swift S-1 (EASA A.038: 257–414 mm), Grob 103 (POH 2.7: 270–480 mm, was already wired). Every type as authored sits
+    inside its own envelope.
+  - **NEEDS YOU: types with NO envelope drawn** (they show "No envelope authored"; nothing invented):
+    - `c172-like`: the POH envelope is known (git e4755c98) but its config's derived empty weight is 877 kg, so the real
+      2300 lb gross would flag every two-person load "Over gross". Re-adding it means retuning the 172's mass: your call.
+    - `extra-300-like`: EASA A.362 gives 75.0–89.8 cm aft of the firewall at 820 kg, but the firewall's body x is only
+      known ±5 cm (a third of the range) and no gross is authored. Needs the firewall located on the model.
+    - `glider-2-33-like` (the first-timer default): no certificate limits in the repo. Needs the SGS 2-33 type certificate's
+      C.G. range and the datum's body x.
+    - `j3-cub-floats-like`: shows the 1.2× float gross only. Needs the J3C-65S float C.G. range (not assumed equal to wheels).
+    - No loading block at all (no W&B plot): pa18 family, pa28-archer (blocked, datum mapping fails, docs/WEIGHT-AND-BALANCE.md),
+      decathlon, stearman, cassutt, p51d, cirrus, glasair, seminole, pawnee, beaver, jenny, geebee, eb29r, aircam, dc3, f86,
+      737, h4, hang glider, paraglider, target drone.
+  - **Checks:** LandingFlowTests + AircraftLoadTests + Grob103Tests: 158 / 160, the 2 failures (`Grob103Tests.RecoveryControlsSlowTheSpin`,
+    `PedalsSteerTheNoseWheelOnTheGround(0.5)`) fail identically on the base a1ca8481 (same 11.588 value), so not this change.
+    Full suite not run (other lanes' suites were running). iOS `deploy.sh NOINSTALL`: see the line below.
+- **LANDING V2: STANDARD / METRIC ON PAGE 2 (Claude, lane/claude-landing-v2, 2026-11-05 13:40; Ty 10:56 "give page two a
+  standard or metric option; most users will be American/standard"). Local commit only: NOT merged, NOT pushed, NOT
+  installed. Nothing approved by me.**
+  - **What:** a UNITS row (Standard | Metric) at the foot of page 2's settings column, and a `Units:` row on the Quest
+    panel. **Default Standard** when nothing is saved. Changes seat/baggage weights (lb / kg), the − / + step (10 lb /
+    5 kg), the W&B heading, over-gross warning and summary, the Quest W&B line, airport elevation (ft / m) and wind on
+    the weather cards (kt / km/h). Display only: flow, store, SessionSettings and the sim stay SI.
+  - **One key for the whole game:** PlayerPrefs `landing.units` = `standard` | `metric` (`DisplayUnits.PrefKey`), saved
+    the moment it changes (and again at LAUNCH). No units setting existed anywhere before; HUD/instruments that grow one
+    read `LandingSession.SavedUnits`, never a second key. docs/LANDING-V2.md.
+  - **Checks:** LandingFlowTests 25/25 (.NET, 4 new); LandingV2Tests 7/7 EditMode (MemoryLandingStore round-trip + the
+    Bridge reader), 0 error CS; iOS `deploy.sh NOINSTALL` ** BUILD SUCCEEDED ** (12:51). Ignore check clean.
+  - **RENDERS DONE 2026-11-05 19:37 (Q134, please look; NOT approved by me, NOT merged, NOT installed).** In
+    `~/Developer/agent-lanes/renders/landing-v2/claude/`: `iphone-land-p2-load.png` (Standard) / `iphone-land-p2-load-metric.png`,
+    same for `ipad-land-*`, and `quest-landing-units-standard.png` / `quest-landing-units-metric.png`. The 09:40 set is kept
+    in `prior-0940/`. Made by `LandingQuestShots.Run` (exit 0, both summary checks passed) and `tools/landing-v2/mac-shots.sh
+    pages` (macOS build SUCCEEDED, `[LandingSelfTest] DONE pages`) from a1ca8481, with no code changes.
+    Checked by eye: UNITS is the last block of the right-hand column, under Reliability, Standard highlighted by default.
+    The numbers agree across systems: 190 lb = 86 kg, 265 lb = 120 kg, 1657 of 1464 lb = 751 of 664 kg, over gross 193 lb = 87 kg,
+    10/18/25/6 kt = 19/33/46/11 km/h. Quest: `Units: Standard (lb · ft · kt)` and the W&B line `1542 / 1464 lb OVER GROSS 78 lb`
+    = `699 / 664 kg OVER GROSS 35 kg`.
+    Things to note, none caused by units: (a) the Units tiles sit flush on the column's bottom edge on iPhone and iPad
+    landscape (tight, not clipped); (b) the shots keep the self-test's earlier state: the friend weighs 120 kg and the baggage is full
+    in `*-p2-load` (the 09:40 set had this too), and the iPad set inherits Gusty from the iPhone pass; (c) `ipad-port-*`
+    rendered at 410x542 (the player window could not take the portrait shape), so those are unusable as before; (d) the
+    live preview's camera framing differs between the Standard and Metric shots (the preview kept moving between the two
+    shots). Codex may restyle the control (binding: `UnitItems()` / `SetUnits`).
+  - My first deploy attempt started 1 s after ground-volume's island-nav install; stopped at once on claude-floats-f8's
+    request, retried after the slot was idle (CLAUDE.md lesson added: sleep before the gate's last check, not after).
+
+- **LANDING PAGE V2: PLEASE LOOK AT THE RENDERS (Claude, lane/claude-landing-v2, 2026-11-05 09:40; Ty's 05:48 spec + 05:50
+  addendum). Local commits only: NOT merged, NOT pushed, NOT installed on any device. Nothing approved by me.**
+  Renders (29): `~/Developer/agent-lanes/renders/landing-v2/claude/` — `iphone-land-*` (2556x1180) and `ipad-land-*` (1180x820), each page and every open
+  menu; `quest-landing-*` (the headset panel); `thumbs-*` none (no Pillow here: open
+  `unity/Assets/_Project/Resources/LandingThumbs/` instead). Codex's 48 design boards: `../codex/mockups/`. iPad
+  PORTRAIT was not rendered: the Mac player's window opened on the 1024x600 second display and could not take the shape.
+  - **The flow.** Page 1, CHOOSE: the live aeroplane in the middle (the last one you launched; the yellow 2-33 the first
+    time), Aircraft / Configuration / Location / Viewpoint tiles on the left, each opening a sideways strip of picture
+    cards; Challenges and Lessons on the right. A lesson or challenge shrinks the left-hand lists (lessons: trainers,
+    standard gear, the lesson's own start; a config challenge: its own aeroplane; the box: aerobats; scored contests:
+    standard gear and locked weather). NEXT. Page 2, LOAD & LAUNCH: seats (tap: empty → passenger → friend riding →
+    friend on the other controls, where the seat has controls; ± kg), fuel (Empty/¼/Tabs/Full + per station), baggage,
+    the W&B plot (loaded point, zero-fuel point, the burn line; warning text, LAUNCH never blocked), and time of day /
+    weather / reliability cards. The old chapters are behind "More settings" (instruments, multiplayer, runway, livery,
+    tow plane, exact wind, lesson options), so nothing the old page did is gone.
+  - **Visual feedback (addendum).** The preview is the REAL airframe re-spawned at its launch pose on every change:
+    floats, skis, tyres are the real models; occupied seats get a seated figure; time of day relights the scene at once
+    (midday = today's sun, unchanged for everyone else). Floats get 1.2 x the wheel gross (J-3: 553 → 664 kg) on the
+    plot only.
+  - **Never touched = as authored.** A type nobody has loaded opens at exactly its authored mass and CG (test on 5 real
+    configs), so this page does not move anyone's book numbers. Physics code untouched.
+  - **Thumbnails.** Captured on the device whenever a card has no picture (aeroplane from the preview, location from
+    the actual launch view, again on the first frame after LAUNCH); 106 bench captures ship as the fallback (74 aircraft
+    cards, 32 any-aircraft location views; 8.8 MB of PNG, no mipmaps). `AERO_SELFTEST=landing-thumbs` + 
+    `tools/landing-v2/import-thumbs.sh` regenerate them.
+  - **Quest:** the VR panel's landing rows step the same flow (aircraft, configuration, location, passenger, fuel, time,
+    weather, engine, W&B line); FLY there is the flow's LAUNCH. The Seat row moves "me" in the flow too.
+  - **Decisions queued: Q088–Q094** (two pages vs Codex's three; lesson trainer list; floats on ANY airframe needs a
+    float kit; reliability is saved but EngineReliability is not wired to the sim; most configs' envelopes are in datum
+    inches and not read, so the plot says "no envelope authored"; no night lighting; which transport the invite uses).
+  - **Checks:** LandingFlowTests 21/21 (.NET); LandingV2Tests 6/6 EditMode; Unity batch 0 error CS (EditMode run, the Mac
+    IL2CPP player twice, the Quest shot batch); `check-parity` hook passed on commit; ignore check clean.
+    **NOT run:** `deploy.sh` (iOS BUILD SUCCEEDED is still needed before merge: src/ changed), an Android/Quest player
+    build, the full .NET suite (only the Landing, AircraftLoad, SeatChoice and config classes; 133 tests green).
+  - **Codex:** its 05:51 handoff (LandingVisuals.cs, docs/landing-v2, tools/landing-v2) is committed unchanged; nothing
+    newer appeared in its worktree. LandingView.cs is the functional baseline it is to restyle (contract above).
+<!-- /landing-v2 needs-you -->
+
 ## NEEDS YOU — Pitts spin Q007 reopened (t918u): the wakes, not the gyro (Claude, 2026-11-06, lane/claude-q007-pitts-spin-t918)
 <!-- q007-t918 needs-you -->
 Your t918u on 0703: "upright spin is still too flat and difficult recover … inverted (right right is too nose low and too easy
@@ -2837,6 +2969,31 @@ Lane lane/claude-crash-camera. Ty (2026-11-05 06:01 PST, iPhone 17 Pro, build 20
      threshold. Is that what you see? DC-3: the weight rule gives 255 psi, so V_p is 144 kt (a real 17.00-16 runs
      ~50–60 psi). Not changed.
   3. You will fly the J-3 float idle turn (254° in 20 s, rudder up or down within 5°).
+
+## LANDING V2: VIEW-MODEL INTERFACES FOR CODEX (Claude, published 2026-11-05 06:40)
+Full table: `docs/LANDING-V2.md` (in lane/claude-landing-v2's worktree, `~/Developer/flying-game-worktrees/claude-landing-v2`).
+Codex: copy `src/FlyingGame.Core/Landing/*.cs` and `unity/Assets/_Project/Scripts/Bridge/Landing/*.cs` from that worktree
+read-only for reference; bind to them, do not change them (ask here). Your `LandingVisuals.cs` is fine as a sibling.
+- `LandingSession.Flow` (Bridge) → `FlyingGame.Core.Landing.LandingFlow`: `Page` (Choose/Load), `OpenPicker`, `Version`,
+  `Changed`; `Next() Back() GoTo() Open(kind) ClosePicker() Launch()`; `Items(PickerKind)` → `PickerItem{Kind, Id, Title,
+  Subtitle, Selected, Enabled, DisabledReason, Thumbnails, IconKey}`; `Pick(kind, id)`; `IsFixed(kind)`; hero
+  `HeroTitle/HeroSubtitle/HeroThumbnails`; `Seats` (`SeatRow`), `CycleSeat/SetSeat/SetSeatKg/SetInviteName`; `Stations`
+  (`StationRow`), `SetStationKg/SetFuelFraction/FuelFraction`; `WeightBalance` (plot 0..1, `Envelope`, `PointX/Y`,
+  `ZeroFuelX/Y`, `Warnings`, `CanLaunch` always true); `TimeItems/ReliabilityItems/WeatherItems` + setters; `Light`,
+  `IsDark` (your `Theme(night)`); `ConditionsLocked`; `Summary()`.
+- Pictures: `LandingThumbnails.Get(item)` → Texture2D or null (draw `item.IconKey`'s icon); live 3-D aeroplane:
+  `LandingPreview.Instance.Texture` (every page).
+- The flat page is `Bridge/Landing/LandingView.cs` (called from StartMenu.OnGUI): its drawing is yours to restyle, its
+  calls into the flow are the binding. Quest: QuestMenu's landing rows (same flow).
+- Claude review of Codex's 05:51 handoff (2026-11-05 06:55): `LandingVisuals.cs`, `docs/landing-v2/`, `tools/landing-v2/`
+  copied into lane/claude-landing-v2 unchanged (commit pending the Unity compile). Your 48 boards are now in
+  `~/Developer/agent-lanes/renders/landing-v2/codex/mockups/` (your sandbox could not write there). ONE CHANGE TO THE
+  PAGE PLAN: Ty's spec puts the conditions on the people page ("the next page is loading people fuel baggage then
+  launch ... on this page is where settings like reliability weather time of day etc are all available"), so the flow
+  is TWO pages: `LandingPage.Choose` (aircraft & place + right rail) and `LandingPage.Load` (people, fuel, baggage, W&B,
+  time/weather/reliability, LAUNCH). Your "03 Conditions" board's cards belong on page 2's right column. The hero is the
+  LIVE airframe (`LandingPreview.Instance.Texture`, addendum: visible on every page), not a static image.
+
 ## NEEDS YOU — crash reset: fly-test on devices (Claude, 2026-11-04)
 <!-- crash-reset needs-you -->
 Lane lane/claude-crash-reset. Seven of Ty's reports in one lane. NOTHING approved by me.

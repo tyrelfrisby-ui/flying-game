@@ -62,11 +62,54 @@ namespace FlyingGame.Bridge
             SessionSettings.Multiplayer = (SessionSettings.MultiplayerMode)PlayerPrefs.GetInt(PrefMode, 0);
             SessionSettings.LanHint = PlayerPrefs.GetString(PrefLanHint, "");
             SessionSettings.LanNoRouter = PlayerPrefs.GetInt(PrefLanNoRouter, 0) == 1;
+            // LANDING V2 (Ty 2026-11-05, docs/LANDING-V2.md): the stepped flow is the landing page; the chapters below
+            // are its "More settings". The live aeroplane on every page is LandingPreview's.
+            if (Driver != null && LandingPreview.Instance == null)
+                new GameObject("LandingPreview").AddComponent<LandingPreview>().Driver = Driver;
+            LandingSession.Flow.Launched += OnLaunched;
             Open();
+        }
+
+        /// <summary>LAUNCH on page 2: the selection into the session, fly, and capture the first frame as that location's
+        /// thumbnail (what the pilot really sees first).</summary>
+        private void OnLaunched(FlyingGame.Core.Landing.LandingFlow flow)
+        {
+            LandingSession.ApplyLaunch(flow);
+            string key = FlyingGame.Core.Landing.ThumbnailKeys.Location(flow.Family.Id, flow.GearId, flow.LocationId, flow.Viewpoint);
+            bool ownStart = flow.Rules.ViewpointLocked && flow.Rules.FixedViewpoint == null;
+            Fly();
+            if (!ownStart && LandingPreview.Instance != null) LandingPreview.Instance.StartCoroutine(LandingPreview.Instance.CaptureAfterLaunch(key));
+        }
+
+        // ---- the classic chapters, behind "More settings" ----
+        private bool _classic;
+        private LandingView _view;
+        /// <summary>Is the classic chapter page showing (rather than the v2 flow)?</summary>
+        public bool ClassicShown => _classic;
+
+        /// <summary>Open the classic chapters (at <paramref name="page"/>, or where they were).</summary>
+        public void ShowClassic(string page)
+        {
+            _classic = true;
+            _weatherAtClassic = (SessionSettings.WindFromDeg, SessionSettings.WindSpeedMs, SessionSettings.TurbulenceLevel, SessionSettings.ThermalScale);
+            if (page != null) ShowPage(page);
+        }
+        private (float, float, int, float) _weatherAtClassic;
+
+        /// <summary>Back to the v2 flow, taking over whatever the chapters changed.</summary>
+        public void ShowLanding()
+        {
+            if (_classic) LandingSession.Flow.Adopt(SessionSettings.AircraftId, SessionSettings.Bushwheels, SessionSettings.Skis, SessionSettings.AirportIndex,
+                                                    (FlyingGame.Core.Landing.Viewpoint)(int)SessionSettings.StartMode, SessionSettings.ChallengeId);
+            // Wind turned by hand on the chapters is "custom" weather from now on (a preset would overwrite it at LAUNCH).
+            if (_classic && _weatherAtClassic != (SessionSettings.WindFromDeg, SessionSettings.WindSpeedMs, SessionSettings.TurbulenceLevel, SessionSettings.ThermalScale))
+                LandingSession.Flow.SetWeather("custom");
+            _classic = false; _dd = null;
         }
 
         public void Open()
         {
+            if (!IsOpen) { _classic = false; LandingSession.Flow.Reopen(); }
             IsOpen = true;
             SessionSettings.MenuOpen = true;
             Time.timeScale = 0f;
@@ -230,6 +273,7 @@ namespace FlyingGame.Bridge
         /// <summary>Self-test / tools: show a given chapter by name ("aircraft", "start", …).</summary>
         public void ShowPage(string name)
         {
+            _classic = true;
             for (int i = 0; i < PageNames.Length; i++)
                 if (string.Equals(PageNames[i], name, System.StringComparison.OrdinalIgnoreCase)) { _page = (Page)i; _scrollY = 0f; }
         }
@@ -280,6 +324,12 @@ namespace FlyingGame.Bridge
                 return;
             }
 
+            if (!_classic)
+            {
+                (_view ??= new LandingView(this)).Draw();
+                return;
+            }
+
             GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _bg);   // the backdrop DOES go under the pill
             // ...but nothing readable or tappable does. The page is framed inside the safe area: the title clears the
             // Dynamic Island and the bottom row clears the home indicator.
@@ -295,7 +345,9 @@ namespace FlyingGame.Bridge
             // An open list has the page's touches: the page underneath dims and ignores them.
             GUI.enabled = !listOpen;
             float titleY = safeTop + m * 0.6f;
-            UiLayout.Label(new Rect(sideM, titleY, w * 0.52f, lh * 1.3f), "FLIGHT SETUP", _title);
+            float doneW = s * 0.2f;
+            if (UiLayout.Button(new Rect(sideM, titleY, doneW, lh * 1.3f), "‹  DONE", _btnOn)) ShowLanding();
+            UiLayout.Label(new Rect(sideM + doneW + gap, titleY, w * 0.52f - doneW - gap, lh * 1.3f), "MORE SETTINGS", _title);
             UiLayout.Label(new Rect(sideM + w * 0.52f, titleY, w * 0.48f, lh * 1.3f), SetupLine(), _small);
 
             // The chapter tabs: ONE row while they fit, stacked when they do not. At the bigger UI size six of them
@@ -361,9 +413,17 @@ namespace FlyingGame.Bridge
                 GUI.DrawTexture(new Rect(Screen.width - m * 0.5f, thumbY, m * 0.18f, thumbH), _btnOnBg);
             }
 
-            // ---- FLY, always on the bottom line and always alone on it when the row is stacked.
+            // ---- FLY, always on the bottom line and always alone on it when the row is stacked. The SIZE is the
+            // shipping layout's (flyW / flyH, which the stacked row computes); what the button DOES is the v2 flow's:
+            // a chapter's FLY goes through the Load page so the weight and balance is seen before the aeroplane is.
             float fw = flyW, fh = flyH;
-            if (UiLayout.Button(new Rect(Screen.width - sideM - fw, bottom - m - fh, fw, fh), "FLY", _btnOn)) Fly();
+            if (UiLayout.Button(new Rect(Screen.width - sideM - fw, bottom - m - fh, fw, fh), "FLY", _btnOn))
+            {
+                ShowLanding();
+                var flow = LandingSession.Flow;
+                flow.GoTo(FlyingGame.Core.Landing.LandingPage.Load);
+                flow.RequestLaunch();   // out of limits, the landing page now showing asks first (Ty t881u / t882u)
+            }
 
             // ---- HELP, bottom left, in the strip the page's viewport already leaves clear for FLY (no-overlap
             // rule). The pause menu and the in-flight OPTIONS panel both carry it, on all three platforms
