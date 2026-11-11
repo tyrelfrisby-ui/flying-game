@@ -106,9 +106,102 @@ Not done: no tread and no torn-edge texture (a mark's `Kind` picks how dark and 
 obvious next thing), and nothing reads `TimeSec` to weather a mark.
 
 `unity/Assets/_Project/Scripts/Editor/GroundImprintShots.cs` shoots the review plates (plan, eye height beside the
-tracks, a low look along one rut) on the real island, from marks an aeroplane lays by rolling. **NEEDS A UNITY SLOT:**
-I did not run it — the slot belonged to the main session — so the Unity side is unexercised and the shader has never
-been compiled. Everything else in this lane is covered headless, which is the point of keeping the geometry in Core.
+tracks, a low look along one rut) on the real island, from marks an aeroplane lays by rolling. The Unity side
+**compiles and ships** — the main session put it through the real IL2CPP toolchain the same night, BUILD SUCCEEDED,
+1.01 GB.
+
+### Three things the FIRST REAL RENDER found that no headless test could
+
+The main session ran the harness on the real island the same night. The marks draw. Three findings, and the first two
+are mine:
+
+**1. THE PLAN VIEWS WERE EMPTY AND THE GRAZING VIEWS WERE NOT.** From half a metre up the tracks are there — correctly
+curved, lying flat, no beading at the stretch joints, so the geometry and the capping are right. From 30 m straight
+down there was **nothing at all**, not even the 0.68 m ski tracks that would have been 39 px wide. That pattern is a
+depth-test signature: `Offset`'s first number is SLOPE-SCALED, so a sheet seen nearly edge-on gets a large bias and
+wins, and the same sheet seen flat-on gets none. Measured against the AP1 strip's own 25 m lattice, the drawn mesh
+stands up to **120 mm** above the analytic surface the marks and the wheels sit on, p95 **47 mm**, and the 2 cm lift
+buried the mark over **14.8 %** of the strip. So: lift **5 cm** (clears p95 there and p95 of open rollable land), and
+move the shader's bias into the CONSTANT term, `Offset -2, -200`. The mark's geometry does not move — a depth bias
+cannot float it.
+
+**2. THREE OF THE FOUR SCENARIOS WERE SHOT ON GRASS.** `WorldTerrain.SurfaceOverride` steers the PHYSICS and not the
+island's shader, so the "snow" plates were snow-coloured marks lying on green turf, and the ski-against-tyre
+comparison — the most persuasive thing in this lane — could not be seen in any of them, because both aeroplanes were
+rolling on the same grass. The physics was right the whole time (the ski's 0.677 m Tracks and the tyre's 0.342 m Ruts
+are in `marks.txt`); the picture was a lie and nothing in it said so. Each scene now rolls on ground that **really
+is** its surface. I swept every rollable snow site on the island: **sim (−4600, −4600) on 225° gives 295 m of real
+snow at a worst slope of 0.3°**, the flattest long run there is. Nothing is overridden any more.
+
+Also fixed: every camera stood past the end of the tracks looking away from them, because the direction came from the
+corner-to-corner diagonal of the marks' bounding box — which is the direction of travel only when the roll happens to
+go toward +x and +y, and AP1 runs 090. The cameras now take the scene's own heading and frame from the START of the
+roll.
+
+And the "four exceptions" in the log are benign: Unity prints a stack trace for every `Debug.Log` in batch mode, and
+all four are `Debug.Log` calls (IslandTerrainMesh's statistics, AirportLights', Clouds', and this harness's own).
+
+### The contrast, measured against the real frames and deliberately NOT changed
+
+Off `low-cub-grass.png`, in the band where the tracks resolve: the marks darken the ground by **7.7 % of mean
+luminance** where the terrain's own banding is **4.4 %** — **1.75×**. The model predicts ~16 % at full width and the
+shortfall is pixel coverage, so the drawing is doing what it was built to do.
+
+But the first real frames also expose the flaw in my 0.59, and it is a conflation. 0.59 is the sky-only illumination
+of a hollow whose own walls take the sun off it — the FULLY self-shading case. A 5.8 mm rut 216 mm across does not
+shade itself at all: its walls subtend sin(atan(2d/w)) = **0.054**. What makes a tyre track on turf visible is not
+shadow but DISTURBANCE — flattened, bruised, compacted surface — which has nothing to do with the trough's
+depth-to-width ratio. The honest model is those two terms separately rather than one constant.
+
+**I did not change it tonight.** The disturbance term is a number nobody has measured, and the frames it would be
+judged against were broken in two other ways at the time. A derived number measured against the wrong background is
+still the wrong number — and so is a picked one measured against a broken frame. It belongs to the next render.
+
+### `Shader.Find` does not find this project's shaders in a batchmode editor
+
+The guard above fired on the very next run, and it was right to: **no plates were written**, and the reason was not
+the shader.
+
+`Shader.Find("FlyingGame/GroundImprint")` returned **null** — and so did the `Shader.Find("FlyingGame/UnlitTransparent")`
+fallback, with both shaders present, tracked, `.meta`'d and compiling clean. Two nulls from two good shaders is a
+LOOKUP failure, not an asset failure. A bare `-executeMethod` batchmode editor does not have what `Shader.Find`
+needs; the asset database does. The pattern across the repo confirms it — every other editor harness calls
+`Shader.Find` only for BUILT-IN shaders (`Unlit/Color`), and the one place that asks for a project shader by name is
+`BuildScript`, which runs during a build. This project has been bitten by the same shape before, with glTFast's
+`LoadImageFromBytes` under `IsEditorImport`, and already routes that case through `AssetDatabase.LoadAssetAtPath`.
+
+So the harness loads it by path and hands it over through `GroundImprintVisual.ShaderOverride` — exactly as
+`PilotBodyShots` hands `VrPilotBody.PrefabOverride` a body. **The game is untouched:** `Shader.Find` is right there,
+with `BuildScript.EnsureAlwaysIncludedShaders` keeping the shader in the player.
+
+Two ordering traps came with it, and both would have left the fix looking like it had not worked:
+
+- `IslandWorldBuilder.Build` attaches the visual ITSELF, so the override has to be set **before**
+  `WorldBuilder.BuildAll()`, not before `Attach`. Setting it after would have changed nothing.
+- the material used to be taken once, inside a `Build()` that returns early when the geometry already exists — so a
+  component that came up shader-less stayed unable to draw for the rest of the session with the shader sitting right
+  there. It is now `EnsureMaterial()`, retried on every build, because **a shader can arrive late**.
+
+### The harness refuses to shoot a plate it cannot vouch for
+
+Run with `-nographics` — which is the idiom the BUILD scripts use, so it is the natural thing to reach for — the first
+version of this harness wrote **one blank grey PNG and then segfaulted, exit 139**. The crash is a nuisance. The blank
+PNG is the problem: the main session nearly relayed it to Ty as "the real island render", and another agent's harness
+silently produced mirrored plates the same night. Same shape of failure both times — **a renderer that lies quietly**,
+and a review plate's entire job is to be trusted.
+
+So it now refuses, loudly, in the four places where it could produce a picture that is not what it says it is:
+
+1. **no graphics device** (`SystemInfo.graphicsDeviceType` reads Null — the project's own test, as WaterMagentaCheck
+   and WaterMirrorViewportCheck make it), before it so much as creates the output directory;
+2. **no material** — `GroundImprintVisual.Drawable` is false, so the shader is missing, the ground is keeping its
+   marks and nothing is drawing them, which on screen is empty ground;
+3. **stretches in the record, no triangles in the mesh** — something between `Refresh` and the MeshFilter is broken;
+4. **ground that is not the surface the scene claims**, checked along the whole length of the intended roll rather
+   than at its start — the one that actually got through, and the reason this list exists.
+
+A scene that genuinely lays no marks writes no plate at all and says so in `marks.txt`, rather than shooting an empty
+field that looks like a result.
 
 ## Preset aileron trim for a high start — and the four types it cannot save — Claude, 2026-11-10, lane/claude-backlog2
 

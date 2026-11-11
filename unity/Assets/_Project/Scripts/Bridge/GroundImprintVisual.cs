@@ -35,6 +35,26 @@ namespace FlyingGame.Bridge
         /// </summary>
         public const float RefreshIntervalS = 1f / 20f;
 
+        /// <summary>Where the shader lives in the project, for an editor tool that has to load it by path.</summary>
+        public const string ShaderAssetPath = "Assets/_Project/Shaders/GroundImprint.shader";
+
+        /// <summary>
+        /// EDITOR TOOLS ONLY (GroundImprintShots): the material's shader, handed in instead of looked up.
+        ///
+        /// <see cref="Shader.Find"/> resolves this project's own shaders in the game and in play mode, where the
+        /// player's always-included list (BuildScript.EnsureAlwaysIncludedShaders) or a loaded asset database has
+        /// them — but it returns NULL in a bare <c>-executeMethod</c> batchmode editor, which is how the review
+        /// plates are shot. MEASURED 2026-11-10: it returned null for FlyingGame/GroundImprint AND for the
+        /// FlyingGame/UnlitTransparent fallback, both of which are present and compile clean, so the LOOKUP was the
+        /// problem and not the assets. Every other editor harness in this project calls Shader.Find only for
+        /// BUILT-IN shaders (Unlit/Color), and the one place that asks for a project shader by name is BuildScript,
+        /// which runs during a build with the asset database up.
+        ///
+        /// So an editor tool loads it with AssetDatabase.LoadAssetAtPath and puts it here, exactly as PilotBodyShots
+        /// hands VrPilotBody.PrefabOverride a body. Always null in the game.
+        /// </summary>
+        public static Shader ShaderOverride;
+
         private GroundImprintMesh _geometry;
         private Mesh _mesh;
         private Material _material;
@@ -49,6 +69,10 @@ namespace FlyingGame.Bridge
         public int DrawnMarks => _geometry != null ? _geometry.Count : 0;
         /// <summary>Triangles the last refresh left in the mesh.</summary>
         public int DrawnTriangles => _geometry != null ? _geometry.Triangles : 0;
+        /// <summary>Is there a material to draw the marks WITH? False means the shader was missing, the ground is
+        /// still keeping its marks and nothing is drawing them — which on screen is indistinguishable from a flight
+        /// that left no marks, so a render fixture must fail on this rather than shoot a plausible empty field.</summary>
+        public bool Drawable => _material != null;
 
         /// <summary>Put one on the world root (IslandWorldBuilder.Build). Idempotent.</summary>
         public static GroundImprintVisual Attach(Transform parent)
@@ -63,12 +87,13 @@ namespace FlyingGame.Bridge
 
         private void Awake() => Build();
 
-        /// <summary>Everything this component owns, built once. Called from Awake, and lazily from
-        /// <see cref="Refresh"/> so an editor render fixture that adds the component and refreshes it in the same
-        /// frame cannot find it half-built.</summary>
+        /// <summary>Everything this component owns. The buffers and the mesh are built once; the material is
+        /// retried every time (<see cref="EnsureMaterial"/>), because its shader can arrive late. Called from Awake,
+        /// and from <see cref="Refresh"/> so an editor render fixture that adds the component and refreshes it in the
+        /// same frame cannot find it half-built.</summary>
         private void Build()
         {
-            if (_geometry != null) return;
+            if (_geometry != null) { EnsureMaterial(); return; }
             _geometry = new GroundImprintMesh(GroundImprints.World);
             int verts = _geometry.Capacity * GroundImprintDrawing.VerticesPerMark;
             _verts = new List<Vector3>(verts);
@@ -99,10 +124,23 @@ namespace FlyingGame.Bridge
             _renderer = _go.AddComponent<MeshRenderer>();
             _renderer.shadowCastingMode = ShadowCastingMode.Off;
             _renderer.receiveShadows = false;
+            EnsureMaterial();
+        }
+
+        /// <summary>
+        /// Give the renderer its material, if it has not got one yet. Retried on every <see cref="Build"/> rather
+        /// than done once, because the shader can arrive LATE: an editor tool sets <see cref="ShaderOverride"/>, and
+        /// a component that gave up the first time would stay unable to draw for the rest of the session with the
+        /// shader sitting right there.
+        /// </summary>
+        private void EnsureMaterial()
+        {
+            if (_material != null || _renderer == null) return;
             // Not a throw, unlike FuelSlickVisual's: this is built from IslandWorldBuilder.Build, and a missing
             // shader taking the whole world build down with it would be far worse than a flight with no marks in it.
-            Shader shader = Shader.Find("FlyingGame/GroundImprint") ?? Shader.Find("FlyingGame/UnlitTransparent");
-            if (shader == null) { Debug.LogWarning("GroundImprintVisual: FlyingGame/GroundImprint is missing from the build; the ground keeps its marks but nothing draws them."); return; }
+            Shader shader = ShaderOverride != null ? ShaderOverride
+                          : Shader.Find("FlyingGame/GroundImprint") ?? Shader.Find("FlyingGame/UnlitTransparent");
+            if (shader == null) { Debug.LogWarning("GroundImprintVisual: FlyingGame/GroundImprint did not resolve; the ground keeps its marks but nothing draws them."); return; }
             _material = new Material(shader);
             _renderer.sharedMaterial = _material;
         }
