@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "great-lakes-like",
-  "displayName": "Great Lakes 2T-1A-2-like Biplane",
+  "displayName": "Aerobatic Trainer",
   "structureType": "steelTube",
   "structureTypeSource": "Great Lakes 2T-1A-2: welded 4130 steel-tube fuselage, fabric covered; wooden-spar wings (Great Lakes 2T-1A-2 maintenance manual).",
   "_wingStructureNote": "Contact damage (Ty 2026-11-03). Break station = the N-strut on both wings, |y| 2.875 (tools/own_models/build_great_lakes.py YI). The own model has four ailerons and slave struts, but this flight config carries aileron rows on the LOWER wing only, so there is no slaved aileron to model here: see AGENT-LOG NEEDS YOU.",
