@@ -205,6 +205,120 @@ How each kind was handled:
   Cassutt ~50°, and the Gee Bee departs at 1,500 ft within the minute. That is a fixed rig doing what a fixed rig does;
   the island starts at 1,500 and 6,500 ft will show it.
 
+## Preset aileron trim for a start away from the rig altitude (2026-11-10)
+
+`RigSolver.AileronTrimForAltitude(config, altitudeM, out why)`, held by `AirStart.Compute` on the aileron and by
+`AirStart.HeldInputs`.
+
+**The problem is the one the probe above describes, measured in a shape that matters.** A fixed rig works through
+dynamic pressure, so away from 4,000 ft it over- or under-corrects and leaves a rolling moment nothing trims out.
+`lane/claude-start-altitude` found it when Ty asked for a start-altitude picker (2026-11-03): hands off for 10 s at
+10,000 ft AGL over KMYL the Gee Bee rolled 12.7°, the Glasair 9.9°, the Cassutt 8.6°. **Re-measured on 2026-11-10,
+after all 26 fins moved to `fin-lowAR` and twelve types got flat-plate horizontal tails, it is worse** — still air, no
+terrain, 10 s hands off, peak |bank change|:
+
+| | at the rig altitude | 3,000 ft AGL | 6,000 | 10,000 |
+|---|---|---|---|---|
+| Gee Bee R2 | 1.40° | 5.43° | 9.16° | **15.05°** |
+| Glasair III | 3.82° | 7.26° | 10.44° | **15.27°** |
+| Cassutt | 2.33° | 5.23° | 7.93° | **12.06°** |
+| P-51D | 2.31° | 3.99° | 5.53° | 8.07° |
+| C-172 | 2.33° | 2.98° | 3.49° | 4.31° |
+
+The rig-altitude column is the floor: what each type drifts even where its rig was solved, because the stored rigs no
+longer close there either. Only the growth above it belongs to the altitude.
+
+Ty, offered this or re-solving the whole rig at the start altitude, chose **preset aileron trim**.
+
+**The derivation is a difference of two measurements of the aeroplane, and nothing is typed:**
+
+```
+preset = AileronForZeroRoll(at the start height) − AileronForZeroRoll(at the rig height)
+```
+
+`RigSolver.AileronForZeroRoll` is a **1-D secant on L(δa)** through `SteadyForces` at an already-solved level state:
+the aileron that zeroes the rolling moment, nothing else moved. The rig-height term is cached per config, so only the
+first in-air start of a type pays for the extra `SolveLevel` behind it, and the rig-altitude case short-circuits
+before any solve at all.
+
+**Why 1-D, when the obvious thing is to re-solve the rig at the start height.** That is what this was first written
+as, and it had to be thrown away: `SolveRig` is six unknowns with a 6×6 finite-difference Jacobian, and it measured
+**16.1× the cost of the `SolveLevel` a spawn already pays** (3,189 ms against 198 ms on a loaded machine — the
+absolutes are contention-dependent, the ratio is not). `AirStart.ComputeRandom` can call `Compute` five times while
+it hunts for a separated multiplayer start, so that is up to five of them on one spawn, and a spawn hitch is
+something the pilot feels on every flight and reads as a different bug. The 1-D version, with `AirStart.Compute`
+passing in the `SolveLevel` result it already has, costs **0.126×** of that same solve.
+
+It is also a more direct answer to "the minimum that cancels the measured drift": it cancels exactly the rolling
+moment and touches nothing else, where a rig re-solve would also move the fin offset, the bank, α and the speed to
+get there.
+
+**Why a DIFFERENCE and not just the first term.** The stored rigs do not close on today's model — the Extra leaves
+L = −1.3 × 10⁻² and the C-172 −7.9 × 10⁻³ at their own 4,000 ft rig point — so the first term alone is **not zero at
+the rig altitude**, which is exactly the case that has to stay centred, and it would fold "this config's rig is
+stale" into "this start is high". For the same reason it is not measured against `c.Rig.AileronRad`, a hand-copied
+literal that is a few hundredths of a degree out on most types (Extra 0.0394°, C-172 0.0322°, Gee Bee 0.0271°).
+
+**Measured, it removes the drift that GROWS WITH HEIGHT — which is the part a fixed rig causes and the only part it
+can remove.** What is left is whatever each type already drifts at the rig altitude itself, because the stored rigs
+are wrong there too, and nothing a preset does at 14,699 ft can fix that. 10 s hands off, still air, over KMYL:
+
+| | at the rig altitude | 10,000 ft AGL, no preset | with the preset | preset | growth removed |
+|---|---|---|---|---|---|
+| Gee Bee R2 | 1.40° | 15.05° | **0.45°** | 0.0848° | **107 %** |
+| Glasair III | 3.82° | 15.27° | 4.45° | 0.0573° | 94 % |
+| Cassutt | 2.33° | 12.06° | 2.76° | 0.0480° | 96 % |
+| P-51D | 2.31° | 8.07° | 2.93° | 0.0595° | 89 % |
+| C-172 | 2.33° | 4.31° | 2.67° | 0.0228° | 82 % |
+
+The Gee Bee's 107 % is not a typo: with the preset on it drifts **less** at 14,699 ft than it does at 4,000 ft.
+`PresetAileronTrimTests.ThePresetRemovesTheDriftThatGrowsWithHeight` gates 75 %, and refuses to pass a case with
+less than half a degree of growth to remove, so no type can satisfy it trivially.
+
+**How small it is, said three ways, because the obvious one misleads.** In degrees: under **0.06°** of aileron over
+the whole reachable band, against 20° of full deflection. In stick units it reads about **0.034**, which is not the
+preset being bigger than it looks — every aileron axis in the fleet has a dead zone of 0.02–0.05 and `ShapeAxis`
+returns exactly zero inside it, so the stick that delivers ANY non-zero deflection must sit just past that edge.
+**0.034 against a 0.03 dead zone is four thousandths past it**: a value a hand on a stick could not hold if it tried.
+On the AIL TRIM bar, which is what the pilot sees, that is under a twentieth of its half-width off centre.
+
+**WHERE THIS FIGHTS "TRIMS CENTRED EVERY FLIGHT", which is Ty's own rule and the stick-free launch fix.** The rule
+says a flight begins with the trims centred, so no leftover trim flies the first frame and the aeroplane a player
+meets is the same every time. **A preset aileron trim is a non-centred trim at the start. That is a breach, and Ty
+chose it knowing** — the lane that found the drift flagged the conflict in those words and he answered "preset
+aileron trim" anyway. Three things keep it narrow, each with a test in `tools/FlightTests/PresetAileronTrimTests.cs`:
+
+1. **Exactly zero at the rig altitude** — `0.0`, not "small" — for every type, in the plan, the deflections and the
+   held inputs. `LaunchReplicationTests` and `HandsOffLaunchSpiralTests` both spawn at `RigSolver.RigAltitudeM`, so
+   every launch they check is bit-identical to one from before this existed.
+2. **A pure function of the start, not a memory of the last flight** — which is the half of the rule that actually
+   mattered. Two starts at the same height in the same air get the same preset to the bit.
+3. **Too small to see**: under 0.1° of aileron anywhere the picker reaches, a stick input under 0.01 of full travel.
+   The trim indicator does not visibly leave centre.
+
+**Only the aileron.** The fin offset drifts with height too — more than the aileron on several types — and cancelling
+it would want preset rudder trim as well. Ty was offered "aileron/rudder trim" and chose "preset aileron trim", so
+the yaw keeps whatever small heading drift the fixed fin leaves.
+
+**IT CANNOT SAVE FOUR TYPES, AND THEY ARE A DIFFERENT FAULT.** The Pitts, the Extra, the Great Lakes and the J-3
+roll tens of degrees in ten seconds hands off at **every** height, the rig altitude included — the Pitts **36.1° at
+4,000 ft**, 43.1° at 3,000 AGL and 61.6° at 10,000; the Extra **24.0°**, 31.1° and 52.4° — because their stored rigs
+no longer close against today's model: the Pitts leaves N = −2.6 × 10⁻² and the Extra N = +7.3 × 10⁻³ at their own
+4,000 ft rig point, where `RigTests.HandsOffLevelAtRigPower` demands under 2 × 10⁻⁴. Their config rig angles also
+disagree with the hand-copied table above, so `RigTests.ConfigRigMatchesTheHandCopiedTable` is red for **seven**
+types — all of them ones whose tails changed. **RigTool was re-run and the literals were not re-copied, and the rigs
+it produced do not close against the model that flies now**, so re-copying the literals is not the fix. Re-running it
+for those seven and re-copying in the same commit belongs to whoever changed the tails.
+
+An aileron preset derived from a rig that does not close has nothing to work with, and measured it barely helps them
+(Pitts 61.6° → 56.6°), so those four are deliberately **excluded** from the gating test rather than covered by a
+widened band: a band loose enough to pass them would pass a preset that did nothing.
+
+**And the J-3 is worse than that: its rig solve does not converge at all away from the rig altitude.** At 3,000,
+6,000 and 10,000 ft AGL `SolveRig` returns no answer, so `AileronTrimForAltitude` leaves the trim centred and sets
+its `why` string — the graceful-degradation path firing for real rather than in a test. That is also on the rig pile,
+not this one.
+
 ## Stick-fixed, stick-free, and why one launch went left (run 2, 2026-11-02)
 
 **The rig is a stick-fixed rig.** `RigSolver.Residual` (`src/FlyingGame.Sim/RigSolver.cs`) evaluates `SteadyForces` with

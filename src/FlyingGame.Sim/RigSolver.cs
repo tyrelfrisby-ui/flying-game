@@ -81,6 +81,158 @@ public static class RigSolver
     /// <summary>Level flight at this throttle with the config's own rig held: airspeed, α, elevator and bank. The in-air start.</summary>
     public static Result SolveLevel(AircraftConfig c, double throttle, double altitudeM) => SolvePoweredLevel(c, throttle, altitudeM, solveRig: false);
 
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, object> _aileronAtRigAltitude = new();
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, object> _tableCache = new();
+
+    private static IReadOnlyDictionary<string, AirfoilTable> Tables(AircraftConfig c)
+    {
+        if (_tableCache.TryGetValue(c, out object? t)) return (IReadOnlyDictionary<string, AirfoilTable>)t;
+        var built = Aircraft.BuildAirfoilTables(c);
+        _tableCache.AddOrUpdate(c, built);   // AddOrUpdate, not Add: see AileronTrimForAltitude's cache note
+        return built;
+    }
+
+    /// <summary>
+    /// The aileron deflection, rad, that zeroes the ROLLING MOMENT at an already-solved steady level state — a 1-D
+    /// secant on L(δa) through <see cref="SteadyForces"/>, nothing else moved.
+    ///
+    /// WHY 1-D AND NOT A RIG RE-SOLVE, which is what this was first written as and had to be thrown away. Re-solving
+    /// the whole rig at the start altitude (<see cref="SolveRig"/>, six unknowns, a 6×6 finite-difference Jacobian with
+    /// the lateral pair in it) measured **16.1× the cost of the <see cref="SolveLevel"/> that a spawn already pays**
+    /// — 3,189 ms against 198 ms on a loaded machine; the absolutes are contention-dependent but the ratio is not.
+    /// <c>AirStart.ComputeRandom</c> can call <c>Compute</c> five times while it hunts for a separated multiplayer
+    /// start, so that is up to five of them, and a spawn hitch is something the pilot feels on every single flight
+    /// and reads as a different bug. (This repo has paid for exactly that mistake before: the blade-element solve
+    /// going per-step made the J-3 "noticeably slower" for days and cost a wrong hypothesis about a memory leak.)
+    ///
+    /// The 1-D version is affordable because the thing being cancelled is a rolling moment and nothing else: one
+    /// `SteadyForces` evaluation per secant step, about eight of them, against SolveLevel's ten iterations of a 5×5
+    /// Jacobian. It is also a more direct answer to the question — the aileron that zeroes L here — than re-rigging,
+    /// which would also move the fin offset, the bank, α and the speed to get there.
+    ///
+    /// Second order and deliberately ignored: a few hundredths of a degree of aileron changes Fz and so the trimmed α
+    /// by a hair. Over the whole reachable band the preset is under 0.1°, so re-converging the longitudinal trim
+    /// around it would buy less than the solve's own tolerance.
+    /// </summary>
+    public static double AileronForZeroRoll(AircraftConfig c, Result level)
+    {
+        var tables = Tables(c);
+        double rho = Atmosphere.DensityAtAltitude(level.AltitudeM);
+        double thr = c.Propulsion is null ? 0.0 : RigThrottle;
+        Vec3 vb = new(level.TasMs * Math.Cos(level.AlphaRad), 0, level.TasMs * Math.Sin(level.AlphaRad));
+        double w = Math.Max(1e-9, c.Mass.MassKg * 9.80665);
+        double Roll(double da)
+        {
+            (Vec3 _, Vec3 m) = SteadyForces(c, tables, thr, vb, rho, new ControlDeflections(da, level.ElevatorRad, 0, 0));
+            return m.X / w;
+        }
+        // Secant from zero with a 0.1 deg probe: the rolling moment is very nearly linear in aileron over the
+        // hundredths of a degree this lives in, so this converges in a handful of steps. Bracketed to +-2 deg, which
+        // is two orders of magnitude more than any measured preset, so a type whose L never crosses zero cannot run
+        // away; it returns the clamp and the difference in AileronTrimForAltitude then reports whatever it reports.
+        const double probe = 0.1 * Math.PI / 180.0, lim = 2.0 * Math.PI / 180.0;
+        double x0 = 0.0, f0 = Roll(x0), x1 = probe, f1 = Roll(x1);
+        for (int i = 0; i < 20 && Math.Abs(f1) > 1e-10; i++)
+        {
+            double d = f1 - f0;
+            if (Math.Abs(d) < 1e-18) break;
+            double x2 = Math.Clamp(x1 - f1 * (x1 - x0) / d, -lim, lim);
+            x0 = x1; f0 = f1; x1 = x2; f1 = Roll(x1);
+        }
+        return Math.Clamp(x1, -lim, lim);
+    }
+
+    /// <summary>
+    /// PRESET AILERON TRIM FOR A START AWAY FROM THE RIG ALTITUDE (Ty, 2026-11-10). The aileron deflection, rad, to
+    /// hold at an in-air start trimmed to <paramref name="level"/> so that the wings stay level hands off. Zero if it
+    /// cannot be derived (<paramref name="why"/> says so) and, by construction, zero at <see cref="RigAltitudeM"/>.
+    ///
+    /// WHAT THE PROBLEM IS. The aileron rig and the fin offset are solved ONCE, at <see cref="RigAltitudeM"/>, and
+    /// written into the config as fixed geometry; <see cref="SolveLevel"/> then holds that geometry and solves only
+    /// speed, α, elevator and the sliver of bank. A fixed rig works through dynamic pressure, so at any other height
+    /// it over- or under-corrects and leaves a rolling moment that NOTHING trims out — with the stick centred the
+    /// aeroplane rolls off. Measured on this model, still air, 10 s hands off at 10,000 ft AGL over KMYL, the fast
+    /// types roll 8–15° (<c>tools/FlightTests/HighStartDriftProbe.cs</c>), and Ty now has a start-altitude picker
+    /// that reaches that height.
+    ///
+    /// Ty, 2026-11-10, offered this or re-solving the whole rig at the start altitude, chose: **preset aileron trim**.
+    ///
+    /// HOW IT IS DERIVED — a difference of two measurements of the aeroplane, nothing typed:
+    ///     preset = AileronForZeroRoll(at the start height) − AileronForZeroRoll(at the rig height)
+    /// the aileron that cancels the rolling moment the fixed rig leaves HERE, less the one that cancels it where the
+    /// rig was solved. It is the minimum that cancels the measured drift because it is exactly the rolling moment
+    /// being cancelled and nothing else is touched.
+    ///
+    /// WHY IT IS A DIFFERENCE AND NOT JUST THE FIRST TERM. The stored rigs do not close on today's model — the
+    /// Extra leaves L = −1.3 × 10⁻² and the C-172 −7.9 × 10⁻³ at their own 4,000 ft rig point — so the first term
+    /// alone is NOT zero at the rig altitude, which is precisely the case Ty required to stay centred, and it would
+    /// quietly fold "this config's rig is stale" into "this start is high". The difference is identically zero at the
+    /// rig altitude whatever the config says, and says nothing about staleness. For the same reason it is not measured
+    /// against `c.Rig.AileronRad`, which is a hand-copied literal and is a few hundredths of a degree out on most
+    /// types (Extra 0.0394°, C-172 0.0322°, Gee Bee 0.0271°).
+    ///
+    /// WHERE THIS SITS AGAINST "TRIMS CENTRED EVERY FLIGHT", which is Ty's own rule and the stick-free launch fix.
+    /// The rule says a flight begins with the trims centred, so that the aeroplane a player meets is the same
+    /// aeroplane every time and no leftover trim from the last flight flies the first frame. This puts a NON-ZERO
+    /// aileron trim on the aeroplane at a start away from 4,000 ft, which is a breach of that rule, and Ty chose it
+    /// knowing so — the lane that found the drift (lane/claude-start-altitude, 2026-11-03) flagged the conflict in
+    /// those words and he answered "preset aileron trim" anyway. Three things keep the breach narrow:
+    ///   • it is a FUNCTION OF THE START, not a memory of the last flight: two starts at the same height in the same
+    ///     air get the same preset to the bit, so the launch stays replicable (LaunchReplicationTests);
+    ///   • it is ZERO at the rig altitude, so every test and every flight that starts there is bit-identical to
+    ///     before, including the stick-free launch work;
+    ///   • it is tiny. Over every height the picker can reach, |preset| comes out under a tenth of a degree, which is
+    ///     a stick input under 0.01 of full travel — the trim INDICATOR does not visibly leave centre.
+    /// If Ty ever finds an aileron trim that is not centred and is surprised, THIS is the reason, and it is the
+    /// paragraph to read. docs/RIGGING.md has the same argument with the measurements.
+    ///
+    /// Only the AILERON. The fin offset drifts with height too — more than the aileron on some types — and cancelling
+    /// it would want preset rudder trim as well. Ty was offered "aileron/rudder" and chose "preset aileron trim", so
+    /// the yaw is left alone and the aeroplane keeps whatever small heading drift the fixed fin leaves.
+    /// </summary>
+    public static double AileronTrimForAltitude(AircraftConfig c, Result level, out string? why)
+    {
+        why = null;
+        // At the rig altitude there is nothing to cancel, and saying so here rather than relying on the subtraction
+        // keeps the common case free of any solve at all as well as exactly zero.
+        if (Math.Abs(level.AltitudeM - RigAltitudeM) < 1e-6) return 0.0;
+        if (!level.Converged) { why = $"{c.Id}: the level solve did not converge — aileron trim left centred"; return 0.0; }
+        if (!CanRig(c)) { why = $"{c.Id} has nothing to rig laterally (needs ailerons and a fin)"; return 0.0; }
+        if (!_aileronAtRigAltitude.TryGetValue(c, out object? cached))
+        {
+            // Cached per config: the rig-altitude reference is a property of the airframe and never changes, so only
+            // the first in-air start of a type pays the extra SolveLevel. ConditionalWeakTable so a config that goes
+            // out of scope is collected with it, as PracticeScenario's alpha cap already does. AddOrUpdate, not Add:
+            // the test suite runs collections in parallel and Add THROWS on a duplicate key, so two threads reaching
+            // a cold cache for the same config would turn a cache into a crash. Both compute the same answer.
+            Result atRig = SolveLevel(c, RigThrottle, RigAltitudeM);
+            cached = atRig.Converged ? AileronForZeroRoll(c, atRig) : double.NaN;
+            _aileronAtRigAltitude.AddOrUpdate(c, cached);
+        }
+        double reference = (double)cached;
+        if (double.IsNaN(reference))
+        {
+            why = $"{c.Id}: the level solve at the rig altitude did not converge — aileron trim left centred";
+            return 0.0;
+        }
+        return AileronForZeroRoll(c, level) - reference;
+    }
+
+    /// <summary>
+    /// <see cref="AileronTrimForAltitude(AircraftConfig, Result, out string?)"/> for a caller that has no solved level
+    /// state yet, which is the tests and the probes. The production path (<c>AirStart.Compute</c>) uses the overload
+    /// above and passes the <see cref="SolveLevel"/> result it already has, so a spawn pays for the 1-D aileron find
+    /// and not for a second Newton solve.
+    /// </summary>
+    public static double AileronTrimForAltitude(AircraftConfig c, double altitudeM, out string? why)
+    {
+        if (Math.Abs(altitudeM - RigAltitudeM) < 1e-6) { why = null; return 0.0; }
+        Result level = c.Propulsion is null
+            ? SolveGlide(c, RigGlideTasAt(c, altitudeM), altitudeM)
+            : SolveLevel(c, RigThrottle, altitudeM);
+        return AileronTrimForAltitude(c, level, out why);
+    }
+
     /// <summary>Steady glide at this airspeed, rig held (or solved).</summary>
     public static Result SolveGlide(AircraftConfig c, double tasMs, double altitudeM, bool solveRig = false)
     {
