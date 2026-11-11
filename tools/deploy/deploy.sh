@@ -78,6 +78,25 @@ tools/backup-assets.sh || true
 # PARITY (Ty 2026-11-04: "ios/mac and quest must stay in sync at all times"; docs/PARITY.md). Printed so whoever
 # deploys sees what the Quest lane is missing, NEVER a block: an iOS build goes ahead whatever it says. The Quest
 # deploy is the one that refuses (tools/deploy/deploy-quest.sh on the Quest lane, PARITY_OVERRIDE=1 to force).
+# WHICH BRANCH THIS CHECKOUT IS ON -- A REFUSAL, NOT A WARNING. 2026-11-10: the main checkout sits on
+# `split-surfaces`, 1448 commits behind the iOS lane, and that branch's own HEAD message says "the branch this
+# checkout builds from". Anyone running this from the obvious place would have shipped an app months old. Worse,
+# BOTH trunks still carry the Pitts' propeller inertia at 9.0 against the lanes' blade-rule 3.06 -- a 2.9x
+# gyroscopic couple that rolls the aeroplane out of an inverted spin, waiting in a branch that invites you to
+# build from it. check-parity.sh already KNOWS this and prints "whatever is built here is in NEITHER lane"; only
+# the enforcement was missing, and a printed warning in a 20-minute build scrolls past unread.
+# Deliberately NOT fixed by merging the trunks current: a trunk merged current today drifts again tomorrow, and a
+# kept-current trunk is a lane in all but name, against the trunk rule installed 2026-11-10.
+# FLYINGGAME_ALLOW_OFF_LANE=1 overrides, for a deliberate experiment.
+DEPLOY_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+if [ -z "${FLYINGGAME_ALLOW_OFF_LANE:-}" ] && ! printf '%s' "$DEPLOY_BRANCH" | grep -Eq '^lane/'; then
+  echo "REFUSING: this checkout is on '$DEPLOY_BRANCH', which is not a lane/* branch."
+  echo "  A build from here goes into NEITHER shipping lane, and the trunks carry known-stale flight-model"
+  echo "  numbers (Pitts propInertia 9.0 against the lanes' 3.06). Build from a lane worktree instead:"
+  echo "    ~/Developer/flying-game-worktrees/claude-tv-companion   (iOS)"
+  echo "  FLYINGGAME_ALLOW_OFF_LANE=1 to override deliberately."
+  exit 2
+fi
 tools/check-parity.sh --brief || echo "== parity is RED (above): merge island-nav into the Quest lane the same day. This iOS build goes ahead."
 echo "== unity export $(date)"
 FLYINGGAME_IOS_OUT=/private/tmp/flyinggame-ios \
