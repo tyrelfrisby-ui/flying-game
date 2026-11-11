@@ -410,6 +410,14 @@ namespace FlyingGame.Bridge
         /// and `ProgressionTests` fails if one comes back. Their configs, models and liveries stay on disk. A saved
         /// AircraftId that is no longer on this list falls back to <see cref="DefaultAircraftId"/> when the settings load.
         /// This is the MASTER list; what a given build offers is <see cref="Fleet"/> below.
+        ///
+        /// THE SECOND ELEMENT IS A FALLBACK, NOT THE NAME. What a picker shows is the aeroplane's config
+        /// <c>displayName</c>, resolved at runtime by <see cref="FlyingGame.Core.FleetNames"/>; the string here is
+        /// used only when that config is missing or has no displayName, and seeing one on screen means the config is
+        /// the thing to fix. DO NOT RENAME AN AEROPLANE HERE — rename it in configs/aircraft/&lt;id&gt;.json. These
+        /// strings are stale trademark names from before the 2026-11-11 rename and are kept, un-edited, precisely
+        /// because a second name for one aeroplane is the bug: the page showed "2-33-like Glider" for a week while the
+        /// config said "Glider Trainer", because nothing read the config.
         /// </summary>
         public static readonly (string id, string name)[] MasterFleet =
         {
@@ -438,9 +446,37 @@ namespace FlyingGame.Bridge
         /// Connect's 4 GB limit — it lists six types rather than these five (it includes the J-3 on floats), and it
         /// says in its own header "PACKAGING ONLY, OPT-IN. Nothing is deleted from the tree". They happen to overlap;
         /// they answer different questions and may part again.
+        ///
+        /// THE NAMES HERE ARE NOT THE NAMES SHOWN. Every entry's name is replaced by its config's <c>displayName</c>
+        /// (<see cref="FlyingGame.Core.FleetNames"/>); the master list's string is a fallback for a type whose config
+        /// is missing or silent. Only the SET and the ORDER are this list's — the allow-list cut is unchanged.
         /// </summary>
-        public static readonly (string id, string name)[] Fleet =
-            FlyingGame.Core.FleetAllowList.Offered(MasterFleet, PlatformAllowList);
+        public static (string id, string name)[] Fleet => _fleet ??= BuildFleet();
+        private static (string id, string name)[] _fleet;
+
+        /// <summary>
+        /// Resolved ONCE, on the first read, because the names live in StreamingAssets and this class is static: at
+        /// type-initialisation time on Android the configs are still inside the APK. Every caller already reads
+        /// <see cref="Fleet"/>, so the first picker to open pays for it and the rest get the cached array.
+        ///
+        /// The platform cut and the slim-package filter happen on the IDs first, exactly as before, so a build reads
+        /// only the configs it offers: six on a phone, not thirty-three.
+        /// </summary>
+        private static (string id, string name)[] BuildFleet()
+        {
+            var offered = FlyingGame.Core.FleetAllowList.Offered(MasterFleet, PlatformAllowList);
+#if FG_TF_SLIM
+            // THE TESTFLIGHT SLIM PACKAGE (Ty 2026-11-05; FlyingGame.Core.TestFlightFleet): only the 2-33, both J-3s,
+            // the Pitts, the Extra and the Great Lakes are offered, and the other types' models are left out of the
+            // build. Compiled only into that package (FLYINGGAME_TF_SLIM=1 tools/deploy/deploy.sh). On iOS this
+            // filters what the allow-list has already cut, so the slim package offers the intersection.
+            offered = FlyingGame.Core.TestFlightFleet.Filter(offered);
+#endif
+            return FlyingGame.Core.FleetNames.Resolve(offered, UnityAircraftConfigLoader.DisplayName);
+        }
+
+        /// <summary>Read the names again (the editor re-synced StreamingAssets, or a test changed a config).</summary>
+        public static void ReloadFleetNames() => _fleet = null;
 
         /// <summary>This platform's allow-list, or null for "every aeroplane in the master list".</summary>
         public static string[] PlatformAllowList =>
@@ -448,15 +484,6 @@ namespace FlyingGame.Bridge
             FlyingGame.Core.FleetAllowList.Ios;
 #else
             null;
-#endif
-
-#if FG_TF_SLIM
-        /// <summary>THE TESTFLIGHT SLIM PACKAGE (Ty 2026-11-05; FlyingGame.Core.TestFlightFleet): only the 2-33, both J-3s,
-        /// the Pitts, the Extra and the Great Lakes are offered, and the other types' models are left out of the build. A
-        /// saved aircraft that is not listed falls back to <see cref="DefaultAircraftId"/>, the 2-33. Compiled only into
-        /// that package (FLYINGGAME_TF_SLIM=1 tools/deploy/deploy.sh); every other build offers <see cref="Fleet"/>.
-        /// On iOS this filters what the allow-list has already cut, so the slim package offers the intersection.</summary>
-        static SessionSettings() { Fleet = FlyingGame.Core.TestFlightFleet.Filter(Fleet); }
 #endif
 
         /// <summary>Dogfight 1 v 1 (owner 2026-10-01): the opponent's aircraft and skill (0 easy, 1 moderate, 2 difficult).</summary>
