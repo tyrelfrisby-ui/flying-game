@@ -163,6 +163,49 @@ decision to reverse. It is also the one piece of evidence that bears against Cd_
 exactly right, one pitch should still hold both of his figures, and 0.16 degrees of pitch is the size of the
 disagreement.
 
+### The one red left, and it is not a stale pin: the inner fixed point has two roots
+
+`HotPathCostTests.TheAdaptiveAzimuthCountKeepsTheDiscsNumbers` fails, thrust moving 7.9e-2 against a 1e-3 bound,
+and it is **left red on purpose**. It is not caching an old curve — both sides of it run the new model — so it is
+not the same shape as the six that were re-derived.
+
+What it is measuring is not the azimuth count. That pin turns three flags at once (sixteen azimuths, exact
+Prandtl, and a cold start at 1e-6), and its worst case after this lane sits at **0.001 m/s of crossflow**, where
+every azimuth of the disc is identical and the count cannot matter. Turning the three one at a time, on the Great
+Lakes' fine blade at 60 m/s, 1,500 rpm and 4,000 m:
+
+| | thrust | torque |
+|---|---|---|
+| exact: 16 azimuths, exact Prandtl, cold start 1e-6 | −1176.73 N | −326.67 N·m |
+| only 4 azimuths | −1176.73 N | −326.67 N·m |
+| only approximate Prandtl | −1176.73 N | −326.67 N·m |
+| **only warm start + 1e-4 tolerance** | **−1255.67 N** | **−353.32 N·m** |
+| cheap path, as the sim flies it | −1255.67 N | −353.32 N·m |
+
+Only the warm start moves it, and it moves it to **exactly** the number the OLD post-stall curve gives — all five
+rows read −1255.67 under the old section. That is not a convergence artefact; landing bit-for-bit on the old value
+means the iteration is converging to a **different root**. The map has two fixed points for a deeply stalled
+blade: one where the section comes out pre-stall, which is identical in both models because the linear branch was
+never touched, and one where it comes out post-stall, which is not. The cold start finds the post-stall root and
+the warm start finds the attached one.
+
+**This pre-dates the lane.** The old post-stall curve decayed cl at 0.012 per degree, so just past the stall it
+was almost indistinguishable from the linear branch and the two roots coincided to the digit. Correcting the
+section separated them and made a root ambiguity that was always there visible for the first time.
+
+Three things follow, and the third is the reason the pin stays red:
+
+1. **Nothing moved in flight.** The sim runs the warm start, and the warm start gives −1255.67 N before and after
+   this lane. The windmilling drag the aeroplane actually feels is bit-identical.
+2. **The reference path is what moved**, so the pin's premise — cheap ≈ exact — is what broke.
+3. **The root the sim takes is probably the wrong one.** At J = 1.28 with a 12.5 degree blade the section is
+   deeply stalled, so the post-stall root is the physical one, and the sim is on the attached one. That is a
+   finding about the solver, not about this lane, and it is worth its own.
+
+Relaxing the bound would silence a pin that has just started protecting something real, so it is not relaxed. The
+next lane is root selection in the stalled fixed point — and it should also re-measure `Skew4`/`Skew8` with
+`tools/SimCost --azimuth`, since those thresholds were read off the old section.
+
 ### Known and not fixed
 
 - **The Pitts does not reach the stop** at any of these speeds. Its governor drives the blade to the fine stop as the

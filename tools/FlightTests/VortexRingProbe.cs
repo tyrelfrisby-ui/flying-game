@@ -310,6 +310,104 @@ public class VortexRingProbe
         Emit("stopped-drag-derivation.txt", sb);
     }
 
+
+    /// <summary>
+    /// ITEM 7. WHICH HALF OF THIS LANE BROKE THE ADAPTIVE AZIMUTH COUNT. HotPathCostTests pins the cheap path (four
+    /// azimuths, approximate Prandtl, warm start) against the exact one (sixteen, exact, cold) to 1e-3 of itself,
+    /// and after this lane the worst thrust disagreement is 7.9e-2. Both sides of that pin run the NEW model, so it
+    /// is not a before-and-after: it says the azimuthal integrand got harder. The inflow cannot be the cause —
+    /// vAxial is the same at every azimuth and that grid never goes below zero, so every azimuth takes the
+    /// normal-working branch, which is the old expression — which leaves the section. This runs the same grid with
+    /// the post-stall branch forced both ways and prints the worst case for each, so the attribution is measured.
+    /// </summary>
+    [Fact]
+    public void WhichHalfOfTheLaneBrokeTheAzimuthPin()
+    {
+        if (Environment.GetEnvironmentVariable("VRS") != "1") return;
+        var sb = new StringBuilder();
+        (string Name, int Nb, double R, double Pitch)[] blades =
+        {
+            ("j3", 2, 0.915, 15.49), ("pitts", 2, 0.99, 11.0), ("gl", 2, 0.9398, 12.5),
+            ("extra", 3, 1.0, 12.72), ("c172", 2, 0.95, 15.0),
+        };
+        try
+        {
+            foreach (bool legacy in new[] { true, false })
+            {
+                BladeElement.LegacyPostStall = legacy;
+                double worstT = 0; string where = "";
+                foreach ((string name, int nb, double radius, double pitch) in blades)
+                {
+                    var g = new BladeElement.Geometry(nb, radius, pitch);
+                    foreach (double va in new[] { 0.0, 10.0, 25.0, 40.0, 60.0, 90.0 })
+                        foreach (double vc in new[] { 0.001, 0.05, 0.3, 1.0, 3.0, 6.0, 12.0, 25.0, 40.0 })
+                            foreach (double rpm in new[] { 500.0, 900.0, 1500.0, 2100.0, 2700.0 })
+                                foreach (double rho in new[] { 1.225, 0.9093 })
+                                {
+                                    BladeElement.AzimuthOverride = 16; BladeElement.ExactPrandtlLoss = true; BladeElement.LegacyInnerLoop = true;
+                                    BladeElement.Result was = BladeElement.Solve(g, va, vc, rpm, rho);
+                                    BladeElement.AzimuthOverride = 0; BladeElement.ExactPrandtlLoss = false; BladeElement.LegacyInnerLoop = false;
+                                    BladeElement.Result now = BladeElement.Solve(g, va, vc, rpm, rho);
+                                    double sT = Math.Max(Math.Abs(was.ThrustN), 1.0);
+                                    double dT = Math.Abs(now.ThrustN - was.ThrustN) / sT;
+                                    if (dT > worstT) { worstT = dT; where = $"{name} at {va:F0} m/s axial, {vc:F2} crossflow, {rpm:F0} rpm, rho {rho:F3} ({was.ThrustN:F1} N vs {now.ThrustN:F1} N)"; }
+                                }
+                }
+                sb.AppendLine($"{(legacy ? "OLD post-stall decay" : "Viterna plate      ")}: worst thrust {worstT:E2}  at {where}");
+            }
+        }
+        finally
+        {
+            BladeElement.AzimuthOverride = 0; BladeElement.ExactPrandtlLoss = false;
+            BladeElement.LegacyInnerLoop = false; BladeElement.LegacyPostStall = false;
+        }
+        Emit("azimuth-attribution.txt", sb);
+    }
+
+
+    /// <summary>
+    /// ITEM 8. THE AZIMUTH PIN VARIES THREE THINGS AT ONCE, so "the azimuth count" is not what its worst case is
+    /// measuring. Its exact side sets AzimuthOverride = 16, ExactPrandtlLoss = true AND LegacyInnerLoop = true
+    /// (cold start, 1e-6 tolerance) against a cheap side that has none of them — and the worst case after this lane
+    /// sits at 0.001 m/s of crossflow, where every azimuth of the disc is identical and the count cannot matter.
+    /// This takes that one condition and turns the three flags one at a time.
+    /// </summary>
+    [Fact]
+    public void WhichFlagMovesTheWindmillingDisc()
+    {
+        if (Environment.GetEnvironmentVariable("VRS") != "1") return;
+        var sb = new StringBuilder();
+        var g = new BladeElement.Geometry(2, 0.9398, 12.5);       // the Great Lakes' fine stop, the worst case
+        const double va = 60.0, vc = 0.001, rpm = 1500.0, rho = 0.9093;
+        try
+        {
+            foreach (bool legacySection in new[] { true, false })
+            {
+                BladeElement.LegacyPostStall = legacySection;
+                sb.AppendLine($"\n### post-stall: {(legacySection ? "old decay" : "Viterna plate")}  (GL blade, {va:F0} m/s, {vc} crossflow, {rpm:F0} rpm, rho {rho})");
+                foreach ((string name, int az, bool exact, bool legacyLoop) in new[]
+                {
+                    ("exact: 16 az, exact Prandtl, cold start 1e-6", 16, true, true),
+                    ("  only 4 azimuths                           ",  4, true, true),
+                    ("  only approximate Prandtl                  ", 16, false, true),
+                    ("  only warm start + 1e-4 tolerance          ", 16, true, false),
+                    ("cheap: adaptive az, approx, warm 1e-4       ",  0, false, false),
+                })
+                {
+                    BladeElement.AzimuthOverride = az; BladeElement.ExactPrandtlLoss = exact; BladeElement.LegacyInnerLoop = legacyLoop;
+                    BladeElement.Result r = BladeElement.Solve(g, va, vc, rpm, rho);
+                    sb.AppendLine($"  {name}  thrust {r.ThrustN,10:F2} N  torque {r.TorqueNm,9:F2} N.m");
+                }
+            }
+        }
+        finally
+        {
+            BladeElement.AzimuthOverride = 0; BladeElement.ExactPrandtlLoss = false;
+            BladeElement.LegacyInnerLoop = false; BladeElement.LegacyPostStall = false;
+        }
+        Emit("flag-attribution.txt", sb);
+    }
+
     internal readonly struct Run
     {
         public readonly double StartRpm, EndRpm, StopSeconds;
