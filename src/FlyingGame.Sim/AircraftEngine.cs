@@ -163,6 +163,9 @@ public sealed partial class Aircraft
     // Only types whose blade has been fitted (propulsion.bladePitch75Deg, from their static rpm) are integrated; the
     // rest keep the old law untouched, so the fleet stays flyable while the blades are fitted one at a time.
     private double _shaftRpm, _bladePitchDeg;
+    /// <summary>Whether the shaft has ever been integrated for this aeroplane — so the spawn's initial condition and an
+    /// in-flight restart can be told apart (see the seed in <see cref="StepShaft"/>).</summary>
+    private bool _shaftPrimed;
 
     // ---- the compression strokes of a dead engine (Ty 2026-11-10) -------------------------------------------------
     //
@@ -239,16 +242,10 @@ public sealed partial class Aircraft
     /// <summary>True when this aeroplane's propeller is solved rather than estimated.</summary>
     public bool HasFittedBlade => Config.Propulsion is { PropDiameterM: > 0, BladePitch75Deg: > 0 };
 
-    /// <summary>
-    /// SOLVE THE SHAFT, rather than read the rpm off the throttle law. A type with a fitted blade always does. A
-    /// CONSTANT-SPEED type does too the moment its governor stops governing — with no oil the blade angle is fixed on
-    /// a stop, which makes it a fixed-pitch propeller, and a fixed-pitch propeller's rpm is a torque balance and
-    /// nothing else. While the governor has oil these types keep the law they have always flown, so a normal flight is
-    /// untouched to the last digit and only the failure is solved.
-    /// </summary>
-    private bool SolvesShaft =>
-        HasFittedBlade
-        || (Config.Propulsion is { ConstantSpeed: true, PropDiameterM: > 0, FineStopDeg: > 0 } && !GovernorHasOil);
+    /// <summary>Whether the sim integrates this aeroplane's shaft — <see cref="PropModel.IntegratesShaft"/>, which is
+    /// the ONE copy of that predicate, because the rig has to ask the same question and a second copy is how the two
+    /// came apart (see <see cref="PropModel.SteadyFlownDrive"/>).</summary>
+    private bool SolvesShaft => PropModel.IntegratesShaft(Config.Propulsion, GovernorHasOil);
 
     /// <summary>Advance the shaft one step against the torque the engine makes and the torque the blade takes.</summary>
     private void StepShaft(double dt, double airDensity)
@@ -261,7 +258,29 @@ public sealed partial class Aircraft
         double pressureRatio = Atmosphere.PressureAtAltitude(-State.Position.Z) / Atmosphere.SeaLevelPressurePa;
         // A RUNNING engine is always turning. A DEAD one may be stopped, and must be allowed to STAY stopped: seeding
         // it at 1 rpm every step was what made a stopped propeller read 1 rpm for ever instead of nothing.
-        if (_shaftRpm <= 0.0 && EngineRunning) _shaftRpm = System.Math.Max(p.IdleRpm, 500.0);
+        //
+        // AND IT IS TURNING AT THE RPM THE TORQUE BALANCE GIVES, not at idle. The seed used to be
+        // max(IdleRpm, 500) — an assertion that every flight begins with the engine at idle, which is false of every
+        // in-air start: a spawn at 75 % in the cruise has its propeller at the cruise rpm already. That spool-up was
+        // half of the J-3's hands-off divergence — the rig solved 2,128.8 rpm against a sim that started at 724 and
+        // climbed — because for the second or two it lasts the torque reaction, the P-factor and the slipstream swirl
+        // are all a different propeller's, and a spiral mode only needs a kick.
+        // PropModel.SteadyDrive is both that torque balance and the one RigSolver.SteadyForces solves the rig
+        // against, so taking the seed from it is what makes the spawn and the rig the same aeroplane by construction
+        // rather than by agreement.
+        //
+        // A SPAWN IS AN INITIAL CONDITION; A RESTART IS A TRANSIENT. Only the first step this shaft is INTEGRATED on
+        // takes the balance: an engine that has stopped in flight and caught again has to spool up from where it
+        // was, which is what the idle seed is right for and what the dead-engine work measured. (StepShaft returns
+        // before this whenever SolvesShaft is false, so a constant-speed type that LOSES its oil in the cruise also
+        // arrives here unprimed and starts integrating from the rpm it was holding rather than dropping to idle.)
+        if (_shaftRpm <= 0.0 && EngineRunning && !_shaftPrimed)
+        {
+            PropModel.PropDrive steady = PropModel.SteadyDrive(p, System.Math.Clamp(_throttle01, 0.0, 1.0), State.Velocity.X, airDensity);
+            _shaftRpm = steady.ShaftRpm > 0.0 ? steady.ShaftRpm : System.Math.Max(p.IdleRpm, 500.0);
+            if (steady.BladePitchDeg > 0.0 && _bladePitchDeg <= 0.0) _bladePitchDeg = steady.BladePitchDeg;
+        }
+        else if (_shaftRpm <= 0.0 && EngineRunning) _shaftRpm = System.Math.Max(p.IdleRpm, 500.0);
         // THE MOMENT IT QUITS, the propeller is still turning at whatever the engine was holding it at, and it spins
         // DOWN from there. Without this the integration began at zero the first step after the engine died and could
         // not break away past the compression peak, so cutting the mixture in the cruise stopped the propeller dead
@@ -270,6 +289,7 @@ public sealed partial class Aircraft
         else if (_shaftRpm <= 0.0 && !EngineRunning && _wasRunning)
             _shaftRpm = PropModel.RunningRpm(p, _throttle01, _propLever);
         _wasRunning = EngineRunning;
+        _shaftPrimed = true;
 
         // A GOVERNED PROPELLER SENSES RPM, NOT TORQUE. A real governor is a flyweight head against a spring: rpm
         // above the setting opens a valve that drives the blade coarser, below it drives it finer, and it runs out
