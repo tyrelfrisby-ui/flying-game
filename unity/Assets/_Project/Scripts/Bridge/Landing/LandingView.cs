@@ -40,7 +40,7 @@ namespace FlyingGame.Bridge
         public LandingView(StartMenu host) { _host = host; }
 
         private GUIStyle _title, _head, _label, _labelBold, _small, _tiny, _btn, _btnOn, _btnBig, _card, _cardOn, _cardOff;
-        private Texture2D _bg, _panel, _panelLight, _btnBg, _btnOnBg, _cardBg, _cardOnBg, _white, _dim;
+        private Texture2D _bg, _panel, _panelLight, _btnBg, _btnOnBg, _cardBg, _cardOnBg, _white, _dim, _dimLight;
         private int _fs;
         private float _stripScroll, _dragX, _dragScroll; private bool _dragPossible, _dragging;
         // The page's own vertical scroll (see the class notes). _pageContentH is last frame's measurement, which is
@@ -69,6 +69,10 @@ namespace FlyingGame.Bridge
             _cardOnBg ??= Solid(new Color(1.00f, 0.82f, 0.36f, 1f));
             _white ??= Solid(Color.white);
             _dim ??= Solid(new Color(0f, 0f, 0f, 0.55f));
+            // A BROWSING STRIP DIMS LESS. 55 % black is right for a menu you are reading instead of the page, but the
+            // aircraft and configuration menus now preview what you tap on the hero above them (Ty 2026-11-11), and an
+            // aeroplane cannot be compared through a dark veil.
+            _dimLight ??= Solid(new Color(0f, 0f, 0f, 0.22f));
             Font f = UiFont.Get();
             GUIStyle S(int size, FontStyle st, TextAnchor a, Color c) => new GUIStyle { font = f, fontSize = size, fontStyle = st, alignment = a, normal = { textColor = c }, wordWrap = false, clipping = TextClipping.Clip };
             _title = S(Mathf.RoundToInt(fs * 1.35f), FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);
@@ -354,6 +358,18 @@ namespace FlyingGame.Bridge
         /// <summary>The live aeroplane, with the configuration's feedback drawn over it (fuel, bags, people).</summary>
         private void DrawHero(Rect r, LandingFlow flow, bool titles)
         {
+            // The hero is a picture and a caption, never a control, so it is drawn ENABLED even while a menu is open:
+            // IMGUI greys out everything drawn with GUI.enabled false, and the aeroplane is the thing a browsing pilot
+            // is looking at (Ty 2026-11-11, previewing from the open strip). Nothing in here takes a tap, so this
+            // cannot let one through to the page underneath.
+            bool wasEnabled = GUI.enabled;
+            GUI.enabled = true;
+            try { DrawHeroPicture(r, flow, titles); }
+            finally { GUI.enabled = wasEnabled; }
+        }
+
+        private void DrawHeroPicture(Rect r, LandingFlow flow, bool titles)
+        {
             GUI.DrawTexture(r, _panel);
             var preview = LandingPreview.Instance;
             if (preview != null) preview.Framing = flow.Page == LandingPage.Choose ? LandingPreview.FramingMode.Hero : LandingPreview.FramingMode.Load;
@@ -393,10 +409,18 @@ namespace FlyingGame.Bridge
         private void DrawStrip(Rect safe, LandingFlow flow)
         {
             Event e = Event.current;
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _dim);
+            // BROWSE, THEN COMMIT (Ty 2026-11-11: "when a user selects a plane or a configuration have it show up top
+            // but don't close the options list have a 'select' at the top of the strip with the list so they can
+            // preview but still make a change easily without going in and out of the menu so many times"). In the
+            // aircraft and configuration menus a tapped card only PREVIEWS — the hero above and the live 3-D aeroplane
+            // change, the list stays up — and SELECT in this header is what keeps it and closes the strip. Anything
+            // else (Cancel, a tap outside, BACK, another menu, page 2) puts the committed choice back, so a browse
+            // nobody selected changes nothing. LandingFlow's "browse, then commit" holds the two pieces of state.
+            bool browse = LandingFlow.Browsable(flow.OpenPicker);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), browse ? _dimLight : _dim);
             float h = Mathf.Min(safe.height * 0.62f, safe.width * 0.42f);
             var panel = new Rect(safe.x, safe.yMax - h, safe.width, h);
-            // A tap outside closes the menu and does nothing else.
+            // A tap outside closes the menu and does nothing else (in a browse: keeps the committed choice).
             if (e.type == EventType.MouseDown && !panel.Contains(e.mousePosition)) { flow.ClosePicker(); e.Use(); return; }
             GUI.DrawTexture(panel, _panel);
             string title = flow.OpenPicker switch
@@ -407,8 +431,13 @@ namespace FlyingGame.Bridge
                 PickerKind.CameraView => "VIEWPOINT  ·  the camera you fly behind",
                 PickerKind.Challenge => "CHALLENGES", PickerKind.Lesson => "LESSONS", _ => "",
             };
-            UiLayout.Label(new Rect(panel.x + _gap, panel.y + _gap * 0.4f, panel.width - _bh * 2.5f, _bh), title, _head);
-            if (UiLayout.Button(new Rect(panel.xMax - _bh * 1.6f - _gap, panel.y + _gap * 0.4f, _bh * 1.6f, _bh * 0.9f), "Close", _btn)) { flow.ClosePicker(); return; }
+            // The header: the menu's name, SELECT where there is something to select, and the way out. SELECT says what
+            // it will select and wears the accent, because it is the one control here that decides what flies.
+            float headY = panel.y + _gap * 0.4f, closeW = _bh * 1.6f, closeX = panel.xMax - closeW - _gap;
+            float selW = browse ? Mathf.Min(_fs * 13f, panel.width * 0.46f) : 0f;
+            UiLayout.Label(new Rect(panel.x + _gap, headY, Mathf.Max(_fs * 2f, closeX - selW - panel.x - _gap * 3f), _bh), title, _head);
+            if (browse && UiLayout.Button(new Rect(closeX - selW - _gap, headY, selW, _bh * 0.9f), flow.BrowseSelectLabel, _btnOn)) { flow.CommitBrowse(); return; }
+            if (UiLayout.Button(new Rect(closeX, headY, closeW, _bh * 0.9f), browse ? "Cancel" : "Close", _btn)) { flow.ClosePicker(); return; }
 
             var items = flow.Items(flow.OpenPicker);
             var strip = new Rect(panel.x + _gap, panel.y + _bh * 1.3f, panel.width - 2 * _gap, panel.height - _bh * 1.3f - _gap);

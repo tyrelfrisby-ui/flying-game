@@ -132,17 +132,81 @@ public sealed class LandingFlow
     public bool CanGoNext => Page == LandingPage.Choose;
     public bool CanLaunch => Page == LandingPage.Load;   // W&B never blocks (Ty 2026-11-05 addendum)
 
-    public void Next() { if (CanGoNext) { OpenPicker = PickerKind.None; Page = LandingPage.Load; RebuildLoad(); Bump(); } }
+    public void Next() { if (CanGoNext) { OpenPicker = PickerKind.None; DiscardBrowse(); Page = LandingPage.Load; RebuildLoad(); Bump(); } }
     public void Back() { if (LaunchConfirmPending) { LaunchConfirmPending = false; Bump(); return; } if (OpenPicker != PickerKind.None) ClosePicker(); else if (CanGoBack) { Page = LandingPage.Choose; Bump(); } }
-    public void GoTo(LandingPage p) { OpenPicker = PickerKind.None; LaunchConfirmPending = false; Page = p; if (p == LandingPage.Load) RebuildLoad(); Bump(); }
+    public void GoTo(LandingPage p) { OpenPicker = PickerKind.None; DiscardBrowse(); LaunchConfirmPending = false; Page = p; if (p == LandingPage.Load) RebuildLoad(); Bump(); }
 
     public void Open(PickerKind k)
     {
         if (Page != LandingPage.Choose && k != PickerKind.None) return;   // the menus belong to page 1
-        OpenPicker = OpenPicker == k ? PickerKind.None : k;
+        PickerKind want = OpenPicker == k ? PickerKind.None : k;
+        DiscardBrowse();                  // leaving a browse for another menu keeps the choice that was committed
+        OpenPicker = want;
+        if (Browsable(want)) { _committedFamilyId = FamilyId; _committedGearId = GearId; }
         Bump();
     }
-    public void ClosePicker() { if (OpenPicker != PickerKind.None) { OpenPicker = PickerKind.None; Bump(); } }
+    public void ClosePicker() { if (OpenPicker != PickerKind.None) { OpenPicker = PickerKind.None; DiscardBrowse(); Bump(); } }
+
+    // ================================================================ browse, then commit
+    //
+    // Ty 2026-11-11: "On the landing page when a user selects a plane or a configuration have it show up top but
+    // don't close the options list have a 'select' at the top of the strip with the list so they can preview but
+    // still make a change easily without going in and out of the menu so many times."
+    //
+    // So a tap on a card PREVIEWS: the hero and the live 3-D aeroplane change (they read FamilyId / GearId, which is
+    // why the preview is kept in those fields rather than in a second set), and the list stays open. SELECT
+    // (<see cref="CommitBrowse"/>) is what keeps it and closes the strip. The committed choice is the snapshot taken
+    // when the menu opened, and every other way out of the menu — Close, a tap outside, BACK, another menu, page 2 —
+    // puts it back, so a browse that is abandoned changes nothing and only SELECT can decide what flies.
+    //
+    // Only the aircraft and the configuration browse. They are the two Ty named, the two the hero rebuilds for, and
+    // the two with nothing else hanging off them; an activity, by contrast, RESTRICTS the other menus
+    // (ConformToRules), and a half-applied set of restrictions is not something to leave on the screen. A pick with no
+    // picker open — the Quest panel's < > rows (QuestMenu.CycleFlow), the self-test, a tool — commits as it always
+    // did, because there is no strip there to press SELECT in.
+
+    /// <summary>The menus whose cards preview instead of committing.</summary>
+    public static bool Browsable(PickerKind k) => k == PickerKind.Aircraft || k == PickerKind.Configuration;
+
+    private string? _committedFamilyId, _committedGearId;   // what SELECT would keep; null when no browse is open
+
+    /// <summary>True while a browsable menu is open: the type and configuration on show are a preview.</summary>
+    public bool Browsing => _committedFamilyId != null;
+
+    /// <summary>The choice that would FLY: the previewed one only once SELECT has kept it.</summary>
+    public string CommittedFamilyId => _committedFamilyId ?? FamilyId;
+    public string CommittedGearId => _committedGearId ?? GearId;
+
+    /// <summary>True while the preview differs from the committed choice, so SELECT would change something.</summary>
+    public bool BrowsePending => Browsing && (FamilyId != _committedFamilyId || GearId != _committedGearId);
+
+    /// <summary>The SELECT button's label, which says what it will select (Ty: the commit must be obvious).</summary>
+    public string BrowseSelectLabel => OpenPicker switch
+    {
+        PickerKind.Aircraft => "SELECT  " + Family.Name,
+        PickerKind.Configuration => "SELECT  " + Gear.Name,
+        _ => "SELECT",
+    };
+
+    /// <summary>SELECT: keep what is being previewed and close the list. False when no browse was open.</summary>
+    public bool CommitBrowse()
+    {
+        if (!Browsing) { ClosePicker(); return false; }
+        _committedFamilyId = _committedGearId = null;
+        OpenPicker = PickerKind.None;
+        Bump();
+        return true;
+    }
+
+    /// <summary>Any other way out of a browsable menu: the committed choice goes back on show.</summary>
+    private void DiscardBrowse()
+    {
+        if (_committedFamilyId == null) return;
+        bool changed = FamilyId != _committedFamilyId || GearId != _committedGearId;
+        FamilyId = _committedFamilyId; GearId = _committedGearId!;
+        _committedFamilyId = _committedGearId = null;
+        if (changed) RebuildLoad();
+    }
 
     /// <summary>A picker that would offer exactly one card says so, and the view shows it as a fixed line rather than
     /// a menu (the gear of a glider, the viewpoint a lesson sets).</summary>
@@ -238,7 +302,9 @@ public sealed class LandingFlow
         return list;
     }
 
-    /// <summary>Pick a card. Closes the menu. Returns false (and changes nothing) for a card that is not offered.</summary>
+    /// <summary>Pick a card. In an open aircraft or configuration menu that is a PREVIEW and the menu stays open (see
+    /// "browse, then commit"); anywhere else it commits and closes the menu, as it always did. Returns false (and
+    /// changes nothing) for a card that is not offered.</summary>
     public bool Pick(PickerKind k, string id)
     {
         var item = Items(k).Find(i => i.Id == id);
@@ -259,7 +325,12 @@ public sealed class LandingFlow
                 ConformToRules();
                 break;
         }
-        OpenPicker = PickerKind.None;
+        // A card in an open browsable menu previews: the hero and the 3-D aeroplane follow it, the list stays up.
+        if (!(Browsable(k) && OpenPicker == k))
+        {
+            _committedFamilyId = _committedGearId = null;   // a pick from anywhere else commits what is on show
+            OpenPicker = PickerKind.None;
+        }
         RebuildLoad();
         Bump();
         return true;
@@ -587,6 +658,7 @@ public sealed class LandingFlow
     {
         if (!CanLaunch) return false;
         LaunchConfirmPending = false;
+        DiscardBrowse();   // only SELECT commits a browse: what flies and what is remembered is the committed choice
         Save();
         Launched?.Invoke(this);
         return true;
@@ -653,6 +725,7 @@ public sealed class LandingFlow
     /// the activity's rules, as for any pick. Nothing is saved until LAUNCH.</summary>
     public void Adopt(string aircraftId, bool bushwheels, bool skis, int locationIndex, Viewpoint viewpoint, string? activityId)
     {
+        _committedFamilyId = _committedGearId = null;   // these ARE the committed choices now; no browse to go back to
         var fam = Catalog.FamilyOf(aircraftId);
         if (fam != null)
         {
@@ -670,7 +743,7 @@ public sealed class LandingFlow
     }
 
     /// <summary>Start the flow over with the aeroplane and choices the store holds (opening the menu again).</summary>
-    public void Reopen() { Page = LandingPage.Choose; OpenPicker = PickerKind.None; RebuildLoad(); Bump(); }
+    public void Reopen() { Page = LandingPage.Choose; OpenPicker = PickerKind.None; DiscardBrowse(); RebuildLoad(); Bump(); }
 
     private void Bump() { Version++; Changed?.Invoke(); }
 }

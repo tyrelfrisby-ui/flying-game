@@ -154,6 +154,197 @@ public sealed class LandingFlowTests
         Assert.Equal(v, f.Version);
     }
 
+    // ---------------------------------------------------------------- browse, then commit
+    //
+    // Ty 2026-11-11: "On the landing page when a user selects a plane or a configuration have it show up top but don't
+    // close the options list have a 'select' at the top of the strip with the list so they can preview but still make a
+    // change easily without going in and out of the menu so many times."
+    //
+    // So the previewed choice and the committed choice are two different things: the hero and the live 3-D aeroplane
+    // show the preview, and only SELECT (CommitBrowse) decides what flies and what is remembered.
+
+    [Fact]
+    public void ACardInTheOpenAircraftMenuPreviewsAndTheListStaysUp()
+    {
+        var f = NewFlow();
+        f.Open(PickerKind.Aircraft);
+        int v = f.Version;
+        Assert.True(f.Pick(PickerKind.Aircraft, "pa18-cub-like"));
+        Assert.Equal(PickerKind.Aircraft, f.OpenPicker);            // the list does NOT close
+        Assert.True(f.Version > v);                                 // the hero and the 3-D preview follow it
+        Assert.Equal("pa18-cub-like", f.FamilyId);
+        Assert.Equal("Super Cub-like", f.HeroTitle);
+        Assert.Equal("pa18-cub-like", f.Items(PickerKind.Aircraft).Single(i => i.Selected).Id);
+        Assert.True(f.Browsing);
+        Assert.True(f.BrowsePending);
+        Assert.Equal("glider-2-33-like", f.CommittedFamilyId);      // nothing is committed yet
+        Assert.Equal("SELECT  Super Cub-like", f.BrowseSelectLabel);
+    }
+
+    [Fact]
+    public void SelectKeepsThePreviewAndClosesTheList()
+    {
+        var store = new MemoryLandingStore();
+        var f = NewFlow(store);
+        f.Open(PickerKind.Aircraft);
+        f.Pick(PickerKind.Aircraft, "pa18-cub-like");
+        Assert.True(f.CommitBrowse());
+        Assert.Equal(PickerKind.None, f.OpenPicker);
+        Assert.False(f.Browsing);
+        Assert.Equal("pa18-cub-like", f.FamilyId);
+        Assert.Equal("pa18-cub-like", f.CommittedFamilyId);
+        f.Next();
+        Assert.True(f.Launch());
+        Assert.Equal("pa18-cub-like", store.Values["landing.lastFlown"]);
+    }
+
+    /// <summary>THE ONE THAT MATTERS: a browse nobody selected changes nothing, whichever way the strip is left — the
+    /// Cancel button and a tap outside (both <see cref="LandingFlow.ClosePicker"/>), BACK, another menu, or page 2.</summary>
+    [Theory]
+    [InlineData("close")]
+    [InlineData("back")]
+    [InlineData("other-menu")]
+    [InlineData("next-page")]
+    public void DismissingTheStripAfterAPreviewLeavesTheCommittedChoiceAlone(string how)
+    {
+        var store = new MemoryLandingStore();
+        var f = NewFlow(store);
+        f.Open(PickerKind.Aircraft);
+        f.Pick(PickerKind.Aircraft, "pa18-cub-like");
+        switch (how)
+        {
+            case "close": f.ClosePicker(); break;
+            case "back": f.Back(); break;
+            case "other-menu": f.Open(PickerKind.Location); break;
+            default: f.Next(); break;
+        }
+        Assert.False(f.Browsing);
+        Assert.Equal("glider-2-33-like", f.FamilyId);               // back on the hero, at once
+        Assert.Equal("glider-2-33-like", f.CommittedFamilyId);
+        Assert.Equal("2-33-like Glider", f.HeroTitle);
+        if (f.Page == LandingPage.Choose) f.Next();
+        Assert.True(f.Launch());
+        Assert.Equal("glider-2-33-like", store.Values["landing.lastFlown"]);
+    }
+
+    /// <summary>Configurations browse too — Ty names them: a Cub on wheels, floats or skis.</summary>
+    [Fact]
+    public void AConfigurationPreviewsTheSameWayAndTheFloatsFlyOnlyIfSelected()
+    {
+        var store = new MemoryLandingStore();
+        var f = NewFlow(store);
+        f.Pick(PickerKind.Aircraft, "pa18-cub-like");               // committed: no menu was open
+        f.Open(PickerKind.Configuration);
+        Assert.True(f.Pick(PickerKind.Configuration, "floats"));
+        Assert.Equal(PickerKind.Configuration, f.OpenPicker);
+        Assert.Equal("pa18-floats-like", f.AircraftId);              // the preview really is on floats
+        Assert.Equal("standard", f.CommittedGearId);
+        Assert.Equal("SELECT  Floats", f.BrowseSelectLabel);
+        f.ClosePicker();
+        Assert.Equal("pa18-cub-like", f.AircraftId);                 // ... and off them again
+        f.Open(PickerKind.Configuration);
+        f.Pick(PickerKind.Configuration, "wheel-skis");
+        f.Pick(PickerKind.Configuration, "floats");                  // two configurations tried in one visit
+        Assert.True(f.CommitBrowse());
+        Assert.Equal("floats", f.CommittedGearId);
+        Assert.Equal("pa18-floats-like", f.AircraftId);
+        f.Next();
+        Assert.True(f.Launch());
+        Assert.Equal("floats", store.Values["landing.gear.pa18-cub-like"]);
+    }
+
+    /// <summary>The whole point: several types compared without going in and out of the menu once.</summary>
+    [Fact]
+    public void SeveralTypesCanBeComparedWithoutLeavingTheMenu()
+    {
+        var f = NewFlow();
+        f.Open(PickerKind.Aircraft);
+        foreach (string id in new[] { "pa18-cub-like", "j3-cub-like", "c172-like" })
+        {
+            Assert.True(f.Pick(PickerKind.Aircraft, id));
+            Assert.Equal(PickerKind.Aircraft, f.OpenPicker);
+            Assert.Equal(id, f.FamilyId);
+            Assert.Equal("glider-2-33-like", f.CommittedFamilyId);
+        }
+        Assert.True(f.CommitBrowse());
+        Assert.Equal("c172-like", f.FamilyId);
+        Assert.Equal("c172-like", f.CommittedFamilyId);
+    }
+
+    /// <summary>A preview browsed back to the committed choice leaves SELECT nothing to do.</summary>
+    [Fact]
+    public void BrowsingBackToTheCommittedChoiceIsNoLongerPending()
+    {
+        var f = NewFlow();
+        f.Pick(PickerKind.Aircraft, "pa18-cub-like");
+        f.Open(PickerKind.Configuration);
+        Assert.True(f.Browsing);
+        Assert.False(f.BrowsePending);
+        f.Pick(PickerKind.Configuration, "floats");
+        Assert.True(f.BrowsePending);
+        f.Pick(PickerKind.Configuration, "standard");
+        Assert.False(f.BrowsePending);
+    }
+
+    /// <summary>Only the two menus Ty named browse. The others commit on one tap as they always did (a location or a
+    /// camera view has nothing to compare on the hero), and so does a pick with NO menu open: the Quest panel's
+    /// &lt; &gt; rows (QuestMenu.CycleFlow), the self-test and the shot tools all take that path and have no strip to
+    /// press SELECT in.</summary>
+    [Fact]
+    public void OnlyTheAircraftAndConfigurationMenusBrowse()
+    {
+        Assert.True(LandingFlow.Browsable(PickerKind.Aircraft));
+        Assert.True(LandingFlow.Browsable(PickerKind.Configuration));
+        foreach (var k in new[] { PickerKind.None, PickerKind.Location, PickerKind.Start, PickerKind.CameraView, PickerKind.Challenge, PickerKind.Lesson })
+            Assert.False(LandingFlow.Browsable(k));
+
+        var f = NewFlow();
+        f.Open(PickerKind.Location);
+        Assert.True(f.Pick(PickerKind.Location, "MESA"));
+        Assert.Equal(PickerKind.None, f.OpenPicker);
+        Assert.False(f.Browsing);
+        Assert.Equal(2, f.LocationIndex);
+
+        var g = NewFlow();
+        Assert.True(g.Pick(PickerKind.Aircraft, "pa18-cub-like"));
+        Assert.Equal(PickerKind.None, g.OpenPicker);
+        Assert.False(g.Browsing);
+        Assert.Equal("pa18-cub-like", g.CommittedFamilyId);
+    }
+
+    /// <summary>A pick in another menu while a type is previewed commits what is on show rather than throwing it
+    /// away: the pilot chose it, and the new menu's own rules then apply to it.</summary>
+    [Fact]
+    public void APickInAnotherMenuCommitsWhatIsOnShow()
+    {
+        var f = NewFlow();
+        f.Open(PickerKind.Aircraft);
+        f.Pick(PickerKind.Aircraft, "pa18-cub-like");
+        Assert.True(f.Pick(PickerKind.Location, "VALLEY"));
+        Assert.False(f.Browsing);
+        Assert.Equal("pa18-cub-like", f.CommittedFamilyId);
+        Assert.Equal("pa18-cub-like", f.FamilyId);
+        Assert.Equal(1, f.LocationIndex);
+    }
+
+    /// <summary>LAUNCH flies the committed choice, never a preview, whatever route got to page 2.</summary>
+    [Fact]
+    public void LaunchFliesTheCommittedChoiceNotThePreview()
+    {
+        var store = new MemoryLandingStore();
+        var f = NewFlow(store);
+        f.Pick(PickerKind.Aircraft, "pa18-cub-like");
+        f.Open(PickerKind.Aircraft);
+        f.Pick(PickerKind.Aircraft, "c172-like");
+        f.GoTo(LandingPage.Load);
+        Assert.Equal("pa18-cub-like", f.FamilyId);
+        string? flown = null;
+        f.Launched += x => flown = x.AircraftId;
+        Assert.True(f.Launch());
+        Assert.Equal("pa18-cub-like", flown);
+        Assert.Equal("pa18-cub-like", store.Values["landing.lastFlown"]);
+    }
+
     // ---------------------------------------------------------------- restricted lists
 
     [Fact]
