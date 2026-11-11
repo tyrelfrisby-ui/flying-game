@@ -149,10 +149,16 @@ namespace FlyingGame.Bridge
             float ground = (float)FlyingGame.Core.WorldTerrain.GroundHeightAt(simPos.X, simPos.Y);
             double? water = FlyingGame.Core.FloatHydro.WaterSurfaceAt(simPos.X, simPos.Y);
             bool onWater = water.HasValue && water.Value > ground;
-            // A dark cutout painted ON the surface is a second airplane beside the mirror
-            // (Ty's J-3 floats Tail screenshot). A water shadow belongs on the submerged bed,
-            // attenuated through the volume, not on the reflective interface. Keep land shadows.
-            if (onWater) return;
+            // THE WATER GETS A SHADOW TOO, and it is not this projection. A dark cutout painted ON the surface is a
+            // second airplane beside the mirror (Ty's J-3 floats Tail screenshot), because a silhouette drawn over
+            // the water darkens the REFLECTION as much as the water, and a shadow has nothing to do with the
+            // reflection: the sky still reflects off a shaded patch exactly as brightly as off a sunlit one. What
+            // the shadow removes is the sunlight going INTO the water. Ty, 2026-11-11: "both a shadow and a
+            // reflection. The reflection should show color etc where the shadow is just darkness."
+            // So over water the same silhouette is rendered into a mask (<see cref="CastOntoWater"/>) and
+            // Water.shader applies it to the submerged term and the sun glint only. Keep land shadows as they are.
+            if (onWater) { CastOntoWater((float)water.Value); return; }
+            SetWaterShadow(false);
             GroundY = ground;
             float altitude = transform.position.y - GroundY;
             if (altitude < -1f || altitude > MaxAltitudeM)
@@ -221,6 +227,163 @@ namespace FlyingGame.Bridge
                 for (int si = 0; si < mesh.subMeshCount; si++)
                     Graphics.DrawMesh(mesh, m, _material, 0, null, si, null, false, false, false);
             }
+        }
+
+        // ---- the shadow on the water -------------------------------------------------------------------------
+        //
+        // Water.shader had no AutoLight.cginc, no SHADOW_COORDS and no multi_compile_fwdbase, so it never sampled a
+        // shadow map and the water could not receive anything; and nothing in this project renders a shadow map at
+        // all (the ground is unlit, and a shadow map is a fill-rate cost a phone and a headset cannot pay for one
+        // aeroplane). So the water is handed the SAME silhouette the ground gets, in the only form a transparent
+        // surface can use: a mask.
+        //
+        // A tiny orthographic camera is put at the aeroplane looking ALONG the sun's ray and renders the airframe
+        // white on black through WaterShadowCaster.shader. That camera's view-projection IS the parallel projection
+        // this class has always used for the ground — the same matrix, read from the sun's end instead of the
+        // water's — so there is no second shadow geometry to keep in step with the first. Water.shader transforms
+        // each water fragment by it and darkens the submerged term and the sun glint; the reflection is untouched.
+        //
+        // THE PENUMBRA IS THE MASK'S OWN RESOLUTION, which is the part worth reading twice. SunShadow says an edge
+        // casts a band 2p wide at slant range d, with the umbra ending p/2 inside the sharp edge and the penumbra
+        // reaching p/2 outside it. A bilinear texture fetch across a one-texel black/white edge is a linear ramp
+        // straddling that edge by exactly ±half a texel. So sizing the mask so that ONE TEXEL IS p gives the
+        // physically correct penumbra for free, in one tap, with no blur kernel on the water's fragment shader at
+        // all — and it gets cheaper the higher the aeroplane flies, which is the opposite of how a blur behaves.
+        // It also means this does NOT need SunShadow.Soften's flux-conservation factor: Soften exists because a
+        // single flat silhouette cannot draw a gradient, and this one can. The one thing taken from Soften is
+        // MinOpacity01's reasoning — past the point where the patch is below one value of 8-bit colour, stop.
+        //
+        // COST, measured in draws rather than guessed: one camera render of the airframe meshes per frame at
+        // between 8x8 and 128x128 pixels, and only while the aeroplane is over water and below MaxAltitudeM. The
+        // fill is 16 k pixels at worst, a thousandth of a phone's screen; the real cost is the ~40 airframe draw
+        // calls, which is what the LAND shadow already pays every frame and the water used to pay nothing for.
+        // On the water's own fragment shader it is one matrix multiply and one tex2D, behind a uniform branch.
+        private const int MaskMin = 8, MaskMax = 128;
+        /// <summary>How much of the water's daylight is the DIRECT beam, the part a shadow can take away. The rest
+        /// is skylight, which the aeroplane does not block: an aeroplane's shadow on a lake is dark, not black,
+        /// and a real one has about a sixth of the light still in it under a clear sky.</summary>
+        public float DirectBeamFraction = 0.82f;
+        private Camera _maskCamera;
+        private RenderTexture _mask;
+        private Shader _casterShader;
+        private static readonly int MaskTexId = Shader.PropertyToID("_WaterShadowTex");
+        private static readonly int MaskMatrixId = Shader.PropertyToID("_WaterShadowMatrix");
+        private static readonly int MaskParamsId = Shader.PropertyToID("_WaterShadow");
+
+        private static void SetWaterShadow(bool on) => Shader.SetGlobalVector(MaskParamsId, new Vector4(on ? 1 : 0, 0, 0, 0));
+
+        private void CastOntoWater(float waterY)
+        {
+            Vector3 l = _sun != null ? _sun.transform.forward : new Vector3(-0.4f, -0.8f, 0.4f).normalized;
+            float altitude = transform.position.y - waterY;
+            // Sun on or below the horizon, or the aeroplane under the surface: nothing to cast.
+            if (l.y > -0.05f || altitude < -1f || altitude > MaxAltitudeM) { SetWaterShadow(false); return; }
+
+            // Slant range along the ray, exactly as the land path measures it: altitude / sin(elevation), and l is
+            // a unit vector so -l.y IS that sine.
+            float slant = altitude / -l.y;
+            float penumbra = (float)FlyingGame.Core.SunShadow.PenumbraHalfWidthM(slant);
+            // Past the point where the patch is below one value of 8-bit colour there is nothing to draw. The patch
+            // spreads the blocked light over (1 + p/w)^2 of its sharp area, which is Soften's own opacity.
+            (double _, double opacity) = FlyingGame.Core.SunShadow.Soften(slant, _halfSizeM);
+            if (opacity < MinOpacity01) { SetWaterShadow(false); return; }
+
+            // The patch the mask has to cover: the silhouette, plus the penumbra it spreads into. 1.45 is the
+            // diagonal of a square half-size plus a little — the measured half-size is the aeroplane's LARGEST
+            // horizontal dimension, usually the span, and at an angle the silhouette's diagonal is longer.
+            float half = _halfSizeM * 1.45f + penumbra;
+            // One texel = one penumbra width, so bilinear filtering draws the penumbra and nothing else has to.
+            int size = Mathf.Clamp(Mathf.NextPowerOfTwo(Mathf.CeilToInt(2f * half / Mathf.Max(penumbra, 1e-3f))), MaskMin, MaskMax);
+            EnsureMask(size);
+            if (_maskCamera == null) { SetWaterShadow(false); return; }
+
+            // Looking ALONG the sun's ray from above the aeroplane. The near plane starts above everything that
+            // could cast and the far plane is just past the water, so the mask holds the airframe and nothing else.
+            // l is the direction the LIGHT travels, so the shadow of a point P lands at P + l·slant; the mask is
+            // centred midway along that ray, which puts both the aeroplane and its shadow on the camera's axis.
+            Vector3 centre = transform.position + l * (slant * 0.5f);
+            float reach = slant * 0.5f + _halfSizeM * 2f + 5f;
+            _maskCamera.transform.position = centre - l * reach;
+            _maskCamera.transform.rotation = Quaternion.LookRotation(l, Mathf.Abs(l.y) > 0.99f ? Vector3.forward : Vector3.up);
+            _maskCamera.orthographicSize = half;
+            _maskCamera.nearClipPlane = 0.01f;
+            _maskCamera.farClipPlane = reach * 2f + _halfSizeM * 2f;
+            _maskCamera.RenderWithShader(_casterShader, "");
+
+            // The water reads this matrix: world position -> the mask camera's clip space -> uv.
+            //
+            // renderIntoTexture: FALSE, and this is the whole of the "shadow is off by 90 degrees" bug (Ty,
+            // 2026-11-11, on the glassy-water hero frame). It was true. GL.GetGPUProjectionMatrix(p, true) returns
+            // the projection a camera USES when it draws into a texture, and on D3D and Metal that matrix has its
+            // Y negated, because those APIs address a render target from the TOP row down while a shader's tex2D
+            // addresses a texture from the BOTTOM row up. The flip is there so the image comes out of the
+            // rasteriser the right way up IN MEMORY; by the time anything samples the result with
+            // uv = clip·0.5 + 0.5, the image is already upright and the flip must not be applied a second time.
+            // Applying it twice mirrors the mask about the sun-perpendicular axis.
+            //
+            // HOW I KNOW IT IS A MIRROR AND NOT A ROTATION, because those are not the same bug and only one of
+            // them is this: in the diagnostic frame the aeroplane's heading put its fuselage at -135 deg in mask
+            // coordinates and its span at +135 deg — symmetric about the mask's x axis — so a mirror in y maps the
+            // fuselage exactly onto the span and is INDISTINGUISHABLE from a 90 degree yaw at that one heading.
+            // It is distinguishable at any other, which is why the proof shots are taken at several (-viewYaw).
+            // A constant 90 degrees would have been wrong at every heading but that one.
+            //
+            // GL and GLES do not flip at all, so passing false is also what they were already doing: this changes
+            // Metal and D3D to agree with them rather than changing anything on Android.
+            Matrix4x4 vp = GL.GetGPUProjectionMatrix(_maskCamera.projectionMatrix, false) * _maskCamera.worldToCameraMatrix;
+            Shader.SetGlobalTexture(MaskTexId, _mask);
+            Shader.SetGlobalMatrix(MaskMatrixId, vp);
+            Shader.SetGlobalVector(MaskParamsId, new Vector4(1f, Mathf.Clamp01(DirectBeamFraction), waterY, 0f));
+        }
+
+        private void EnsureMask(int size)
+        {
+            if (_casterShader == null)
+            {
+                _casterShader = Shader.Find("FlyingGame/WaterShadowCaster");
+                if (_casterShader == null)
+                {
+                    Debug.LogWarning("GroundShadow: FlyingGame/WaterShadowCaster missing — no shadow on the water.");
+                    return;
+                }
+            }
+            if (_mask == null || _mask.width != size)
+            {
+                if (_mask != null) { _mask.Release(); Dispose(_mask); }
+                // R8: a shadow has one channel. Clamped, so the water outside the patch reads the border, and the
+                // border is black because the camera clears to black.
+                _mask = new RenderTexture(size, size, 16, RenderTextureFormat.R8)
+                { name = "Water shadow mask", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+                _mask.Create();
+                if (_maskCamera != null) _maskCamera.targetTexture = _mask;
+            }
+            if (_maskCamera == null)
+            {
+                var go = new GameObject("WaterShadowCamera") { hideFlags = HideFlags.HideAndDontSave };
+                _maskCamera = go.AddComponent<Camera>();
+                _maskCamera.enabled = false;                 // rendered by hand, once a frame, only over water
+                _maskCamera.orthographic = true;
+                _maskCamera.clearFlags = CameraClearFlags.SolidColor;
+                _maskCamera.backgroundColor = Color.black;   // "no aeroplane here" = full sun
+                _maskCamera.cullingMask = 1 << WaterReflection.AircraftLayer;
+                _maskCamera.depthTextureMode = DepthTextureMode.None;
+                _maskCamera.allowMSAA = false;
+                _maskCamera.allowHDR = false;
+                _maskCamera.useOcclusionCulling = false;
+                _maskCamera.targetTexture = _mask;
+            }
+        }
+
+        private static void Dispose(Object obj)
+        {
+            if (Application.isPlaying) Destroy(obj); else DestroyImmediate(obj);
+        }
+
+        private void OnDestroy()
+        {
+            SetWaterShadow(false);
+            if (_maskCamera != null) Dispose(_maskCamera.gameObject);
+            if (_mask != null) { _mask.Release(); Dispose(_mask); }
         }
     }
 }

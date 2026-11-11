@@ -22,7 +22,7 @@ namespace FlyingGame.Bridge
         private int _lake = -1;
         private float _cell, _width, _depth, _acc, _sinceForcing = 1e9f;
         private Vector2 _min;   // Unity xz of the grid's corner
-        private readonly Vector4[] _foamOrigins = new Vector4[2], _foamMotion = new Vector4[2];
+        private readonly Vector4[] _foamOrigins = new Vector4[2], _foamMotion = new Vector4[2], _foamWake = new Vector4[2];
         private readonly Vector4[] _src = new Vector4[8];
         private static readonly int WakeTexId = Shader.PropertyToID("_WakeTex"), WakeRectId = Shader.PropertyToID("_WakeRect"),
             WakeOnId = Shader.PropertyToID("_WakeOn"), WakeYId = Shader.PropertyToID("_WakeY"), WakeTexelId = Shader.PropertyToID("_WakeTexel");
@@ -41,19 +41,22 @@ namespace FlyingGame.Bridge
         {
             var ac = Driver != null && Driver.Sim != null ? Driver.Sim.Aircraft : null;
             if (ac == null) return;
-            // The lake under / nearest the aircraft (within 1.3 radii): the wake lives on that one.
+            // The water under / nearest the aircraft: the wake lives on that body. WorldTerrain.WakeBodyAt knows the
+            // ISLAND's water lanes as well as the legacy lake table — this used to scan WorldTerrain.Lakes alone,
+            // which is why the wake had never allocated on either lane the player can actually land on (Ty
+            // 2026-11-11, "the water spray and wake don't seem to have been done"; WakeFieldCoverageProbe measures it).
             var p = ac.State.Position;
-            int best = -1; double bestR = 1.3;
-            for (int i = 0; i < WorldTerrain.Lakes.Length; i++) { double r = WorldTerrain.Lakes[i].Inside(p.X, p.Y); if (r < bestR) { bestR = r; best = i; } }
+            WorldTerrain.Lake? body = WorldTerrain.WakeBodyAt(p.X, p.Y);
+            bool here = body.HasValue && Same(body.Value, _body);
             bool forcing = ac.Config.Floats != null && (FloatHydro.Floats[0].Wet || FloatHydro.Floats[1].Wet);
-            if (best >= 0 && best != _lake && (forcing || _lake < 0)) Allocate(best);
+            if (body.HasValue && !here && (forcing || _lake < 0)) { Allocate(body.Value); here = true; }
             if (_lake < 0) return;
-            if (forcing && best == _lake) _sinceForcing = 0f; else _sinceForcing += Time.deltaTime;
+            if (forcing && here) _sinceForcing = 0f; else _sinceForcing += Time.deltaTime;
             if (_sinceForcing > LastsSec) { Release(); return; }
 
             _acc += Mathf.Min(Time.deltaTime, 0.25f);
             int n = 0;
-            if (best == _lake) n = Sources(ac);
+            if (here) n = Sources(ac);
             while (_acc >= StepSec)
             {
                 _acc -= StepSec;
@@ -63,10 +66,18 @@ namespace FlyingGame.Bridge
             Shader.SetGlobalTexture("_WakeFoamTex", _foam != null ? (Texture)_foam : Texture2D.blackTexture);
         }
 
-        private void Allocate(int lake)
+        /// <summary>The body a field is currently allocated over, and whether another reading is the same one. Compared
+        /// by geometry rather than by index because a water lane is not in the lake table at all.</summary>
+        private WorldTerrain.Lake _body;
+        private static bool Same(in WorldTerrain.Lake a, in WorldTerrain.Lake b) =>
+            Mathf.Approximately((float)a.Cx, (float)b.Cx) && Mathf.Approximately((float)a.Cy, (float)b.Cy)
+            && Mathf.Approximately((float)a.Rx, (float)b.Rx) && Mathf.Approximately((float)a.Ry, (float)b.Ry);
+
+        private void Allocate(WorldTerrain.Lake lake)
         {
-            AllocateLake(WorldTerrain.Lakes[lake]);
-            _lake = lake;
+            AllocateLake(lake);
+            _body = lake;
+            _lake = 0;   // a field is allocated; which body it is lives in _body
         }
 
         // Editor fixtures can use the current island's water bounds without changing legacy lake tables.
@@ -120,7 +131,7 @@ namespace FlyingGame.Bridge
             float beam = (float)fl.BeamM;
             Vector3 forward = CoordinateMap.ToUnity(ac.State.Attitude.Rotate(new FlyingGame.Core.MathTypes.Vec3(1, 0, 0)));
             forward.y = 0; forward.Normalize();
-            for (int i = 0; i < 2; i++) { _foamOrigins[i] = Vector4.zero; _foamMotion[i] = Vector4.zero; }
+            for (int i = 0; i < 2; i++) { _foamOrigins[i] = Vector4.zero; _foamMotion[i] = Vector4.zero; _foamWake[i] = Vector4.zero; }
             for (int i = 0; i < floats && n < 7; i++)
             {
                 var f = FloatHydro.Floats[i];
@@ -128,9 +139,20 @@ namespace FlyingGame.Bridge
                 float speed = (float)f.SpeedMs;
                 Vector3 origin = CoordinateMap.ToUnity(f.StepWorld);
                 float load = Mathf.Clamp01((float)(f.PlaningLiftN + f.BuoyancyN) / 1500f);
-                // Displacement taxi keeps solver ripples without cosmetic step whitewater.
-                _foamOrigins[i] = new Vector4(origin.x, origin.z, beam, load * Mathf.InverseLerp(4, 10, speed));
+                // WHITE WATER IS A FROUDE NUMBER, not a speed. Ty 2026-11-11: "There needs to be more white
+                // spray/foam behind the floats at any speed above 10 mph ramping up with speed" — and on this
+                // float's own beam his 10 mph IS Savitsky's planing onset, Cv = 2, to within 3 % (PlaningWake,
+                // PlaningWakeTests). InverseLerp(4, 10, speed) was a metres-per-second curve with no beam in it,
+                // so it said the same thing about a Cub float and a flying boat's hull. Displacement taxi still
+                // keeps the solver's ripples and no cosmetic whitewater, because Cv < 2 gives zero.
+                var wake = FlyingGame.Core.PlaningWake.Of(f.SpeedMs, fl.BeamM, f.StepDraftM, f.Lambda, f.TrimDeg, fl.DeadriseDeg);
+                _foamOrigins[i] = new Vector4(origin.x, origin.z, beam, load * (float)wake.WhiteWater01);
                 _foamMotion[i] = new Vector4(forward.x, forward.z, speed, floats == 1 ? 0 : i == 0 ? -1 : 1);
+                // The wake surface behind the step: Savitsky and Morabito (2010) read as a free-surface contour.
+                // x: how deep the cavity is at the step (= the keel's immersion); y: how far astern it closes;
+                // z: where the rooster crest stands; w: how far the crest rises above the undisturbed water.
+                _foamWake[i] = new Vector4((float)wake.CavityDepthM, (float)wake.CavityLengthM,
+                                           (float)wake.CrestDistanceM, (float)wake.CrestHeightM);
                 bool planing = f.PlaningLiftN > f.BuoyancyN && speed > 4f;
                 // Height pushed per step: a displacement hull heaps water at the bow; planing, the step throws the bigger
                 // wave. Scaled by beam (a 7.6 m H-4 hull makes a far bigger wake than a 0.66 m Cub float).
@@ -141,6 +163,7 @@ namespace FlyingGame.Bridge
             }
             Shader.SetGlobalVectorArray("_FoamOrigins", _foamOrigins);
             Shader.SetGlobalVectorArray("_FoamMotion", _foamMotion);
+            Shader.SetGlobalVectorArray("_FoamWake", _foamWake);
             return n;
         }
 

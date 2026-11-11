@@ -136,13 +136,23 @@ namespace FlyingGame.EditorTools
                 double fixtureImmersion = double.Parse(Read("-immersion", ".13"), System.Globalization.CultureInfo.InvariantCulture);
                 Debug.Log($"WaterRender fixture: speed={speed} m/s throttle={throttle} displacement={displacement}");
                 float lift = float.Parse(Read("-lift", "0"), System.Globalization.CultureInfo.InvariantCulture);
+                // AIRBORNE, for the one shot that cannot be taken from the water: Ty 2026-11-11, "Reflection and
+                // shadow above glassy water". Both are only separate when the aeroplane has height — on the surface
+                // its own hull hides its shadow. Height above the water in metres; 0 keeps every existing fixture
+                // exactly as it was.
+                float altitudeM = float.Parse(Read("-altitude", "0"), System.Globalization.CultureInfo.InvariantCulture);
+                bool airborne = altitudeM > 0.01f;
                 Directory.CreateDirectory(output);
                 string captureSource = Read("-sourceSha", "UNLABELLED");
                 string captureLabel = $"PRESCRIBED TOW {speed:F4} m/s | {speed / .44704:F2} mph | {speed / .514444444:F2} kt | source {captureSource}";
                 File.WriteAllText(Path.Combine(output, "capture.txt"), captureLabel + "\nStatic pose/tow fixture with real sampled hydro and stepped spray/wake. Not live flight; no measured ASI.\n");
                 EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
                 WorldTerrain.Active = new WorldTerrain();
-                Shader.SetGlobalFloat("_SunsetOn", 0); Shader.SetGlobalFloat("_WaterCalm", calm ? 1 : 0);
+                Shader.SetGlobalFloat("_SunsetOn", 0);
+                // THE SEA STATE IS A WIND NOW, not a flag. -wind <m/s> and -windFrom <deg true> drive
+                // SeaState through SeaSurface; -calm still means a dead calm, which is a wind of zero.
+                float windMs = float.Parse(Read("-wind", calm ? "0" : "0"), System.Globalization.CultureInfo.InvariantCulture);
+                float windFromDeg = float.Parse(Read("-windFrom", "0"), System.Globalization.CultureInfo.InvariantCulture);
                 if (sunset) BuildSunsetShore(); else WorldBuilder.BuildAll();
                 SunsetLighting.ConfigureDayAtmosphere(Read("-skyQuality", "Balanced"),
                     float.Parse(Read("-hazeDensity", "0.000052"), System.Globalization.CultureInfo.InvariantCulture),
@@ -150,8 +160,15 @@ namespace FlyingGame.EditorTools
                 RenderSettings.fog = false;
                 RenderSettings.ambientLight = new Color(.65f, .7f, .78f);
                 var sun = new GameObject("Sun").AddComponent<Light>();
-                sun.type = LightType.Directional; sun.transform.rotation = Quaternion.Euler(45, -35, 0);
-                Shader.SetGlobalVector("_BubbleSunDir", new Vector3(.4f, .8f, -.4f));
+                sun.type = LightType.Directional;
+                // The sun is an argument now: where the shadow lands is entirely the sun's elevation (the shadow is
+                // altitude/tan(elevation) away from the aeroplane) and a 45 deg sun puts it so close under a
+                // low-flying aeroplane that it is hidden by its own hull.
+                float sunElevation = float.Parse(Read("-sunElevation", "45"), System.Globalization.CultureInfo.InvariantCulture);
+                float sunAzimuth = float.Parse(Read("-sunAzimuth", "-35"), System.Globalization.CultureInfo.InvariantCulture);
+                sun.transform.rotation = Quaternion.Euler(sunElevation, sunAzimuth, 0);
+                // The water's own sun direction points TOWARD the sun, so it is the light's travel reversed.
+                Shader.SetGlobalVector("_BubbleSunDir", -sun.transform.forward);
                 if (sunset) SunsetLighting.Apply(sun, calm);
                 var cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(id);
                 if (cfg.Floats == null) throw new ArgumentException("Water render requires a floatplane.");
@@ -163,11 +180,28 @@ namespace FlyingGame.EditorTools
                 var shadow = root.AddComponent<GroundShadow>(); Call(shadow, "Start");
                 var spray = root.AddComponent<FloatSplash>(); spray.Driver = driver;
                 var wake = root.AddComponent<WakeWaves>(); wake.Driver = driver; Call(wake, "Start");
-                Call(wake, "AllocateLake", lake);
+                // THE WAKE'S WATER IS CHOSEN THE WAY THE GAME CHOOSES IT. This used to hand WakeWaves the Lake that
+                // CaptureLake() builds out of the island's lane, which is a question the game never asks — and that
+                // is exactly how the wake came to be allocated nowhere the player can land for weeks with these
+                // fixtures passing every day (WorldTerrain.WakeBodyAt's own note, and WakeFieldCoverageProbe).
+                // WakeBodyAt is what WakeWaves.Update calls; the stepping below stays hand-driven because
+                // Time.deltaTime is zero in batchmode, but WHICH WATER is now the game's answer.
+                WorldTerrain.Lake? wakeBody = WorldTerrain.WakeBodyAt(lake.Cx, lake.Cy);
+                if (wakeBody == null)
+                    throw new Exception($"WakeBodyAt found no water at the fixture's lane centre ({lake.Cx}, {lake.Cy}): " +
+                                        "the game would draw no wake here either. Fix the allocation, not the fixture.");
+                Call(wake, "AllocateLake", wakeBody.Value);
+                Debug.Log($"WaterRender wake body (game path, WorldTerrain.WakeBodyAt): centre ({wakeBody.Value.Cx:F0}, " +
+                          $"{wakeBody.Value.Cy:F0}) radii {wakeBody.Value.Rx:F0} x {wakeBody.Value.Ry:F0} m, " +
+                          $"surface {wakeBody.Value.SurfaceM:F2} m");
                 var lane = IslandSites.Fields.First(f => f.Surface == "water");
                 double heading = lane.Heading * Math.PI / 180;
                 var yaw = new Quat(0,0,Math.Sin(heading/2),Math.Cos(heading/2));
-                var cameraYaw = Quaternion.Euler(0, (float)lane.Heading, 0);
+                // -viewYaw swings the camera round the aeroplane without changing anything the aeroplane is doing,
+                // which is how a shadow's orientation is checked: a nose-on frame alone cannot tell a correct
+                // shadow from one turned 90 or 180 degrees.
+                float viewYaw = float.Parse(Read("-viewYaw", "0"), System.Globalization.CultureInfo.InvariantCulture);
+                var cameraYaw = Quaternion.Euler(0, (float)lane.Heading + viewYaw, 0);
                 for (int frame = 0; frame < 960; frame++)
                 {
                     double travel = (frame - 959) * speed / 60;
@@ -179,11 +213,14 @@ namespace FlyingGame.EditorTools
                     Vec3 velocity = touchdown
                         ? attitude.Conjugate().Rotate(new Vec3(speed * Math.Cos(heading), speed * Math.Sin(heading), .8))
                         : attitude.Conjugate().Rotate(new Vec3(speed * Math.Cos(heading), speed * Math.Sin(heading), 0));
-                    var state = new RigidBodyState(new Vec3(north, east, -lake.SurfaceM - cfg.Floats.KeelZ + fixtureImmersion - lift - aboveContact), attitude, velocity, Vec3.Zero);
+                    var state = new RigidBodyState(new Vec3(north, east, -lake.SurfaceM - cfg.Floats.KeelZ + fixtureImmersion - lift - aboveContact - altitudeM), attitude, velocity, Vec3.Zero);
                     var ac = new Aircraft(cfg, state, ControlDeflections.Neutral);
                     ac.SetReplayPose(state, ControlDeflections.Neutral, throttle, 0, 1, 1);
                     driver.AdoptSim(new SimLoop(ac));
                     FloatHydro.Compute(cfg, state, 0);
+                    // Airborne: the floats are dry, so there is nothing to throw and nothing to disturb. Stepping
+                    // the spray anyway left a trail of droplets hanging over the lake behind the aeroplane.
+                    if (airborne) continue;
                     Call(spray, "Step", 1f / 60f);
                     var particles = new System.Collections.Generic.List<ParticleSystem>();
                     foreach (var field in typeof(FloatSplash).GetFields(BindingFlags.NonPublic | BindingFlags.Instance))
@@ -196,7 +233,7 @@ namespace FlyingGame.EditorTools
                     }
                     if (frame % 3 == 0) Call(wake, "Step", (int)Call(wake, "Sources", ac));
                 }
-                if (!FloatHydro.Floats[0].Wet && lift <= 0) throw new Exception("Water fixture is dry; cannot certify a water capture.");
+                if (!FloatHydro.Floats[0].Wet && lift <= 0 && !airborne) throw new Exception("Water fixture is dry; cannot certify a water capture.");
                 Debug.Log($"WaterRender: wet={FloatHydro.Floats[0].Wet}, lift={FloatHydro.Floats[0].PlaningLiftN}, buoyancy={FloatHydro.Floats[0].BuoyancyN}, drag={FloatHydro.Floats[0].DragN}");
                 var hydroReport = new System.Text.StringBuilder();
                 bool allOnStep = true, allPlow = true;
@@ -273,6 +310,20 @@ namespace FlyingGame.EditorTools
                 var foamField = typeof(WakeWaves).GetField("_foam", BindingFlags.NonPublic | BindingFlags.Instance);
                 Shader.SetGlobalTexture("_WakeFoamTex", foamField != null ? (Texture)foamField.GetValue(wake) : Texture2D.blackTexture);
                 builder.SpinProps(_ => (float)driver.Sim.Aircraft.EngineRpm, .02f);
+                // The sea state, through the real wind model: SteadyWind is the 10 m wind, which is the reference
+                // height both JONSWAP and Cox-Munk are written for, and SeaSurface marches upwind from the
+                // aeroplane to this lake's own shore for the fetch. Nothing here invents a number.
+                double windFromRad = windFromDeg * Math.PI / 180;
+                Atmosphere.SteadyWind = new Vec3(-windMs * Math.Cos(windFromRad), -windMs * Math.Sin(windFromRad), 0);
+                bool overWater = SeaSurface.ApplyAt(CoordinateMap.ToSim(root.transform.position));
+                File.WriteAllText(Path.Combine(output, "sea-state.txt"),
+                    $"wind {windMs:F2} m/s ({windMs / .514444:F1} kt) from {windFromDeg:F0} deg true; over water = {overWater}\n" +
+                    $"fetch {SeaSurface.Last.FetchM:F0} m -> significant height {SeaSurface.Last.HeightM * 100:F1} cm, " +
+                    $"peak wavelength {SeaSurface.Last.WavelengthM:F2} m\n" +
+                    $"Cox-Munk mean square slope {SeaState.MeanSquareSlope(windMs):F5} (rms slope " +
+                    $"{SeaState.RmsSlope(windMs) * 57.29578:F2} deg); capillary texture {SeaState.Ripple01(windMs):F3}\n");
+                Debug.Log($"WaterRender sea state: wind {windMs:F2} m/s, fetch {SeaSurface.Last.FetchM:F0} m, " +
+                          $"Hs {SeaSurface.Last.HeightM * 100:F1} cm, lambda {SeaSurface.Last.WavelengthM:F2} m");
                 var camera = new GameObject("Water camera").AddComponent<Camera>();
                 var reflection = camera.gameObject.AddComponent<WaterReflection>();
                 reflection.enabled = false; reflection.Driver = driver; Call(reflection, "Awake");
@@ -296,9 +347,47 @@ namespace FlyingGame.EditorTools
                     offsets = new[] { new Vector3(0, 5, -14), new Vector3(0, 9, -3), new Vector3(5, 1.5f, 5) };
                     names = new[] { "water-run-tail", "dual-float-top", "spray-close" };
                 }
+                // Named camera sets, because a wake has to be seen from behind and above and a reflection from
+                // nearly at the water. The aim point moves with them: looking a metre under the aeroplane is right
+                // for a surface shot and useless for one taken from 15 m up.
+                string view = Read("-view", "default");
+                float waterLevel = (float)lake.SurfaceM;
+                Vector3 aimPoint = at + new Vector3(0, -1, 0);
+                if (view == "hero")
+                {
+                    // Reflection AND shadow, above glassy water. The camera sits almost on the surface so the
+                    // aeroplane's mirror image lands in the near water where it can be seen at all, and well off to
+                    // one side so the shadow — which the sun throws altitude/tan(elevation) downwind of the
+                    // aeroplane — is not behind it. The aim is the water under the aeroplane, which puts the
+                    // aeroplane high in the frame and its reflection and shadow across the lower half.
+                    float back = 14f + 1.6f * altitudeM, side = 8f + 0.7f * altitudeM;
+                    // The framing is set by three angles that all have to fit: the aeroplane is altitude ABOVE the
+                    // surface, its mirror image the same distance BELOW it, and its shadow altitude/tan(sun
+                    // elevation) along the ground. From a camera at 5.5 m and 30 m back with a 6 m low pass and a
+                    // 32 deg sun that spans about 30 deg, which is what the 48 deg lens holds with margin.
+                    offsets = new[]
+                    {
+                        new Vector3(-side * .70f, waterLevel - at.y + 5.5f, -back * 1.25f),
+                        new Vector3(side, waterLevel - at.y + 2.6f, -back),
+                        new Vector3(side * 1.25f, waterLevel - at.y + 1.5f, back * .35f),
+                    };
+                    names = new[] { "hero-reflection-shadow", "hero-low", "hero-front" };
+                    aimPoint = new Vector3(at.x, waterLevel + .5f, at.z);
+                }
+                else if (view == "wake")
+                {
+                    // The wake and the spray: from behind and above, where the V opens out, and from a quarter so
+                    // the bow sheet (plowing) or the blister off the step (planing) is side-on to the lens.
+                    offsets = new[] { new Vector3(0, 7f, -26f), new Vector3(13f, 5f, -17f), new Vector3(6.5f, 2.2f, -8f) };
+                    names = new[] { "wake-astern", "wake-quarter", "spray-close" };
+                    // Aimed ASTERN of the aeroplane, not at it: the wake, the cavity and the rooster all live
+                    // behind the step, and a camera aimed at the aeroplane puts the aeroplane in front of them.
+                    aimPoint = at + cameraYaw * new Vector3(0, 0, -4.5f);
+                    aimPoint.y = waterLevel + .4f;
+                }
                 for (int i = 0; i < offsets.Length; i++)
                 {
-                    camera.transform.position = at + cameraYaw * offsets[i]; camera.transform.LookAt(at + new Vector3(0, -1, 0));
+                    camera.transform.position = at + cameraYaw * offsets[i]; camera.transform.LookAt(aimPoint);
                     Call(shadow, "LateUpdate");
                     Call(reflection, "OnPreCull");
                     camera.Render(); RenderTexture.active = rt;
@@ -333,6 +422,29 @@ namespace FlyingGame.EditorTools
                         RenderTexture.active = rt;
                     }
                     UnityEngine.Object.DestroyImmediate(tex);
+                }
+                // The water-shadow mask itself, as GroundShadow rendered it: white where the airframe blocks the
+                // sun, black where it does not, seen from the sun's own direction. A shadow that looks wrong on the
+                // water is either wrong HERE (the silhouette) or wrong in the matrix that puts it on the water, and
+                // nothing else can tell those two apart.
+                var maskField = typeof(GroundShadow).GetField("_mask", BindingFlags.NonPublic | BindingFlags.Instance);
+                var maskRt = maskField != null ? (RenderTexture)maskField.GetValue(shadow) : null;
+                if (maskRt != null)
+                {
+                    RenderTexture.active = maskRt;
+                    var maskTex = new Texture2D(maskRt.width, maskRt.height, TextureFormat.RGB24, false);
+                    maskTex.ReadPixels(new Rect(0, 0, maskRt.width, maskRt.height), 0, 0); maskTex.Apply();
+                    File.WriteAllBytes(Path.Combine(output, "water-shadow-mask.png"), maskTex.EncodeToPNG());
+                    UnityEngine.Object.DestroyImmediate(maskTex);
+                    var maskCameraField = typeof(GroundShadow).GetField("_maskCamera", BindingFlags.NonPublic | BindingFlags.Instance);
+                    var maskCamera = (Camera)maskCameraField.GetValue(shadow);
+                    File.WriteAllText(Path.Combine(output, "water-shadow.txt"),
+                        $"mask {maskRt.width}x{maskRt.height}, ortho half-size {maskCamera.orthographicSize:F2} m\n" +
+                        $"sun travels {sun.transform.forward} (elevation {sunElevation} deg, azimuth {sunAzimuth} deg)\n" +
+                        $"mask camera at {maskCamera.transform.position}, forward {maskCamera.transform.forward}, " +
+                        $"right {maskCamera.transform.right}, up {maskCamera.transform.up}\n" +
+                        $"aircraft at {root.transform.position}, forward {root.transform.forward} (lane heading " +
+                        $"{lane.Heading} deg, camera yaw {(float)lane.Heading + viewYaw} deg)\n");
                 }
                 if (sunset)
                 {
