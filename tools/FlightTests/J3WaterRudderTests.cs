@@ -300,5 +300,46 @@ public class J3WaterRudderTests
         Assert.InRange(f.WaterRudderRetractRad * 180 / System.Math.PI, 89.9, 90.1);   // standing up behind the post, not leaning
     }
 
+    /// <summary>
+    /// THE SPAWN DECIDES WHERE THE BLADE IS (Ty 2026-11-11: "Selecting floats shows the airplane in the air currently
+    /// and in the air water rudders are up not down so make sure that is how they are shown"). The landing page's
+    /// preview is a real spawned airframe (LandingPreview → FlightSimDriver.ApplySession) at the flow's viewpoint,
+    /// whose default is "In the air" — so the configuration picture, and the card thumbnail cut from it, is the same
+    /// Aircraft constructor as an in-air launch. Spawned on the island's own seaplane lane the spring has the blade
+    /// down; spawned 600 m over it, or airborne over land, it is on the hook and up.
+    /// </summary>
+    [Fact]
+    public void AWaterSpawnStartsItDownAndAnAirSpawnStartsItUp()
+    {
+        WorldTerrain.Active = new WorldTerrain();
+        try
+        {
+            AircraftConfig cfg = Load();
+            WorldTerrain.Airport ap = WorldTerrain.DefaultAirport;
+            WorldTerrain.Lake lake = IslandRunways.Water(ap, 600) ?? throw new Exception("no water at " + ap.Name);
+
+            // Exactly FlightSimDriver's floatplane "on the runway" start: the keel 0.25 m into the lane.
+            var afloat = new Vec3(lake.Cx - lake.Rx * 0.5, lake.Cy, -(lake.SurfaceM + cfg.Floats!.KeelZ - 0.25));
+            var onWater = new Aircraft(cfg, new RigidBodyState(afloat, new Quat(0, 0, 0, 1), Vec3.Zero, Vec3.Zero), ControlDeflections.Neutral);
+            _out.WriteLine($"{ap.Name} lane ({lake.Cx:F0},{lake.Cy:F0}) surface {lake.SurfaceM:F1} m: afloat hooked={onWater.WaterRudderHooked} up01={onWater.WaterRudderUp01:F2}");
+            Assert.False(onWater.WaterRudderHooked);
+            Assert.Equal(0.0, onWater.WaterRudderUp01);
+
+            // The preview / in-air launch: 600 m over the same lane at the spawn speed.
+            var aloft = new Vec3(lake.Cx, lake.Cy, -(lake.SurfaceM + 600));
+            var inAir = new Aircraft(cfg, new RigidBodyState(aloft, new Quat(0, 0, 0, 1), new Vec3(22, 0, 0), Vec3.Zero), ControlDeflections.Neutral);
+            _out.WriteLine($"600 m over the lane: hooked={inAir.WaterRudderHooked} up01={inAir.WaterRudderUp01:F2}");
+            Assert.True(inAir.WaterRudderHooked);
+            Assert.Equal(1.0, inAir.WaterRudderUp01);
+
+            // And over land, where there is no water surface at all to read.
+            var overLand = new Vec3(ap.X, ap.Y, -(ap.ElevationM + 600));
+            var inland = new Aircraft(cfg, new RigidBodyState(overLand, new Quat(0, 0, 0, 1), new Vec3(22, 0, 0), Vec3.Zero), ControlDeflections.Neutral);
+            Assert.True(inland.WaterRudderHooked);
+            Assert.Equal(1.0, inland.WaterRudderUp01);
+        }
+        finally { WorldTerrain.Active = null; }
+    }
+
     static double Pitch(RigidBodyState s) { Vec3 f = s.Attitude.Rotate(new Vec3(1, 0, 0)); return -System.Math.Asin(f.Z) * 180 / System.Math.PI; }
 }
