@@ -404,6 +404,18 @@ public sealed partial class Aircraft
     private double[] _panelWaterUp = Array.Empty<double>();
 
     /// <summary>
+    /// PANEL_PROBE=&lt;file&gt;: append one line per panel per step with the bending hinge's demand, its remaining backbone,
+    /// the relief it was handed and the plastic rotation it actually turned. Diagnostics only, off unless the variable is
+    /// set, and read ONCE here rather than per step (as <c>PropModel.NoDiscInPlaneForDiagnostics</c> does) because this
+    /// sits in the contact path and GetEnvironmentVariable is not free.
+    /// <para>It exists because the question "why did a panel bend only 4.9° under 2.3x its ultimate?" is unanswerable
+    /// from the outside: the demand, the softening backbone and the relief all move every step, and the end state is the
+    /// only thing a test can see. It answered that question in one run on 2026-11-10 — max plastic step 0.00906 rad
+    /// against the 0.1 rad clamp, so the clamp was NOT the limiter, and the relief was, 92 % of it the damper term.</para>
+    /// </summary>
+    internal static readonly string? PanelProbePath = Environment.GetEnvironmentVariable("PANEL_PROBE");
+
+    /// <summary>
     /// On water a wingtip's hard points push nothing (the airframe's own volumes are AirframeFlooding's), so a panel would
     /// never feel the water at all. Its load is the water's force on the wing elements outboard of its station — buoyancy,
     /// the momentum handed to the water it sets moving (the slam) and drag, <see cref="WaterSlam.ElementForce"/> — taken
@@ -473,6 +485,17 @@ public sealed partial class Aircraft
             bool damaged = StruckDamaged(w);
             double air = touched || damaged ? AeroLoadFactorZ * w.M1Nm : 0.0;
             double up = contact ? w.RawUpNm : 0.0, tw = contact ? w.RawTwistNm : 0.0;
+            // THE DAMPER TERM IS 92 % OF THIS RELIEF AND IT DECIDES HOW FAR A STRUCK PANEL FOLDS. Measured on the Pitts
+            // tip strike (ContactPatchTests.HardTipStrikeFoldsTheLowerPanelUpAndItHangsOn, PANEL_PROBE, 2026-11-10):
+            // KUpSpring 4.41e4, KUpDamp 2645, dt 0.005 -> KUpDamp/dt = 5.29e5 of a 5.73e5 total. The hinge turns
+            // excess/(k+h) per step, so that factor of thirteen is the difference between 0.0091 rad a step (measured,
+            // 0.085 rad and 4.9 deg over the whole 46-step contact) and the ~0.1 rad A STEP the spring alone would give.
+            // The test wants 10-22.9 deg and gets 4.9: spring-only relief is what its band was calibrated against.
+            // OPEN QUESTION, NOT TUNED (it is Ty's call and dropping the term would make the test pass, which is not a
+            // reason): c/dt is the right IMPLICIT stiffness for the force balance WITHIN one step -- bending by dth this
+            // step really does cut the closing rate by r*dth/dt -- but a plastic bend is PERMANENT and a velocity-
+            // dependent force is not, so next step the aeroplane's momentum drives the tip back down and the relief has
+            // to be earned again. Crediting a rate as a stiffness is how a 2.3x-ultimate strike folds a panel 4.9 deg.
             double kUp = contact ? w.KUpSpring + (dt > 0 ? w.KUpDamp / dt : 0.0) : 0.0;
             double kTw = contact ? w.KTwSpring + (dt > 0 ? w.KTwDamp / dt : 0.0) : 0.0;
             ContactPoint? at = null; double fMax = 0;
@@ -489,8 +512,12 @@ public sealed partial class Aircraft
             double len = w.TipY - w.BreakY, carried = up * (contact ? w.ContactScale : 0.0) + water;
             w.ElasticRad = touched && w.TipStiffnessNPerM > 0 && len > 0 ? 1.5 * (carried / len) / w.TipStiffnessNPerM / len : 0.0;
             double demand = up + water + air;
+            double capBefore = w.Bending.Capacity;
             double dB = w.Bending.Load(demand, kUp);
             double dT = w.Twisting.Load(tw, kTw);
+            if (PanelProbePath is not null && (contact || dB != 0))
+                System.IO.File.AppendAllText(PanelProbePath, $"{w.Component} demand {demand:F0} cap {capBefore:F0} kUp {kUp:G5} "
+                    + $"dB {dB:G4} path {w.Bending.PathRad:F5} scale {w.ContactScale:F3} kSpr {w.KUpSpring:G4} kDmp {w.KUpDamp:G4}\n");
             ClearRecorded(w);
             if (w.Bending.Ruptured || w.Twisting.Ruptured)
             {

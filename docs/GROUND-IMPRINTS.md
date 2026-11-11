@@ -207,10 +207,30 @@ them. A ground loop is the expensive case, because it is all curve; that is the 
   one. When one exists it is three numbers in the table above: bearing near 50 kPa, retention ~1.0, repose near 25°,
   which would give the deepest, widest, longest-lasting mark on the map. Until then wet grass and dirt are what the
   island has.
-- **A ski's SINKAGE.** Nothing computes how far a ski compacts snow, so a ski track's depth is the plastic part of the
-  ski's contact penetration, which is the airframe's treatment and not a flotation model. A real pressure-sinkage model
-  for a ski — the thing that would say a 0.29 x 1.98 m ski floats where a 8.00-6 tyre ploughs, by more than their
-  penetrations happen to differ — is still wanted, and `lane/claude-ski-physics` is where it would come from.
+- **A ski's SINKAGE, and it now has a price tag.** Nothing computes how far a ski compacts snow, so a ski track's
+  depth is the plastic part of the ski's contact penetration, which is the airframe's treatment and not a flotation
+  model. MEASURED 2026-11-10 on the island's real snowfield, over 2,386 ski contacts: **a ski's sinkage is zero on
+  every single one of them** — every ski depth in this record comes from the retained part of an ELASTIC leg
+  compression.
+
+  That matters because a spring compresses *more* under a harder arrival, which is backwards from flotation, and it
+  shows up in exactly one number: **the peak**.
+
+  | PA-18, the same aeroplane, the same snow | median track | peak |
+  |---|---|---|
+  | on tyres (Bekker sinkage) | 39.3 mm | 84.5 mm |
+  | on skis (retained penetration) | **18.2 mm** | **152.2 mm** |
+
+  The ski floats where it is measured as a track — its median is less than half the tyre's, and its deepest contact
+  is at **t = 0.735 s** under 9,696 N, one step of the settling, in a five-second roll. A second, independent signal
+  says the same thing: the PA-18 on tyres lays **8** airframe `Scar`s because sinking 39 mm brings its belly to the
+  snow, and **on skis it lays none at all**. So the flotation is real and visible; only the peak lies about it, and
+  the peak is what a one-line report shows. `marks.txt` therefore reports the median and the 90th percentile before
+  the peak.
+
+  A real pressure-sinkage model for a ski — the thing that would say a 0.29 x 1.98 m ski floats where a 8.00-6 tyre
+  ploughs, by more than their penetrations happen to differ, and that would make the peak behave too — is still
+  wanted, and `lane/claude-ski-physics` is where it would come from. **This is the next piece of ski work.**
 - **Ice scoring**, which would be a mark with no depth. Nothing draws one.
 
 ## The drawing
@@ -275,8 +295,14 @@ record says 3.3 mm and the drawing makes that flattened, bruised turf — that i
 `unity/Assets/_Project/Scripts/Editor/GroundImprintShots.cs` shoots the review plates (plan from 30 m, eye height
 beside the tracks, a close low look along one rut) on the real island, from marks an aeroplane lays by rolling.
 
-It needs a GPU — **not** `-nographics`, which is what the build scripts use — and it refuses in four places rather
-than produce a picture that is not what it says it is. All four are things that actually happened on 2026-11-10:
+It needs a GPU — **not** `-nographics`, which is what the build scripts use — and it takes its shader from the
+**asset database**, because `Shader.Find` returns null for this project's own shaders in a bare `-executeMethod`
+batchmode editor (measured: null for `FlyingGame/GroundImprint` and for its `FlyingGame/UnlitTransparent` fallback
+alike, both present and compiling clean). It hands it over through `GroundImprintVisual.ShaderOverride`, set
+**before** `WorldBuilder.BuildAll()` because `IslandWorldBuilder.Build` attaches the visual itself. The game keeps
+`Shader.Find`, with `BuildScript.EnsureAlwaysIncludedShaders` keeping the shader in the player.
+
+It refuses in four places rather than produce a picture that is not what it says it is. All four are things that actually happened on 2026-11-10:
 
 1. **no graphics device.** With `-nographics` it wrote one blank grey PNG and then segfaulted, exit 139. The crash is
    a nuisance; the blank PNG was nearly relayed on as "the real island render".

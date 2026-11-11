@@ -157,6 +157,62 @@ depth-to-width ratio. The honest model is those two terms separately rather than
 judged against were broken in two other ways at the time. A derived number measured against the wrong background is
 still the wrong number — and so is a picked one measured against a broken frame. It belongs to the next render.
 
+### The ski that measured four times DEEPER than the tyre: it is the peak, and the peak is a spring
+
+The second real render showed the plan views (the depth bias was it) and raised one number that contradicts the
+picture: `cub-snow` deepest **36.3 mm**, `cub-skis-snow` deepest **152.2 mm**. A ski exists to float. Measured
+rather than argued, and it is two of the three candidates at once — not the third:
+
+**Not the aeroplanes.** Rolling the PA-18 on tyres and on skis over the same real snow, same site, same speed:
+
+| PA-18, same snow | median track | p90 | peak |
+|---|---|---|---|
+| on tyres | 39.3 mm | 46.5 mm | 84.5 mm |
+| on skis | **18.2 mm** | 66.8 mm | **152.2 mm** |
+
+The ski's MEDIAN is less than half the tyre's. **The flotation is real and the drawing is right**; the comparison
+that looked backwards was a J-3's peak against a PA-18's peak.
+
+**It is the peak, and the peak is a spring.** Over 2,386 ski contacts, **a ski's sinkage is zero on every single
+one** — every ski depth comes from the retained part of an ELASTIC leg compression, because nothing in the physics
+computes how far a ski compacts snow (flagged in the doc from the start; it now has a price tag). A spring
+compresses MORE under a harder arrival, which is backwards from flotation, and the deepest ski contact is at
+**t = 0.735 s under 9,696 N** — one step of the settling in a five-second roll.
+
+A second, independent signal confirms the flotation and answers the five `Scar`s too: the PA-18 on tyres lays **8**
+airframe scars, 1.4–4.9 mm deep, because sinking 39 mm into snow brings its belly down to it — and **on skis it lays
+none at all**. The J-3's five scars on snow are the same thing and they are 1.6–3.3 mm: an aeroplane sitting low in
+soft snow, just brushing it. That is the model being right, not the scene misbehaving.
+
+**Nothing was tuned.** The fix is the REPORT: `marks.txt` now gives the median and the 90th percentile per kind
+before the peak, because the peak is the one number that misleads here. The missing ski pressure-sinkage model is
+written up in the doc as the next piece of ski work, with the measurement attached.
+
+### `Shader.Find` does not find this project's shaders in a batchmode editor
+
+The guard above fired on the very next run, and it was right to: **no plates were written**, and the reason was not
+the shader.
+
+`Shader.Find("FlyingGame/GroundImprint")` returned **null** — and so did the `Shader.Find("FlyingGame/UnlitTransparent")`
+fallback, with both shaders present, tracked, `.meta`'d and compiling clean. Two nulls from two good shaders is a
+LOOKUP failure, not an asset failure. A bare `-executeMethod` batchmode editor does not have what `Shader.Find`
+needs; the asset database does. The pattern across the repo confirms it — every other editor harness calls
+`Shader.Find` only for BUILT-IN shaders (`Unlit/Color`), and the one place that asks for a project shader by name is
+`BuildScript`, which runs during a build. This project has been bitten by the same shape before, with glTFast's
+`LoadImageFromBytes` under `IsEditorImport`, and already routes that case through `AssetDatabase.LoadAssetAtPath`.
+
+So the harness loads it by path and hands it over through `GroundImprintVisual.ShaderOverride` — exactly as
+`PilotBodyShots` hands `VrPilotBody.PrefabOverride` a body. **The game is untouched:** `Shader.Find` is right there,
+with `BuildScript.EnsureAlwaysIncludedShaders` keeping the shader in the player.
+
+Two ordering traps came with it, and both would have left the fix looking like it had not worked:
+
+- `IslandWorldBuilder.Build` attaches the visual ITSELF, so the override has to be set **before**
+  `WorldBuilder.BuildAll()`, not before `Attach`. Setting it after would have changed nothing.
+- the material used to be taken once, inside a `Build()` that returns early when the geometry already exists — so a
+  component that came up shader-less stayed unable to draw for the rest of the session with the shader sitting right
+  there. It is now `EnsureMaterial()`, retried on every build, because **a shader can arrive late**.
+
 ### The harness refuses to shoot a plate it cannot vouch for
 
 Run with `-nographics` — which is the idiom the BUILD scripts use, so it is the natural thing to reach for — the first
