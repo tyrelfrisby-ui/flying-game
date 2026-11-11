@@ -413,8 +413,10 @@ public sealed partial class Aircraft
     /// <summary>
     /// The water-rudder retract (Ty 2026-11-02, t278u; floatplanes whose config draws a retractable blade). The blade
     /// is spring-loaded DOWN: with the cockpit handle let go of it lies on the floor and the rudder is down, which is
-    /// how every aircraft starts (a new Aircraft is a water start with the rudder down). Hanging the handle on its hook
-    /// raises it. 0 = down .. 1 = up (on the hook).
+    /// how an aeroplane spawned ON THE WATER starts. One spawned in the air starts with the handle on the hook and the
+    /// blade up, because a floatplane cannot be airborne without the pilot having raised it (Ty 2026-11-11; the
+    /// constructor reads the floats' own added mass to tell wet from dry). Hanging the handle on its hook raises it.
+    /// 0 = down .. 1 = up (on the hook).
     /// </summary>
     public bool HasWaterRudderRetract => Config.Floats is { WaterRudderRetractable: true, WaterRudderChordM: > 0 };
     /// <summary>The handle is on the hook (target: up). False = let go of (target: down, the spring).</summary>
@@ -576,6 +578,25 @@ public sealed partial class Aircraft
         // The water the floats already carry at the start (an aeroplane spawned afloat): without this the first step
         // took all of it as newly entrained — a slam out of nothing, 420 kN on a Beaver starting with its heels wet.
         if (config.Floats is not null) _floatAddedMass = FloatHydro.AddedMassOf(config, initialState);
+        // THE WATER RUDDER STARTS WHERE THE SPAWN PUTS IT (Ty 2026-11-11: "Selecting floats shows the airplane in the
+        // air currently and in the air water rudders are up not down so make sure that is how they are shown"). The
+        // blade is spring-loaded DOWN, so until this line every spawn built it down — and the landing page's preview
+        // spawns the floatplane AIRBORNE (LandingFlow's default viewpoint is "In the air", 2,000 ft over the field),
+        // so the configuration picture and the card thumbnail cut from it drew a Cub flying along with its water
+        // rudders hanging in the breeze. So did every in-air start in the game proper: In the air, On final to the
+        // lake, In a thermal, and the race / STOL / combat starts. An aeroplane that is already flying has had its
+        // handle hung on the hook — it cannot have got airborne otherwise — so the spawn state follows the water,
+        // the same way the skis read the surface they are spawned on twenty lines above (SkiSelector.StartFor).
+        //
+        // Wet comes off the added mass just computed rather than a second world query: AddedMassOf sums
+        // ρ·π·c²/2 over the stations the waterline cuts, so its heave term is > 0 if and only if some float is in the
+        // water at this state. No water under the floats (over land, or a world with no terrain loaded) reads dry,
+        // which is also right for an amphibian spawned on a runway — water rudders up, clear of the tarmac.
+        //
+        // After the spawn the handle is the pilot's: taking off from the lake with the blade still down leaves it
+        // down, because that is what the real aeroplane does to a pilot who forgets it (the GEAR slot raises it,
+        // TouchFlightControls; CockpitWaterRudder is the hand in VR).
+        if (HasWaterRudderRetract) SetWaterRudderHooked(_floatAddedMass.Linear.Z <= 0, immediate: true);
 
         ControlDeflections initial = initialDeflections ?? ControlDeflections.Neutral;
         _aileronRad = initial.AileronRad;
