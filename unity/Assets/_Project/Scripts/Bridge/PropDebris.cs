@@ -84,7 +84,9 @@ namespace FlyingGame.Bridge
                 Vector3 pos = p.T.position + p.V * dt;
                 p.T.rotation = Quaternion.Euler(p.Spin * dt) * p.T.rotation;
                 Vec3 sim = CoordinateMap.ToSim(pos);
-                double floor = WorldTerrain.GroundHeightAt(sim.X, sim.Y);
+                // The deck-aware floor, and the piece rests ON it rather than with its origin in it
+                // (EgressAir.FloorUnder / RestLift: the one convention the canopy and the wreck pieces use).
+                float floor = EgressAir.FloorUnder(pos);
                 double? water = FloatHydro.WaterSurfaceAt(sim.X, sim.Y, pos.y);
                 if (water.HasValue && pos.y < water.Value - 0.02)
                 {
@@ -94,7 +96,9 @@ namespace FlyingGame.Bridge
                 }
                 else if (pos.y < floor)
                 {
-                    pos.y = (float)floor;
+                    // Lifted by its own half-height, and only on the one frame it comes to rest: RestLift walks the
+                    // piece's renderers, which is not something to do every frame of every shard's fall.
+                    pos.y = floor + EgressAir.RestLift(p.T);
                     p.Resting = true;
                 }
                 p.T.position = pos;
