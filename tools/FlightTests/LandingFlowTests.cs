@@ -505,6 +505,11 @@ public sealed class LandingFlowTests
     [InlineData("pitts-s2b-like",           600.00,   86.35,   90.50,   "in",      737.09)]    // "1475 lb or less"
     [InlineData("pitts-s2b-like",           703.07,   87.965,  90.50,   "in",      737.09)]    // straight line, half way
     [InlineData("j3-cub-like",              553.38,   10.6,    22.7,    "in",      553.38)]
+    // A-691 Rev 34 section V (J3C-65S) with EDO 60-1320 floats at its 1300 lb gross — the float this aeroplane
+    // wears. Its aft limit is 3.7 in TIGHTER than the landplane's +22.7, which is why the landplane's envelope
+    // cannot be copied across, and the certificate quotes three different seaplane grosses by float model
+    // (1160 McKinley / 1200 Edo, Wollam, Heath / 1300 Edo 60-1320, Edo 92-1400, Wollam 1200).
+    [InlineData("j3-cub-floats-like",       589.67,   10.6,    19.0,    "in",      589.67)]
     [InlineData("great-lakes-like",         816.47,   20.0,    23.8,    "in",      816.47)]
     [InlineData("glider-swift-s1-like",     410.0,    257,     414,     "mm",      410.0)]
     [InlineData("glider-grob103-acro-like", 600.0,    270,     480,     "mm",      600.0)]
@@ -534,9 +539,10 @@ public sealed class LandingFlowTests
             .Select(System.IO.Path.GetFileNameWithoutExtension)
             .Where(id => new FlyingGame.Core.AircraftLoad(Real(id!)).HasCgEnvelope)
             .OrderBy(id => id, System.StringComparer.Ordinal).ToArray();
-        Assert.Equal(new[] { "glider-grob103-acro-like", "glider-swift-s1-like", "great-lakes-like", "j3-cub-like", "pitts-s2b-like" }, withEnvelope);
+        // j3-cub-floats-like joined the list 2026-11-11, from A-691 Rev 34's own J3C-65S / Edo 60-1320 rows.
+        Assert.Equal(new[] { "glider-grob103-acro-like", "glider-swift-s1-like", "great-lakes-like", "j3-cub-floats-like", "j3-cub-like", "pitts-s2b-like" }, withEnvelope);
 
-        foreach (string id in new[] { "c172-like", "extra-300-like", "glider-2-33-like", "j3-cub-floats-like" })
+        foreach (string id in new[] { "c172-like", "extra-300-like", "glider-2-33-like" })
         {
             var wb = WeightBalance.From(new FlyingGame.Core.AircraftLoad(Real(id)));
             Assert.False(wb.HasEnvelope, id);
@@ -650,7 +656,8 @@ public sealed class LandingFlowTests
     [Fact]
     public void FloatsGetTwentyPercentMoreGrossThanTheirWheels()
     {
-        // The configs author gross as maxTakeoffMassKg (J-3: 553.38); the float file authors none.
+        // The configs author gross as maxTakeoffMassKg (J-3: 553.38); this float file authors none, which is the
+        // case the 1.2 factor exists for.
         System.Func<string, AircraftConfig?> cfg = id => id == "j3-cub-like" ? Tandem(gross: 0, takeoff: 553.38) : Tandem(gross: 0);
         var f = NewFlow(cfg: cfg);
         f.Pick(PickerKind.Aircraft, "j3-cub-like");
@@ -658,6 +665,22 @@ public sealed class LandingFlowTests
         f.Pick(PickerKind.Configuration, "floats");
         Assert.Equal(664.056, f.WeightBalance!.MaxGrossKg, 6);
         Assert.Equal(664.056, f.GrossOverrideKg(), 6);
+    }
+
+    /// <summary>...but a float config that carries its OWN certificate placard keeps it (2026-11-11). The 1.2 factor
+    /// is a stand-in for a figure nobody has looked up, and on the real J-3 it is not close: it makes 664.06 kg =
+    /// 1,464 lb where FAA A-691 Rev 34 gives 1,300 lb on Edo 60-1320 floats. Overriding an authored, sourced number
+    /// would make it unreadable, which is the trap loading.emptyCg was.</summary>
+    [Fact]
+    public void AFloatConfigWithItsOwnCertificateGrossIsNotOverriddenByTheFactor()
+    {
+        System.Func<string, AircraftConfig?> cfg = id => id.StartsWith("j3-cub") ? Real(id) : Tandem();
+        var f = NewFlow(cfg: cfg);
+        f.Pick(PickerKind.Aircraft, "j3-cub-like");
+        Assert.Equal(553.38, f.WeightBalance!.MaxGrossKg, 2);          // 1220 lb, the landplane certificate
+        f.Pick(PickerKind.Configuration, "floats");
+        Assert.Equal(0.0, f.GrossOverrideKg(), 9);                     // no factor: the float file speaks for itself
+        Assert.Equal(589.67, f.WeightBalance!.MaxGrossKg, 2);          // 1300 lb, not 1.2 x 1220 = 1464
     }
 
     [Fact]
