@@ -72,8 +72,7 @@ namespace FlyingGame.Bridge
         private static void BuildPowellWalls(WorldTerrain t, Transform parent)
         {
             var walls = new SeasideBuilder.Batch();
-            bool low = QualitySettings.GetQualityLevel() <= 1;
-            double alongStep = low ? 24 : 12;
+            double alongStep = GraphicsQualityDirector.Knobs.CanyonWallStepM;
             const int levels = 18;
             Vector3 WallPoint(double y, int side, int level)
             {

@@ -478,6 +478,25 @@ namespace FlyingGame.Bridge
                 if (Mathf.Abs(nz - z) > 0.01f) ChaseCamera.CockpitZoom = nz;
                 Note("The eye is the seat and cannot move, so zoom is field of view: wider shows more and bows the edges.", ref y);
             }
+            // THE GRAPHICS SLIDER (Ty 2026-11-11). This is a CEILING, not what is drawn: when the simulator stops
+            // keeping up the game holds the picture below this on its own and says what it gave up and why. The row
+            // shows the tier actually in force whenever that is lower, so a pilot can watch it recover.
+            {
+                var tiers = new[] { FlyingGame.Core.GraphicsQuality.Tier.Minimum, FlyingGame.Core.GraphicsQuality.Tier.Low,
+                                    FlyingGame.Core.GraphicsQuality.Tier.Balanced, FlyingGame.Core.GraphicsQuality.Tier.High };
+                int gq = PickRow("Graphics", new[] { "Minimum", "Low", "Balanced", "High" },
+                                 System.Array.IndexOf(tiers, SessionSettings.GraphicsTier), ref y);
+                if (gq >= 0)
+                {
+                    SessionSettings.GraphicsTier = tiers[gq];
+                    SessionSettings.SavePrefs();
+                    GraphicsQualityDirector.ResetToChosen();
+                }
+                Note(GraphicsQualityDirector.AutoDowngraded
+                        ? $"Drawing {GraphicsQualityDirector.TierName} — lowered on its own so the flight model keeps up. It comes back when it can."
+                        : "Lowered on its own, with a warning, if the simulator stops keeping up. Never raised above this.",
+                     ref y);
+            }
             var modes = new[] { SessionSettings.InstrumentMode.Analog, SessionSettings.InstrumentMode.Hud, SessionSettings.InstrumentMode.None };
             int im = PickRow("Instruments", new[] { "Dials", "HUD", "None" }, System.Array.IndexOf(modes, SessionSettings.Instruments), ref y);
             if (im >= 0) { SessionSettings.Instruments = modes[im]; SessionSettings.SavePrefs(); }
@@ -1071,7 +1090,8 @@ namespace FlyingGame.Bridge
             if (si >= 0) { SessionSettings.SimSpeed = sp[si]; SessionSettings.SavePrefs(); SessionSettings.ApplyTimeScale(); }
             y += _gap * 0.5f;
             Note("Everything on these pages is remembered for the next launch.", ref y);
-            if (UiLayout.Button(new Rect(_x, y, _cw * 0.52f, _lh), "Reset all settings", _btn)) SessionSettings.ResetPrefs();
+            if (UiLayout.Button(new Rect(_x, y, _cw * 0.52f, _lh), "Reset all settings", _btn))
+            { SessionSettings.ResetPrefs(); GraphicsQualityDirector.ResetToChosen(); }
             y += _lh + _gap * 0.4f;
         }
 

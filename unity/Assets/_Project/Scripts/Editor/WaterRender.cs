@@ -327,9 +327,14 @@ namespace FlyingGame.EditorTools
                 var camera = new GameObject("Water camera").AddComponent<Camera>();
                 var reflection = camera.gameObject.AddComponent<WaterReflection>();
                 reflection.enabled = false; reflection.Driver = driver; Call(reflection, "Awake");
-                reflection.Quality = (WaterReflection.ReflectionQuality)Enum.Parse(typeof(WaterReflection.ReflectionQuality), Read("-reflectionQuality", "High"), true);
-                reflection.ReflectScenery = Read("-reflectionScenery", "on") != "off";
-                reflection.TextureSize = int.Parse(Read("-reflectionSize", "0"));
+                // -reflectionQuality now names a tier on the ONE scale (Minimum/Low/Balanced/High), not the
+                // reflection's own retired enum. An explicit -reflectionSize still wins, as it always did.
+                var tier = (FlyingGame.Core.GraphicsQuality.Tier)Enum.Parse(
+                    typeof(FlyingGame.Core.GraphicsQuality.Tier), Read("-reflectionQuality", "High"), true);
+                var knobs = FlyingGame.Core.GraphicsQuality.Knobs.For(tier);
+                reflection.ReflectScenery = knobs.ReflectScenery && Read("-reflectionScenery", "on") != "off";
+                int sizeArg = int.Parse(Read("-reflectionSize", "0"));
+                reflection.TextureSize = sizeArg > 0 ? sizeArg : knobs.ReflectionTextureSize;
                 camera.clearFlags = CameraClearFlags.Skybox; camera.backgroundColor = new Color(.45f, .66f, .95f);
                 camera.nearClipPlane = .15f; camera.farClipPlane = 12000; camera.fieldOfView = 48;
                 var rt = new RenderTexture(1600, 1000, 24); camera.targetTexture = rt;

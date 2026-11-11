@@ -84,8 +84,11 @@ namespace FlyingGame.Bridge
         private void AllocateLake(WorldTerrain.Lake l)
         {
             Release();
-            // ~2 m cells on a lake, coarser on the 3.2 km harbor (≤ 1024 across).
-            _cell = Mathf.Max(2f, (float)(2 * l.Rx) / 1024f);
+            // ~2 m cells on a lake, coarser on the 3.2 km harbor. How many cells across is the one scale's
+            // (GraphicsQuality.Knobs.WakeGridCells): 1024 at High, as it always was, down to 128 at Minimum. The
+            // solver's cost is the square of it, and a coarser grid only makes the CFL number smaller, so stability
+            // is on the safe side at every tier.
+            _cell = Mathf.Max(2f, (float)(2 * l.Rx) / Mathf.Max(32, GraphicsQualityDirector.Knobs.WakeGridCells));
             // Sim x (north) → Unity z, sim y (east) → Unity x: the grid's u runs along Unity x (sim y), v along Unity z (sim x).
             Vector3 c = CoordinateMap.ToUnity(new FlyingGame.Core.MathTypes.Vec3(l.Cx, l.Cy, -l.SurfaceM));
             // Texture u spans the lake's sim-y extent (2·Ry), v its sim-x extent (2·Rx).

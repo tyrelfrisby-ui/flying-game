@@ -117,9 +117,12 @@ namespace FlyingGame.Clouds
                 var vertices = new List<Vector3>(); var uv = new List<Vector2>();
                 var sizes = new List<Vector2>(); var colors = new List<Color>(); var indices = new List<int>();
                 // Horseshoe bank with a real 220+ m central passage, open at both ends.
-                for (int lobe = 0; lobe < 20; lobe++)
+                // Lobes per bank: the one scale's (GraphicsQuality.Knobs.CloudBankLobes), 20 at High as it always
+                // was. The horseshoe keeps its shape at any count - the angle is a fraction of the lobes drawn.
+                int lobeCount = Mathf.Max(3, GraphicsQualityDirector.Knobs.CloudBankLobes);
+                for (int lobe = 0; lobe < lobeCount; lobe++)
                 {
-                    float a = lobe / 19f * Mathf.PI * 1.65f;
+                    float a = lobe / (float)(lobeCount - 1) * Mathf.PI * 1.65f;
                     Vector3 p = new Vector3(Mathf.Cos(a)*400, R(90,210), Mathf.Sin(a)*400);
                     float size = R(95,155);
                     if (lobe >= 12) { p.y += R(120,240); size *= .75f; }
@@ -250,7 +253,8 @@ namespace FlyingGame.Clouds
             drift+=ambientWind*dt;
             Shader.SetGlobalVector("_WispDrift",new Vector4(drift.x,drift.y,0,0));
             // CPU culling at cluster granularity; shader fades detail lobes before disabling far banks.
-            for(int i=0;i<billows.Count;i++) billows[i].enabled=(centres[i]-eye).sqrMagnitude < 19000f*19000f;
+            float cull=(float)GraphicsQualityDirector.Knobs.CloudCullRadiusM;   // 19 km at High, as it always was
+            for(int i=0;i<billows.Count;i++) billows[i].enabled=(centres[i]-eye).sqrMagnitude < cull*cull;
             if(now<nextStep) return;
             // At most one 256² simulation per tick, never catch up after a stalled frame.
             nextStep=now+StepSec;

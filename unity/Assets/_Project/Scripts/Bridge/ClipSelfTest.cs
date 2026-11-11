@@ -114,7 +114,7 @@ namespace FlyingGame.Bridge
             Menu.Fly();
             yield return new WaitForSecondsRealtime(5f);
             Debug.Log($"[Perf] flying {SessionSettings.AircraftId} from {SessionSettings.StartMode}");
-            Debug.Log($"[Perf] screen {Screen.width}x{Screen.height} dpi {Screen.dpi:F0} quality {QualitySettings.GetQualityLevel()} ({QualitySettings.names[QualitySettings.GetQualityLevel()]}) vSync {QualitySettings.vSyncCount} targetFps {Application.targetFrameRate} AA {QualitySettings.antiAliasing} shadows {QualitySettings.shadows}");
+            Debug.Log($"[Perf] screen {Screen.width}x{Screen.height} dpi {Screen.dpi:F0} graphics {GraphicsQualityDirector.TierName} (unity level {QualitySettings.GetQualityLevel()}) vSync {QualitySettings.vSyncCount} targetFps {Application.targetFrameRate} AA {QualitySettings.antiAliasing} shadows {QualitySettings.shadows}");
             // A minute second-by-second (owner 2026-10-04: "choppy at the beginning, smooth for about 30 s, then choppy
             // again"): fps, and the CPU main-thread and GPU frame times from FrameTimingManager.
             var ft = new UnityEngine.FrameTiming[1];

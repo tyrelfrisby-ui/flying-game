@@ -249,8 +249,7 @@ namespace FlyingGame.Bridge
             if(_airportGlow==null)
             {
                 _airportGlow=new Material(Shader.Find("FlyingGame/AirportGlow"));
-                string tier=QualitySettings.names[QualitySettings.GetQualityLevel()];
-                bool low=tier.IndexOf("low",StringComparison.OrdinalIgnoreCase)>=0 || tier.IndexOf("fast",StringComparison.OrdinalIgnoreCase)>=0;
+                bool low=GraphicsQualityDirector.Low;
                 _airportGlow.SetFloat("_HaloPixels",low?1.5f:Application.isMobilePlatform?2.0f:3.0f);
             }
             var go=new GameObject("AirportFixtureHalos"); go.transform.SetParent(parent,false);

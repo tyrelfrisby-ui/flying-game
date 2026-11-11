@@ -183,6 +183,9 @@ namespace FlyingGame.Bridge
             hud.Combat = aircraft.GetComponent<CombatController>();
             chase.Cockpit = aircraft.GetComponent<CockpitView>();   // `cam` is Unity's Camera; the ChaseCamera is `chase`
             cam.gameObject.AddComponent<TracerOverlay>().Combat = aircraft.GetComponent<CombatController>();
+            // THE GRAPHICS SLIDER (Ty 2026-11-11). Added before the things it drives so the first frame is already
+            // on the pilot's tier, and it watches FlightSimDriver.CatchUpCappedFrames from here on.
+            cam.gameObject.AddComponent<GraphicsQualityDirector>();
             var reflection = cam.gameObject.AddComponent<WaterReflection>();   // glassy water: aircraft mirrored in the lake
             reflection.Driver = aircraft.GetComponent<FlightSimDriver>();
             cam.gameObject.AddComponent<PilotUnderwater>();   // the seat view with the head in the lake (Ty t922u)

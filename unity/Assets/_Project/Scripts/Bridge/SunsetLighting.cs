@@ -11,9 +11,12 @@ namespace FlyingGame.Bridge
         // Same atmosphere on every tier; Low skips the finest cloud noise octave.
         public static void ConfigureDayAtmosphere(string tier = null, float density = .000052f, float clearRange = 850f)
         {
-            string quality = tier ?? QualitySettings.names[QualitySettings.GetQualityLevel()];
-            bool low = quality.IndexOf("low", System.StringComparison.OrdinalIgnoreCase) >= 0
-                || quality.IndexOf("fast", System.StringComparison.OrdinalIgnoreCase) >= 0;
+            // The editor fixtures still pass a tier NAME; the game passes nothing and reads the one scale.
+            bool low = tier != null
+                ? tier.IndexOf("low", System.StringComparison.OrdinalIgnoreCase) >= 0
+                  || tier.IndexOf("fast", System.StringComparison.OrdinalIgnoreCase) >= 0
+                  || tier.IndexOf("minimum", System.StringComparison.OrdinalIgnoreCase) >= 0
+                : GraphicsQualityDirector.Low;
             Shader.SetGlobalVector("_DayAtmosphere", new Vector4(Mathf.Max(0, density), Mathf.Max(0, clearRange), low ? 0 : 1, 0));
         }
 
