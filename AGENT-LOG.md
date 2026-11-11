@@ -12,11 +12,12 @@ Running record, one bullet per lane, newest last:
 - **`lane/claude-app-icon`** (`dd679087`) — MERGED. The AP letter icon, 1024 opaque, replacing
   `unity/Assets/_Project/Art/AppIcon.png` in place under the same GUID `069fd8c6…`, which all 19 iPhone/iPad/App
   Store slots in `ProjectSettings.asset` already point at — so iOS and iPad get the new icon from the PNG alone.
-  `AGENT-LOG.md` conflicted (both sides kept in full, as always). **One piece of that lane did NOT land:** its
+  `AGENT-LOG.md` conflicted (both sides kept in full, as always). One piece was held back at first: the
   `m_BuildTargetIcons` hunk, which sets the *Default* icon so Mac (OSXUniversal) and Quest/Android pick the same
-  texture up. Ty's standing rule for this run is *never commit `unity/ProjectSettings/ProjectSettings.asset`*, so
-  the file was resolved back to ours and the one-line default-icon change is left for him. Without it the Mac and
-  Quest builds keep Unity's stock icon; iOS is unaffected.
+  texture up, because Ty's standing rule for this run is *never commit
+  `unity/ProjectSettings/ProjectSettings.asset`*. **Asked, he said "Commit just that line."** The rule is there to
+  keep the build's `bundleVersion` bump out of git, not to freeze the whole file, so that hunk alone went in as
+  `bb4904c3`, `bundleVersion` untouched. Mac and Quest get the AP icon too.
 - **`lane/claude-trigger-brakes`** (`b29dd07b`) — MERGED. The triggers become independent LEFT / RIGHT toe brakes on
   the 8BitDo (iOS/Mac/Quest) and on the Quest Touch, proportional past a 0.05 dead zone and no expo (like a pedal,
   half pull is half brake); the guns move off the right trigger to the right grip, the VR menu navigates on the
@@ -74,6 +75,29 @@ Running record, one bullet per lane, newest last:
   2026-11-10, so it is simply absent in a fresh checkout and the test failed there. Re-pinned to the source of
   truth, `configs/aircraft/great-lakes-like.json`, found by walking up for the `configs/aircraft` directory the way
   the other tests do.
+- **`lane/claude-233-launch`, the other half — TAKEN AFTER ALL.** Ty, asked whether the iPhone still offers only the
+  five proven types now that the 4 GB problem has been solved another way: **"Keep the five - it was about
+  quality."** So `FleetAllowList` is in: iOS (iPhone and iPad are one build) offers the 2-33, the J-3, the Great
+  Lakes, the Pitts and the Extra, and nothing else; the Mac, the Quest and the editor offer everything; no aircraft,
+  config or model is deleted. `SessionSettings.Fleet` is now `FleetAllowList.Offered(MasterFleet, PlatformAllowList)`
+  and the big list is `MasterFleet`; a saved type this build does not offer falls back to the 2-33, and the dogfight
+  opponent falls from the P-51 to the Extra on iOS. `TouchFlightControls` cycles the same subset.
+  **It was applied by hand, file by file, NOT cherry-picked**, and that was necessary: commit `22289144` also carries
+  the red-and-white 2-33 removal, which shipped on 11-04, and `Livery.cs`, `AirframeVisual.cs` and
+  `AirframeModels.cs` with it. CLAUDE.md's standing warning is *never take the old side of* those exact files, and a
+  cherry-pick conflicted in all three plus five `.meta` deletions. Only `FleetAllowList.cs`,
+  `FleetAllowListTests.cs` and the `SessionSettings` / `TouchFlightControls` / `NoRed233Tests` / `ProgressionTests`
+  hunks were taken.
+  **A real bug in the lane, fixed rather than carried:** it declared `Fleet` (which reads `AllCycleFleet`) ABOVE
+  `AllCycleFleet` in `TouchFlightControls`. C# runs static field initialisers in textual order, so `Fleet` would
+  have been handed a null array and the type initialiser would have thrown the first time the touch controls were
+  used. `AllCycleFleet` is declared first here, with the reason in a comment.
+  **The two fleet lists now coexist and must never be read as each other**, which is written into
+  `SessionSettings.Fleet`'s own doc comment: this allow-list is a permanent QUALITY judgement about what the phone's
+  selector shows (five types), and `FlyingGame.Core.TestFlightFleet` is an opt-in PACKAGING choice about which
+  `Resources/Models` folders go into one TestFlight build (six types, including the J-3 on floats, and its own header
+  says "PACKAGING ONLY, OPT-IN. Nothing is deleted from the tree"). Under `FG_TF_SLIM` on iOS the slim filter now
+  runs on top of the allow-list, so that build offers the intersection.
 - **`lane/claude-windsocks`** (`4021041a`) — MERGED. Two features in one lane, both of them Ty's own words.
   **Windsocks** (08:43: *"every airport has a wind sock off to the side of the runway at each end and in the middle"*):
   one shared part, `src/FlyingGame.Core/WindsockPart.cs`, drawn only by `Bridge/Windsock.cs` — three per runway on all

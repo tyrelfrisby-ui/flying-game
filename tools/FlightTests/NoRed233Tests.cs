@@ -60,7 +60,7 @@ public sealed class NoRed233Tests
         Assert.Equal(new[] { G }, QuestFleet.Listed.Where(Is233).ToArray());
 
         // iOS / Mac: SessionSettings.Fleet (the landing page) and the touch controls' aircraft cycle.
-        var fleet = Regex.Matches(Block(Bridge("SessionSettings.cs"), "public static readonly (string id, string name)[] Fleet"),
+        var fleet = Regex.Matches(Block(Bridge("SessionSettings.cs"), "public static readonly (string id, string name)[] MasterFleet"),
             @"\(""([^""]+)"",\s*""([^""]+)""\)").Select(m => (Id: m.Groups[1].Value, Name: m.Groups[2].Value)).ToArray();
         Assert.True(fleet.Length > 20, $"parsed only {fleet.Length} Fleet entries");
         Assert.Equal(new[] { G }, fleet.Where(f => Is233(f.Id) || Is233(f.Name)).Select(f => f.Id).ToArray());
