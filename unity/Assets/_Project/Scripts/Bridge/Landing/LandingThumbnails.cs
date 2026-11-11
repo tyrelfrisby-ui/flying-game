@@ -71,7 +71,13 @@ namespace FlyingGame.Bridge
             {
                 cam.targetTexture = rt;
                 cam.aspect = (float)w / h;
-                cam.Render();
+                // A camera that is not the main one must not sample the main camera's planar reflection or its scene
+                // depth: both are read in screen space, so the aircraft card — which is the PREVIEW camera's picture —
+                // would be captured with the ghost aeroplane in the water that WaterReflection.RenderWithoutMirror
+                // explains, and a captured card is then on disk for good. The launch-view card IS the main camera, and
+                // keeps its own true reflection.
+                if (cam == Camera.main) cam.Render();
+                else WaterReflection.RenderWithoutMirror(cam);
                 RenderTexture.active = rt;
                 var tex = new Texture2D(w, h, TextureFormat.RGB24, false) { wrapMode = TextureWrapMode.Clamp };
                 tex.ReadPixels(new Rect(0, 0, w, h), 0, 0);
