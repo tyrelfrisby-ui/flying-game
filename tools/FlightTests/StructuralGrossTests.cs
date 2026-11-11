@@ -48,13 +48,34 @@ public class StructuralGrossTests
         light.Mass.MassKg = 451.142;               // the same aeroplane, authored as flown
 
         double a = UltimateN(heavy), b = UltimateN(light);
-        _o.WriteLine($"placard {placard:F1} kg. ultimate water load: authored at the placard {a / 1000:F2} kN, authored as flown {b / 1000:F2} kN");
+        double spread = Math.Abs(b - a) / a;
+        _o.WriteLine($"placard {placard:F1} kg. ultimate water load: authored at the placard {a / 1000:F3} kN, authored as flown {b / 1000:F3} kN ({spread:P2} apart)");
         Assert.True(a > 0, "the type should have a float ultimate load at all");
-        Assert.Equal(a, b, 3);
+        // NOT BIT-EQUAL, AND IT USED TO BE FOR THE WRONG REASON. This asserted Equal(a, b, 3) — the same number to a
+        // thousandth of a NEWTON — and got it, because Aircraft's V_S0 cache was keyed by type id alone and these two
+        // copies share an id: whichever reached the dictionary first handed the other its stall speed, so of course
+        // they agreed. The key now carries the weights, each copy solves its own trim, and what is left is
+        // PracticeScenario.EstimateVso's 0.5 m/s scan grid: the two land on neighbouring rungs (19.55 m/s against
+        // 17.10 scaled up by √(589.67/451.142)) and n_w squares that, which is the 0.5 % below. Without the scaling
+        // at all the gap would be the whole 23.5 % of the mass, so the window is well inside what it is proving.
+        Assert.True(spread < 0.02, $"the float's ultimate moved {spread:P2} ({a / 1000:F3} -> {b / 1000:F3} kN) when only today's loading changed");
     }
 
-    /// <summary>And the defect it replaces: with NO placard the design weight falls back to the authored mass, so the
-    /// float really does weaken — which is what every float type did before a certificate was authored for it.</summary>
+    /// <summary>
+    /// And the defect it replaces: with NO placard the design weight falls back to the authored mass, so the float
+    /// really does weaken — which is what every float type did before a certificate was authored for it.
+    ///
+    /// IT WEAKENS AS W^(5/3), NOT W^(2/3), and this test used to say W^(2/3) because of an accident. The ultimate is
+    /// 1.5·n_w·W with n_w = C1·V_S0²/(tan^(2/3)β·W^(1/3)), so it goes as V_S0²·W^(2/3) — and when the whole aeroplane
+    /// is lighter, V_S0 falls too. V_S ∝ √W, so V_S0² carries another full factor of W and the product is W^(5/3):
+    /// (451.142/589.67)^(5/3) = 0.640, measured 0.637. The W^(2/3) this test asserted, and the "16.4 %" in
+    /// AircraftOverstress.StructuralGrossKg's own summary, both came from holding V_S0 still while the weight moved.
+    /// It LOOKED right because Aircraft's V_S0 cache was keyed by type id alone, so the two copies below — same id,
+    /// different authored mass — were handed one another's stall speed and the V_S0² factor cancelled itself out.
+    /// The key now carries the weights (Aircraft.InitFloatWaterLoads) and the two copies get their own answers.
+    ///
+    /// So the defect the placard fixes is 36 % of the float's modelled strength on this type, not 16 %.
+    /// </summary>
     [Fact]
     public void WithoutAPlacardItStillFallsBackToTheAuthoredMass()
     {
@@ -62,9 +83,10 @@ public class StructuralGrossTests
         var light = Floats(); light.Loading!.MaxTakeoffMassKg = 0; light.Loading.MaxGrossMassKg = 0; light.Mass.MassKg = 451.142;
         double a = UltimateN(heavy), b = UltimateN(light);
         double drop = 1 - b / a;
-        _o.WriteLine($"no placard: {a / 1000:F2} kN -> {b / 1000:F2} kN, a {100 * drop:F1} % loss of modelled float strength");
+        _o.WriteLine($"no placard: {a / 1000:F2} kN -> {b / 1000:F2} kN, a {100 * drop:F1} % loss of modelled float strength "
+                     + $"(W^(5/3) = {Math.Pow(451.142 / 589.67, 5.0 / 3.0):F3}, measured {b / a:F3})");
         Assert.True(drop > 0.10, "this is the defect the placard fixes; it should still be visible without one");
-        // W^(2/3): (451.142/589.67)^(2/3) = 0.836
-        Assert.Equal(Math.Pow(451.142 / 589.67, 2.0 / 3.0), b / a, 2);
+        // V_S0²·W^(2/3) with V_S0 ∝ √W: (451.142/589.67)^(5/3) = 0.640
+        Assert.Equal(Math.Pow(451.142 / 589.67, 5.0 / 3.0), b / a, 2);
     }
 }
