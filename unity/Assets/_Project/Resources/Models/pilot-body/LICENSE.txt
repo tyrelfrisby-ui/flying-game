@@ -1,0 +1,11 @@
+Source: built here, not downloaded. tools/own_models/pilot_body.py (and pilot_body_smooth.py).
+Provenance: docs/models/pilot-body-own-PROVENANCE.md.
+Model: the pilot's body and hands, pilot-body-own.glb — one skinned mesh on a 49-bone skeleton.
+Author: this project
+License: same as the rest of this repository
+Commercial use: ours to allow
+CREDIT LINE: pilot body modelled for this project with tools/own_models/pilot_body.py
+Note: clean-room. Every mesh and the whole skeleton are GENERATED FROM NUMBERS in the builder. No
+third-party mesh, rig, texture, scan, human model or training-derived raster asset is imported at any
+point. Flight-suit torso, shoulders, arms, Nomex-coloured open gloves with five three-bone fingers per
+hand, thighs, shins, boots and toes.

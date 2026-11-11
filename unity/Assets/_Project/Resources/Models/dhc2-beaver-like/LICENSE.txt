@@ -1,0 +1,11 @@
+Source: built here, not downloaded. tools/own_models/rig_beaver_reference.py (Blender), from a reference
+built procedurally by build_beaver_reference.py. Provenance: docs/models/dhc2-beaver-own-PROVENANCE.md.
+Model: de Havilland Canada DHC-2 Beaver, dhc2-beaver-like-own.glb.
+Author: this project
+License: same as the rest of this repository
+Commercial use: ours to allow
+CREDIT LINE: "DHC-2 Beaver" modelled for this project with tools/own_models/rig_beaver_reference.py
+Note: the geometry is OURS BUT TRACED, not clean-room. It is traced from the dimensioned U.S. Air Force
+L-20A three-view, which is a work of the U.S. federal government and so in the public domain. Secondary
+drawings and photographs were used only as visual checks; no third-party mesh was copied. Control-surface
+travels are from FAA TCDS A-806. Swap approved by Ty 2026-11-05.
