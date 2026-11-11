@@ -577,9 +577,10 @@ public static class WingStructure
             // Permanent deformation begins past 1.5 × the limit (Ty 2026-11-05 overstress pattern; Limits.GroanFactor):
             // below it the panel is elastic, on the ground as in the air.
             double yieldNm = System.Math.Min(groan * p.LimitNm, p.UltimateNm);
-            p.Bending = new PlasticHinge(yieldNm, p.UltimateNm, law);
+            // Named here, once per panel, so a NaN demand can say WHICH hinge it arrived on (PlasticHinge.Name).
+            p.Bending = new PlasticHinge(yieldNm, p.UltimateNm, law) { Name = p.Component + " bending" };
             double tu = MemberMaterials.UltimateTorqueNm(p.Construction, p.UltimateNm, p.StationChord, len);
-            p.Twisting = new PlasticHinge(tu * yieldNm / p.UltimateNm, tu, law);
+            p.Twisting = new PlasticHinge(tu * yieldNm / p.UltimateNm, tu, law) { Name = p.Component + " twisting" };
             p.StrengthKnown = true;
         }
     }
