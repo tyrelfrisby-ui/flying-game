@@ -145,3 +145,79 @@ The water reflects through the same function, so its reflection is fixed too. Di
 centreline, upwash 2.1 / 1.2 m/s at 12 m out where the 3 m atlas texel straddles the line). A .NET probe of the same
 pass over flat ground: the pair sinks to 3.4-3.9 m and spreads to ±6.1 m at 4.5 s, ±13.6 m at 14.8 s. The
 zero-lift, zero-thrust pass leaves 0 segments, 0 jets and fog identical to undisturbed.
+
+## The thermal cumulus stopped being spheres — Claude, 2026-11-11, lane/claude-clouds
+
+Ty, 2026-11-11: *"There are clouds that look good realistic and there are clouds that look fake like a bunch of
+circles glued together. Make all clouds look good/realistic."*
+
+### Which clouds are which
+
+Four things draw cloud in this game, and only one of them was the complaint:
+
+| | where | what it is | verdict |
+|---|---|---|---|
+| `Bridge/Cumulus.cs` + `Shaders/Cumulus.shader` | one over every thermal (34 of them, `SoaringScenery`) | a union of **analytic spheres**, drawn opaque with a dithered fresnel rim | **the circles glued together** |
+| `Clouds/CloudPlayground.cs` + `Shaders/CloudPlayground.shader` | 36 banks on three rings + 13 low patches | camera-facing lobe impostors with a noise-eroded alpha | good |
+| `Shaders/CloudWisp*.shader` | three thin sheets, wake-reactive | advected noise | good |
+| `Shaders/SunsetSky.cginc` (`DaySkyClouds`, `SunsetSky`) | the skybox's painted deck, at infinity | cellular lobes + multiscale erosion | good |
+
+The diagnosis is in the pictures, not in an opinion: `cumulus_1500m_backlit` on the before set has a **complete,
+geometrically exact circle** drawn across the middle of the cloud where one puff's silhouette crosses another's.
+A sphere's outline is a circle from every direction and its shading is a billiard ball's, so a union of spheres is
+read as a heap of balls however many of them there are. The other three implementations all break their outline
+with noise, which is exactly why they pass.
+
+Looking UP at the old one was worse: the shader clips every puff at the condensation level, but a cut sphere is a
+bowl, so the "flat base" was the inside of a ring of bowls, showing the lat-long tessellation as facets.
+
+### What was done
+
+The thermal cumulus keeps its geometry pipeline — it has to: it is the only cloud tied to a thermal (the base IS
+the thermal's top), the only one you can fly into (`Cumulus.Whiteout`, the IFR white-out) and the only one that
+blocks a line of sight (`Cumulus.Blocks`, the combat cover). `CloudPlayground`'s banks are transparent impostors
+with no depth write and, by their own design note, "do not implement cloud IFR". So the renderer was fixed rather
+than replaced, and what it borrowed from the good implementation is its PRINCIPLE: break every outline with noise.
+
+Everything new is paid for at **build time**, so the per-pixel cost on the phone is unchanged:
+
+- **The spheres are displaced** along their own radius by a three-octave value-noise field evaluated in cloud
+  space — one field for the whole cloud, at ±35 %, so neighbouring puffs' lumps line up into a single turbulent
+  body. A small granule gets a proportionally smaller lump or it would come out a perfect little ball.
+- **The normals are rebuilt** from the displaced triangles, welded through the sphere template's structural weld
+  map, so the shading follows the lumps and the seam column does not crease.
+- **Each vertex carries how deeply it lies inside its neighbours.** That shades the valleys where puffs meet (in a
+  real cumulus the light reaching the bottom of one has been through cloud twice) and it lets the triangles buried
+  inside another puff be dropped before they are ever submitted.
+- **A real flat base**: each puff that crosses the condensation level is capped with a disc lying on it, the rim
+  following the displaced surface. The caps take one colour for the whole cloud, because a cumulus base is an even
+  grey sheet and a per-vertex value across a disc's fan drew the fan.
+- More and far more varied lobes, crown lobes that overlap their turret instead of stacking into a snowman, and a
+  granulation pass of small puffs on the sunlit crown.
+- In the shader, the vertex mottle widens and narrows the fresnel band, so the rim dissolves in clumps rather than
+  as even sand. It scales the BAND, not the opacity — scaling the opacity put stipple over the whole cloud.
+
+### Cost (`Editor/CumulusRender.cs`, which renders all four implementations in one frame)
+
+| | before | after |
+|---|---|---|
+| geometry, all 34 clouds | 131,010 v / 222,320 t | 207,795 v / 337,451 t (+52 % triangles) |
+| per cloud | 3,853 v / 6,538 t | 6,111 v / 9,925 t |
+| vertex buffer | 3.0 MiB | 4.8 MiB (runtime, not package) |
+| CPU build of all 34 meshes | not measured; a straight copy | 406 ms on this Mac, 11.9 ms a cloud |
+
+The GPU delta is **negative in both** — the frame is *faster* with the clouds drawn than without, because they are
+opaque and occlude the terrain behind them. That is the argument for not moving the thermal cumulus onto
+`CloudPlayground`'s transparent impostors: overdraw is the one thing a phone cannot afford, and this renderer has
+none. The counts are static meshes, frustum-culled per cloud, and the clouds are spread over a 30 km island, so
+only a handful are ever in frame.
+
+The **CPU build is the number to watch**, not the triangles: the meshes are made in the startup frame, and the
+Quest's first frame is already 3.5-7.4 s. The first working version of this cost **1,501 ms**; it is 406 ms now,
+and the three things that bought that back are worth keeping if anyone tunes it further — the lattice noise hashes
+bits instead of taking a sine (the shader idiom is wrong on the CPU), the neighbour test runs against a per-puff
+candidate list instead of every puff, and the normals weld through the sphere template's structural weld map
+instead of a position-hashed dictionary. The displacement noise doubles as the shader's mottle rather than being
+sampled twice.
+
+**Not verified on a device.** Mac batch renders only; no iOS or Quest build, no frame timing on either.
