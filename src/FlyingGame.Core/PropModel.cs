@@ -333,22 +333,35 @@ public static class PropModel
 
     /// <summary>
     /// A stopped (not windmilling) prop's drag as a fraction of the windmilling one, for a type whose blade geometry
-    /// is NOT known — the last place this number is still used, and it survived contact with the blade.
+    /// is NOT known — the last place this number is still used.
     ///
-    /// IT WAS A GUESS AND IT TURNS OUT TO BE RIGHT, for the aeroplane it was guessed on. 0.5 came with nothing behind
-    /// it but "a fixed blade blocks less of the disc than one the air is driving". Checked against
-    /// <see cref="BladeElement.StoppedDragN"/> — a different route entirely, the blade's own area and its section's
-    /// post-stall polar — on the J-3, whose fixed blade IS fitted (15.33 deg at 0.75 R): the coefficient gives
-    /// IdleDragCd x 0.5 = 0.075 on disc area and the blade gives 0.073. Two independent routes to two per cent.
+    /// IT IS NOT A GUESS AND IT IS NOT AUTHORED: it is read off the blade, on the J-3, which is the one type that
+    /// has BOTH a fitted blade and this coefficient. <see cref="BladeElement.StoppedDragN"/> is a different route
+    /// entirely — the blade's own area and its section's post-stall polar — so the fraction that makes the two agree
+    /// is a derivation and not a fit. It was 0.5 for as long as the blade asked for 0.486.
     ///
-    /// WHAT IT IS NOT RIGHT FOR IS A COARSE BLADE, which is the whole reason the fitted types no longer use it. The
-    /// same blade solve puts the Pitts' stopped propeller, standing on the COARSE stop its oil loss drives it to, at
-    /// Cd 0.034 — the coefficient overstates it by 2.2x — the Great Lakes at 0.045 and the Extra at 0.056. A single
-    /// fraction of a single authored coefficient cannot know which stop a propeller stopped on, and that is exactly
-    /// what Ty asked for: "Make sure that stopped cs props for acrobatic airplanes are coarse pitch when calculating
-    /// stopped prop drag."
+    /// IT MOVED ON 2026-11-11, because the section underneath it did. BladeElement's post-stall branch used to decay
+    /// cl at 0.7 per RADIAN and take sin^2 of the angle PAST THE STALL rather than the plate's own angle to the flow,
+    /// which under-read the drag of a near-broadside blade by the stall angle — and a stopped propeller is a
+    /// near-broadside blade, at 49 to 79 degrees to the wind across its span. With Viterna and Corrigan in its place
+    /// the same derivation gives 0.712, and the J-3's stopped blade reads Cd 0.107 on disc area where it used to
+    /// read 0.073. Hoerner (Fluid-Dynamic Drag ch. 13) puts a locked two-blade propeller at "about 0.1 at flat
+    /// pitch": the old figure sat under that, the new one sits on it. The derivation decides, and the band agrees.
+    ///
+    /// WHAT IT IS STILL NOT RIGHT FOR IS A COARSE BLADE, which is the whole reason the fitted types no longer use
+    /// it. The same blade solve puts the Pitts' stopped propeller, standing on the COARSE stop its oil loss drives
+    /// it to, at Cd 0.067 against this coefficient's 0.107 — overstated 1.6x — the Great Lakes at 0.080 and the
+    /// Extra at 0.091. A single fraction of a single authored coefficient cannot know which stop a propeller stopped
+    /// on, and that is exactly what Ty asked for: "Make sure that stopped cs props for acrobatic airplanes are
+    /// coarse pitch when calculating stopped prop drag."
+    ///
+    /// The overstatement USED to be 2.2x on the Pitts and is now 1.6x, because the corrected section compresses the
+    /// spread between a fine and a coarse stopped blade (coarse/fine went 0.43 to 0.57 on the Pitts, 0.58 to 0.70 on
+    /// the Great Lakes, 0.40 to 0.53 on the Extra). That is the right direction: sin^2 saturates near broadside and
+    /// the old shifted argument did not, and a blade stopped at 31 degrees is still nearly broadside to the wind.
+    /// Hoerner's fall "down to a hundredth" is at FEATHER, near 85 degrees of blade angle, not at a coarse stop.
     /// </summary>
-    public const double StoppedDragFraction = 0.5;
+    public const double StoppedDragFraction = 0.712;
 
     public static (Vec3 Force, Vec3 Moment) Compute(
         PropulsionConfig prop, double throttle01, Vec3 bodyVelocity, Vec3 bodyRates, double airDensity, PropDrive drive, out Parts parts)
