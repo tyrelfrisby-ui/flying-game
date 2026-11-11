@@ -2,6 +2,7 @@ using FlyingGame.Core;
 using FlyingGame.Core.Aero;
 using FlyingGame.Core.DataContracts;
 using FlyingGame.Core.MathTypes;
+using FlyingGame.Core.Vr;
 using FlyingGame.Sim;
 using Xunit;
 using Xunit.Abstractions;
@@ -657,6 +658,203 @@ public sealed class StaggeredWingFailureTests : IDisposable
                          $"{InRise(p.BreakY) * 100:F1} cm, step across it {step * 1000:F3} mm, {inboard} inboard rows curved");
             Assert.True(step < 0.001, $"a {step * 100:F1} cm step at the station is the disjoint Ty reported");
         }
+    }
+
+    // ---- what a wing that has lost its outboard panels costs (Ty 2026-11-10) --------------------------------------
+
+    /// <summary>
+    /// Ty, having ripped the outboard panels off a J-3: "the glide ratio was inexplicably good it should be bad with
+    /// short stubby wing roots I assume it is counting the missing wing in the aero."
+    ///
+    /// He was right that the missing wing was being counted, and wrong about which part of it. The LIFT of a departed
+    /// strip really does go — the strip mask drops it from the sum, measured below. What was still being counted was
+    /// the wing's GEOMETRY:
+    ///
+    ///  • the trailing-vortex system's aspect ratio was measured once per config from the strips as AUTHORED, so the
+    ///    stub flew at the whole wing's A = 6.96 instead of its own 4.17 and paid two thirds of the induced drag it
+    ///    owed — and induced drag is most of the drag at best glide, which is where the glide ratio is read;
+    ///  • and the torn end — spar stubs, ribs and fabric square to the airflow — cost nothing at all.
+    ///
+    /// Measured: best L/D 7.50 whole (against the 8:1 the glide table carries), 6.29 with the panels gone before this,
+    /// 5.09 after. The ratio 5.09 / 7.50 = 0.68 is what the textbook says it should be: best L/D goes as √(A·e/Cd0),
+    /// so √(4.17 / 6.96) = 0.77 before the extra Cd0 of a stub that is all torn end.
+    /// </summary>
+    [Fact]
+    public void AWingThatHasLostItsOutboardPanelsGlidesLikeTheStubItIs()
+    {
+        Aircraft whole = At("j3-cub-like");
+        Aircraft stub = At("j3-cub-like");
+        stub.LoseComponent(AirframeComponent.WingTipLeft);
+        stub.LoseComponent(AirframeComponent.WingTipRight);
+
+        (double ldW, _) = BestGlide(whole);
+        (double ldS, double areaS) = BestGlide(stub);
+        double areaW = ActiveWingArea(whole);
+        _o.WriteLine($"J-3 best L/D: whole {ldW:F2} over {areaW:F2} m² of wing; outboard panels gone {ldS:F2} over {areaS:F2} m²");
+
+        Assert.InRange(ldW, 7.0, 8.5);                    // the intact Cub, against the 8:1 the glide table carries
+        Assert.True(ldS < 0.75 * ldW, $"a stub-winged Cub must glide far worse than a whole one; {ldS:F2} against {ldW:F2}");
+        Assert.True(ldS > 3.0, $"and it is still a wing, not a brick; {ldS:F2}");
+
+        // THE LIFT IS GONE: the departed rows are out of the aero sum entirely.
+        Assert.True(areaS < 0.7 * areaW, $"the departed panels' area must leave the sum; {areaS:F2} of {areaW:F2} m²");
+
+        // THE ASPECT RATIO FOLLOWED THE WING. This is the half he spotted.
+        double[] arW = AeroModel.MeasureSystemAspectRatios(whole.Config, whole.StripMask);
+        double[] arS = AeroModel.MeasureSystemAspectRatios(stub.Config, stub.StripMask);
+        int wing = whole.Config.Surfaces.ToList().FindIndex(sf => WingStructure.IsWingBase(sf.Id));
+        _o.WriteLine($"wing system aspect ratio: whole {arW[wing]:F2}, stub {arS[wing]:F2}");
+        Assert.True(arS[wing] < 0.75 * arW[wing], $"the stub's aspect ratio must fall with its span; {arS[wing]:F2} of {arW[wing]:F2}");
+        // And the aeroplane really hands it to the aero model, rather than it being true only in this test.
+        Assert.NotNull(stub.FlowStateForTests.SystemAspectRatio);
+        Assert.Equal(arS[wing], stub.FlowStateForTests.SystemAspectRatio![wing], 9);
+        Assert.Null(whole.FlowStateForTests.SystemAspectRatio);   // nothing lost: the config's own cache is right
+
+        // THE TORN END COSTS SOMETHING. It is charged to the outermost surviving row, so losing ONE panel also yaws.
+        Assert.NotNull(stub.FlowStateForTests.ExtraCd);
+        Assert.True(stub.FlowStateForTests.ExtraCd!.Sum() > 0.0, "a torn-off wing must leave a draggy end");
+    }
+
+    /// <summary>Best L/D over an alpha sweep, straight from the aero model with this aeroplane's own masks and flow
+    /// state, and the wing area still in the sum.</summary>
+    private (double Ld, double WingArea) BestGlide(Aircraft ac)
+    {
+        var tables = Aircraft.BuildAirfoilTables(ac.Config);
+        double best = 0;
+        for (double a = 0.0; a <= 16.0; a += 0.25)
+        {
+            double ca = Math.Cos(a * Deg), sa = Math.Sin(a * Deg);
+            (Vec3 f, _) = AeroModel.Compute(ac.Config, tables, new Vec3(30 * ca, 0, 30 * sa), Vec3.Zero, Vec3.Zero, 1.225,
+                ControlDeflections.Neutral, 0.0, ac.FlowStateForTests, 0, 0, ac.SurfaceMask, ac.StripMask, null, double.PositiveInfinity);
+            double drag = -(f.X * ca + f.Z * sa), lift = -(f.Z * ca - f.X * sa);
+            if (drag > 1e-6) best = Math.Max(best, lift / drag);
+        }
+        return (best, ActiveWingArea(ac));
+    }
+
+    private static double ActiveWingArea(Aircraft ac)
+    {
+        double area = 0; int idx = 0;
+        foreach (SurfaceConfig sf in ac.Config.Surfaces)
+            foreach (StripConfig st in sf.Strips)
+            {
+                if ((ac.StripMask is null || ac.StripMask[idx]) && sf.Id.Contains("wing", StringComparison.OrdinalIgnoreCase)) area += st.Area;
+                idx++;
+            }
+        return area;
+    }
+
+    // ---- the ladder works upside down too (Ty 2026-11-10) --------------------------------------------------------
+
+    /// <summary>
+    /// Ty: "Negative g to failure on the cub splits it in half down the fuselage instead of folding the wings."
+    ///
+    /// He was right, and the cause was a sign. <see cref="StructuralState.Ratio"/> NEGATES for a push so the load ratio
+    /// comes out positive; OneGRatio divided by the signed negative limit and did not, so one g came out NEGATIVE under
+    /// negative g — which put the rung at 2.0 − (−0.667) = 2.667 on a J-3, ABOVE the breaking point, where it could
+    /// never fire. A push therefore went straight to the break with no outboard shed and no fold at all, and because a
+    /// Cub's engine mount is rated at the same −1.5 g, the wings and the NOSE departed on the same step: the fuselage
+    /// splitting instead of the wings coming apart.
+    ///
+    /// Measured before: everything gone together at −3.07 g. After: the outboard panels at −2.32 g and the nose not
+    /// until −3.07, with the inner wings still on the aeroplane. Which is what the structure says should happen —
+    /// a strut-braced wing is weakest in negative g, because the lift struts go from tension into compression, and
+    /// that is why the Cub's limit is only −1.5 against +3.8.
+    ///
+    /// Every other test in this file pulls. That is why none of them caught it.
+    /// </summary>
+    [Fact]
+    public void APushToFailureShedsTheWingsBeforeAnythingElseGoes()
+    {
+        Aircraft ac = At("j3-cub-like");
+        double neg = ac.Config.Limits.PublishedLimits().Neg;
+        Assert.Equal(-1.5, neg, 6);
+        double oneG = ac.WingWeightRatio / Math.Abs(neg);
+
+        // One g is a POSITIVE fraction of the limit whichever way the load goes, so the rung sits BELOW the break.
+        _o.WriteLine($"J-3 at {neg:F2} g: one g is {oneG:F3} of the limit, rung {WingFailureLaw.StageRatio(oneG):F3}, break {OverstressMember.BreakRatio:F2}");
+        Assert.True(WingFailureLaw.StageRatio(oneG) < OverstressMember.BreakRatio,
+            $"the rung must come before the break; rung {WingFailureLaw.StageRatio(oneG):F3}");
+
+        // Flown as a push to failure, watched for the ORDER things come apart in.
+        var order = new List<string>();
+        int steps = 1200;
+        for (int i = 0; i < steps; i++)
+        {
+            double n = 1.0 + (-3.2 - 1.0) * (i + 1.0) / steps;
+            ac.HoldLoadFactor(n, n, Dt);
+            string now = $"{ac.Structure.LeftWing.Stage}|{ac.IsLost(AirframeComponent.Nose)}";
+            if (order.Count == 0 || order[^1] != now)
+            {
+                order.Add(now);
+                _o.WriteLine($"  at {n:F2} g: left wing {ac.Structure.LeftWing.Stage}, nose lost {ac.IsLost(AirframeComponent.Nose)}");
+            }
+        }
+        // The WINGS come apart first, and the aeroplane is not split in half to do it.
+        Assert.Equal(WingSideStage.OutboardGone, ac.Structure.LeftWing.Stage);
+        Assert.Equal(WingSideStage.OutboardGone, ac.Structure.RightWing.Stage);
+        Assert.Contains(AirframeComponent.WingTipLeft, ac.LostComponents);
+        Assert.Contains(AirframeComponent.WingTipRight, ac.LostComponents);
+        // "Intact|False" then "OutboardGone|False" then the nose: the tips go while the fuselage is still whole.
+        Assert.Equal("Intact|False", order[0]);
+        Assert.Equal("OutboardGone|False", order[1]);
+        // And the set a push leaves is tips DOWN, which is the other half of the pattern being upside down. Booked on
+        // the way out of the overstress, as every set is, so the load has to come off first.
+        Ramp(ac, 1.0, sec: 1.0, holdSec: 0.5);
+        _o.WriteLine($"  after the recovery: set {ac.Structure.LeftWing.Member.SetRad / Deg:F2}° (negative = tips DOWN)");
+        Assert.True(ac.Structure.LeftWing.Member.SetRad < 0, "a push must bend the wings DOWN");
+        Assert.All(ac.Panels.Where(p => p.State != PanelState.Broken), p => Assert.True(p.OverstressSetRad < 0));
+    }
+
+    /// <summary>
+    /// A FOLDED WING ACROSS THE DOOR TRAPS THE PILOT (Ty 2026-11-10: "Negative g wing folds prevent escape/bailout
+    /// unless the wing actually departs if a door is blocked").
+    ///
+    /// The clearance boxes the tail strike already uses are built from the strips as AUTHORED, so they could never say
+    /// where a folded wing is. Built with the PANELS instead, every wing row sits where its shape puts it — and a wing
+    /// folded down about its root on a high-wing aeroplane lies across the side door. The climb then caps at
+    /// <see cref="ClimbOut.WingBlockedRiseM"/>: he gets out of the seat and no further, and only the wing DEPARTING
+    /// clears it, because a folded wing is still attached and nothing he can do will move it.
+    /// </summary>
+    [Fact]
+    public void AWingFoldedAcrossTheDoorTrapsThePilotUntilItDeparts()
+    {
+        Aircraft ac = At("j3-cub-like");
+        WingPanel p = ac.Panels.First(q => q.Side > 0);
+        // The doorway: out at the cabin side at the CG's own height — the same point the bridge asks about. Measured,
+        // the J-3's wing sits 0.75 m ABOVE the CG, so a straight wing leaves that doorway clear and a wing folded down
+        // about its root is squarely across it.
+        Vec3 cg = ac.Config.Mass.CgVec();
+        var door = new Vec3(cg.X, 0.42, cg.Z);
+
+        Assert.Null(EgressClearance.From(ac.Config, ac.Panels).Hit(door));   // wings straight: the door is clear
+        Assert.Null(EgressClearance.From(ac.Config).Hit(door));              // and the old boxes agree
+
+        // Fold the wing DOWN about its root, which is what a push does to it.
+        foreach (WingPanel q in ac.Panels) q.FoldRad = -70 * Deg;
+        string blocked = EgressClearance.From(ac.Config, ac.Panels).Hit(door);
+        _o.WriteLine($"wing folded {-70.0:F0}°: the door is blocked by '{blocked ?? "nothing"}'");
+        Assert.NotNull(blocked);
+        Assert.Contains("wing", blocked, StringComparison.OrdinalIgnoreCase);
+
+        // THE CLIMB: he gets out of the seat and no further, and it reports itself blocked.
+        // The climb is driven by the hand on the sill being pushed DOWN (cockpit frame, y up): the body rises by what
+        // the hand pushes, 1:1. So a grab at y 0 and a hand at y −0.6 is a commanded rise of 0.6 m.
+        var climb = new ClimbOut();
+        climb.Grab(Vec3.Zero, ExitSide.Right);
+        ClimbEvents ev = climb.Step(new Vec3(0, -0.6, 0), strapped: false, canopyClear: true, q: 500.0, exitClear: false);
+        _o.WriteLine($"  blocked climb: rise {climb.RiseM * 100:F1} cm, events {ev}");
+        Assert.True((ev & ClimbEvents.Blocked) != 0, "a wing across the door must report the climb blocked");
+        Assert.Equal(ClimbOut.WingBlockedRiseM, climb.RiseM, 6);
+        Assert.False(climb.Out);
+
+        // THE WING DEPARTS and the way is clear: the same pull now takes him over the side.
+        foreach (WingPanel q in ac.Panels) q.FoldRad = 0.0;
+        var free = new ClimbOut();
+        free.Grab(Vec3.Zero, ExitSide.Right);
+        free.Step(new Vec3(0, -0.6, 0), strapped: false, canopyClear: true, q: 0.0, exitClear: true);
+        _o.WriteLine($"  cleared climb: rise {free.RiseM * 100:F1} cm");
+        Assert.True(free.RiseM > ClimbOut.OverRiseM - 1e-9, $"with the wing gone he must get over the side; {free.RiseM:F3} m");
     }
 
     // ---- the law itself, as arithmetic -------------------------------------------------------------------------------

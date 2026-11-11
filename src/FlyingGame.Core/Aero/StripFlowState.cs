@@ -53,6 +53,11 @@ public sealed class StripFlowState
     /// fabric has been torn by branches (BranchStrike) keeps LiftFactor of its lift and adds ExtraCd of profile drag.</summary>
     public double[]? IncidenceDeltaRad;
     public double[]? LiftFactor;
+    /// <summary>Each surface's trailing-vortex system aspect ratio (Config.Surfaces order), measured over the strips
+    /// this aeroplane STILL HAS (<see cref="AeroModel.MeasureSystemAspectRatios"/>). Null on an undamaged aeroplane,
+    /// where the config's own cache is right. A wing that has lost its outboard panels is a shorter, stubbier wing and
+    /// pays the induced drag of one (Ty 2026-11-10).</summary>
+    public double[]? SystemAspectRatio;
     public double[]? ExtraCd;
 
     // Downwash transport lag (proposal 1): eps lagged by tail-arm/V (the Cm-alphadot term).
