@@ -40,6 +40,97 @@ public static class ExhaustPulse
     public static double PuffHz(int cylinders, double rpm, int strokesPerPuff)
         => PulseHz(cylinders, rpm) / System.Math.Max(1, strokesPerPuff);
 
+    /// <summary>HOW MANY CYLINDERS FEED ONE PIPE when a type's stacks split the engine: a flat six whose banks alternate,
+    /// with one pipe per bank, puts three into each. A pipe's own event train is <see cref="EventsPerRev"/> of THAT many
+    /// cylinders — 1.5 a revolution, not 3 — which is the rate Ty's "one puff per pipe every other combustion stroke"
+    /// asks for, and the rate its smoke feathers at.</summary>
+    public static int CylindersPerPipe(int cylinders, int strokesPerPuff)
+        => System.Math.Max(1, System.Math.Max(1, cylinders) / System.Math.Max(1, strokesPerPuff));
+
+    // ---- THE SMOKE'S DENSITY THROUGH THE CYCLE -----------------------------------------------------------------
+    // Ty, 2026-11-11, having looked at the first cut: "The smoke oil is sprayed continuously but the exhaust pulses are
+    // cyclical. The exhaust temp is rather co stent [constant] so rather than creating pulses with no smoke at all
+    // feather the smoke in and out but never zero."
+    //
+    // His physics, and it is right. The oil is PUMPED in at a steady rate and the stack is hot and stays hot, so it
+    // vaporises continuously — there is smoke in the pipe at every crank angle. What pulses is the CARRIER: the exhaust
+    // mass flow surging with each firing sweeps the vaporised oil out in surges. So the density varies cyclically about
+    // a FLOOR well above zero, and the floor is the hot stack's own standing contribution.
+    //
+    // The cyclical term is not a new oscillator: it is <see cref="Velocity"/>, the carrier's instantaneous-over-mean,
+    // read off the same crank phase the tubes are already laid down on. Density = 1 − d + d·(u/ū), whose mean over a
+    // cycle is EXACTLY 1 for any depth because the carrier's is — so the knob moves the TROUGH and never the mean.
+
+    /// <summary>THE FEATHER'S DEPTH, 0 … 1 — the knob (Developer page, "Smoke"). 0 is a flat continuous column; 1 puts
+    /// the trough exactly on <see cref="MinDensity"/>, the deepest feather the hot stack's floor allows. It never gates:
+    /// at every depth and every phase the density is ≥ <see cref="MinDensity"/>.
+    /// Default 1 — the carrier's own full modulation, limited only by the floor. Defensible rather than pretty: the
+    /// surge is the engine's own, measured here, and nothing in it was chosen to look nice.</summary>
+    public static double FeatherDepth = 1.0;
+
+    /// <summary>THE FLOOR the feather never goes below, as a share of the mean. 0.28 is measured off this same model
+    /// rather than picked: it is <see cref="TroughRatio"/> for a SIX into one collector — all the cylinders into one
+    /// pipe, events 120° apart inside a 250° window, so the flow never actually stops between firings and only surges.
+    /// A split pipe's own three cylinders are 240° apart and its carrier very nearly DOES stop, and the gap between
+    /// those two numbers is exactly the hot stack Ty is describing: the oil goes on vaporising while the pipe is quiet.
+    /// 0 would be the gate he rejected.</summary>
+    public static double MinDensity = 0.28;
+
+    /// <summary>The smoke's density at crank position <paramref name="crankRev"/> for a pipe fed by
+    /// <paramref name="cylindersPerPipe"/> cylinders, as a share of its own mean. Mean 1 over a cycle, never below
+    /// <see cref="MinDensity"/>, and it is a FACTOR — the oil flow is multiplied by it, so no smoke in, no smoke out.</summary>
+    public static double SmokeDensity(double crankRev, int cylindersPerPipe)
+        => SmokeDensity(crankRev, cylindersPerPipe, FeatherDepth, MinDensity);
+
+    /// <summary>The same, with the depth and floor given rather than read off the knobs.</summary>
+    public static double SmokeDensity(double crankRev, int cylindersPerPipe, double depth, double minDensity)
+    {
+        double floor = System.Math.Clamp(minDensity, 0.0, 1.0);
+        double trough = TroughRatio(cylindersPerPipe);
+        // The depth that would put the trough exactly on the floor; the knob is the fraction of it taken. Written this
+        // way the trough is 1 − knob·(1 − floor) — linear in the knob and never under the floor — while the mean stays
+        // 1, because the carrier's mean is 1 whatever the depth.
+        double d = System.Math.Clamp(depth, 0.0, 1.0) * (1 - floor) / System.Math.Max(1e-9, 1 - trough);
+        double m = 1 - d + d * Velocity(crankRev, 1.0, cylindersPerPipe);
+        // The floor is a PROMISE, not an aim: TroughRatio is sampled, so a phase between its samples can read a hair
+        // under it, and "never zero" has to hold at every phase and not at four thousand of them.
+        return m < floor ? floor : m;
+    }
+
+    /// <summary>The trough the density reaches at depth <paramref name="depth"/>: 1 − depth·(1 − floor), and so exactly
+    /// <see cref="MinDensity"/> at depth 1. Independent of the cylinder count, which is the point of the scaling.</summary>
+    public static double FeatherTrough(double depth, double minDensity)
+        => 1 - System.Math.Clamp(depth, 0.0, 1.0) * (1 - System.Math.Clamp(minDensity, 0.0, 1.0));
+
+    private static readonly double[] _trough = new double[16], _peak = new double[16];
+
+    /// <summary>The carrier's own minimum over a cycle, as a share of its mean: how far the exhaust flow at one pipe
+    /// falls between that pipe's firings. Measured off <see cref="Velocity"/> and cached per cylinder count — 0.281 for
+    /// a six into one collector (120° apart, 250° window, so they overlap), 0.007 for a four (180° apart, barely
+    /// meeting), smaller still for three into one stack.</summary>
+    public static double TroughRatio(int cylinders) { Ratios(cylinders, out double t, out _); return t; }
+    /// <summary>The carrier's own maximum over a cycle, as a share of its mean. 1.607 for a six.</summary>
+    public static double PeakRatio(int cylinders) { Ratios(cylinders, out _, out double p); return p; }
+
+    private static void Ratios(int cylinders, out double trough, out double peak)
+    {
+        int c = System.Math.Clamp(cylinders, 1, 15);
+        if (_trough[c] <= 0)
+        {
+            double s = 1.0 / EventsPerRev(c), lo = double.MaxValue, hi = 0;
+            // One event's spacing is the train's whole period; sampled finely enough to find its neck. Started well
+            // clear of crank 0, where Velocity's backward sum has not yet got a full window of earlier events behind it.
+            for (int i = 0; i < 4001; i++)
+            {
+                double u = Velocity(20 * s + s * i / 4000.0, 1.0, c);
+                if (u < lo) lo = u;
+                if (u > hi) hi = u;
+            }
+            _trough[c] = System.Math.Max(1e-9, lo); _peak[c] = hi;
+        }
+        trough = _trough[c]; peak = _peak[c];
+    }
+
     /// <summary>One event's bell, normalised to unit area over x ∈ [0, 1]; 0 outside the window.</summary>
     public static double Shape(double x) => x <= 0 || x >= 1 ? 0 : x * x * System.Math.Pow(1 - x, ShapeB) / BetaNorm;
 

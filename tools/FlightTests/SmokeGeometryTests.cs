@@ -220,7 +220,9 @@ public class SmokeGeometryTests
         Assert.Equal(67.5, ExhaustPulse.PuffHz(cyl, pr.MaxRpm, pipes.CombustionStrokesPerPuff), 9);
 
         // Nothing invented and nothing lost: the bank together is the engine's own stroke rate, because there are as many
-        // pipes as there are strokes between one pipe's puffs - the two fire alternately.
+        // pipes as there are strokes between one pipe's puffs. Since 2026-11-11 that is the rate each pipe's smoke
+        // FEATHERS at rather than a train with holes in it (SmokeFeatherTests) - Ty: "feather the smoke in and out but
+        // never zero" - but the rate itself is unchanged, and it is still the engine's.
         Assert.Equal(pipes.Count, pipes.CombustionStrokesPerPuff);
         Assert.Equal(ExhaustPulse.PulseHz(cyl, pr.MaxRpm),
                      pipes.Count * ExhaustPulse.PuffHz(cyl, pr.MaxRpm, pipes.CombustionStrokesPerPuff), 9);

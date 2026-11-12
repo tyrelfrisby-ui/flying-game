@@ -937,7 +937,14 @@ public sealed class SmokeConfig
 /// other one" is 1.5 puffs a revolution per pipe - about 67 Hz at 2,700 rpm, far too fast to resolve. What it buys is
 /// that the column PULSES at idle, and when the engine is rough or dying, because the puffs are keyed to the crank
 /// (<see cref="Aero.ExhaustPulse"/>) rather than to a timer: they slow with the engine and stop when it stops. With two
-/// pipes and every other stroke the pair fire ALTERNATELY, which is also what a flat six does - one bank per pipe.
+/// pipes and every other stroke the pair feather in ANTIPHASE, which is also what a flat six does - one bank per pipe.
+///
+/// IT IS A FEATHER AND NOT A GATE (Ty 2026-11-11, having looked at the first cut): "The smoke oil is sprayed
+/// continuously but the exhaust pulses are cyclical. The exhaust temp is rather co stent [constant] so rather than
+/// creating pulses with no smoke at all feather the smoke in and out but never zero." The oil goes in steadily and the
+/// stack stays hot, so every pipe smokes at every crank angle; what pulses is the carrier that sweeps it out. So this
+/// cadence sets the FREQUENCY of an amplitude modulation about a floor, not which strokes get a puff - see
+/// <see cref="Aero.ExhaustPulse.SmokeDensity"/>, and the depth and floor are knobs on the Developer page.
 /// </summary>
 public sealed class SmokePipesConfig
 {
