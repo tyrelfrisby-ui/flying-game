@@ -83,24 +83,84 @@ public static class ExhaustJet
         return new Element { W = dir * u0, M = rhoE * System.Math.PI * b * b * h, H = h, B = b };
     }
 
+    /// <summary>The most of its own mass an element may entrain in ONE integration substep. The entrainment law is
+    /// stiff where the jet is young — ΔM goes as b·h·|w| while M goes as b²h, so a narrow fast jet swallows SEVERAL
+    /// TIMES its own mass in one 4 ms step — and explicit Euler cannot be asked to do that. 2 % keeps the substep in
+    /// the regime where Euler is Euler; see <see cref="Step"/>.</summary>
+    public const double MaxEntrainPerStep = 0.02;
+    /// <summary>A ceiling on the substeps one <see cref="Step"/> may take, so a pathological state cannot hang a frame.
+    /// 4,096 covers the worst the fleet asks for (the Pitts' first step off a 1.5 in stack at 251 m/s wants ~950).</summary>
+    public const int MaxSubsteps = 4096;
+
     /// <summary>One step: entrain from the air (moving at <paramref name="air"/> past the element, relative to the
     /// source), keep the momentum. <paramref name="omega"/>: the frame's rotation (a world-fixed excess turns in body axes).
     ///
-    /// IT IS EXPLICIT EULER AND IT IS STEP-SENSITIVE NEAR THE PIPE, which matters more since 2026-11-11 put the real
-    /// (smaller) stacks in: ΔM goes as b·h·|w| while M goes as b²h, so a narrow fast jet entrains several times its own
-    /// mass in one 4 ms step. At <c>dt</c> 0.004 — what <c>SmokeTrail.FlowDt</c> and <see cref="AirframeFlow.Deflection"/>
-    /// use — the first step takes 66 % of the excess off a 4 in stack at 71 m/s and 95 % off two 1.5 in stacks at 251.
-    /// The free jet's TRAVEL survives it (11.49 m against 11.68 converged, and 13.04 against 13.68), because the travel
-    /// is all in the long 1/x tail. The marker's NET PUSH does not: Deflection at cruise gives 0.54 m at dt 0.004 against
-    /// 0.39 converged on the old bore (+38 %, and it has been that way as long as the model has existed) and 1.35 m
-    /// against 0.62 on the Pitts' new one (+118 %). So the drawn plume is pushed about twice as far as this model
-    /// actually says, and the real change from the new bore is 0.39 → 0.62 m, not 0.54 → 1.35.
-    /// NOT FIXED HERE ON PURPOSE: the cure is substepping (or a smaller FlowDt), it is a numerical-accuracy change rather
-    /// than anything Ty approved, and it would move the smoke on all nine piston types at once — a fleet sweep that wants
-    /// its own lane and its own before/after plates. SmokeStackJetProbe prints the table.</summary>
-    public static void Step(ref Element e, Vec3 air, double airDensity, double dt, Vec3 omega)
+    /// IT SUBSTEPS, because the law is stiff where the jet is young and explicit Euler on a 4 ms step was not solving it
+    /// (2026-11-11). ΔM/M for the whole step says how many substeps it takes — enough that none of them entrains more
+    /// than <see cref="MaxEntrainPerStep"/> — and <paramref name="substeps"/> can pin that count instead (1 = the old
+    /// single Euler step, which is how the before/after plates are measured).
+    ///
+    /// WHAT IT WAS DOING. At <c>dt</c> 0.004 — <c>SmokeTrail.FlowDt</c> and <see cref="AirframeFlow.Deflection"/>'s
+    /// default — the first step took 66 % of the excess off a 4 in stack at 71 m/s and 95 % off two 1.5 in stacks at 251,
+    /// and one such step at 251 m/s is a metre of travel. The free jet's TRAVEL survived it, because the travel is all in
+    /// the long 1/x tail; the marker's NET PUSH, which is what gets drawn, did not. Deflection at cruise gave 0.54 m
+    /// against 0.39 converged on the old bore (+38 %, and it had been so for as long as the model existed) and 1.35 m
+    /// against 0.62 on the Pitts' new one (+118 %).
+    ///
+    /// THIS IS A CONVERGENCE FIX AND NOT A RETUNE. Not one coefficient moved: α, the continuity law h ∝ |w|,
+    /// b = √(M/ρπh), the max() of the shear and forced branches and the momentum M·w are all exactly as they were. The
+    /// answer it now gives IS the answer this model always had — it is the dt → 0 limit, reached at the dt the game
+    /// actually marches. The cost falls on the jet's own arithmetic only: the expensive part of a Deflection step is the
+    /// airframe-flow velocity evaluation, which is per OUTER step and is untouched.
+    /// (A smaller <c>FlowDt</c> would have worked too and was the other candidate. It is the wrong lever here: FlowDt is
+    /// also the cache-index granularity in <c>SmokeTrail.Pushed</c> — a puff's push is looked up as age/FlowDt into a
+    /// stored path — so shrinking it multiplies both the stored path length and every outer flow evaluation, to fix a
+    /// stiffness that lives entirely inside this one function.)</summary>
+    public static void Step(ref Element e, Vec3 air, double airDensity, double dt, Vec3 omega, int substeps = 0)
+        => Step(ref e, air, airDensity, dt, omega, substeps, out _);
+
+    /// <summary>The same step, also handing back HOW FAR THE EXCESS CARRIED THE GAS over it — ∫w dt across the substeps,
+    /// not w·dt at the speed it started with.
+    ///
+    /// This is the other half of the 2026-11-11 convergence fix and the half that actually mattered. A marker's position
+    /// was advanced by the excess it had at the START of the step, held for the whole 4 ms: at 251 m/s that credits it a
+    /// metre of travel at full speed over a step in which the real jet has already given most of its excess away. Making
+    /// the jet's own decay converge on its own made that WORSE, not better (+6 %), because a correctly-decaying jet is
+    /// faster at the start of each step than an over-damped one — the position integrator was the dominant error all
+    /// along. <see cref="AirframeFlow.Deflection"/> now adds this displacement instead.</summary>
+    public static void Step(ref Element e, Vec3 air, double airDensity, double dt, Vec3 omega, int substeps, out Vec3 carried)
     {
-        double wl = e.W.Length; if (wl < 1e-6) return;
+        carried = Vec3.Zero;
+        if (e.W.Length < 1e-6 || dt <= 0) return;
+        int n = substeps > 0 ? System.Math.Min(substeps, MaxSubsteps) : Substeps(e, air, airDensity, dt);
+        double h = dt / n;
+        for (int i = 0; i < n; i++)
+        {
+            carried += e.W * h;
+            if (!EulerStep(ref e, air, airDensity, h, omega)) return;
+        }
+    }
+
+    /// <summary>How many substeps <see cref="Step"/> needs here: enough that no substep entrains more than
+    /// <see cref="MaxEntrainPerStep"/> of the element's mass. ΔM/M falls as the element grows and slows, so the count
+    /// taken from the state at the START of the step is the conservative one for the whole step.</summary>
+    public static int Substeps(in Element e, Vec3 air, double airDensity, double dt)
+    {
+        double wl = e.W.Length;
+        if (wl < 1e-6 || e.M <= 0 || dt <= 0) return 1;
+        Vec3 axis = e.W / wl;
+        Vec3 cross = air - Vec3.Dot(air, axis) * axis;
+        // max(ΔM_shear, ΔM_forced) = ρ · 2 b h · dt · max(π α |w|, |U⊥|)
+        double dm = airDensity * 2 * e.B * e.H * dt * System.Math.Max(System.Math.PI * ShearAlpha * wl, cross.Length);
+        double want = System.Math.Ceiling(dm / (e.M * MaxEntrainPerStep));
+        return want <= 1 ? 1 : want >= MaxSubsteps ? MaxSubsteps : (int)want;
+    }
+
+    /// <summary>One explicit Euler substep of the entrainment law, exactly as it has always been written. False when the
+    /// element has no excess left to carry.</summary>
+    private static bool EulerStep(ref Element e, Vec3 air, double airDensity, double dt, Vec3 omega)
+    {
+        double wl = e.W.Length; if (wl < 1e-6) return false;
         Vec3 axis = e.W / wl;
         Vec3 cross = air - Vec3.Dot(air, axis) * axis;
         double dms = airDensity * 2 * System.Math.PI * e.B * e.H * ShearAlpha * wl * dt;
@@ -111,5 +171,6 @@ public static class ExhaustJet
         double hNew = e.H * System.Math.Max(0.05, w.Length / wl);
         e.M += dm; e.W = w; e.H = hNew;
         e.B = System.Math.Sqrt(e.M / (airDensity * System.Math.PI * System.Math.Max(1e-6, hNew)));
+        return true;
     }
 }

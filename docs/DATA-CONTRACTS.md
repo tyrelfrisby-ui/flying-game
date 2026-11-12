@@ -135,9 +135,12 @@ potential core). The bore is an input to them, not one of them. What moves is th
 
 All subsonic: the speed of sound in 900 K exhaust is 601 m/s, not the ambient 343.
 `SmokeStackJetProbe` prints the whole before/after table, including how far the plume
-actually punches out — and the caveat that `ExhaustJet.Step`'s 4 ms march is not converged
-at these speeds, so the drawn push is about twice what the model says. See the note on
-`ExhaustJet.Step`.
+actually punches out. The 4 ms march it is drawn at is now CONVERGED: `ExhaustJet.Step`
+substeps the stiff entrainment law and `AirframeFlow.Deflection` advances a marker by the
+displacement the step integrated rather than by the excess it started with, so the drawn
+push no longer depends on the step (0.004, 0.001 and 0.00025 s all agree). Before that fix
+it read about twice the model's own answer. `JetStepConvergenceProbe` has the fleet
+before/after and the cost.
 
 ## ChallengeDefinition
 New challenges = new JSON, not new C#.

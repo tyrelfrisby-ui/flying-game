@@ -563,8 +563,10 @@ public sealed class AirframeFlow
     /// is spent and the marker is a body length clear. In a separated wake the marker also random-walks with the eddy
     /// diffusivity (√(2D·dt) a step) — a turbulent eddy's share of the smoke; <paramref name="seed"/> picks which (the same
     /// puff, the same path, every redraw).</summary>
+    /// <param name="jetSubsteps">Passed to <see cref="ExhaustJet.Step"/>: 0 lets it choose (what the game uses), 1 pins
+    /// the single Euler step the march used before 2026-11-11, for the before/after plates.</param>
     public List<Vec3> Deflection(Vec3 r0, Vec3 V, Vec3 omega, Vec3 jetDir, double jetU0, double pipeD, double airDensity,
-                                 double dt = 0.004, double maxT = 4.0, uint seed = 1)
+                                 double dt = 0.004, double maxT = 4.0, uint seed = 1, int jetSubsteps = 0)
     {
         var outp = new List<Vec3> { Vec3.Zero };
         Vec3 r = r0, rFree = r0;
@@ -585,10 +587,14 @@ public sealed class AirframeFlow
             // (midpoint steps: the rotating frame turns the free path through a circle)
             Vec3 Onset(Vec3 q) => -1.0 * (V + Vec3.Cross(omega, q));
             Vec3 u1 = Velocity(r, Onset(r), out double D);
-            Vec3 w = jetOn ? jet.W : Vec3.Zero;
-            Vec3 rm = r + (u1 + w) * (0.5 * dt);
-            Vec3 rn = r + (Velocity(rm, Onset(rm)) + w) * dt;
-            if (jetOn) { ExhaustJet.Step(ref jet, u1, airDensity, dt, omega); if (jet.Spent) jetOn = false; }
+            // THE JET'S OWN DISPLACEMENT over this step, integrated (ExhaustJet.Step's `carried`), rather than its excess
+            // at the start of the step held for the whole of it. At 251 m/s the latter credited a marker a metre of travel
+            // at full speed across 4 ms in which the real jet has already given most of its excess away - the dominant
+            // error in the drawn push (2026-11-11).
+            Vec3 jetMove = Vec3.Zero;
+            if (jetOn) { ExhaustJet.Step(ref jet, u1, airDensity, dt, omega, jetSubsteps, out jetMove); if (jet.Spent) jetOn = false; }
+            Vec3 rm = r + u1 * (0.5 * dt) + jetMove * 0.5;
+            Vec3 rn = r + Velocity(rm, Onset(rm)) * dt + jetMove;
             if (D > 0) { double sd = System.Math.Sqrt(2 * D * dt); rn += new Vec3(Gauss() * sd, Gauss() * sd, Gauss() * sd); }
             r = KeepOut(r, rn);
             Vec3 fm = rFree + Onset(rFree) * (0.5 * dt);
