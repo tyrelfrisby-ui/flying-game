@@ -579,16 +579,39 @@ public static class AirframeContact
     }
 
     /// <summary>
-    /// What one propeller weighs, kg: the config's figure when it has one, else an estimate from the disc and what
-    /// the blades are made of. A propeller's weight scales with its swept area for a given construction, and the
-    /// anchor is the Hartzell HC-C2YR on the Pitts — 82 in of aluminium, about 25 kg complete — which gives
-    /// 5.8 kg per square metre of diameter squared. Wood and composite blades run near half that.
+    /// WHAT ONE PROPELLER WEIGHS, kg — THE ONE SOURCE OF TRUTH for it, and three things used to disagree about it.
+    /// In order:
+    ///
+    ///  1. the config's own <see cref="PropulsionConfig.PropMassKg"/>, when a published figure has been authored;
+    ///  2. else, for a TWO-BLADE propeller, TY'S OWN BLADE RULE INVERTED out of the authored propInertia —
+    ///     <see cref="FlyingGame.Core.Engine.EngineOverspeed.BladeMassKg"/> returns one blade at 15 % of the net
+    ///     weight, so the net weight is that over the fraction. This is his method, not an estimate of it, and it
+    ///     reproduces the one propeller whose build-up is written down to the digit: the Pitts' note gives 36.3 kg
+    ///     for a 1.98 m two-blade at propInertia 3.06, and this returns 38.0 — 4.7 % high, and high only because
+    ///     the crankshaft's own 0.14 kg·m² is inside the authored number and cannot be separated out;
+    ///  3. else an estimate from the disc and what the blades are made of, because the blade rule is validated on
+    ///     TWO-BLADE types only (it runs 60 % high on Hartzell's published three-blade polar moment, so inverting it
+    ///     on a three-blade type would come out low by about the same). A propeller's weight scales with its swept
+    ///     area for a given construction, and the anchor is the Hartzell HC-C2YR on the Pitts — 82 in of aluminium,
+    ///     about 25 kg complete — which gives 5.8 kg per square metre of diameter squared. Wood and composite
+    ///     blades run near half that.
+    ///
+    /// WHY THIS MATTERS AND WHAT IT CHANGED (2026-11-11). The Pitts had three different propellers in the model at
+    /// once: 36.3 kg by Ty's rule (and in his own derivation note, 80 lb), 22.7 kg by step 3 here, and 9.4 kg in the
+    /// wreck model, which backed the mass out of the slender-blade I = m·R²/3. That last one assumes the weight is
+    /// spread evenly along the blade, and these propellers are deliberately not built that way — Ty's rule puts most
+    /// of it in a hub that contributes almost nothing to the polar moment — so it came out about FOUR TIMES light on
+    /// every two-blade type in the fleet. AirframeHydroModel now asks this method instead, which is why a nose piece
+    /// got heavier and the Raymer structure scale that lands the model on the empty mass got a little smaller.
     /// </summary>
     public static double PropMassKg(AircraftConfig c)
     {
         PropulsionConfig? p = c.Propulsion;
         if (p is null || p.PropDiameterM <= 0) return 0.0;
         if (p.PropMassKg > 0) return p.PropMassKg;
+        if (p.PropInertia > 0 && p.PropBladeCount <= 2)
+            return FlyingGame.Core.Engine.EngineOverspeed.BladeMassKg(p.PropInertia, p.PropDiameterM, p.PropBladeCount)
+                   / FlyingGame.Core.Engine.EngineOverspeed.BladeMassFraction;
         double perD2 = string.Equals(p.PropMaterial, "metal", System.StringComparison.OrdinalIgnoreCase) ? 5.8 : 3.0;
         double blades = System.Math.Clamp(p.PropBladeCount, 2, 6);
         return perD2 * p.PropDiameterM * p.PropDiameterM * (0.75 + 0.125 * blades);

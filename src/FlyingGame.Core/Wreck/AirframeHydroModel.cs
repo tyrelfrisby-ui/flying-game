@@ -293,9 +293,14 @@ public sealed class AirframeHydroModel
         {
             nEng = System.Math.Max(1, c.Engines.Count);
             engDry = WaterPhysics.PistonEngineDryKg(p.MaxPowerW);
-            // Slender-blade propeller about its hub: I = m·R²/3, so m = 3·I/R² (hub and spinner not included).
-            double r = p.PropDiameterM * 0.5;
-            propKg = p.PropInertia > 0 ? 3 * p.PropInertia / (r * r) : 0;
+            // ONE PROPELLER WEIGHT FOR THE WHOLE MODEL: AirframeContact.PropMassKg, which prefers the config's own
+            // published figure and otherwise inverts Ty's blade rule out of the authored propInertia.
+            // This used the slender-blade inversion m = 3·I/R² until 2026-11-11, and that assumes the weight is
+            // spread evenly along the blade. Ty's rule deliberately concentrates most of it in a hub that
+            // contributes almost nothing to the polar moment, so the slender-blade figure came out about four times
+            // light on every two-blade type in the fleet — 9.4 kg for the Pitts' 36.3 kg propeller, 1.7 kg for a
+            // wooden Cub blade pair that ought to be near 7 — and the engine element it feeds was that much short.
+            propKg = AirframeContact.PropMassKg(c);
         }
         double fusRaw(double wet) => WaterPhysics.RaymerFuselageKgPerM2 * wet;
         double lNose = noseX - noseCut, lCab = noseCut - tailCut, lTail = tailCut - tailX;
