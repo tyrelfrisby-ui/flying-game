@@ -51,7 +51,7 @@ public class FinPoolTests
     {
         AircraftConfig c = Load(id);
         Assert.True(c.Limits.FinLimitLoadN > 0.0, $"{id}: FinLoadProbe's measurement has not been authored");
-        Assert.True(c.Limits.FinOrdinaryLoadN > 0.0, $"{id}: the fatigue endpoint has not been authored");
+        Assert.True(c.Limits.FinOrdinaryLoadN > 0.0, $"{id}: the full-deflection load at Va, which the fatigue endpoint is 0.5625 of, has not been authored");
         // The reversal is always worse than the single deflection, so the limit must exceed the ordinary load by
         // more than Ty's 15 % alone. If this inverts, the two numbers have been swapped.
         Assert.True(c.Limits.FinLimitLoadN > c.Limits.FinOrdinaryLoadN * 1.15,
@@ -151,44 +151,99 @@ public class FinPoolTests
     }
 
     /// <summary>
-    /// THE FIN'S FATIGUE ENDPOINT, which is the COORDINATOR'S reading and not Ty's, so this test is also the place
-    /// it can be overturned in one line. The wing's endpoint is the load it carries in level flight, so a fully
-    /// fatigued wing fails doing nothing; a fin carries almost nothing in balanced flight, so the analogue is the
-    /// next ORDINARY use of the thing — one full rudder deflection at Va. A fully fatigued fin must survive being
-    /// flown straight and fail the moment the pilot uses his feet.
+    /// THE FIN'S FATIGUE ENDPOINT, AND IT IS TY'S — 2026-11-11, verbatim: the fin "fails at the equivalent of full
+    /// rudder at 75% va speed." The wing's endpoint is the load it carries in level flight, so a fully fatigued wing
+    /// fails doing nothing; a fin carries almost nothing in balanced flight, so Ty answered with a rudder input
+    /// instead of a load factor, and with a gentler one than the pilot's ordinary bootful: the same full deflection
+    /// 25 % slower, which is 0.5625 of the Va load.
+    ///
+    /// THIS LITERAL MOVED ON 2026-11-11. For one day the endpoint was the coordinator's reading — a full deflection
+    /// at VA, i.e. <see cref="LimitsConfig.FinOrdinaryLoadN"/> itself — and Ty overturned it downwards. A fully
+    /// fatigued fin must still survive being flown straight, but it now lets go on a NOTICEABLY GENTLER input than
+    /// before: about a third of its limit load rather than six tenths of it, on the Pitts.
     /// </summary>
     [Fact]
-    public void AFullyFatiguedFinSurvivesStraightFlightAndFailsOnAnOrdinaryRudderInput()
+    public void AFullyFatiguedFinFailsAtFullRudderAtThreeQuartersVa()
     {
         AircraftConfig c = Load("pitts-s2b-like");
-        double ordinary = c.Limits.FinOrdinaryLoadN;
+        double endpoint = c.Limits.FinOrdinaryLoadN * Flutter.FinEndpointOverOrdinary;
 
         Aircraft ac = Level(c, 50.0);
         ac.SetFlutterForTesting(AirframeComponent.Rudder, ac.FlutterStructureLifeForTesting);
         Assert.False(ac.Structure.VerticalTail!.Broken, "the fatigue itself must not break it; it lowers the strength");
 
         // THE ENDPOINT IS EXACT, so it is checked as a load and not as a knife edge. A full fatigue life brings the
-        // fin's BREAKING load down to exactly the ordinary input -- that is what the endpoint says -- and a member
+        // fin's BREAKING load down to exactly Ty's 0.75 Va input -- that is what the endpoint says -- and a member
         // breaks when its effective ratio goes PAST its break ratio, not when it reaches it. So holding precisely
-        // the ordinary load sits the fin on the boundary, which is a test that measures floating-point rounding
+        // the endpoint load sits the fin on the boundary, which is a test that measures floating-point rounding
         // rather than physics. The breaking load itself is the thing to assert.
         double breaking = ac.Structure.VerticalTail.Strength * OverstressMember.BreakRatio * c.Limits.FinLimitLoadN;
-        Assert.Equal(ordinary, breaking, 0);
+        Assert.Equal(endpoint, breaking, 0);
 
-        // Straight and level: the fin is carrying a few per cent of an ordinary input, and it holds.
-        for (int i = 0; i < 200; i++) ac.HoldFinSideLoad(0.05 * ordinary, SimLoop.DefaultFixedDtSec);
+        // Straight and level: the fin is carrying a few per cent of that, and it holds.
+        for (int i = 0; i < 200; i++) ac.HoldFinSideLoad(0.05 * endpoint, SimLoop.DefaultFixedDtSec);
         Assert.False(ac.Structure.VerticalTail.Broken, "a fatigued fin must not drop off an aeroplane flying straight");
 
-        // A rudder input the size he always makes -- a real one varies by far more than five per cent -- and it is gone.
-        for (int i = 0; i < 200; i++) ac.HoldFinSideLoad(1.05 * ordinary, SimLoop.DefaultFixedDtSec);
+        // Ty's input: full rudder, 25 % below Va. Gone.
+        for (int i = 0; i < 200; i++) ac.HoldFinSideLoad(1.05 * endpoint, SimLoop.DefaultFixedDtSec);
         Assert.True(ac.Structure.VerticalTail.Broken,
-            "a fully fatigued fin must fail the next time the pilot uses the rudder the way he always does");
+            "a fully fatigued fin must fail at the equivalent of full rudder at 75 % of Va");
 
-        // And an UNfatigued fin shrugs the same input off, or the endpoint has made ordinary flying dangerous.
+        // AND TY'S ENDPOINT IS LOWER THAN THE COORDINATOR'S WAS, asserted as the change rather than left implicit:
+        // full rudder at Va is 1/0.5625 = 1.78x Ty's number, so a load that the old endpoint had the fatigued fin
+        // survive -- 80 % of a full deflection at Va -- must now take it off.
+        Aircraft second = Level(c, 50.0);
+        second.SetFlutterForTesting(AirframeComponent.Rudder, second.FlutterStructureLifeForTesting);
+        for (int i = 0; i < 200; i++) second.HoldFinSideLoad(0.80 * c.Limits.FinOrdinaryLoadN, SimLoop.DefaultFixedDtSec);
+        Assert.True(second.Structure.VerticalTail!.Broken,
+            "Ty's endpoint is LOWER than the coordinator's was: 80 % of a full deflection at Va must now take the fin off");
+
+        // And an UNfatigued fin shrugs Ty's input off, or the endpoint has made ordinary flying dangerous.
         Aircraft fresh = Level(c, 50.0);
-        for (int i = 0; i < 200; i++) fresh.HoldFinSideLoad(1.05 * ordinary, SimLoop.DefaultFixedDtSec);
+        for (int i = 0; i < 200; i++) fresh.HoldFinSideLoad(1.05 * endpoint, SimLoop.DefaultFixedDtSec);
         Assert.False(fresh.Structure.VerticalTail!.Broken, "an undamaged fin must take an ordinary rudder input all day");
         Assert.Equal(0.0, fresh.Structure.VerticalTail.DeflectionRad, 9);
+    }
+
+    /// <summary>
+    /// THE ENDPOINT'S ACTUAL NUMBERS, pinned per type so the shape of Ty's answer is visible without re-deriving it:
+    /// the endpoint load in newtons, and what fraction of the fin's own limit load it is. The second column is the
+    /// one that says what it does to the aeroplane — a fully fatigued Pitts fin now lets go at a THIRD of its limit
+    /// load, where the coordinator's reading had it hold to six tenths.
+    ///
+    /// The fraction differs between types because it is (ordinary / limit) — how much worse the rudder reversal is
+    /// than a single deflection on that airframe — scaled by Ty's fixed 0.5625, and the reversal gap runs from 1.2x
+    /// on a 2-33 to 2.0x on a 737.
+    /// </summary>
+    [Theory]
+    [InlineData("pitts-s2b-like", 1226.6, 0.3348)]
+    [InlineData("extra-300-like", 2417.0, 0.3817)]
+    [InlineData("j3-cub-like", 355.8, 0.3346)]
+    [InlineData("c172-like", 942.3, 0.2523)]
+    [InlineData("great-lakes-like", 1070.0, 0.3589)]
+    public void TheEndpointIsAKnownLoadAndAKnownFractionOfTheFinLimit(string id, double endpointN, double fractionOfLimit)
+    {
+        AircraftConfig c = Load(id);
+        double endpoint = c.Limits.FinOrdinaryLoadN * Flutter.FinEndpointOverOrdinary;
+        Assert.Equal(endpointN, endpoint, 1);
+        Assert.Equal(fractionOfLimit, endpoint / c.Limits.FinLimitLoadN, 4);
+
+        // And the sim really degrades to it: a full fatigue life puts the fin's breaking load on that number.
+        Aircraft ac = Level(c, Math.Max(30.0, c.SpawnIasMs));
+        ac.SetFlutterForTesting(AirframeComponent.Rudder, ac.FlutterStructureLifeForTesting);
+        double breaking = ac.Structure.VerticalTail!.Strength * OverstressMember.BreakRatio * c.Limits.FinLimitLoadN;
+        Assert.Equal(endpoint, breaking, 1);
+    }
+
+    /// <summary>Ty's factor is exactly the square of his 75 %, because a fixed deflection loads a surface in
+    /// proportion to dynamic pressure. Stated once, here, so a future edit cannot quietly turn 0.5625 into 0.75 —
+    /// and tied to the probe's own constant so the measurement and the sim cannot drift apart.</summary>
+    [Fact]
+    public void TheEndpointFactorIsTheSquareOfTysSpeedFraction()
+    {
+        Assert.Equal(0.5625, Flutter.FinEndpointOverOrdinary, 9);
+        Assert.Equal(0.75 * 0.75, Flutter.FinEndpointOverOrdinary, 12);
+        Assert.Equal(FinLoadProbe.EndpointDynamicPressureRatio, Flutter.FinEndpointOverOrdinary, 12);
     }
 
     /// <summary>Va is authored on every measured type and is what Va means: Vs1 x sqrt(n_limit), above the stall and

@@ -30,10 +30,16 @@ namespace FlyingGame.FlightTests;
 ///     single deflection would under-read the design case.
 ///
 /// Both numbers are printed so the gap is visible rather than asserted, and both are authored: the reversal peak
-/// plus 15 % is Ty's LIMIT LOAD (<see cref="LimitsConfig.FinLimitLoadN"/>), and the single-deflection peak is the
-/// fin's fatigue ENDPOINT (<see cref="LimitsConfig.FinOrdinaryLoadN"/>) — the load of an ordinary rudder input,
-/// which is the COORDINATOR's reading of what the wing's "ultimate strength of 1 g" means for a surface that
-/// carries almost nothing in level flight. That endpoint is the one part of this that is not Ty's.
+/// plus 15 % is Ty's LIMIT LOAD (<see cref="LimitsConfig.FinLimitLoadN"/>), and the single-deflection peak at Va is
+/// <see cref="LimitsConfig.FinOrdinaryLoadN"/>, the load of an ordinary rudder input.
+///
+/// AND THE THIRD CASE IS THE FATIGUE ENDPOINT, which is Ty's too — 2026-11-11, verbatim: the fin "fails at the
+/// equivalent of full rudder at 75% va speed." So the endpoint is the single-deflection peak flown AGAIN at
+/// <see cref="EndpointVaFraction"/> x Va, and it is MEASURED rather than scaled. The arithmetic guess — a fixed
+/// deflection loads a surface in proportion to dynamic pressure, so 0.75 Va ought to give 0.5625 x the Va figure —
+/// is only a guess until the aeroplane is flown at that speed, because the sideslip that builds at a given
+/// deflection need not be speed-independent. <see cref="TheEndpointScalesWithDynamicPressure"/> is where the
+/// measurement and the arithmetic are put side by side.
 ///
 /// VA IS DERIVED WHERE IT IS NOT AUTHORED, by its definition: Va = Vs1 x sqrt(n_limit), the speed at which full
 /// control deflection makes exactly the limit load factor (FAR 23.335(c)). Only glider-grob103-acro-like publishes
@@ -72,6 +78,21 @@ public class FinLoadProbe
 
     /// <summary>Ty's 15 %: the margin over the measured reversal peak that makes it the LIMIT load.</summary>
     public const double LimitMargin = 1.15;
+
+    /// <summary>TY'S FATIGUE ENDPOINT, 2026-11-11: the fin "fails at the equivalent of full rudder at 75% va
+    /// speed." The fraction of Va the endpoint case is flown at.</summary>
+    public const double EndpointVaFraction = 0.75;
+
+    /// <summary>The arithmetic the measurement is checked against: at a fixed deflection a surface's load goes as
+    /// dynamic pressure, which goes as V squared, so 0.75 Va should give 0.5625 x the Va load. Mirrored in
+    /// <see cref="FlyingGame.Core.Aero.Flutter.FinEndpointOverOrdinary"/>, which is what the sim actually uses.</summary>
+    public const double EndpointDynamicPressureRatio = EndpointVaFraction * EndpointVaFraction;
+
+    /// <summary>The endpoint load for a type, flown: full rudder from trimmed flight at 0.75 Va, peak fin side
+    /// force. The same single-deflection case as <see cref="LimitsConfig.FinOrdinaryLoadN"/>, at the lower
+    /// speed — which is what "the equivalent of full rudder at 75% va speed" is.</summary>
+    public static FinRun FlyEndpoint(AircraftConfig c, double vaMs, int firstSign = 1)
+        => Fly(c, vaMs * EndpointVaFraction, firstSign);
 
     /// <summary>Does this type have a vertical tail with strips on it? Nothing else can be measured.</summary>
     public static bool HasFin(AircraftConfig c)
@@ -201,27 +222,41 @@ public class FinLoadProbe
         _o.WriteLine("THE VERTICAL TAIL'S LIMIT LOAD, by Ty's rudder-reversal manoeuvre at Va (FAR 23.441).");
         _o.WriteLine("Va is DERIVED where it is not authored: Va = Vs1 * sqrt(gMax), capped at Vne.");
         _o.WriteLine("SINGLE = peak fin side force on one full deflection. REVERSAL = peak after the opposite stop");
-        _o.WriteLine("at the sideslip's overswing peak. LIMIT = reversal * 1.15 (Ty). Ultimate = 2 x limit (Ty).\n");
-        _o.WriteLine($"{"type",-30} {"Va",6} {"Vs1",6} {"single N",9} {"revers N",9} {"gap",5} {"limit N",9} {"beta_os",7} {"rev@s",6}");
+        _o.WriteLine("at the sideslip's overswing peak. LIMIT = reversal * 1.15 (Ty). Ultimate = 2 x limit (Ty).");
+        _o.WriteLine("ENDP = the same single deflection flown at 0.75 Va: TY'S FATIGUE ENDPOINT, 2026-11-11.");
+        _o.WriteLine("q = endp/single, which pure dynamic-pressure scaling would make 0.5625.\n");
+        _o.WriteLine($"{"type",-30} {"Va",6} {"Vs1",6} {"single N",9} {"revers N",9} {"gap",5} {"limit N",9} {"endp N",9} {"q",6} {"beta_os",7} {"rev@s",6}");
         var patch = new List<string>();
+        var ratios = new List<double>();
         foreach (string id in FleetIds())
         {
             AircraftConfig c = Load(id);
             double va = VaFor(c);
             if (va <= 1.0) { _o.WriteLine($"{id,-30}   (no gMax or no stall solution: skipped)"); continue; }
             double vs1 = FlyingGame.Sim.Practice.PracticeScenario.EstimateVso(c, 0.0, 0.0);
-            FinRun r;
-            try { r = Fly(c, va); }
+            FinRun r, e75;
+            try { r = Fly(c, va); e75 = FlyEndpoint(c, va); }
             catch (Exception e) { _o.WriteLine($"{id,-30}   FAILED: {e.GetType().Name}: {e.Message}"); continue; }
             double limit = r.ReversalN * LimitMargin;
             double gap = r.SingleN > 1.0 ? r.ReversalN / r.SingleN : double.NaN;
+            double q = r.SingleN > 1.0 ? e75.SingleN / r.SingleN : double.NaN;
+            if (!double.IsNaN(q)) ratios.Add(q);
             bool capped = (c.Limits?.VneMs ?? 0) > 1.0 && Math.Abs(va - c.Limits!.VneMs) < 1e-6 && c.Limits.VaMs <= 1.0;
-            _o.WriteLine($"{id,-30} {va,6:F1} {vs1,6:F1} {r.SingleN,9:F0} {r.ReversalN,9:F0} {gap,5:F2} {limit,9:F0} {r.OverswingBetaDeg,7:F1} {r.ReversedAtSec,6:F2}"
+            _o.WriteLine($"{id,-30} {va,6:F1} {vs1,6:F1} {r.SingleN,9:F0} {r.ReversalN,9:F0} {gap,5:F2} {limit,9:F0} {e75.SingleN,9:F0} {q,6:F4} {r.OverswingBetaDeg,7:F1} {r.ReversedAtSec,6:F2}"
                          + (c.Limits is { VaMs: > 1.0 } ? "  Va AUTHORED" : capped ? "  Va CAPPED AT VNE" : ""));
-            patch.Add($"{id}\t{va:F4}\t{limit:F1}\t{r.SingleN:F1}");
+            patch.Add($"{id}\t{va:F4}\t{limit:F1}\t{r.SingleN:F1}\t{e75.SingleN:F1}\t{q:F4}");
         }
-        _o.WriteLine("\n---- id, vaMs, finLimitLoadN, finOrdinaryLoadN ----");
+        _o.WriteLine("\n---- id, vaMs, finLimitLoadN, finOrdinaryLoadN, endpoint(0.75Va) N, q ----");
         foreach (string p in patch) _o.WriteLine(p);
+        if (ratios.Count > 0)
+        {
+            ratios.Sort();
+            double mean = ratios.Sum() / ratios.Count;
+            _o.WriteLine($"\nq across {ratios.Count} types: min {ratios[0]:F4}  median {ratios[ratios.Count / 2]:F4}  "
+                         + $"mean {mean:F4}  max {ratios[^1]:F4}   (V^2 says {EndpointDynamicPressureRatio:F4})");
+            _o.WriteLine($"worst departure from {EndpointDynamicPressureRatio:F4}: "
+                         + $"{Math.Max(Math.Abs(ratios[0] - EndpointDynamicPressureRatio), Math.Abs(ratios[^1] - EndpointDynamicPressureRatio)) / EndpointDynamicPressureRatio * 100.0:F1} %");
+        }
     }
 
     /// <summary>
@@ -238,6 +273,36 @@ public class FinLoadProbe
         Assert.True(r.SingleN > 100.0, $"single-deflection fin load {r.SingleN:F0} N is too small to be a measurement");
         Assert.True(r.ReversalN > r.SingleN,
             $"the reversal ({r.ReversalN:F0} N) must exceed the single deflection ({r.SingleN:F0} N) — that is why 23.441 is a reversal case");
+    }
+
+    /// <summary>
+    /// THE JUSTIFICATION FOR DERIVING THE ENDPOINT INSTEAD OF AUTHORING IT, kept as a flown measurement rather than
+    /// as a paragraph. Ty's endpoint is a full rudder deflection at 0.75 Va; the sim gets there by multiplying the
+    /// measured Va load by <see cref="Flutter.FinEndpointOverOrdinary"/> = 0.5625, which is only legitimate if the
+    /// fin's load at a fixed deflection really does go as dynamic pressure. So it is flown, on the two types Ty
+    /// flies and on a slow one and a fast one, and the measured ratio is checked against 0.5625.
+    ///
+    /// THE FLEET RUN (2026-11-11, FINLOAD=1, all 33 measured types) gave 0.5503 .. 0.6082, mean 0.5697, median
+    /// 0.5691: 28 inside 3 %, 31 inside 5 %. The band here is 10 % so it holds the claim without pinning the
+    /// scatter of a transient peak, and the J-3 is deliberately included because it is the worst of the fleet at
+    /// +8 % — the slowest Va, so its 0.75 Va is nearest the stall. If this test ever fails, the dynamics have
+    /// stopped being speed-independent and the endpoint must go back to being authored per type.
+    /// </summary>
+    [Theory]
+    [InlineData("pitts-s2b-like")]
+    [InlineData("extra-300-like")]
+    [InlineData("j3-cub-like")]
+    [InlineData("p51d-like")]
+    public void TheEndpointScalesWithDynamicPressure(string id)
+    {
+        using IDisposable _ = StillAir();
+        AircraftConfig c = Load(id);
+        double va = VaFor(c);
+        double atVa = Fly(c, va).SingleN, at75 = FlyEndpoint(c, va).SingleN;
+        Assert.True(atVa > 100.0, $"{id}: the Va single-deflection load {atVa:F0} N is too small to be a measurement");
+        Assert.True(at75 < atVa, $"{id}: the same deflection at 0.75 Va ({at75:F0} N) must load the fin LESS than at Va ({atVa:F0} N)");
+        double q = at75 / atVa;
+        Assert.InRange(q, Flutter.FinEndpointOverOrdinary * 0.90, Flutter.FinEndpointOverOrdinary * 1.10);
     }
 
     /// <summary>Va derives to a speed an aeroplane could fly: above its own clean stall, at or below its Vne.</summary>

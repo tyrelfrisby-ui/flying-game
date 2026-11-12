@@ -1732,15 +1732,15 @@ public sealed class LimitsConfig
     /// two (the reversal catches the sideslip still at its overswing peak, so the slip angle and the opposite
     /// deflection ADD; a single deflection from level flight under-reads it).
     ///
-    /// It is the fin's FATIGUE ENDPOINT, the analogue of Ty's "ultimate strength of 1g" for the wing. The wing's
-    /// endpoint is the load it carries in level flight, so a fully fatigued wing fails doing nothing; a fin carries
-    /// almost nothing in balanced flight, so the same sentence would have it fall off unprompted. The true analogue
-    /// is the next ORDINARY use of the thing: a fully fatigued fin fails the next time the pilot uses the rudder the
-    /// way he always does.
+    /// IT IS NOT ITSELF THE FATIGUE ENDPOINT — it is what the endpoint is measured against. Ty 2026-11-11, verbatim,
+    /// on where a fluttered fin ends up: it "fails at the equivalent of full rudder at 75% va speed." So the
+    /// endpoint is <see cref="FlyingGame.Core.Aero.Flutter.FinEndpointOverOrdinary"/> (0.5625) times this, which is
+    /// the same full deflection flown 25 % slower, and that constant carries the fleet measurement behind the
+    /// number. The wing's endpoint is its 1 g load, so a fully fatigued wing fails doing nothing; a fin carries
+    /// almost nothing in balanced flight, so Ty gave it a rudder input instead of a load factor.
     /// </summary>
-    /// <remarks>THAT ENDPOINT IS THE COORDINATOR'S READING, NOT TY'S, and is flagged so he can overturn it in one
-    /// line. Ty specified the LIMIT (the reversal, +15 %, 2.0 ultimate) and has not said where the fin's fatigue
-    /// ends.</remarks>
+    /// <remarks>THE ENDPOINT WAS THE COORDINATOR'S READING FOR ONE DAY — a full deflection at Va, i.e. this number
+    /// itself — and Ty overturned it on 2026-11-11 in the gentler direction: 0.5625 of it.</remarks>
     public double FinOrdinaryLoadN { get; set; }
 
     /// <summary>How both fin loads were measured, per type (documentation only).</summary>
