@@ -242,6 +242,11 @@ namespace FlyingGame.Bridge
         /// slower the moment the engine is. It is keyed to the CRANK, so it stops when the engine does.</summary>
         public int StrokesPerPuff = 1;
 
+        /// <summary>Cylinders feeding ONE pipe (<see cref="FlyingGame.Core.Aero.ExhaustPulse.CylindersPerPipe"/>): the
+        /// count whose event train the feather follows. 6 on a single-stack type, 3 on each of the Pitts' and the
+        /// Extra's two.</summary>
+        public int CylindersPerPipe = 6;
+
         // EXHAUST PULSE TUBES (Ty 2026-11-04: "each exhaust pulse leaves the stack as a TUBE … fat/dense mid-pulse and tapers at
         // both ends … then it decays into the voluminous, near-opaque trail over about 1 s"). Right behind the aeroplane the
         // smoke is drawn per valve event, not per frame: a 540 at 2,700 rpm lets out 135 tubes a second. Each tube is the gas of
@@ -278,6 +283,7 @@ namespace FlyingGame.Bridge
             SmokePipesConfig pipes = sm?.Pipes;
             bool banked = pipes != null && pipes.IsAuthored;
             StrokesPerPuff = banked ? System.Math.Max(1, pipes.CombustionStrokesPerPuff) : 1;
+            CylindersPerPipe = FlyingGame.Core.Aero.ExhaustPulse.CylindersPerPipe(Cylinders, StrokesPerPuff);
         }
         public void Hide() { if (_go.activeSelf) _go.SetActive(false); }
 
@@ -312,10 +318,14 @@ namespace FlyingGame.Bridge
                     if (hand <= 0.001f) continue;
                     for (int ei = 0; ei < _exhaust.Length; ei++)
                     {
-                        // ONE PUFF PER PIPE EVERY Nth COMBUSTION STROKE: pipe ei takes the events whose index is ei
-                        // (mod N), so two pipes on every other stroke fire alternately and nothing is invented — the
-                        // rate is the crank's, divided among the pipes (ExhaustPulse.PuffHz).
-                        if (StrokesPerPuff > 1 && (int)(((j % StrokesPerPuff) + StrokesPerPuff) % StrokesPerPuff) != ei % StrokesPerPuff) continue;
+                        // FEATHERED, NOT GATED (Ty 2026-11-11: "rather than creating pulses with no smoke at all feather
+                        // the smoke in and out but never zero"). Every pipe lays a tube down at EVERY event, so each
+                        // pipe's column is unbroken — the windows are 250° of crank and the events 120° apart, so they
+                        // overlap. What varies is the DENSITY: pipe ei's own events are the ones ei (mod N), so its
+                        // carrier is read at the crank offset that puts those on its own train's peaks, and between them
+                        // the density falls to the hot stack's floor instead of to nothing. One puff per pipe every
+                        // other combustion stroke is now the feather's frequency rather than a hole in the train.
+                        float dens = (float)FlyingGame.Core.Aero.ExhaustPulse.SmokeDensity(evo - ei * spacing, CylindersPerPipe);
                         Vec3 e = _exhaust[ei], jd = ei < _jet.Length ? _jet[ei] : Vec3.Zero;
                         double jl = jd.Length; if (jl < 1e-6) continue;                                   // a canister has no pulses
                         Vec3 dir = jd * (1.0 / jl);
@@ -345,7 +355,10 @@ namespace FlyingGame.Bridge
                         // dense as either alone. (899ada84 crossfaded the alphas, which at the midpoint left 1 − (1 − a/2)² ≈ 0.75
                         // of an opaque column: a see-through band half a second behind the aeroplane.)
                         float overlap = Mathf.Max(1f, length / Mathf.Max(0.05f, pathPerPulse));
-                        float a = PuffAlphaFor(ColumnTau(flow, d0, width), overlap, hand);
+                        // The feather lives in the optical DEPTH (dens has mean 1 over a cycle, so the column's mean
+                        // density is untouched); d0 and the width stay on the unmodulated flow, so the handover to the
+                        // trail's own puffs is as seamless as it was.
+                        float a = PuffAlphaFor(ColumnTau(flow * dens, d0, width), overlap, hand);
                         float d2 = Vector3.Dot(mid - camPos, camFwd);
                         if (d2 < 0.3f) continue;
                         float near = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.8f * width, 4f * width, (mid - camPos).magnitude));

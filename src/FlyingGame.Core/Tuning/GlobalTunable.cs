@@ -67,9 +67,10 @@ public static class GlobalTunableRegistry
     private static readonly Dictionary<string, GlobalTunable> _byId = new(StringComparer.Ordinal);
 
     /// <summary>The order the global groups are drawn in; a group not named here is drawn after these.</summary>
-    public static readonly IReadOnlyList<string> GroupOrder = new[] { FlutterGroup };
+    public static readonly IReadOnlyList<string> GroupOrder = new[] { FlutterGroup, SmokeGroup };
 
     public const string FlutterGroup = "Flutter";
+    public const string SmokeGroup = "Smoke";
 
     /// <summary>
     /// Declare a global tunable. THE SHIPPED VALUE IS CAPTURED HERE, which is the whole of the defaults problem for

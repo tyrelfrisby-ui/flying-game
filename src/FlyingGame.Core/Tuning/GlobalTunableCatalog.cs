@@ -16,7 +16,7 @@ namespace FlyingGame.Core.Tuning;
 /// </summary>
 public static class GlobalTunableCatalog
 {
-    internal static void Load() => Flutter_();
+    internal static void Load() { Flutter_(); Smoke_(); }
 
     private static void Flutter_()
     {
@@ -86,6 +86,50 @@ public static class GlobalTunableCatalog
                         + "the whole flutter event inside a ten per cent band of speed.",
             Get = () => Flutter.CeilingVd,
             Set = v => Flutter.CeilingVd = v,
+        });
+    }
+
+    private static void Smoke_()
+    {
+        const string g = GlobalTunableRegistry.SmokeGroup;
+
+        GlobalTunableRegistry.Register(new GlobalTunable
+        {
+            Id = "smoke.featherDepth",
+            Group = g,
+            Label = "How deeply the smoke breathes with the firing",
+            Min = 0.0, Max = 1.0, Step = 0.1, FineStep = 0.02, Decimals = 2,
+            Description = "Ty 2026-11-11: \"The smoke oil is sprayed continuously but the exhaust pulses are cyclical. "
+                        + "The exhaust temp is rather co stent so rather than creating pulses with no smoke at all "
+                        + "feather the smoke in and out but never zero.\" This is the depth of that feather. The oil "
+                        + "goes in at a steady rate and the stack stays hot, so there is smoke in the pipe at every "
+                        + "crank angle; what pulses is the exhaust flow that sweeps it out. At 0 the column is flat and "
+                        + "even. At 1 - the shipped value - it follows the engine's own surge as far down as the floor "
+                        + "below allows, and no further. It moves the TROUGH only: the average density of the trail is "
+                        + "the same at every setting, because the surge it rides on averages out over a cycle. The rate "
+                        + "is the engine's and is not adjustable - a six firing every other stroke into each of two "
+                        + "pipes breathes at 67 Hz at 2,700 rpm, which no eye resolves, and 17 Hz at idle, which every "
+                        + "eye does. Turn it down if the idle smoke looks nervous; turn it up to see the firing.",
+            Get = () => ExhaustPulse.FeatherDepth,
+            Set = v => ExhaustPulse.FeatherDepth = v,
+        });
+
+        GlobalTunableRegistry.Register(new GlobalTunable
+        {
+            Id = "smoke.minDensity",
+            Group = g,
+            Label = "Smoke the hot pipe makes between firings",
+            Min = 0.0, Max = 1.0, Step = 0.05, FineStep = 0.01, Decimals = 2,
+            Description = "The floor the breathing never goes below, as a share of the average - Ty's \"never zero\". "
+                        + "It is the hot stack: between its own firings the pipe is quiet, but it is still hot and the "
+                        + "oil sprayed into it is still vaporising, so smoke still comes out. 0.28 is measured off the "
+                        + "exhaust model rather than chosen - it is how far the flow dips between firings when all six "
+                        + "cylinders feed ONE pipe, the case where the surges overlap and the flow genuinely never "
+                        + "stops. Split into two pipes the flow very nearly does stop between a pipe's own three "
+                        + "firings, and the difference between those two numbers is the hot pipe. At 0 the smoke "
+                        + "strobes off between firings, which is the thing he rejected; at 1 it cannot breathe at all.",
+            Get = () => ExhaustPulse.MinDensity,
+            Set = v => ExhaustPulse.MinDensity = v,
         });
     }
 }
