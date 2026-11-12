@@ -31,7 +31,12 @@ namespace FlyingGame.Bridge
         /// fuselage and the surfaces as it leaves (<see cref="FlyingGame.Core.Aero.AirframeFlow"/>), then sits in the air with
         /// that displacement. null = the old straight-through smoke.</summary>
         public FlyingGame.Core.Aero.AirframeFlow Flow;
-        /// <summary>The exhaust pipe's diameter (m): the jet's starting width (<see cref="FlyingGame.Core.Aero.ExhaustJet"/>).</summary>
+        /// <summary>THE PIPE'S DIAMETER (m): the jet's starting width (<see cref="FlyingGame.Core.Aero.ExhaustJet"/>), the
+        /// column's width where it is born, and the scale the pulses' penetration is measured in
+        /// (<see cref="FlyingGame.Core.Aero.ExhaustPulse.Penetration"/>). ONE number, because there is one pipe: Ty, asked on
+        /// 2026-11-11 whether the smoke pipes he measured ARE the exhaust stacks, said yes. 0.1016 (4 in) is the fleet
+        /// default; a type that authors a bank of stacks gets its own bore from
+        /// <see cref="SmokeConfig.JetPipeDiameterM"/> through <see cref="ApplyConfig"/>.</summary>
         public double PipeDiameterM = 0.1016;
         private const double FlowDt = 0.004;
         /// <summary>Each puff's push by the airframe, step by step (up to 4 s of it), and how many steps it had: once a puff
@@ -237,13 +242,6 @@ namespace FlyingGame.Bridge
         /// slower the moment the engine is. It is keyed to the CRANK, so it stops when the engine does.</summary>
         public int StrokesPerPuff = 1;
 
-        /// <summary>The smoke pipe's own bore (m): the column's diameter where it is born
-        /// (<see cref="SmokePipesConfig.DiameterIn"/>). This is NOT <see cref="PipeDiameterM"/>, which is the 4 in exhaust
-        /// stack the jet model was fitted to (Ty 2026-10-13) and still carries the jet's momentum and spread. The two are
-        /// deliberately separate: his 2026-11-11 pipes are 1.5–2 in, and the question of whether those ARE the exhaust
-        /// stacks is his to settle, not something to decide by quietly re-scaling the jet.</summary>
-        public double PlumeDiameterM = 0.1016;
-
         // EXHAUST PULSE TUBES (Ty 2026-11-04: "each exhaust pulse leaves the stack as a TUBE … fat/dense mid-pulse and tapers at
         // both ends … then it decays into the voluminous, near-opaque trail over about 1 s"). Right behind the aeroplane the
         // smoke is drawn per valve event, not per frame: a 540 at 2,700 rpm lets out 135 tubes a second. Each tube is the gas of
@@ -272,11 +270,13 @@ namespace FlyingGame.Bridge
         public void ApplyConfig(AircraftConfig cfg)
         {
             SmokeConfig sm = cfg?.Smoke;
-            PipeDiameterM = (sm?.PipeDiameterIn ?? 4) * 0.0254;
+            // ONE bore for the jet, the column and the pulses: a measured bank's stack where the type has one, the 4 in
+            // fleet default where it has not (SmokeConfig.JetPipeDiameterM). The exit velocity the samples carry is read
+            // from the same place (ExhaustJet.ExitVelocity's config overload), so the two cannot disagree.
+            PipeDiameterM = sm?.JetPipeDiameterM ?? 0.1016;
             Cylinders = sm?.Cylinders ?? 6;
             SmokePipesConfig pipes = sm?.Pipes;
-            bool banked = pipes != null && pipes.TryPipes(out _, out _);
-            PlumeDiameterM = banked ? pipes.DiameterM : PipeDiameterM;
+            bool banked = pipes != null && pipes.IsAuthored;
             StrokesPerPuff = banked ? System.Math.Max(1, pipes.CombustionStrokesPerPuff) : 1;
         }
         public void Hide() { if (_go.activeSelf) _go.SetActive(false); }
@@ -328,7 +328,7 @@ namespace FlyingGame.Bridge
                         float len = (float)spanW.Length;
                         Vec3 axisW = len > 1e-4f ? spanW * (1.0 / len) : velW * (1.0 / v);
                         Vector3 axis = CoordinateMap.ToUnity(axisW);
-                        float width = (float)PlumeDiameterM + 0.22f * (float)pen50 + TubeDiffusion * Mathf.Sqrt(age50);
+                        float width = (float)PipeDiameterM + 0.22f * (float)pen50 + TubeDiffusion * Mathf.Sqrt(age50);
                         // ... widening toward the trail's own puff at that age (the same law as below), so the handover is one
                         // column getting fatter, not a thin one fading inside a fat one.
                         float d0 = Mathf.Clamp(PuffD0 * Mathf.Sqrt(flow / v), PuffD0Min, PuffD0Max);

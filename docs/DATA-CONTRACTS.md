@@ -70,6 +70,13 @@ to 4 and `exhaustTempK` to 900. One authored outlet produces one smoke stream, i
 when selecting one smoke-fed pipe on an airframe with paired exhausts. Glider wingtip
 canisters and configs without a measured outlet retain their existing paths.
 
+`pipeDiameterIn` is **one 4 in stack, the fleet default** (Ty 2026-10-13). A type that
+authors `smoke.pipes` does not use it and should not author it: its stacks *are* the pipes
+the smoke comes out of, and `SmokeConfig.JetPipeDiameterM` / `JetPipeCount` are what the
+jet model reads. Everything that needs an exit velocity goes through
+`ExhaustJet.ExitVelocity(smoke, propulsion, …)`, so no path can read a different pipe from
+the one the smoke leaves.
+
 See [the measured fleet and annotated renders](pending/smoke-renders/README.md).
 
 #### `smoke.pipes`: a measured bank, which supersedes all of the above
@@ -109,8 +116,28 @@ strokes among the puffs: a six at 2,700 rpm lets out 135 strokes a second, so 2 
 puffs a second from each of two pipes, and the pair fire alternately, so no stroke is invented
 or lost. 67 Hz is not resolvable, which is the point — the cadence is keyed to the crank, so
 the column pulses visibly at idle (17.5 Hz), goes ragged when the engine does and stops when
-it stops. `diameterIn` drives the column's starting width (`SmokeTrail.PlumeDiameterM`); the
-jet that carries it is still the exhaust's, out of `pipeDiameterIn`.
+it stops.
+
+`diameterIn` and `count` are **the exhaust stacks**, not a separate set of smoke nozzles.
+Asked on 2026-11-11 whether the pipes he measured are the stacks themselves, Ty said yes,
+so there is one pipe per type and one bore: `SmokeTrail.PipeDiameterM` is it, and the exit
+velocity, the jet's momentum, the pulses' penetration, the jet's spread and the drawn
+column's starting width all come from it. The engine's mass flow is unchanged — it is the
+same aeroplane — and so is every coefficient in the jet's fit (VE 0.85, AFR 12.5, γ 1.35,
+`compressionRatio`, `exhaustTempK`, the round-jet shear coefficient 0.057, and the 6-diameter
+potential core). The bore is an input to them, not one of them. What moves is the area:
+
+| | total area | U₀ full power | U₀ idle | exit Mach at 900 K |
+|---|---|---|---|---|
+| one 4 in stack (the default) | 81.07 cm² | ≈ 70.5 m/s | ≈ 4.5 m/s | 0.12 |
+| Extra, two 2.0 in | 40.54 cm² (2.00× less) | 140.8 m/s (2.00×) | 8.91 m/s | 0.23 |
+| Pitts, two 1.5 in | 22.80 cm² (3.56× less) | 251.1 m/s (3.56×) | 15.88 m/s | 0.42 |
+
+All subsonic: the speed of sound in 900 K exhaust is 601 m/s, not the ambient 343.
+`SmokeStackJetProbe` prints the whole before/after table, including how far the plume
+actually punches out — and the caveat that `ExhaustJet.Step`'s 4 ms march is not converged
+at these speeds, so the drawn push is about twice what the model says. See the note on
+`ExhaustJet.Step`.
 
 ## ChallengeDefinition
 New challenges = new JSON, not new C#.
