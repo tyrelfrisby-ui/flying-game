@@ -999,18 +999,37 @@ public sealed partial class Aircraft
         }
         if (comp == AirframeComponent.Nose || comp == AirframeComponent.Propeller)
         {
-            _noseLost = true;   // prop strike / nose gone: the engine stops
+            _noseLost = true;   // prop stopped / nose gone: the engine makes nothing, and neither does the propeller
             for (int i = 0; i < Config.Engines.Count; i++) SetEngineThrottleScale(i, 0.0);
             if (comp == AirframeComponent.Nose) LoseComponent(AirframeComponent.GearNose);   // the nose leg hangs off the firewall
-            // AND THE PROPELLER'S WEIGHT GOES WITH IT, from where it was (Ty 2026-11-09: a lost prop must "eliminate
-            // the weight of the prop at the proper location/arm"). The thrust and the windmilling drag were already
-            // gone with _noseLost; what was missing is that this is the furthest-forward mass on the aeroplane, so
-            // losing it throws the CG BACKWARDS — which is most of why a thrown propeller is frightening rather than
-            // merely quiet. ShedMass drops the mass, takes the parallel-axis share out of the inertia and moves the
-            // CG, exactly as it does for a canopy or a wing panel.
-            double propKg = AirframeContact.PropMassKg(Config);
-            if (propKg > 0)
-                foreach (Vec3 hub in AirframeContact.PropHubsBody(Config)) ShedMass(propKg, hub);
+            // NO MASS IS SHED HERE, and Ty 2026-11-09 — a lost prop must "eliminate the weight of the prop at the
+            // proper location/arm" — is still met, in the three places where a propeller's weight actually goes
+            // somewhere. Until 2026-11-11 this shed AirframeContact.PropMassKg at every hub, and it was wrong in
+            // both of the cases that reach it.
+            //
+            // THE NOSE: it was charged TWICE. The wreck model hangs a tractor single's propeller ON THE NOSE —
+            // AirframeHydroModel's "engine" element is WreckAtom.Nose and carries engDry + propKg — so the
+            // ShedMass(Hydro.Detach(comp)) at the end of this method already takes the prop away with the nose piece.
+            // On the Pitts the aeroplane lost 300.3 kg where the nose piece weighed 277.6, so 22.7 kg of propeller
+            // left the books and went nowhere: 3.1 % of the aeroplane's momentum vanished at the separation
+            // (CrashTuningTests.NothingLosesSpeedAtASeparation), the aft CG shift came out 1.048 m instead of 0.919,
+            // and the parallel-axis share of 22.7 kg at a 1.56 m arm came out of Iyy and Izz on top of the nose's
+            // own. On a TWIN it was worse than doubled: the nose carries no propeller at all, and losing it shed one
+            // prop's weight per engine, from hubs out on the wings that were still turning.
+            //
+            // THE PROPELLER: this component is a STOPPAGE, not a departure. Every live caller of
+            // LoseComponent(Propeller) is one — AircraftContactDamage and AircraftTreeStrike both raise it directly
+            // after "_propStopped[e] = true; SettleDisc(e)", i.e. the propeller is bent, stopped, and still bolted to
+            // the crankshaft, which is also why CrashRelay.OnComponentLost spawns no wreck piece for it ("a prop
+            // strike bends the blades in place"). So its weight must STAY: a Pitts that stopped its prop on a branch
+            // was losing 22.7 kg off the nose (737 -> 714 kg, the CG 0.050 m aft, Iyy 1000 -> 941) for a propeller
+            // that was still there, and a twin never did this — it only closed that engine's throttle.
+            //
+            // Where the weight really does leave, each pairing its ShedMass with a wreck piece of the same mass,
+            // which is what makes a separation conserve momentum: with the nose's volumes (above);
+            // CrashRelay.SeparateEngine, when the mount fails and the whole engine and propeller go; and
+            // CrashRelay.ThrowPropellerBlade, blade by blade on an over-rev. The engine stopping is _noseLost above,
+            // and that part was never in doubt.
         }
         if (comp == AirframeComponent.NacelleLeft || comp == AirframeComponent.NacelleRight)
         {

@@ -128,20 +128,30 @@ public class CrashTuningTests : IDisposable
     }
 
     /// <summary>A part that breaks off leaves with exactly the velocity its parts had, v + ω × r, and the rest keeps its
-    /// momentum: nothing slows at a separation.</summary>
+    /// momentum: nothing slows at a separation. The LEDGER is checked first and separately, because momentum can only
+    /// balance if the mass does — the aeroplane has to lose exactly what the piece carries away, no more. The Pitts'
+    /// nose failed on that line until 2026-11-11: its propeller was charged twice, once by the explicit shed in
+    /// LoseComponent and once inside the nose's own "engine" volume, so 22.7 kg left the books and went nowhere.</summary>
     [Theory]
     [InlineData("pitts-s2b-like", AirframeComponent.WingTipRight)]
     [InlineData("c172-like", AirframeComponent.TailBoom)]
     [InlineData("pitts-s2b-like", AirframeComponent.Nose)]
+    [InlineData("dc3-like", AirframeComponent.Nose)]            // a twin: the nose carries no propeller at all
     public void NothingLosesSpeedAtASeparation(string cfg, AirframeComponent comp)
     {
         AircraftConfig c = Load(cfg);
         var ac = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, -200), Quat.Identity, new Vec3(45, 2, 3), new Vec3(1.2, -0.4, 0.7)), ControlDeflections.Neutral);
         var relay = new CrashRelay(ac, new FlatWreckWorld(null, 0.0));
-        Vec3 pBefore = ac.State.Attitude.Rotate(ac.State.Velocity + Vec3.Cross(ac.State.Rates, ac.CgShiftBody)) * ac.MassProperties.MassKg;
+        double m0 = ac.MassProperties.MassKg;
+        Vec3 pBefore = ac.State.Attitude.Rotate(ac.State.Velocity + Vec3.Cross(ac.State.Rates, ac.CgShiftBody)) * m0;
         RigidBodyState s = ac.State;
         ac.LoseComponent(comp);
         WreckPiece piece = relay.Wreck.Pieces.Single();
+        double lost = m0 - ac.MassProperties.MassKg;
+        _o.WriteLine($"{cfg} {comp}: aeroplane {m0:F1} -> {ac.MassProperties.MassKg:F1} kg (lost {lost:F3}), piece {piece.MassKg:F3} kg, " +
+                     $"CG moved {-ac.CgShiftBody.X:F3} m aft");
+        Assert.True(Math.Abs(lost - piece.MassKg) < 1e-6,
+                    $"the aeroplane lost {lost:F3} kg and the piece carries {piece.MassKg:F3}: {lost - piece.MassKg:F3} kg went nowhere");
         Vec3 r = piece.CgBody - c.Mass.CgVec();
         Vec3 expect = s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, r));
         Assert.True((piece.WorldVelocity - expect).Length < 1e-9, $"piece left at {piece.WorldVelocity} not {expect}");
