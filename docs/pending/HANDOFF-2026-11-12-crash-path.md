@@ -257,9 +257,12 @@ the plate. That is the whole input.
 3. **The peg is gone**: report the Pitts' hands-off aileron float in the developed flat spin, before and
    after, against the 17-24° the code records today and the −3° to −10° vane angle.
 4. Report Beggs-Mueller turn counts before and after for all three types. Measured 2026-11-12 at
-   `df7d0d25`: **Extra 2.85 turns / 6.9 s, Great Lakes 4.79 / 10.2** (free) against 2.34 and 4.03 with the
-   stick held neutral. **The Pitts case did not print — get its figure first, as the baseline.** Ty's rule
-   is 4 turns, so the Great Lakes is the one measurably over, and `BeggsMuellerRecoversAndTheFreeControlsAreWhatMakesItSlow`
+   `df7d0d25`, free controls from the developed flat spin, against the same case with the stick held
+   neutral: **Pitts 3.28 turns / 7.4 s** (vs 2.25), **Extra 2.85 / 6.9** (vs 2.34), **Great Lakes
+   4.79 / 10.2** (vs 4.03). Ty's rule is 4 turns, so the Pitts and the Extra are INSIDE it and the Great
+   Lakes is the only type over. The test's own doc comment read 4.29 for the Pitts and was stale; it was
+   quoted to Ty as a failure before being re-measured, and is corrected in the same commit as this note.
+   `BeggsMuellerRecoversAndTheFreeControlsAreWhatMakesItSlow`
    **does not enforce the rule at all** — it only asserts recovery happens (`Assert.False(IsNaN(StopSec))`).
    Do not add a 4-turn bound without asking him; it is his rule and he may want it as a probe, not a pin.
 5. `AileronPegProbe` (`AIL_PEG=1`) prints the whole hinge balance each second. Use it; it was built for this.

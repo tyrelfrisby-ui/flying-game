@@ -37,7 +37,7 @@ namespace FlyingGame.FlightTests;
 /// Hands off is a FREE stick, not a centred one. A free reversible surface floats to where its hinge moment is
 /// zero, which at spin attitude is nowhere near neutral; <see cref="Aircraft.FreeFloat"/> is that path, driven by
 /// ControlInputs(..., aileronFree, elevatorFree, rudderFree). Forcing deflections to zero is NEUTRAL and is a
-/// different procedure with a different answer — 2.70 turns against Beggs-Mueller's 4.29 on the Pitts.
+/// different procedure with a different answer — 2.25 turns against Beggs-Mueller's 3.28 on the Pitts.
 /// </summary>
 public class BeggsAndDartRecoveryTests
 {
@@ -202,7 +202,7 @@ public class BeggsAndDartRecoveryTests
     /// set, Decathlon 0.13 turns, with every steep-spin case under one turn.
     ///
     /// Note what this means next to Beggs-Mueller: dart has strictly LESS anti-spin input (neutral rudder instead
-    /// of full opposite) and is FASTER on all three — Pitts 3.16 against 4.29, Great Lakes 3.44 against 4.79. The
+    /// of full opposite) and is FASTER on all three — Pitts 3.16 against 3.28, Great Lakes 3.44 against 4.79. The
     /// difference is the free controls, not the rudder.
     /// </summary>
     [Theory]
@@ -221,12 +221,19 @@ public class BeggsAndDartRecoveryTests
     /// BEGGS-MUELLER RECOVERS, BUT SLOWLY, AND THE FREE CONTROLS ARE WHAT MAKES IT SLOW — which is exactly what Ty
     /// reported flying it on 2026-11-10 ("Good test it passed the beggs mueler albeit slower than the real
     /// airplane"). Measured with GENUINELY FREE controls from the developed flat spin on 2026-11-11:
-    ///     Pitts        4.29 turns / 9.0 s   against stick-NEUTRAL-held 2.70 turns
+    ///     Pitts        3.28 turns / 7.4 s   against stick-NEUTRAL-held 2.25 turns
     ///     Extra        2.85 / 6.9           against 2.34
     ///     Great Lakes  4.79 / 10.2          against 4.03
+    /// RE-MEASURED 2026-11-12 at df7d0d25, because the Pitts' line read 4.29 / 9.0 against 2.70 and that was
+    /// STALE — it was quoted to Ty as a failure of his four-turn rule when the aeroplane actually passes. The
+    /// Pitts and the Extra are inside the rule; THE GREAT LAKES AT 4.79 IS THE ONLY TYPE OVER IT. Re-run this
+    /// before quoting any figure from it: the numbers move with the float model and this comment has drifted once.
     /// NACA TN 1329's standard is two turns and the real aeroplane stops inside a turn or two, so all three are
-    /// slow — and the cost is the free controls, which the float pins above locate precisely: the aileron stays at
-    /// its pro-spin stop and the elevator stays on its aft stop.
+    /// still slow — and the cost is the free controls, which the float pins above locate precisely: the aileron
+    /// stays at its pro-spin stop and the elevator stays on its aft stop.
+    ///
+    /// NOTE WHAT THIS TEST DOES NOT DO: it asserts only that Beggs-Mueller RECOVERS, with no bound on the turn
+    /// count, so Ty's four-turn rule is not enforced anywhere. Adding a bound is his call, not an agent's.
     /// </summary>
     [Theory]
     [InlineData("pitts-s2b-like")]
