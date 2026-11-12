@@ -219,13 +219,18 @@ public sealed partial class Aircraft
     /// THE WING AND TAIL ENDPOINT IS TY'S: "an ultimate strength of 1g" — it fails carrying the aeroplane in level
     /// flight, so a fully fatigued wing fails doing nothing.
     ///
-    /// THE FIN'S ENDPOINT IS NOT HIS AND IS FLAGGED AS SUCH. In balanced flight the fin carries almost nothing, so
-    /// "fails in steady flight" would have it drop off unprompted, which is plainly wrong. The true analogue of the
-    /// wing's 1 g is the next ORDINARY use of the thing: a fully fatigued fin fails the next time the pilot uses the
-    /// rudder the way he always does — one full deflection at Va, which is
-    /// <see cref="LimitsConfig.FinOrdinaryLoadN"/>, measured by the same probe as the limit and always smaller than
-    /// the reversal it is derived beside. That reading is the COORDINATOR'S, 2026-11-11, put to Ty and cheap for him
-    /// to overturn: one number moves and nothing else does.
+    /// THE FIN'S ENDPOINT IS TY'S TOO, 2026-11-11, verbatim: the fin "fails at the equivalent of full rudder at 75%
+    /// va speed." It needed its own answer because the wing's sentence does not transfer — in balanced flight a fin
+    /// carries almost nothing, so "fails in steady flight" would have it drop off unprompted. His endpoint is a
+    /// rudder input rather than a load factor, and a deliberately gentler one than an ordinary bootful: the same
+    /// full deflection, flown 25 % slower.
+    ///
+    /// SO IT IS <see cref="Flutter.FinEndpointOverOrdinary"/> (0.5625) TIMES
+    /// <see cref="LimitsConfig.FinOrdinaryLoadN"/>, the measured full-deflection load at Va. The factor is not
+    /// arithmetic applied to a published number and hoped for: FinLoadProbe flies the 0.75 Va case on all 33
+    /// measured types, the ratio measured mean 0.5697 against dynamic pressure's 0.5625 with 31 of 33 inside 5 %,
+    /// and it is carried as one constant rather than authored per type precisely BECAUSE the measurement agreed.
+    /// That constant holds the fleet figures and the two types (both J-3s) that depart.
     /// </summary>
     private double CarryingStrengthAtOneG()
     {
@@ -233,7 +238,7 @@ public sealed partial class Aircraft
         {
             double finLimit = Structure.FinLimitLoadN, ordinary = Config.Limits?.FinOrdinaryLoadN ?? 0.0;
             if (finLimit <= 0.0 || ordinary <= 0.0) return 1.0;   // unmeasured: nothing to degrade toward
-            return Flutter.StrengthAtOneG(ordinary / finLimit);
+            return Flutter.StrengthAtOneG(ordinary * Flutter.FinEndpointOverOrdinary / finLimit);
         }
         bool tail = _flutterSurface is AirframeComponent.ElevatorLeft or AirframeComponent.ElevatorRight;
         double ratio = tail ? Structure.TailRatioAt(1.0, WingWeightRatio) : Structure.WingRatioAt(1.0, WingWeightRatio);
