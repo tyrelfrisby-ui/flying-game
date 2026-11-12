@@ -11,6 +11,9 @@ docs/models/pitts-s2b-own-PROVENANCE.md).  No third-party or GPL mesh, UV or tex
 v4 geometry (Ty): fin/rudder side profile and stab/elevator planform re-traced from the Aviat factory three-view (scaled
 to the published 5.71 m length; other S-2B three-views used as checks). v11 (Ty): slave struts 10 in inboard of the I-struts, pinned to aileron horns just
 ahead of the aileron leading edge. v13: both horns forward and 20 deg below the chord, parallel (S-1-11 drawing; see the v13 comment).
+v14 (Ty 2026-11-11, "Re-cut the mesh to match"): the exhaust stacks and the firewall plate are no longer authored here.
+Both read configs/aircraft/pitts-s2b-like.json `smoke.pipes` - the block the SIM draws the smoke out of - so the drawn
+pipes and the smoke cannot sit in different places again; see the engine section and the PROVENANCE note.
 v4 paint: the Aviat factory sunburst scheme, re-created procedurally below from published painted three-views (Horizons
 NZ, AirshowModels, Munden S-2C; looked at by eye only - nothing traced, sampled or copied into the textures): red base,
 sunburst on the top of both wings and on the stab/elevators, white fuselage stripes + nose diamond, white turtledeck
@@ -631,6 +634,29 @@ for blade in range(NBL):
 P['Prop'] = link('Prop', bm)
 
 # ---- AEIO-540 (simplified flat six from primitives) behind the inlets, inlet ducts, firewall, exhaust ---------------
+# THE FIREWALL STATION AND THE EXHAUST MOUTHS ARE NOT AUTHORED HERE.  They are read from the one block the SIM draws
+# the smoke out of - configs/aircraft/pitts-s2b-like.json `smoke.pipes` (FlyingGame.Core SmokePipesConfig.TryPipes),
+# carrying Ty's numbers of 2026-11-11: two pipes centred AT THE FIREWALL, 1.5 in bore each, 8 in apart on centre,
+# pointed 45 deg down.  Writing those numbers here as well is exactly how the drawn pipes and the smoke came to be in
+# different places: until 2026-11-11 this file tubed them to (0.74, +-0.21, -0.63) - on a plate it labelled "firewall"
+# that is 0.166 m INSIDE this model's own engine, and 0.21 m off the centreline - so the aeroplane showed smoke with no
+# pipe at it and pipes with no smoke.  Ty, asked whether to move the smoke or the mesh: "Re-cut the mesh to match."
+# FRAMES: that block is in the config BODY frame (x forward, y starboard, z DOWN); this builder is x forward, y PORT,
+# z UP.  So x carries straight over, z flips sign, and a bank spaced +-s/2 about the centreline is the same either way.
+import json
+SMOKE_PIPES = json.loads(open(os.path.join(ROOT, 'configs/aircraft/pitts-s2b-like.json')).read())['smoke']['pipes']
+FW_X = SMOKE_PIPES['firewallXM']                 # the firewall: measured as the aft face of the drawn engine
+EX_N = int(SMOKE_PIPES['count'])
+EX_R = 0.5 * SMOKE_PIPES['diameterIn'] * IN      # the drawn pipe IS the authored bore
+EX_Z = -SMOKE_PIPES['mouthZM']                   # config z is DOWN, this builder's is UP
+EX_SPACE = SMOKE_PIPES['spacingIn'] * IN         # on centre
+EX_AIM = math.radians(SMOKE_PIPES['downDeg'])
+EX_STUB = 0.060                                  # the straight run into the mouth, at the authored angle.  Any longer
+                                                 # and the bend climbs back up inside the belly skin (-0.607 at x 0.616);
+                                                 # at 0.060 the pipe centre is still 5 mm below it and the whole mouth
+                                                 # ring stands 30 mm clear of the skin, which is what mouthZM was set for.
+print('EXHAUST from smoke.pipes: %d pipes, firewall x %.3f, mouth z %.3f, %.4f m on centre, bore %.4f m, %.0f deg down'
+      % (EX_N, FW_X, EX_Z, EX_SPACE, 2 * EX_R, SMOKE_PIPES['downDeg']))
 en_bms = {}
 EN_T = ['en_core', 'en_cyl', 'en_case', 'en_rocker', 'en_dark']
 def _en(tag, fn):
@@ -653,15 +679,47 @@ for sy, x0 in ((-1, EN_X1), (1, EN_X1 - EN_STAG)):                              
         en_box('en_rocker', (x, sy * 0.405, 0), (0.12, 0.03, 0.15))
 for sy in (1, -1):
     _en('en_dark', lambda: loft_rings(en, [inlet_pts(sy, 1.0, X_FACE + 0.002), inlet_pts(sy, 0.92, X_FACE - 0.07)], False, False))
-en_box('en_dark', (0.74, 0, -0.17), (0.01, 0.70, 0.60))                                               # firewall
+# The firewall plate, moved to the firewall (Ty 2026-11-11).  It was drawn at x 0.740 and labelled "firewall", and the
+# old smoke outlet was authored off that label - but 0.740 is 0.166 m forward of the aft face of this model's own Engine
+# mesh (0.574..1.600), it leaves only 0.86 m between the prop flange at 1.518 and the plate for an AEIO-540 that is
+# 0.989 m long, and it cut straight through the rearmost starboard cylinder (x 0.712..0.848).  A plate there is a cowl
+# blanking baffle, not a firewall.  So it is moved rather than renamed, onto the station the config measures - and its
+# AFT FACE sits exactly on FW_X, so "the aft face of the drawn engine", the convention that station was measured by,
+# still reads x 0.574 on the rebuilt GLB.
+en_box('en_dark', (FW_X + 0.005, 0, -0.17), (0.01, 0.70, 0.60))                                       # firewall
 en_tag = []; parts = []
 for t in EN_T:
     if t in en_bms:
         b_ = en_bms[t]; me = bpy.data.meshes.new('en_' + t); b_.to_mesh(me); b_.free(); o = bpy.data.objects.new('en_' + t, me)
         bpy.context.scene.collection.objects.link(o); parts.append(o); en_tag += [EN_T.index(t)] * len(me.polygons)
 P['Engine'] = paint.join(parts, 'Engine')
+def tube_pt(bm, pts, r, n=12):
+    """A round tube along a polyline, with the ring frame PARALLEL-TRANSPORTED along the path.  tube() above picks its
+    reference axis per point, so the frame flips - and the tube twists ~180 deg across one segment - when a bend takes
+    the path across |dx| = 0.8 of its length.  That is the same flip that left a gap in the J-3's exhaust
+    (docs/models/j3-cub-own-PROVENANCE.md).  The re-cut stacks bend through exactly it (consecutive rings' reference
+    axes would sit at -0.96 / +0.999 / -0.95), so they carry one frame along the path instead.  Only the exhaust uses
+    this: tube() itself is untouched, so no other mesh in the model moves."""
+    pts = np.array(pts, float); m = len(pts); rs = []; u = None
+    for k, p in enumerate(pts):
+        d = pts[min(k + 1, m - 1)] - pts[max(k - 1, 0)]; d /= np.linalg.norm(d)
+        if u is None:
+            ref = np.array([0, 0, 1.0]) if abs(d[0]) > 0.8 else np.array([1.0, 0, 0]); u = np.cross(d, ref)
+        else:
+            u = u - np.dot(u, d) * d                     # the previous ring's frame, rotated onto this tangent
+        u /= np.linalg.norm(u); w = np.cross(d, u)
+        rs.append([tuple(p + r * (math.cos(t) * u + math.sin(t) * w)) for t in np.linspace(0, 2 * math.pi, n, endpoint=False)])
+    loft_rings(bm, rs, True, True)
+
 bm = bmesh.new()
-for sy in (1, -1): tube(bm, [(0.95, sy * 0.20, -0.52), (0.86, sy * 0.20, -0.60), (0.74, sy * 0.21, -0.63)], 0.030, 12)
+# The stacks still leave the cowl flank where they always did (x 0.95, y +-0.20, on the skin), but they now converge on
+# the centreline and END AT THE AUTHORED MOUTHS: the firewall station, +-half the 8 in spacing, turning 45 deg down out
+# of the belly.  Everything about the mouth comes from SMOKE_PIPES above; only the two upstream route points are art.
+for i in range(EX_N):
+    y = (i - 0.5 * (EX_N - 1)) * EX_SPACE            # the same rule as SmokePipesConfig.TryPipes: the bank's mean y is 0
+    sy = 1.0 if y >= 0 else -1.0
+    bend = (FW_X + EX_STUB * math.cos(EX_AIM), y, EX_Z + EX_STUB * math.sin(EX_AIM))
+    tube_pt(bm, [(0.95, sy * 0.20, -0.52), (0.86, sy * 0.20, -0.60), bend, (FW_X, y, EX_Z)], EX_R, 12)
 P['Exhaust'] = link('Exhaust', bm)
 
 # ---- paint (v4): the Aviat factory sunburst scheme, re-created procedurally ---------------------------------------
