@@ -128,7 +128,10 @@ public static class TunableCatalog
             Id = "spinAero.controlSpoilerK",
             Group = g,
             Label = "Control power when the tail is broadside",
-            Min = 0, Max = 2, Step = 0.1, FineStep = 0.02, Decimals = 2,
+            // Max 3, raised from 2 on 2026-11-11: the Pitts now flies 2.4 upright (the value that gets his
+            // Beggs-Mueller recovery under four turns) and a slider that cannot reach past its own config is
+            // a slider he cannot use to overturn us.
+            Min = 0, Max = 3, Step = 0.1, FineStep = 0.02, Decimals = 2,
             Description = "How much elevator and rudder you still have once the tail is sideways to the air, as it is in a spin. "
                         + "Bigger means more control in the spin. At 0 the surfaces go nearly dead there, because a strip model "
                         + "lets a control turn the flow and at ninety degrees there is no flow left to turn — measured on the Pitts, "
@@ -136,6 +139,23 @@ public static class TunableCatalog
                         + "shoves the separated wake aside instead, and this is the strength of that shove. Thirteen types fly 0.6.",
             Get = c => Spin(c).ControlSpoilerK,
             Set = (c, v) => Spin(c).ControlSpoilerK = v,
+        });
+
+        TunableRegistry.Register(new Tunable
+        {
+            Id = "spinAero.controlSpoilerKNeg",
+            Group = g,
+            Label = "Same, but inverted (negative angle of attack)",
+            Min = 0, Max = 3, Step = 0.1, FineStep = 0.02, Decimals = 2,
+            Description = "The knob above, for when the air is coming at the tail from ABOVE instead of below — an inverted spin. "
+                        + "Set it the same as the knob above and nothing changes. Set it lower and an inverted spin keeps the "
+                        + "control feel it has while an upright one gets more, which is what Ty asked for on 2026-11-11: \"bump the "
+                        + "spoiler up a bit upright but leave the inverted curve the same\". Which of the two is in use is decided by "
+                        + "the AEROPLANE's angle of attack, not each surface's own, so a left spin and a right spin always behave the "
+                        + "same; it blends across about three degrees either side of zero, so rolling through level flight has no step "
+                        + "in it.",
+            Get = c => Spin(c).ControlSpoilerKNeg >= 0 ? Spin(c).ControlSpoilerKNeg : Spin(c).ControlSpoilerK,
+            Set = (c, v) => Spin(c).ControlSpoilerKNeg = v,
         });
 
         TunableRegistry.Register(new Tunable
