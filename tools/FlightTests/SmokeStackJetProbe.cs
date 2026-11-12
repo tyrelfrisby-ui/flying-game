@@ -24,14 +24,14 @@ namespace FlyingGame.FlightTests;
 ///                       spentS 0.15 s                               - a TIME, not bore-specific; see the note below
 ///   SmokeTrail          0.22 × penetration, TubeDiffusion 0.6 m/√s  - widening rates, not bore-specific
 ///                       PuffD0 / PuffGrowth / TauCore               - fitted to the trail's look, never read the bore at all
-/// Two are worth Ty's eye, and neither has been touched:
-///   * <see cref="ExhaustPulse.Penetration"/>'s <c>spentS</c> = 0.15 s. Not a bore coefficient — it is a time — but the
-///     sentence that justifies it, that the jet is "spent within a metre or so" in the crossflow, was written at
-///     70 m/s. At 251 m/s the same 0.15 s carries the gas 4.60 m instead of 2.87.
-///   * the 4 ms step <see cref="ExhaustJet.Step"/> is marched at. It is explicit Euler and a narrow fast jet entrains
-///     several times its own mass in one step, so the drawn net push is roughly twice what the model says. The table
-///     below prints it at three steps; see the note on <see cref="ExhaustJet.Step"/> for why it is left alone.
-/// If the picture looks wrong it is one of those two, not his measurement.
+/// One is still worth Ty's eye and has NOT been touched:
+/// <see cref="ExhaustPulse.Penetration"/>'s <c>spentS</c> = 0.15 s. Not a bore coefficient — it is a time — but the
+/// sentence that justifies it, that the jet is "spent within a metre or so" in the crossflow, was written at 70 m/s. At
+/// 251 m/s the same 0.15 s carries the gas 4.60 m instead of 2.87. His number to move.
+/// The other one, the 4 ms march itself, IS now fixed: <see cref="ExhaustJet.Step"/> substeps and
+/// <see cref="AirframeFlow.Deflection"/> advances a marker by the displacement the step integrated instead of by the
+/// excess it started with. The net-push rows below used to read 0.54 / 0.82 / 1.35 m at the drawn step against 0.39 /
+/// 0.45 / 0.62 converged; they now agree to about 1 %. <see cref="JetStepConvergenceProbe"/> has that story.
 /// </summary>
 public class SmokeStackJetProbe
 {
@@ -100,8 +100,8 @@ public class SmokeStackJetProbe
 
         // THE NET PUSH the airframe flow ends up giving a marker released at a pipe mouth at cruise - "how far off the
         // free-stream path does the plume end up", which is what you see. Printed at the step SmokeTrail actually uses
-        // (FlowDt 0.004) and at two smaller ones, because it is NOT converged at 4 ms and never has been: the drawn
-        // figure is about twice what the model says, and the gap widens with the faster jet. See ExhaustJet.Step.
+        // (FlowDt 0.004) and at two smaller ones: they agree now. Before the march was fixed the drawn 4 ms figure was
+        // about twice the others, and the gap widened with the faster jet.
         CrossflowConfig cf = cfg.Fuselage.Crossflow!;
         var flow = new AirframeFlow(cfg, .4 * cf.LengthM, cf.BodyRadiusM);
         Assert.True(pipes.TryPipes(out Vec3[] mouths, out Vec3[] aim));
