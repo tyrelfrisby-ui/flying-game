@@ -15,8 +15,10 @@ Four commits landed tonight on `lane/claude-quest-islandnav` and `lane/claude-sp
 component separation, unified three disagreeing propeller weights into one, made a torn-off gear leg's
 stub behave like real structure, and took Ty's decision on a stale test pin. **21 tests are still red, all
 of them red before this work started.** They are almost certainly **four or five root causes, not 21** —
-Section 3 groups them. The highest-value single task is Section 3.1, and Section 3.1 is *not* the task I
-thought it was when I started writing this document; the measurement at the bottom of it changed my mind.
+Section 3 groups them. **The highest-value single task is Section 3.0, modelling the aileron spades** - Ty asked for it on
+2026-11-12 and it is the likely fix for an aileron-peg bug he has reported twice. Section 3.1, the tree
+strikes, is second and is *not* the task I thought it was when I started writing this document; the
+measurement at the bottom of it changed my mind.
 
 ---
 
@@ -128,6 +130,139 @@ blade rule so weight and gyroscopics cannot disagree.
 ---
 
 ## 3. The work, in priority order
+
+### 3.0 MODEL THE SPADES on the Pitts and the Extra — stick-free only  ← DO THIS FIRST
+
+**Ty, 2026-11-12: "Are the spades even modeled on here? They should be" / "We need to model spades on
+the pitts and extra for stick free behavior".** They are not. The word `spade` appears nowhere in `src/`
+and in no config — only in two test comments, both of which name it as a known omission.
+
+#### What is there now, and why it is not a spade
+
+Both types author the same aileron hinge pair, the field doc's generic "balanced" values:
+
+```
+pitts-s2b-like  .controls.aileron  hingeChAlpha -0.10  hingeChDelta -0.30  reversible true
+extra-300-like  .controls.aileron  hingeChAlpha -0.10  hingeChDelta -0.30  reversible true
+```
+
+A constant linear pair cannot express three things a real spade does:
+
+1. **It can OVERBALANCE.** A spade's force grows with deflection and can drive the aileron *further*.
+   A negative `ChDelta` is restoring at every angle by construction.
+2. **It sees its own local flow,** on an arm below the wing — so in a flat spin at α 70-85° it is
+   broadside to the relative wind while the wing is stalled, and the two wings are in utterly different
+   flow. A constant coefficient averages that away.
+3. **Its force SATURATES** (a flat plate does), so its *stiffness* falls toward zero at high angle while
+   its *force* is at a maximum. That combination is the whole point.
+
+#### SCOPE IT TO STICK-FREE. There is no pilot force limit in this model.
+
+Checked 2026-11-12: `StickForce`, `PilotForceN`, `maxStickForce` and the like appear **nowhere** in `src/`
+or the tests. The pilot commands deflection and gets it. So **a spade can only change hands-off
+behaviour**, which is exactly how Ty scoped it. Two consequences:
+
+- Do **not** expect spades to fix `PittsRollRateTests`. Its note "`extra-300-like` … published ~340-400
+  … spades not modelled" is a **red herring** for that test: with no force limit, a balance tab cannot buy
+  a degree of commanded roll rate. The real cause is the other half of the same note, *"30 deg travel sits
+  deep in the plain-flap fall-off"*.
+- Everything spades touch runs through `Aircraft.FreeFloat` / `HingeTerms` / `HingeStrip`.
+
+#### THE BUG THIS SHOULD FIX — Ty has reported it twice
+
+`FreeFloat`'s own closing comment:
+
+> *"In the Pitts' flat spin the aileron's own terms measure a +11.7…+18.6 against b −8.5…−22.9 with NO
+> centering spring at all (k = 0), and the root comes out at 50-79° on a surface that has 25°: it sits on
+> the stop every step. That is the owner's report, twice — 'the problem is the ailerons sticking at full
+> opposite', and after three more builds, 'The ailerons still peg and stick at full opposite too which is
+> not real behavior'."*
+
+The present mitigation is declared **partial**: it floats 17-24° instead of exactly 25.0°, and the stated
+reason it is still wrong is that `a` is huge because a linear hinge slope is being evaluated on a wing at
+α 70-85°. Note also the comment's warning for the next attempt: **gating on the strips' own separation does
+nothing**, because `StripFlowState.Separation` reads ~0 for these aileron strips even at α 78.
+
+**The mechanism to aim at.** The aileron's own hinge moment at α 78° is ill-defined; a spade's is not.
+With a flat-plate law its stiffness contribution is anti-restoring and *falls* at high α while its force
+peaks, so it drives `b` toward positive. The moment `b > 0` and `den = k − b ≤ 0`, **`FreeFloat` already
+routes to the vane solution**, which measures **−3° to −10°** in this condition — a small float, not a peg,
+which is what Ty says the aeroplane does. So the fix may come through a path the code already has rather
+than through another mitigation. **Verify that chain before building anything**: instrument `b` with a
+trial spade and check whether it actually crosses zero in the flat spin. If it does not, say so and stop,
+rather than tuning the area until it does.
+
+#### Proposed model (one honest law, no table)
+
+Add to `ControlAxisConfig`, defaulting to **0 so every other type is bit-for-bit unchanged**:
+
+```
+SpadeAreaM2    // ONE spade's plate area, m^2. 0 = no spades (default).
+SpadeArmM      // perpendicular distance, m, from the hinge line to the spade's centre of pressure.
+```
+
+Flat plate, low aspect ratio, one law from 0 to 90°: **`C_N(α) = 1.9·sin α`**, slope `dC_N/dα = 1.9·cos α`.
+That is deliberate — 1.9/rad near zero is within 10 % of a thin AR≈1 plate's `2π/(1+2/AR) = 2.09`, and
+1.9 is also a flat plate's broadside normal-force coefficient, so one sine covers both ends. Put that
+reasoning in the code as a comment; do not swap it for a table without a measurement.
+
+The spade angle is `α_spade = α_local + δ` (it is rigid with the aileron). Its hinge moment is
+`q·S·arm·C_N(α_spade)`, in **newton-metres — the same units as the existing `a` and `b`**, since those are
+`q·S·c·Ch`. The solve is linear in δ, so **linearise about the current deflection** `δ0` (the float is a
+τ-filtered target anyway, so it converges frame to frame):
+
+```
+M0    =  q · S · arm · 1.9 · sin(α_local + δ0)
+slope =  q · S · arm · 1.9 · cos(α_local + δ0)
+a    +=  g · (M0 − slope·δ0) · SIGN       // flow term, per side, with the gain sign
+b    +=  slope · SIGN                     // anti-restoring, NOT multiplied by g
+```
+
+`SIGN` is +1 if the spade assists deflection. **Get it right by derivation, not by trying both.** The
+spade hangs below and ahead of the hinge: aileron trailing edge down puts the spade up into the flow, the
+air pushes the spade down, and being ahead of the hinge that rotates the aileron further down. Assisting.
+
+#### THE SIGN TRAP — read this before you write a line
+
+`HingeStrip`'s comments record two bugs already shipped and fixed in this exact arithmetic, and a spade
+term is wide open to both:
+
+- **`g` is on the flow term, not the stiffness.** `a += g·qsc·(…)` but `b += qsc·(…)` with no `g`. That is
+  the interconnect: *"the ailerons are connected to one another as one trys to weathervane the other is
+  also trying to weather vane and cancels it out"* (Ty 2026-11-09). Put `g` on the spade's `b` and you
+  destroy that cancellation. Leave it off the spade's `a` and one side's float flips sign — measured as
+  **L +14, R +21 on the stick where they should have met near zero.**
+- **Do not use `sign(dir)`.** `HingeFlowDir` runs +1 → 0 → −1 and taking its sign puts a step at pure
+  crossflow. That shipped as *"a high frequency twitch especially in aileron post crash"* (Ty). The code
+  now scales continuously by `clamp(dir/0.15, −1, +1)`. A spade in crossflow has the same problem; handle
+  it the same way.
+
+#### Geometry — ESTIMATES, and Ty can settle them in ten minutes with a tape
+
+These are my figures, not measured, and they must carry a `Source` note saying so. **Ask Ty to measure
+his own S-2B**: the plate's two dimensions and the distance from the aileron hinge line to the middle of
+the plate. That is the whole input.
+
+| | plate | area each | arm | note |
+|---|---|---|---|---|
+| Pitts S-2B | ~8 × 10 in | **~0.052 m²** | **~0.30 m** | **ASK WHICH AILERONS CARRY THEM.** The S-2B has four ailerons joined by a strut; spades are commonly on the **lower** pair only. If so, the spade terms attach to the lower strips alone and the upper ailerons get none — which is itself an asymmetry worth having. |
+| Extra 300 | larger | **~0.065 m²** | **~0.32 m** | both ailerons |
+
+#### Acceptance
+
+1. **Every type without spades is unchanged** — `SpadeAreaM2 = 0` must be an exact no-op. Pin it: run a
+   type with no spades before and after and assert the float is bit-identical.
+2. `HandsOffThePittsAileronsStayProSpinInTheFlatSpin` still passes, or its number changes and Ty is shown
+   the before/after and asked, because that test encodes his own "slightly inspin aileron" report.
+3. **The peg is gone**: report the Pitts' hands-off aileron float in the developed flat spin, before and
+   after, against the 17-24° the code records today and the −3° to −10° vane angle.
+4. Report Beggs-Mueller turn counts before and after for all three types. Measured 2026-11-12 at
+   `df7d0d25`: **Extra 2.85 turns / 6.9 s, Great Lakes 4.79 / 10.2** (free) against 2.34 and 4.03 with the
+   stick held neutral. **The Pitts case did not print — get its figure first, as the baseline.** Ty's rule
+   is 4 turns, so the Great Lakes is the one measurably over, and `BeggsMuellerRecoversAndTheFreeControlsAreWhatMakesItSlow`
+   **does not enforce the rule at all** — it only asserts recovery happens (`Assert.False(IsNaN(StopSec))`).
+   Do not add a 4-turn bound without asking him; it is his rule and he may want it as a probe, not a pin.
+5. `AileronPegProbe` (`AIL_PEG=1`) prints the whole hinge balance each second. Use it; it was built for this.
 
 ### 3.1 The tree strikes — five reds, and probably one cause  ← START HERE
 
