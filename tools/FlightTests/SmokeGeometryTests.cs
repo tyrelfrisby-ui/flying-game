@@ -32,11 +32,16 @@ public class SmokeGeometryTests
         Assert.False(flow.Inside(outlet, .005), $"{id}: outlet inside the smoke flow body's collision envelope");
         var sm = cfg.Smoke;
         var pr = cfg.Propulsion!;
+        // These types author no pipe bank, so they keep the single 4 in stack that is the fleet default (Ty 2026-10-13)
+        // and their jet is exactly what it was.
+        Assert.Null(sm.Pipes);
+        Assert.Equal(1, sm.JetPipeCount);
+        Assert.Equal(sm.PipeDiameterIn * .0254, sm.JetPipeDiameterM, 12);
         double exit = ExhaustJet.ExitVelocity(sm.DisplacementCuIn * 16.387e-6, pr.MaxRpm, 1, 1.225,
-            sm.PipeDiameterIn * .0254, sm.ExhaustTempK);
+            sm.JetPipeDiameterM, sm.ExhaustTempK, pipes: sm.JetPipeCount);
         Assert.InRange(exit, 15, 100);
         double idle = ExhaustJet.ExitVelocity(sm.DisplacementCuIn * 16.387e-6, pr.IdleRpm, 0, 1.225,
-            sm.PipeDiameterIn * .0254, sm.ExhaustTempK);
+            sm.JetPipeDiameterM, sm.ExhaustTempK, pipes: sm.JetPipeCount);
         Assert.InRange(idle, .01, exit / 5);
         Assert.InRange(sm.DownDeg, 0, 90);
     }
@@ -107,19 +112,13 @@ public class SmokeGeometryTests
             Assert.Equal(45.0, Math.Atan2(d.Z, -d.X) * 180 / Math.PI, 6);
         }
 
-        // Every mouth starts in clear air, and the jet that carries it is still the exhaust's (unchanged).
+        // Every mouth starts in clear air. (The jet that leaves them is pinned by
+        // TheJetLeavesTheAuthoredStacksAndNotTheFourInchDefault below.)
         CrossflowConfig crossflow = cfg.Fuselage.Crossflow!;
         var flow = new AirframeFlow(cfg, .4 * crossflow.LengthM, crossflow.BodyRadiusM);
         foreach (Vec3 m in mouths)
             Assert.False(flow.Inside(m, .005), $"{id}: a pipe mouth is inside the smoke flow body's collision envelope");
         SmokeConfig sm = cfg.Smoke;
-        PropulsionConfig pr = cfg.Propulsion!;
-        double exit = ExhaustJet.ExitVelocity(sm.DisplacementCuIn * 16.387e-6, pr.MaxRpm, 1, 1.225,
-            sm.PipeDiameterIn * .0254, sm.ExhaustTempK);
-        Assert.InRange(exit, 15, 100);
-        double idle = ExhaustJet.ExitVelocity(sm.DisplacementCuIn * 16.387e-6, pr.IdleRpm, 0, 1.225,
-            sm.PipeDiameterIn * .0254, sm.ExhaustTempK);
-        Assert.InRange(idle, .01, exit / 5);
 
         // The pipes supersede the old single-outlet authoring for the SMOKE, and every one of them is aft of where that
         // authoring put it — which is the whole complaint. (The old fields stay authored because
@@ -127,6 +126,78 @@ public class SmokeGeometryTests
         if (sm.TryOutlet(out Vec3 was))
             foreach (Vec3 m in mouths)
                 Assert.True(m.X < was.X, $"{id}: a pipe is no further aft than the outlet Ty called too far forward");
+    }
+
+    // THE PIPES ARE THE EXHAUST STACKS. Ty, asked on 2026-11-11 whether the two pipes he measured are the stacks
+    // themselves, said YES — so the jet's exit velocity, momentum, penetration and spread all come from HIS bore and
+    // count, not from the single 4 in stack the model was fitted against on 2026-10-13. The engine's mass flow is
+    // untouched and so is every coefficient in the fit (VE 0.85, AFR 12.5, γ 1.35, r_c, T_e 900 K, α 0.057): the bore is
+    // an INPUT to them. These numbers are pinned rather than banded because the change is large and deliberate —
+    // the Pitts' total area falls 3.56x and its exit velocity rises by the same factor.
+    public static TheoryData<string, int, double, double, double, double, double> PipedStacks() => new()
+    {
+        // id, stacks, bore in, total area cm2, U0 at max rpm full power, U0 at idle rpm closed, what one 4 in stack gave
+        { "extra-300-like", 2, 2.0, 40.54, 140.8, 8.91, 70.4 },
+        { "pitts-s2b-like", 2, 1.5, 22.80, 251.1, 15.88, 70.6 },
+    };
+
+    [Theory]
+    [MemberData(nameof(PipedStacks))]
+    public void TheJetLeavesTheAuthoredStacksAndNotTheFourInchDefault(
+        string id, int stacks, double boreIn, double areaCm2, double u0Full, double u0Idle, double u0WasOnOneFourInch)
+    {
+        AircraftConfig cfg = Load(id);
+        SmokeConfig sm = cfg.Smoke!;
+        PropulsionConfig pr = cfg.Propulsion!;
+
+        // The bore and the count the jet model reads ARE the authored stacks, whatever pipeDiameterIn happens to default to.
+        Assert.Equal(stacks, sm.JetPipeCount);
+        Assert.Equal(boreIn * 0.0254, sm.JetPipeDiameterM, 12);
+        Assert.Equal(sm.Pipes!.DiameterM, sm.JetPipeDiameterM, 12);
+        Assert.Equal(areaCm2, stacks * Math.PI * sm.JetPipeDiameterM * sm.JetPipeDiameterM / 4 * 1e4, 2);
+
+        // Exit velocity, full power and idle, through the config overload every live path uses.
+        double full = ExhaustJet.ExitVelocity(sm, pr, pr.MaxRpm, 1, 1.225);
+        double idle = ExhaustJet.ExitVelocity(sm, pr, pr.IdleRpm, 0, 1.225);
+        Assert.Equal(u0Full, full, 1);
+        Assert.Equal(u0Idle, idle, 2);
+        Assert.InRange(idle, .01, full / 5);
+
+        // It is NOT the 4 in default any more, and the area is exactly what moved it: U0 scales as 1/area, so the
+        // velocity ratio and the area ratio are the same number.
+        double was = ExhaustJet.ExitVelocity(sm.DisplacementCuIn * 16.387e-6, pr.MaxRpm, 1, 1.225, 4 * 0.0254,
+            sm.ExhaustTempK, compressionRatio: sm.CompressionRatio);
+        Assert.Equal(u0WasOnOneFourInch, was, 1);
+        Assert.Equal(81.07 / areaCm2, full / was, 2);
+        Assert.True(full > 1.5 * was, $"{id}: the jet still reads something like the 4 in default ({full:0.0} vs {was:0.0} m/s)");
+
+        // Subsonic at the exhaust's own temperature: a = sqrt(1.4 R T) = 601 m/s at 900 K, so even 251 m/s is M 0.42.
+        // (M 0.73 is what you get by mistakenly dividing by the AMBIENT 343 m/s.)
+        double a = Math.Sqrt(1.4 * ExhaustJet.GasR * sm.ExhaustTempK);
+        Assert.Equal(601.0, a, 0);
+        Assert.True(full / a < 0.5, $"{id}: exit Mach {full / a:0.00} at {sm.ExhaustTempK:0} K is not a stack any more");
+
+        // Nothing in the fit was rescaled to pay for it: the engine's own numbers are as authored.
+        Assert.Equal(8.7, sm.CompressionRatio, 6);
+        Assert.Equal(900, sm.ExhaustTempK, 6);
+        Assert.Equal(0.057, ExhaustJet.ShearAlpha, 6);
+        // And the potential core the penetration law measures in scales WITH the bore (6 diameters), so it needs no fit.
+        Assert.Equal(6 * sm.JetPipeDiameterM, 6 * boreIn * 0.0254, 12);
+    }
+
+    // Only these two types are authored: the rest of the fleet keeps one 4 in stack. If a third type ever grows a bank,
+    // this is where to say so deliberately.
+    [Fact]
+    public void NoOtherTypeHasGrownAStackBankByAccident()
+    {
+        string[] banked = { "extra-300-like", "pitts-s2b-like" };
+        foreach (string path in Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "TestData"), "*.json"))
+        {
+            string id = Path.GetFileNameWithoutExtension(path);
+            SmokePipesConfig pipes = AircraftConfigLoader.LoadFromFile(path).Smoke?.Pipes;
+            if (pipes == null || !pipes.IsAuthored) continue;
+            Assert.Contains(id, banked);
+        }
     }
 
     // ONE PUFF PER PIPE EVERY OTHER COMBUSTION STROKE, derived from the engine and not from a chosen rate: the cylinder

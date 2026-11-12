@@ -891,15 +891,28 @@ public sealed class SmokeConfig
     /// <see cref="SmokePipesConfig.DownDeg"/> where <see cref="Pipes"/> is authored.</summary>
     public double DownDeg { get; set; } = 30;
     /// <summary>The engine's displacement (in³) and the exhaust pipe's diameter (in): the jet's exit velocity comes from
-    /// the engine's mass flow (<see cref="Aero.ExhaustJet"/>). 0 = estimated from the power (≈ 0.56 hp/in³).</summary>
+    /// the engine's mass flow (<see cref="Aero.ExhaustJet"/>). 0 = estimated from the power (≈ 0.56 hp/in³).
+    /// <see cref="PipeDiameterIn"/> is the FLEET DEFAULT, one 4 in stack (Ty 2026-10-13). A type that authors
+    /// <see cref="Pipes"/> does not use it: its stacks are the pipes the smoke comes out of
+    /// (<see cref="JetPipeDiameterM"/>).</summary>
     public double DisplacementCuIn { get; set; }
     public double PipeDiameterIn { get; set; } = 4;
+    /// <summary>THE BORE THE JET ACTUALLY LEAVES THROUGH (m), and how many stacks share the engine's flow.
+    ///
+    /// Ty, asked on 2026-11-11 whether his two measured smoke pipes ARE the exhaust stacks, said YES. So there is one
+    /// pipe per type, not a smoke pipe and a separate stack: the exit velocity, the jet's momentum, its penetration and
+    /// its spread all come from the bore he measured and from how many of them there are. A type with no
+    /// <see cref="Pipes"/> block keeps the single 4 in default and is untouched.
+    /// </summary>
+    public double JetPipeDiameterM => Pipes != null && Pipes.IsAuthored ? Pipes.DiameterM : PipeDiameterIn * 0.0254;
+    /// <summary>How many stacks of <see cref="JetPipeDiameterM"/> share the engine's flow.</summary>
+    public int JetPipeCount => Pipes != null && Pipes.IsAuthored ? Pipes.Count : 1;
     /// <summary>The exhaust gas temperature at the pipe's exit (K).</summary>
     public double ExhaustTempK { get; set; } = 900;
     /// <summary>Cylinders feeding the smoke pipe's engine: a four-stroke's pipe sees cylinders / 2 exhaust pulses per
     /// revolution (<see cref="Aero.ExhaustPulse"/>). 6 when not given (the AEIO-540s).</summary>
     public int Cylinders { get; set; } = 6;
-    /// <summary>Compression ratio, for the part-throttle residual gas (<see cref="Aero.ExhaustJet.ExitVelocity(double, double, double, double, double, double, double, double, double)"/>).</summary>
+    /// <summary>Compression ratio, for the part-throttle residual gas (<see cref="Aero.ExhaustJet.ExitVelocity(double, double, double, double, double, double, double, double, double, int)"/>).</summary>
     public double CompressionRatio { get; set; } = 8.7;
     /// <summary>THE SMOKE PIPES THEMSELVES, where a type has a measured bank rather than one outlet
     /// (<see cref="SmokePipesConfig"/>). When this is given it supersedes <see cref="OutletBodyM"/>,
@@ -952,16 +965,26 @@ public sealed class SmokePipesConfig
     public double SpacingM => SpacingIn * 0.0254;
     public double DiameterM => DiameterIn * 0.0254;
 
+    /// <summary>Whether this block is authored and finite enough to use: <see cref="TryPipes"/>'s test, without its
+    /// allocation, so the jet model can ask it every frame (<see cref="SmokeConfig.JetPipeDiameterM"/>).</summary>
+    public bool IsAuthored
+    {
+        get
+        {
+            if (Count < 1 || DiameterIn <= 0) return false;
+            if (Count > 1 && !(SpacingIn > 0)) return false;
+            return Finite(FirewallXM) && Finite(MouthZM) && Finite(SpacingIn) && Finite(DownDeg) && Finite(DiameterIn);
+        }
+    }
+    private static bool Finite(double v) => !double.IsNaN(v) && !double.IsInfinity(v);
+
     /// <summary>The mouths (body axes, m from the datum) and the way each one blows (unit, body axes). False - and
     /// nothing written - unless every number needed is present and finite, so a half-authored block falls back to the
     /// single outlet rather than drawing smoke at NaN.</summary>
     public bool TryPipes(out MathTypes.Vec3[] mouths, out MathTypes.Vec3[] aim)
     {
         mouths = Array.Empty<MathTypes.Vec3>(); aim = Array.Empty<MathTypes.Vec3>();
-        if (Count < 1 || DiameterIn <= 0) return false;
-        if (Count > 1 && !(SpacingIn > 0)) return false;
-        foreach (double v in new[] { FirewallXM, MouthZM, SpacingIn, DownDeg })
-            if (double.IsNaN(v) || double.IsInfinity(v)) return false;
+        if (!IsAuthored) return false;
         double down = DownDeg * Math.PI / 180;
         var dir = new MathTypes.Vec3(-Math.Cos(down), 0, Math.Sin(down));   // body z is DOWN
         var m = new MathTypes.Vec3[Count]; var a = new MathTypes.Vec3[Count];

@@ -713,15 +713,16 @@ namespace FlyingGame.Bridge.Widget
         /// <summary>The exhaust's exit velocity (m/s) at this rpm and throttle (Ty 2026-10-13: "a 540 ci engine turning 2700 rpm
         /// and the exhaust pipe is a 4 inch diameter — calculate the velocity"): <see cref="FlyingGame.Core.Aero.ExhaustJet"/> from
         /// the config's displacement (else ≈ 0.56 hp/in³ of the rated power) and pipe. A turbine's exhaust isn't modelled
-        /// this way: 25 m/s (the old figure) at its tailpipe.</summary>
+        /// this way: 25 m/s (the old figure) at its tailpipe.
+        /// It calls the CONFIG overload rather than repeating the formula, so the widget reads the same bore and stack
+        /// count as the flight scene — the Extra's and the Pitts' measured stacks, not the 4 in default (Ty 2026-11-11:
+        /// the smoke pipes ARE the exhaust stacks). The inline copy here missed them, and the widget is a parity
+        /// target.</summary>
         private double JetU0(double rpm, double throttle, double altM)
         {
             var pr = Config?.Propulsion; if (pr == null) return 0;
             if (pr.PropDiameterM <= 0) return 25.0 * System.Math.Clamp(throttle, 0, 1);
-            var sm = Config.Smoke;
-            double cuIn = sm != null && sm.DisplacementCuIn > 0 ? sm.DisplacementCuIn : pr.MaxPowerW / 745.7 / 0.556;
-            return FlyingGame.Core.Aero.ExhaustJet.ExitVelocity(cuIn * 16.387e-6, rpm, throttle, Atmosphere.DensityAtAltitude(altM),
-                (sm?.PipeDiameterIn ?? 4) * 0.0254, sm?.ExhaustTempK ?? 900);
+            return FlyingGame.Core.Aero.ExhaustJet.ExitVelocity(Config.Smoke, pr, rpm, throttle, Atmosphere.DensityAtAltitude(altM));
         }
         /// <summary>Which start this is (the smoke never joins one flight's path to the next).</summary>
         public int Flight;
