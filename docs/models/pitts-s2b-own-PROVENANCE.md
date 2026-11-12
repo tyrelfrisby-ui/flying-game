@@ -481,3 +481,63 @@ offline updaters after the last full build, so a full rebuild from this script w
 
 To fix the GLBs, replace only the `Aileron_UL/UR/LL/LR` and `Strut_Slave_L/R` meshes in each one, in the manner of
 `build_ea300.py --wing-only`. Before committing, compare the exported node sets against HEAD.
+
+## 2026-11-11 — v14: the exhaust pipes re-cut onto the smoke's own station, and the "firewall" plate moved there
+
+Ty, asked whether to re-cut the mesh or move the smoke back to the pipes: **"Re-cut the mesh to match."**
+
+`configs/aircraft/pitts-s2b-like.json` `smoke.pipes` has carried his dimensions since 4ab04dfc — two pipes centred at
+the firewall, 1.5 in bore each, 8 in apart on centre, 45° down — and the sim draws the smoke out of them. The model
+did not: it tubed its visible pipes to builder (0.74, ±0.21, −0.63), on a plate this builder labelled "firewall" and
+0.21 m off the centreline. The aeroplane showed smoke with no pipe at it and pipes with no smoke.
+
+**The numbers are no longer written here.** `build_pitts_s2b.py` reads `smoke.pipes` out of the config for the
+station, the spacing, the bore and the aim (`SMOKE_PIPES` / `FW_X` / `EX_*`), converting only the frame: that block is
+in the config body frame (x forward, y starboard, z **down**) and this builder is x forward, y port, z **up**, so x
+carries over, z flips and a bank spaced ±s/2 about the centreline is the same either way. Two numbers for one pipe is
+what produced the bug.
+
+- **Mouths**, measured back off all four GLBs: body (+0.574, ±0.1016, +0.655 down), ring radius 0.01905 m, cap plane
+  square to (−cos45°, 0, +sin45°) to 2 × 10⁻⁸. Max error against the config, 5 × 10⁻⁸ m.
+- **Route.** The stacks still leave the cowl flank where they always did (0.95, ±0.20, −0.52 — on the skin) and run
+  through (0.86, ±0.20, −0.60); they then converge onto the centreline bank and take a 60 mm straight run at 45° into
+  the mouth. 60 mm is the most the stub can be: any longer and the bend climbs back up inside the belly skin (−0.607
+  at x 0.616). As built, the bend's centre is 5 mm below the skin and the whole mouth ring stands 30 mm clear of it,
+  which is what `mouthZM` was measured for.
+- **The frame flip.** `tube()` picks its ring reference axis per point, so it flips — twisting the tube ~180° across
+  one segment — when a bend crosses |dx| = 0.8 of the path. The re-cut stacks bend through exactly that (consecutive
+  reference axes would have sat at −0.96 / +0.999 / −0.95). They use a local parallel-transported `tube_pt()`;
+  `tube()` itself is untouched, so no other mesh moved.
+- **The plate.** The `en_dark` plate at x 0.740 labelled "firewall" was **moved, not renamed**, to `FW_X + 0.005`, so
+  its *aft face* sits exactly on the measured station. It was not a firewall: 0.740 is 0.166 m forward of the aft face
+  of this model's own `Engine` mesh (0.574..1.600), it leaves only 0.86 m from the prop flange at 1.518 for a 0.989 m
+  AEIO-540, and it cut through the rearmost starboard cylinder (0.712..0.848) — a plate there is a cowl blanking
+  baffle. Moving it keeps the convention the station was measured BY ("the aft face of the drawn engine") reading
+  x 0.574 on the rebuilt GLB, and leaves no second plate at 0.740 for the next reader to measure a firewall off.
+  The `Engine` mesh's bounds are unchanged by it (glTF x −1.600..−0.574, as before).
+
+**How the GLBs were rebuilt — not by a full rebuild.** As the 2026-11-03 note below says, the committed GLBs carry 85
+nodes that offline updaters added after the last full build, so a full rebuild would drop them. So:
+`PITTS_OUT=<scratch> blender -b --python tools/own_models/build_pitts_s2b.py` (one Blender process, one model), then
+`tools/own_models/pitts_exhaust_export.py <scratch>` lifts **only** `Exhaust` and `Engine` into each of the four
+liveries, keeping each file's own materials by name — the `build_ea300.py --wing-only` pattern. It is checked first:
+the unchanged builder's `Engine` and `Exhaust` reproduced the committed ones byte for byte (sha1
+`46a049d3…` / `fc734c83…`), so the lift is surgical rather than approximate. Exactly 2 of the 139 mesh nodes changed
+in each livery, the node sets and materials are identical, and each file grew 40.6 kB (the replaced accessors stay in
+the buffer as dead space — do not re-run the patcher idly).
+
+| livery | bytes before | bytes after |
+|---|---|---|
+| `pitts-s2b-like-own.glb` | 5,612,980 | 5,653,544 |
+| `pitts-s2b-like-own-n1191.glb` | 5,639,344 | 5,679,912 |
+| `pitts-s2b-like-own-checker-unmarked.glb` | 5,613,704 | 5,654,272 |
+| `pitts-s2b-like-own-factory-unmarked.glb` | 5,639,344 | 5,679,912 |
+
+`Exhaust` went from 152 to 144 vertices (glTF x −0.9699..−0.7325 → −0.9627..−0.5607, y −0.6591..−0.4976 →
+−0.6683..−0.5058, z ±0.2399 → ±0.2191).
+
+Pinned by `tools/FlightTests/SmokePipeMeshTests.cs` (the mesh side only; the config side stays in
+`SmokeGeometryTests`): `TheGlbIsInTheConfigsOwnBodyFrame` re-proves the (−gx, −gz, −gy) mapping against `gear.pos`
+and the lower-wing root LE datum, `TheDrawnPipeMouthsAreTheAuthoredSmokePipes` measures every mouth of every livery
+against `smoke.pipes`, and `TheFirewallPlateIsDrawnAtTheMeasuredFirewall` holds the engine's aft face on the station
+and refuses a transverse plate anywhere forward of it.
