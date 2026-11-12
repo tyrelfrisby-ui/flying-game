@@ -85,11 +85,17 @@ public class ExhaustPulseTests
 
     /// <summary>Mean exit speeds at sea level from each type's own smoke config: idle (700 rpm, throttle closed), cruise
     /// (2,400 rpm, 0.65) and full power (2,700 rpm, open). Worked by hand: ṁ = ρ·VE·fresh·MAP·V_d·rpm/120·(1 + 1/AFR),
-    /// fresh = (1 − (1/MAP)^(1/1.35)/r_c)/(1 − 1/r_c), U = ṁ/(ρ_e·A), ρ_e = ρ·288.15/900, 4 in pipe.</summary>
+    /// fresh = (1 − (1/MAP)^(1/1.35)/r_c)/(1 − 1/r_c), U = ṁ/(ρ_e·A), ρ_e = ρ·288.15/900, A = N pipes of the type's bore.
+    ///
+    /// THE AREA, AND ONLY THE AREA, MOVED ON 2026-11-11. Asked whether the two smoke pipes he measured are the exhaust
+    /// stacks themselves, Ty said yes, so the Pitts and the Extra stopped reading the single 4 in default and started
+    /// reading their own stacks: 2 × 1.5 in = 22.80 cm² and 2 × 2.0 in = 40.54 cm² against 81.07. U is ∝ 1/A, so the
+    /// Pitts' three numbers are ×3.556 and the Extra's ×2.000, to the digit — ṁ, VE, AFR, γ, r_c and T_e are all exactly
+    /// what they were. The 172 still has one 4 in stack and has not moved at all, which is the control.</summary>
     [Theory]
-    [InlineData("pitts-s2b-like", 6, 4.47, 45.96, 70.61)]
-    [InlineData("extra-300-like", 6, 4.45, 45.84, 70.41)]
-    [InlineData("c172-like", 4, 2.96, 30.62, 47.07)]
+    [InlineData("pitts-s2b-like", 6, 15.88, 163.42, 251.06)]   // was 4.47 / 45.96 / 70.61 on one 4 in stack: ×3.556
+    [InlineData("extra-300-like", 6, 8.91, 91.67, 140.83)]     // was 4.45 / 45.84 / 70.41: ×2.000
+    [InlineData("c172-like", 4, 2.96, 30.62, 47.07)]           // one 4 in stack, unchanged
     public void ExitSpeedsAtIdleCruiseAndFullPower(string id, int cylinders, double idle, double cruise, double full)
     {
         var cfg = Load(id);
@@ -100,5 +106,10 @@ public class ExhaustPulseTests
         Assert.InRange(ui, idle - 0.02, idle + 0.02);
         Assert.InRange(uc, cruise - 0.05, cruise + 0.05);
         Assert.InRange(uf, full - 0.05, full + 0.05);
+        // The three are one curve scaled by the area, so the ratio to the 4 in default is the area ratio and nothing else.
+        double four = ExhaustJet.ExitVelocity(cfg.Smoke.DisplacementCuIn * 16.387e-6, 2700, 1, 1.225, 4 * 0.0254,
+            cfg.Smoke.ExhaustTempK, compressionRatio: cfg.Smoke.CompressionRatio);
+        double areaRatio = Math.PI * 0.1016 * 0.1016 / 4 / (cfg.Smoke.JetPipeCount * Math.PI * cfg.Smoke.JetPipeDiameterM * cfg.Smoke.JetPipeDiameterM / 4);
+        Assert.Equal(areaRatio, uf / four, 3);
     }
 }

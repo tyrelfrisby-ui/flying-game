@@ -165,6 +165,28 @@ public static class Flutter
     public static double StrengthAtOneG(double ratioAtOneG, double breakRatio = OverstressMember.BreakRatio)
         => breakRatio > 0.0 ? Math.Clamp(ratioAtOneG / breakRatio, 0.0, 1.0) : 1.0;
 
+    /// <summary>
+    /// THE FIN'S FATIGUE ENDPOINT, as a multiple of the fin's load from ONE full rudder deflection at Va
+    /// (<see cref="FlyingGame.Core.DataContracts.LimitsConfig.FinOrdinaryLoadN"/>). Ty 2026-11-11, verbatim: the fin
+    /// "fails at the equivalent of full rudder at 75% va speed."
+    ///
+    /// WHY A FACTOR AND NOT A 33rd AUTHORED NUMBER PER TYPE. The endpoint is a load, and the honest way to get a
+    /// load is to fly the case — which FinLoadProbe does, at 0.75 Va, on every type that publishes a fin limit. The
+    /// fleet was measured on 2026-11-11 and the ratio of the 0.75 Va peak to the Va peak came out at 0.5503 .. 0.6082,
+    /// mean 0.5697, median 0.5691, against the 0.5625 that pure dynamic pressure (V squared at a fixed deflection)
+    /// says it must be: 28 of 33 types inside 3 %, 31 inside 5 %. The measurement agrees with the arithmetic to
+    /// inside the manoeuvre's own scatter, so this factor IS the measurement, and carrying it as one derived
+    /// constant leaves ONE number per type to go stale instead of two.
+    /// FinLoadProbe.TheEndpointScalesWithDynamicPressure re-flies the case and is the standing justification: it
+    /// fails if the agreement ever stops holding.
+    ///
+    /// THE TWO TYPES THAT DEPART are the J-3 Cub and the J-3 on floats, both at +8 % (0.608, not 0.5625) — the
+    /// slowest Va in the fleet, so its 0.75 Va sits nearest the stall and the case is no longer at a small alpha.
+    /// Deriving makes the Cub's endpoint 8 % LOWER than its own measurement, which is the conservative direction:
+    /// the fatigued fin lets go a touch earlier, not later.
+    /// </summary>
+    public const double FinEndpointOverOrdinary = 0.75 * 0.75;
+
     /// <summary>The same shape expressed against a published limit, for the TABLE a pilot reads: at index 0 the
     /// structure's certificated ultimate, at index 1 one g.</summary>
     public static double StrengthForIndexFromLimit(double index, double limitG, double breakRatio = OverstressMember.BreakRatio)
