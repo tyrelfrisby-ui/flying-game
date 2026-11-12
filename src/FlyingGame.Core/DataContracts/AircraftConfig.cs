@@ -822,6 +822,33 @@ public sealed class SpinAeroConfig
     public double ControlSpoilerK { get; set; } = 0.0;
 
     /// <summary>
+    /// THE SAME TERM AT NEGATIVE α_chord, so the coefficient can differ upright and inverted. Negative (the default,
+    /// −1) means "not authored": every strip then uses <see cref="ControlSpoilerK"/> and the law is exactly what it
+    /// was, bit for bit, on every type in the fleet — <see cref="FlyingGame.Core.Aero.AeroModel"/> resolves the
+    /// fallback once per call, and `SpoilerAsymmetryTests` walks every config and proves the equality.
+    ///
+    /// Ty, 2026-11-11, having flown the published build: <i>"On the current build beggs mueller passes easily
+    /// inverted and barely upright probably 10 turns or so but it did pass we should try to get beggs mueller which
+    /// I will call BM TO PASS WITHIN 4 turns so bump the spoiler up a bit upright but leave the inverted curve the
+    /// same so it will be an assymetric spoiler k for positive and negative aoa or deflection."</i>
+    ///
+    /// ONE LAW, TWO COEFFICIENTS: <see cref="FlyingGame.Core.Aero.AeroModel"/> resolves
+    /// k = ControlSpoilerKNeg + (ControlSpoilerK − ControlSpoilerKNeg)·f once per call, where f goes 0→1 across
+    /// about ±3° of the AEROPLANE'S OWN α (sin α = w/|V|, so no atan2 and no wrap), and the term is otherwise
+    /// exactly what it was. Equal coefficients give k = ControlSpoilerK bit for bit, which is why nothing else in
+    /// the fleet moves.
+    ///
+    /// WHY THE AEROPLANE'S α AND NOT THE STRIP'S. Ty offered "aoa or deflection"; α separates his two cases and
+    /// deflection does not, because the stick is on a stop in both an upright and an inverted spin. But it must be
+    /// the AEROPLANE'S α: on a VERTICAL surface a strip's own α sign is which SIDE the air comes from, so gating
+    /// the fin on that would put a left spin and a right spin on different coefficients and the aeroplane would
+    /// spin differently each way. The aeroplane's α is upright-versus-inverted and nothing else, so both tails can
+    /// use it. The ±3° blend exists so that a roll through level flight has no step in it; the term's own onset
+    /// ramp already makes it inert there, so the blend costs nothing and removes the discontinuity anyway.
+    /// </summary>
+    public double ControlSpoilerKNeg { get; set; } = -1.0;
+
+    /// <summary>
     /// WHERE <see cref="ControlSpoilerK"/> STARTS, in degrees of the strip's own flow angle; it is full 20° later.
     /// Default 30, which is the angle it shipped with and the one Ty flew and accepted ("That is it! Now it behaves
     /// like a Pitts really does"), so no type changes until it is entered.

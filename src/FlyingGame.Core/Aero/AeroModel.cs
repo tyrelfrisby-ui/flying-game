@@ -684,6 +684,24 @@ public static class AeroModel
         double finSidewashK = config.SpinAero?.FinSidewashK ?? 0.0;
         double stabSidewashK = config.SpinAero?.StabSidewashK ?? 0.0;
         double controlSpoilerK = config.SpinAero?.ControlSpoilerK ?? 0.0;
+        // THE SAME COEFFICIENT AT NEGATIVE alpha_chord (SpinAeroConfig.ControlSpoilerKNeg, Ty 2026-11-11: "an
+        // assymetric spoiler k for positive and negative aoa"). Not authored (< 0) means "the same as positive", so
+        // the fallback resolves here, once, and every type that does not carry the field is bit-identical.
+        double controlSpoilerKNegCfg = config.SpinAero?.ControlSpoilerKNeg ?? -1.0;
+        double controlSpoilerKNeg = controlSpoilerKNegCfg >= 0.0 ? controlSpoilerKNegCfg : controlSpoilerK;
+        // WHICH SIDE OF ZERO ALPHA THE AEROPLANE IS ON, which is what "positive and negative aoa" means and is the
+        // only form of the gate that keeps a LEFT spin and a RIGHT spin identical. sin(alpha_body) = w / |V|, so no
+        // atan2 and no wrap; blended over about +-3 deg so a roll through level flight has no step in it (the term
+        // is inert there anyway, because its onset ramp needs a broadside strip). Computed once: it is a
+        // whole-aircraft quantity, not a per-strip one.
+        double spoilU = bodyVelocity.X - windBody.X, spoilW = bodyVelocity.Z - windBody.Z;
+        double spoilV = Math.Sqrt(spoilU * spoilU + spoilW * spoilW
+                                  + (bodyVelocity.Y - windBody.Y) * (bodyVelocity.Y - windBody.Y));
+        double spoilSinA = spoilV > 1e-6 ? spoilW / spoilV : 0.0;
+        double spoilPosFrac = Math.Clamp(0.5 + spoilSinA / 0.1, 0.0, 1.0);
+        // Equal coefficients collapse this to the old single value EXACTLY (k - k is 0, so the blend adds 0),
+        // which is why every type that does not author the field is bit-identical. SpoilerAsymmetryTests pins that.
+        double controlSpoilerKUse = controlSpoilerKNeg + (controlSpoilerK - controlSpoilerKNeg) * spoilPosFrac;
         // Where that term starts, in degrees of the strip's own flow (SpinAeroConfig.ControlSpoilerOnsetDeg, 30 by
         // default = what shipped). It is a field because the angle belongs to the SECTION, not to the fleet: 30 was
         // right for a NACA 0012 tail and is late for a flat plate, which stalls at 9-12 deg. See the config doc.
@@ -1381,7 +1399,15 @@ public static class AeroModel
                 // arithmetic wall that defeated three attempts at reshaping that curve - and the Extra needs it most:
                 // its fin stands too far off the body for FinSidewashK to reach, so its rudder gained only 1.0 -> 1.4
                 // deg/s2 at alpha 80 from the crossflow that transformed the Pitts'.
-                if (controlSpoilerK > 0.0 && !isWing && strip.Control is not null
+                //
+                // ASYMMETRIC IN ALPHA SINCE 2026-11-11 (SpinAeroConfig.ControlSpoilerKNeg, Ty: "an assymetric
+                // spoiler k for positive and negative aoa"). ONE LAW, TWO COEFFICIENTS: controlSpoilerKUse is
+                // resolved above from the AEROPLANE'S own alpha, not the strip's, and both tails use it. The
+                // aeroplane's alpha is the right discriminator for two reasons — it is what he means by "positive
+                // and negative aoa", and on a VERTICAL surface the strip's own alpha sign is which SIDE the air
+                // comes from, so gating the fin on that would make a left spin and a right spin land on different
+                // coefficients. Equal values are bit-identical to the single-coefficient law.
+                if (controlSpoilerKUse > 0.0 && !isWing && strip.Control is not null
                     && Math.Abs(strip.Control.Gain) >= 0.9 && Math.Abs(deflEff) > 1e-9)
                 {
                     double aChord = alphaBase + stripIncidence;
@@ -1390,7 +1416,7 @@ public static class AeroModel
                     double ramp = Math.Clamp((ad - spoilerOnsetDeg) / 20.0, 0.0, 1.0);
                     if (ramp > 0.0)
                     {
-                        double n = controlSpoilerK * Math.Sin(strip.Control.Gain * deflEff) * Math.Abs(Math.Sin(aChord))
+                        double n = controlSpoilerKUse * Math.Sin(strip.Control.Gain * deflEff) * Math.Abs(Math.Sin(aChord))
                                    * ramp * q * strip.Area;
                         Vec3 spoil = (liftDir * Math.Cos(aChord) - dragDir * Math.Sin(aChord)) * n;
                         force += spoil;
