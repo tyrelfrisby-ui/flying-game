@@ -68,7 +68,19 @@ public class BreakupTests : IDisposable
     /// <summary>Changed 2026-11-04 (Ty: "for all steel tube airplanes ... the fuselage doesn't break apart other than at the
     /// firewall"; FuselageStructure). The break-up rule is now an ALUMINIUM fuselage's: a C172 tail-first at 10 m/s, past
     /// the tail cone's 5.5·√2 = 7.8 m/s single-blow speed, loses its tail boom and surfaces. The PA-18 (steel tube) the
-    /// test used to drop at 7 m/s now bends its tail instead (<see cref="SteelTubeTailConeStrikeBendsTheTail"/>).</summary>
+    /// test used to drop at 7 m/s now bends its tail instead (<see cref="SteelTubeTailConeStrikeBendsTheTail"/>).
+    ///
+    /// AND IT GOES ON TO LOSE THE CABIN AND THE NOSE — Ty 2026-11-12, overturning this test's own
+    /// Assert.DoesNotContain(Nose). That assertion stood from 2026-11-04 to 2026-11-12 because of a bug, not because
+    /// the aeroplane survived: the stubs left by the three torn-off legs were indestructible, and they held the
+    /// airframe clear of its own belly so the belly slam never happened at all. With the stubs folding as they should
+    /// (Aircraft.CollapseFoldingPoints) this aeroplane snaps its boom, pitches down off 25° nose-up, tears all three
+    /// legs off and reaches its BELLY AT 12.5 m/s, past an aluminium cabin's 8·√2 = 11.3 m/s single-blow speed. So the
+    /// cabin breaks on one blow and takes the nose with it. Nothing in the crush law changed to make that happen — it
+    /// is the 2026-11-04 law meeting an impact it had been shielded from.
+    ///
+    /// What this test is still FOR is the first event: the tail cone arrives, the boom and its surfaces go, the tail
+    /// aero is masked out and the boom stub appears. Those assertions are unchanged and all precede the belly.</summary>
     [Fact]
     public void TailConeStrikeSnapsTheTailBoomAndItsSurfaces()
     {
@@ -80,7 +92,11 @@ public class BreakupTests : IDisposable
         Run(ac, 1.0);
         _out.WriteLine("lost: " + string.Join(", ", ac.LostComponents));
         Assert.Contains(AirframeComponent.TailBoom, ac.LostComponents);
-        Assert.DoesNotContain(AirframeComponent.Nose, ac.LostComponents);
+        // The belly follows (Ty 2026-11-12, above): 12.5 m/s on an aluminium cabin is one blow past its capacity.
+        Assert.Contains(AirframeComponent.Cabin, ac.LostComponents);
+        Assert.Contains(AirframeComponent.Nose, ac.LostComponents);
+        Assert.True(ac.Crush.CabinCrushM > FuselageStructure.CapacityM(FuselageStructure.Of(c), AirframeComponent.Cabin),
+                    $"cabin crush {ac.Crush.CabinCrushM:F3} m should have passed its capacity in ONE blow");
         // Tail aero is gone: every hstab/vstab strip masked; wing strips kept.
         bool[]? mask = ac.StripMask; Assert.NotNull(mask);
         int idx = 0;
