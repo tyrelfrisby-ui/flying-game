@@ -90,6 +90,12 @@ public sealed class ContactPoint
     /// <summary>A blade-tip station on the propeller disc. The disc is not a hard point — a turning blade cuts or curls,
     /// it cannot hold the aeroplane up — so it pushes nothing; its penetration is the prop strike (Aircraft).</summary>
     public bool PropDisc;
+    /// <summary>A point that FOLDS instead of breaking what it is welded to. The stub of a torn-off gear leg is one: it
+    /// holds the aeroplane off its belly on the ground, but a hard arrival collapses the remnant and the fitting it hangs
+    /// from, and the airframe comes down on the structure behind it. Its arrival is still recorded (the aeroplane removes
+    /// the point, <c>Aircraft.CollapseFoldingPoints</c>) but it never charges its section's crush: the leg already
+    /// absorbed its own failure, and charging the section again for the stub counted that energy twice.</summary>
+    public bool Collapses;
     /// <summary>Contact spring and damper multiplier for a point on a flexible part. A wingtip is a cantilever of tip
     /// stiffness k_w in series with the contact's k_c: it presses with k_w/(k_c + k_w) of a hard point's force for the
     /// same approach, and the rest of that approach is the wing bending UP (WingPanel.ElasticRad) — not the ground
@@ -310,6 +316,17 @@ public static class AirframeContact
     public const double TailBoomBreakMs = 5.5, CabinBreakMs = 8.0, NoseBreakMs = 6.0;
 
     /// <summary>Which component a landing-gear leg belongs to: tailwheel, nose (centreline), left or right main.</summary>
+    /// <summary>The fuselage section that owns the body station <paramref name="xBody"/>, and its break speed. A hard
+    /// point welded to the airframe reports as the section it is part of; FuselageStructure.IsSection is Nose, Cabin and
+    /// TailBoom only, so AirframeComponent.Fuselage is owned by nothing and crushes nowhere.</summary>
+    public static (AirframeComponent Section, double BreakSpeedMs) FuselageSectionAt(AircraftConfig c, double xBody)
+    {
+        (double noseCutX, double tailCutX) = FuselageStations(c);
+        if (xBody >= noseCutX) return (AirframeComponent.Nose, NoseBreakMs);
+        if (xBody <= tailCutX) return (AirframeComponent.TailBoom, TailBoomBreakMs);
+        return (AirframeComponent.Cabin, CabinBreakMs);
+    }
+
     public static AirframeComponent GearComponent(GearConfig g) =>
         g.IsTailwheel ? AirframeComponent.GearTail : g.Pos[1] < -0.05 ? AirframeComponent.GearLeft : g.Pos[1] > 0.05 ? AirframeComponent.GearRight : AirframeComponent.GearNose;
 
@@ -912,7 +929,7 @@ public static class AirframeContact
                     {
                         p.ArrivalPending = true; p.ArrivalMs = closing; p.ArrivalNormalBody = s.Attitude.Conjugate().Rotate(normal);
                     }
-                    if (!broken.Contains(p.Component)) broken.Add(p.Component);
+                    if (!p.Collapses && !broken.Contains(p.Component)) broken.Add(p.Component);
                 }
             }
             if (ditching && waterByHydro)

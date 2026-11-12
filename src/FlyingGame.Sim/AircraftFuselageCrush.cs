@@ -23,6 +23,25 @@ public sealed partial class Aircraft
     /// <summary>Crush taken so far by a member that is not a fuselage section (MemberMaterials.CrushCapacityM), m.</summary>
     public double MemberCrushM(AirframeComponent c) => _memberCrushM.TryGetValue(c, out double d) ? d : 0.0;
 
+    /// <summary>A folding hard point (<see cref="ContactPoint.Collapses"/> - the stub left by a torn-off gear leg) that
+    /// arrived above its break speed is GONE: the remnant and its fitting crush flat and the airframe comes down on
+    /// whatever is behind them. It charges its section nothing, so this runs BEFORE the crush accumulator sees the step.
+    ///
+    /// The stub is a hard point of the section it is welded to, so for a gentle arrival it holds the aeroplane up on its
+    /// belly's behalf, which is right - a Cub that loses both mains at 2.8 m/s sits on its gear-leg stubs. But a 45 %
+    /// remnant of a spring-steel leg cannot out-live the fuselage box it hangs from: a C172 that fell tail-first at
+    /// 10 m/s, snapped its boom and tore all three legs off took 0.105 m of cabin crush from a stub, 70 % of an
+    /// aluminium cabin's 0.150 m capacity, and that charged the same collapse twice - the leg already absorbed its own
+    /// failure when it tore off.</summary>
+    private void CollapseFoldingPoints()
+    {
+        for (int i = _contacts.Count - 1; i >= 0; i--)
+        {
+            ContactPoint p = _contacts[i];
+            if (p.Collapses && p.ArrivalPending && p.BreakSpeedMs > 0 && p.ArrivalMs > p.BreakSpeedMs) _contacts.RemoveAt(i);
+        }
+    }
+
     /// <summary>Drop from <see cref="_pendingBreaks"/> every fuselage section, and every other member, that crushes instead
     /// of breaking this step.</summary>
     private void FilterFuselageBreaks()

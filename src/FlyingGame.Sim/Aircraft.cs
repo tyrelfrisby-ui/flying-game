@@ -977,11 +977,21 @@ public sealed partial class Aircraft
         if (comp is AirframeComponent.GearLeft or AirframeComponent.GearRight or AirframeComponent.GearNose or AirframeComponent.GearTail)
         {
             // The leg is gone: the wheel no longer carries anything; a stub hard point 45 % up the leg does.
+            // AND THE STUB IS PART OF THE SECTION IT IS WELDED TO, which is what it reports as. Until 2026-11-12 it was
+            // tagged AirframeComponent.Fuselage with a break speed of 0 - a component no crush section owns and a speed
+            // that never raises an arrival - so the stub was INDESTRUCTIBLE and absorbed nothing. On every upright type
+            // in the fleet the stub is the lowest point left once the gear has gone, by 13 to 24 cm (Extra 0.774 against
+            // a belly at 0.533, Decathlon 0.743/0.550, J-3 0.660/0.500, C172 0.632/0.600), so a belly slam landed on the
+            // stubs and whether the belly ever reached the ground at all was luck.
             _lostGear.Add(comp);
             Vec3 cgv = Config.Mass.CgVec();
             foreach (GearConfig g in Config.Gear)
                 if (AirframeContact.GearComponent(g) == comp)
-                    _contacts.Add(new ContactPoint { Body = new Vec3(cgv.X + g.Pos[0], cgv.Y + g.Pos[1], cgv.Z + g.Pos[2] * 0.55), Component = AirframeComponent.Fuselage, BreakSpeedMs = 0, Name = "gear-stub" });
+                {
+                    var stub = new Vec3(cgv.X + g.Pos[0], cgv.Y + g.Pos[1], cgv.Z + g.Pos[2] * 0.55);
+                    (AirframeComponent section, double breakMs) = AirframeContact.FuselageSectionAt(Config, stub.X);
+                    _contacts.Add(new ContactPoint { Body = stub, Component = section, BreakSpeedMs = breakMs, Name = "gear-stub", Collapses = true });
+                }
         }
         if (comp == AirframeComponent.TailBoom)
         {
@@ -2212,6 +2222,7 @@ public sealed partial class Aircraft
         StepTrees(preStep, dt);   // stems and crowns: snap, stop, or take the part that hit them (AircraftTreeStrike)
         StepGlazing(dt);          // the canopy, windshield and windows: shattered only by a direct arrival (AircraftGlazing)
         if (_impacts.MaxClosingMs > 0.0) LastImpact = _impacts.Last;
+        CollapseFoldingPoints();  // a torn leg's stub folds under a hard arrival instead of punching the fuselage
         FilterFuselageBreaks();   // a fuselage section crushes before it breaks (AircraftFuselageCrush)
         foreach (AirframeComponent c in _pendingBreaks) LoseComponent(c);
         AfterStepContactDamage(dt);
